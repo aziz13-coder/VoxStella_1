@@ -1,0 +1,268 @@
+{
+  "generated_at": "2026-04-03T13:16:04+03:00",
+  "purpose": "Replay results for the second replay-ready synastry historical validation slice.",
+  "case_count": 3,
+  "status_counts": {
+    "partially_aligned": 1,
+    "aligned": 2
+  },
+  "matched_dimension_counts": {
+    "growth": 1,
+    "friction": 2,
+    "burden": 1,
+    "attraction": 2,
+    "attachment": 1
+  },
+  "missed_primary_dimension_counts": {
+    "burden": 1
+  },
+  "missed_secondary_dimension_counts": {
+    "attraction": 1
+  },
+  "results": [
+    {
+      "case_id": "frida_kahlo_diego_rivera",
+      "title": "Frida Kahlo and Diego Rivera",
+      "status": "partially_aligned",
+      "comparison": {
+        "status": "partially_aligned",
+        "matched_dimensions": [
+          "growth"
+        ],
+        "missed_primary_dimensions": [
+          "burden"
+        ],
+        "missed_secondary_dimensions": [
+          "attraction"
+        ],
+        "dimension_results": {
+          "growth": {
+            "dimension": "growth",
+            "priority": "primary",
+            "expected_band_range": [
+              4,
+              5
+            ],
+            "observed_score": 78.0,
+            "observed_band": 4,
+            "within_range": true
+          },
+          "burden": {
+            "dimension": "burden",
+            "priority": "primary",
+            "expected_band_range": [
+              3,
+              5
+            ],
+            "observed_score": 43.0,
+            "observed_band": 2,
+            "within_range": false
+          },
+          "attraction": {
+            "dimension": "attraction",
+            "priority": "secondary",
+            "expected_band_range": [
+              3,
+              5
+            ],
+            "observed_score": 22.0,
+            "observed_band": 1,
+            "within_range": false
+          }
+        }
+      },
+      "category_scores": {
+        "overall": 50,
+        "resonance": 21,
+        "communication": 63,
+        "attraction": 22,
+        "compatibility": 57,
+        "attachment": 50,
+        "growth": 78,
+        "friction": 58,
+        "burden": 43
+      },
+      "summary_lines": [
+        "Strongest support: Mercury Trine Mercury.",
+        "Main compensation factor: Natal lack activated.",
+        "Main pressure: Descendant Quincunx Saturn.",
+        "Mutual reception adds extra binding force beneath the visible contacts."
+      ],
+      "top_supportive_titles": [
+        "Mercury Trine Mercury",
+        "Mutual reception",
+        "Unilateral reception",
+        "Jupiter in partner's House 1",
+        "Mercury in partner's House 4"
+      ],
+      "top_challenging_titles": [
+        "Descendant Quincunx Saturn",
+        "Saturn in partner's House 9",
+        "Moon Square North Node",
+        "Mars in partner's House 5",
+        "Mars Conjunction Mars"
+      ]
+    },
+    {
+      "case_id": "sid_nancy",
+      "title": "Sid Vicious and Nancy Spungen",
+      "status": "aligned",
+      "comparison": {
+        "status": "aligned",
+        "matched_dimensions": [
+          "friction",
+          "burden",
+          "attraction"
+        ],
+        "missed_primary_dimensions": [],
+        "missed_secondary_dimensions": [],
+        "dimension_results": {
+          "friction": {
+            "dimension": "friction",
+            "priority": "primary",
+            "expected_band_range": [
+              4,
+              5
+            ],
+            "observed_score": 90.0,
+            "observed_band": 5,
+            "within_range": true
+          },
+          "burden": {
+            "dimension": "burden",
+            "priority": "primary",
+            "expected_band_range": [
+              4,
+              5
+            ],
+            "observed_score": 100.0,
+            "observed_band": 5,
+            "within_range": true
+          },
+          "attraction": {
+            "dimension": "attraction",
+            "priority": "secondary",
+            "expected_band_range": [
+              3,
+              5
+            ],
+            "observed_score": 55.0,
+            "observed_band": 3,
+            "within_range": true
+          }
+        }
+      },
+      "category_scores": {
+        "overall": 42,
+        "resonance": 63,
+        "communication": 26,
+        "attraction": 55,
+        "compatibility": 52,
+        "attachment": 77,
+        "growth": 100,
+        "friction": 90,
+        "burden": 100
+      },
+      "summary_lines": [
+        "Strongest support: Unilateral reception.",
+        "Main pressure: Moon Quincunx Sun.",
+        "Mutual reception adds extra binding force beneath the visible contacts."
+      ],
+      "top_supportive_titles": [
+        "Unilateral reception",
+        "Mercury Sextile Ascendant",
+        "Ascendant Trine Mercury",
+        "Mars Trine North Node",
+        "Jupiter in partner's House 7"
+      ],
+      "top_challenging_titles": [
+        "Moon Quincunx Sun",
+        "Saturn Square Ascendant",
+        "Saturn Square Descendant",
+        "Saturn Opposition Moon",
+        "Directional overlay imbalance"
+      ]
+    },
+    {
+      "case_id": "elizabeth_taylor_richard_burton",
+      "title": "Elizabeth Taylor and Richard Burton",
+      "status": "aligned",
+      "comparison": {
+        "status": "aligned",
+        "matched_dimensions": [
+          "attraction",
+          "friction",
+          "attachment"
+        ],
+        "missed_primary_dimensions": [],
+        "missed_secondary_dimensions": [],
+        "dimension_results": {
+          "attraction": {
+            "dimension": "attraction",
+            "priority": "primary",
+            "expected_band_range": [
+              4,
+              5
+            ],
+            "observed_score": 70.0,
+            "observed_band": 4,
+            "within_range": true
+          },
+          "friction": {
+            "dimension": "friction",
+            "priority": "primary",
+            "expected_band_range": [
+              4,
+              5
+            ],
+            "observed_score": 100.0,
+            "observed_band": 5,
+            "within_range": true
+          },
+          "attachment": {
+            "dimension": "attachment",
+            "priority": "secondary",
+            "expected_band_range": [
+              3,
+              5
+            ],
+            "observed_score": 100.0,
+            "observed_band": 5,
+            "within_range": true
+          }
+        }
+      },
+      "category_scores": {
+        "overall": 49,
+        "resonance": 45,
+        "communication": 6,
+        "attraction": 70,
+        "compatibility": 62,
+        "attachment": 100,
+        "growth": 78,
+        "friction": 100,
+        "burden": 61
+      },
+      "summary_lines": [
+        "Strongest support: Moon Conjunction Sun.",
+        "Main compensation factor: Earth lack filled.",
+        "Main pressure: Venus Quincunx Saturn.",
+        "Mutual reception adds extra binding force beneath the visible contacts."
+      ],
+      "top_supportive_titles": [
+        "Moon Conjunction Sun",
+        "Mutual reception",
+        "Unilateral reception",
+        "Mars Sextile Venus",
+        "Saturn Trine Descendant"
+      ],
+      "top_challenging_titles": [
+        "Venus Quincunx Saturn",
+        "Saturn Square Mars",
+        "Mercury Square Mercury",
+        "Sun Square Mercury",
+        "Saturn Square Mars"
+      ]
+    }
+  ]
+}

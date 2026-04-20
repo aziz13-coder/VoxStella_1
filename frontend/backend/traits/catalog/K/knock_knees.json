@@ -1,0 +1,14 @@
+{
+  "id": "knock_knees",
+  "name": "Knock‑knees (genu valgum)",
+  "domain": "physique",
+  "description": "Physical conformation note to complement 'Bandy legs'; placeholder until Carter’s specific sign/planet mapping for knock‑knees is extracted.",
+  "confidence": "low",
+  "polarity": "negative",
+  "sources": ["Carter: Bandy legs reference; K: Knock‑knees (TBD)"],
+  "logic": { "base": 0,
+    "boosts": [],
+    "dampeners": [],
+    "escalators": [] }
+}
+

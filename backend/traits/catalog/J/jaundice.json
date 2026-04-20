@@ -1,0 +1,14 @@
+{
+  "id": "jaundice",
+  "name": "Jaundice (tendency)",
+  "domain": "disease_hepatobiliary",
+  "description": "Hepatobiliary tendency: worst when Jupiter afflicts the Lights; stronger in Jupiter signs.",
+  "confidence": "low",
+  "polarity": "negative",
+  "sources": ["Carter: biliousness extended to jaundice"],
+  "logic": { "base": 0,
+    "boosts": [ { "kind": "aspect", "pair": ["Jupiter","Sun"], "type": "hard", "max_orb": 6, "weight": 10 }, { "kind": "aspect", "pair": ["Jupiter","Moon"], "type": "hard", "max_orb": 6, "weight": 10 }, { "kind": "sign_group_emphasis", "group": ["Sagittarius","Pisces"], "min": 2.0, "weight": 4 } ],
+    "dampeners": [ { "kind": "planet_status", "planet": "Sun", "strong": true, "weight": -4 }, { "kind": "planet_status", "planet": "Moon", "strong": true, "weight": -4 } ],
+    "escalators": [] }
+}
+

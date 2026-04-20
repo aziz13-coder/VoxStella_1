@@ -1,0 +1,23 @@
+{
+  "id": "dipsomania",
+  "name": "Dipsomania (alcoholism tendency)",
+  "domain": "compulsion_addiction",
+  "description": "Compulsive drinking risk linked to Neptune prominence/affliction, Jupiter, Water, and 12th house.",
+  "confidence": "low",
+  "polarity": "negative",
+  "sources": ["Carter: Dipsomania"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "planet_status", "planet": "Neptune", "afflicted": true, "weight": 10 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 6 },
+      { "kind": "element", "element": "Water", "min_share": 0.35, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [12], "min_total": 1, "weight": 6 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -8 }
+    ],
+    "escalators": []
+  }
+}
+

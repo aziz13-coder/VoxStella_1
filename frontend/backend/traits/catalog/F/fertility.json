@@ -1,0 +1,27 @@
+{
+  "id": "fertility",
+  "name": "Fertility (fecundity)",
+  "domain": "reproductive_tendency",
+  "description": "Fecund tendency when Moon/Venus are strong (esp. in Cancer/Taurus) and 5th is supported; Saturn afflictions reduce.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Traditional sign/house analogies; Carter general"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "planet_status", "planet": "Moon", "strong": true, "weight": 8 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": 8 },
+      { "kind": "planet_in_sign", "planet": "Moon", "sign": "Cancer", "weight": 6 },
+      { "kind": "planet_in_sign", "planet": "Venus", "sign": "Taurus", "weight": 6 },
+      { "kind": "house_emphasis", "houses": [5], "min_total": 1, "weight": 6 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -6 },
+      { "kind": "aspect", "pair": ["Saturn","Moon"], "type": "hard", "max_orb": 6, "weight": -6 },
+      { "kind": "aspect", "pair": ["Saturn","Venus"], "type": "hard", "max_orb": 6, "weight": -6 },
+      { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": -4 }
+    ],
+    "escalators": []
+  }
+}
+

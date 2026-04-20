@@ -1,0 +1,142 @@
+[
+  {
+    "id": "ronnie_lee_bakley",
+    "status_code": 200,
+    "success": true,
+    "comparison": {
+      "status": "aligned",
+      "matched_axes": [
+        "domestic_partner_involvement",
+        "violence_homicide"
+      ],
+      "missed_axes": [],
+      "contradicted_axes": []
+    },
+    "categories": {
+      "Deception": 2,
+      "Degree Signatures": 1,
+      "Domestic": 1,
+      "Houses": 1
+    },
+    "top_finding_titles": [
+      "Partner-linked homicide pattern is active",
+      "Malefic in the 6th house",
+      "Venus in detriment with Saturn influence",
+      "Mute signs on angles",
+      "Mid-degree focus (\u224815\u00b0)"
+    ]
+  },
+  {
+    "id": "marvin_gaye",
+    "status_code": 200,
+    "success": true,
+    "comparison": {
+      "status": "aligned",
+      "matched_axes": [
+        "family_involvement",
+        "violence_homicide",
+        "authority_or_public_case"
+      ],
+      "missed_axes": [],
+      "contradicted_axes": []
+    },
+    "categories": {
+      "Deception": 2,
+      "Degree Signatures": 1,
+      "Family": 1,
+      "Public": 1
+    },
+    "top_finding_titles": [
+      "Family homicide pressure concentrates on parental/public houses",
+      "Public or celebrity case axis is strongly saturated",
+      "Mute signs on angles",
+      "Mute signs on 3rd/9th",
+      "Mid-degree focus (\u224815\u00b0)"
+    ]
+  },
+  {
+    "id": "alice_crimmins",
+    "status_code": 200,
+    "success": true,
+    "comparison": {
+      "status": "aligned",
+      "matched_axes": [
+        "family_involvement",
+        "child_victim",
+        "violence_homicide"
+      ],
+      "missed_axes": [],
+      "contradicted_axes": []
+    },
+    "categories": {
+      "Children": 1,
+      "Deception": 3,
+      "Family": 2,
+      "Public": 1,
+      "Truth": 1,
+      "Violence": 2
+    },
+    "top_finding_titles": [
+      "Life/death overlap points to violence or homicide",
+      "Hidden victim with angular violence markers",
+      "Family axis activated by Moon and domestic houses",
+      "Child and family signatures overlap",
+      "Mercury in the 12th house"
+    ]
+  },
+  {
+    "id": "air_france_447",
+    "status_code": 200,
+    "success": true,
+    "comparison": {
+      "status": "aligned",
+      "matched_axes": [
+        "accident_or_disaster",
+        "water_disappearance_or_drowning"
+      ],
+      "missed_axes": [],
+      "contradicted_axes": []
+    },
+    "categories": {
+      "Associates": 1,
+      "Deception": 1,
+      "Degree Signatures": 2,
+      "Disaster": 1,
+      "Water": 1
+    },
+    "top_finding_titles": [
+      "Travel accident or disaster pattern is active",
+      "Water or drowning signatures are foregrounded",
+      "Friend or close associate axis is active",
+      "Planet at sign ingress (0\u00b0\u20131\u00b0)",
+      "Mute signs on angles"
+    ]
+  },
+  {
+    "id": "costa_concordia",
+    "status_code": 200,
+    "success": true,
+    "comparison": {
+      "status": "aligned",
+      "matched_axes": [
+        "accident_or_disaster",
+        "water_disappearance_or_drowning"
+      ],
+      "missed_axes": [],
+      "contradicted_axes": []
+    },
+    "categories": {
+      "Deception": 2,
+      "Degree Signatures": 2,
+      "Disaster": 1,
+      "Water": 1
+    },
+    "top_finding_titles": [
+      "Waterborne accident or disaster signatures are foregrounded",
+      "Any planet anaretic",
+      "Water or drowning signatures are foregrounded",
+      "North Node in the 4th house (staged-location deception)",
+      "Planet at sign ingress (0\u00b0\u20131\u00b0)"
+    ]
+  }
+]

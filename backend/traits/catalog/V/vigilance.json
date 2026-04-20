@@ -1,0 +1,23 @@
+{
+  "id": "vigilance",
+  "name": "Vigilance (attention to detail)",
+  "domain": "work_style",
+  "description": "Patient, careful monitoring and methodical attention to detail with Virgo/Earth and dignified Mercury/Saturn; Neptune distraction and Fire impatience reduce.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Virgo patient/careful/discerning; Earth practicality; Saturn method"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Virgo", "min": 1.5, "weight": 8 },
+      { "kind": "element", "element": "Earth", "min_share": 0.35, "weight": 6 },
+      { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": 8 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [6,2], "min_total": 1, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "aspect", "pair": ["Mercury","Neptune"], "type": "hard", "max_orb": 6, "weight": -8 },
+      { "kind": "element", "element": "Fire", "min_share": 0.40, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

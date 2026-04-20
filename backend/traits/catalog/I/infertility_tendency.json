@@ -1,0 +1,14 @@
+{
+  "id": "infertility_tendency",
+  "name": "Infertility / sterility (tendency)",
+  "domain": "reproductive_tendency",
+  "description": "Tendency toward reduced fertility with Saturn afflicting Moon/Venus/5th and dryness (Fire).",
+  "confidence": "low",
+  "polarity": "negative",
+  "sources": ["Carter: Saturn afflicts Moon/Venus/5th; Fire dryness"],
+  "logic": { "base": 0,
+    "boosts": [ { "kind": "aspect", "pair": ["Saturn","Moon"], "type": "hard", "max_orb": 6, "weight": 8 }, { "kind": "aspect", "pair": ["Saturn","Venus"], "type": "hard", "max_orb": 6, "weight": 8 }, { "kind": "house_emphasis", "houses": [5], "min_total": 1, "weight": 6 }, { "kind": "element", "element": "Fire", "min_share": 0.40, "weight": 6 } ],
+    "dampeners": [ { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": -6 } ],
+    "escalators": [] }
+}
+

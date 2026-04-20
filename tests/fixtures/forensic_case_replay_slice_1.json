@@ -1,0 +1,156 @@
+{
+  "generated_at": "2026-03-22T00:00:00+00:00",
+  "purpose": "First replay-ready forensic case slice promoted from local forensic books",
+  "cases": [
+    {
+      "id": "lindbergh_kidnapping",
+      "title": "The Lindbergh Kidnapping",
+      "source_book_id": "salerno_forensics_by_the_stars",
+      "source_file": "Forensics by the Stars Astrology Investigates (B. D. Salerno) (Z-Library).txt",
+      "metadata_basis": "source_explicit_prose",
+      "metadata_confidence": "high",
+      "source_metadata_note": "The chart was cast for 9:50 PM on March 1, 1932 in East Amwell, N.J.",
+      "query": {
+        "mode": "manual",
+        "datetime_local": "1932-03-01T21:50:00",
+        "location": "East Amwell, New Jersey",
+        "timezone": "America/New_York",
+        "house_system_code": "R"
+      },
+      "expected_primary_axes": [
+        "abduction_missing_person",
+        "child_victim",
+        "violence_homicide"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup"
+      ],
+      "comparison_status": "pending_route_replay"
+    },
+    {
+      "id": "phil_hartman",
+      "title": "Phil Hartman: Murder by Wife",
+      "source_book_id": "salerno_exploring_family_murders",
+      "source_file": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "metadata_basis": "source_explicit_prose",
+      "metadata_confidence": "high",
+      "source_metadata_note": "In the crime chart (May 28, 1998; Encino, California; 2:30 a.m.)",
+      "query": {
+        "mode": "manual",
+        "datetime_local": "1998-05-28T02:30:00",
+        "location": "Encino, California",
+        "timezone": "America/Los_Angeles",
+        "house_system_code": "R"
+      },
+      "expected_primary_axes": [
+        "violence_homicide",
+        "domestic_partner_involvement"
+      ],
+      "expected_secondary_axes": [
+        "family_involvement"
+      ],
+      "comparison_status": "pending_route_replay"
+    },
+    {
+      "id": "natalie_wood",
+      "title": "Natalie Wood: A Farewell to Splendor",
+      "source_book_id": "salerno_exploring_family_murders",
+      "source_file": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "metadata_basis": "source_explicit_prose",
+      "metadata_confidence": "high",
+      "source_metadata_note": "I cast the chart for 11:05 p.m. on November 29, 1981, the time Natalie was last seen alive.",
+      "query": {
+        "mode": "manual",
+        "datetime_local": "1981-11-29T23:05:00",
+        "location": "Catalina Island, California",
+        "timezone": "America/Los_Angeles",
+        "house_system_code": "R"
+      },
+      "expected_primary_axes": [
+        "water_disappearance_or_drowning",
+        "violence_homicide"
+      ],
+      "expected_secondary_axes": [
+        "domestic_partner_involvement",
+        "authority_or_public_case"
+      ],
+      "contradictory_axes": [
+        "accident_or_disaster"
+      ],
+      "comparison_status": "pending_route_replay"
+    },
+    {
+      "id": "scott_peterson",
+      "title": "Scott Peterson: A Talent for Deception",
+      "source_book_id": "salerno_exploring_family_murders",
+      "source_file": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "metadata_basis": "source_explicit_prose",
+      "metadata_confidence": "high",
+      "source_metadata_note": "Laci's last known contact was a telephone conversation with her mother on the evening of December 23, 2002, at 8:30 p.m., and I used that time to cast the horoscope.",
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2002-12-23T20:30:00",
+        "location": "Modesto, California",
+        "timezone": "America/Los_Angeles",
+        "house_system_code": "R"
+      },
+      "expected_primary_axes": [
+        "deception_coverup",
+        "domestic_partner_involvement",
+        "violence_homicide"
+      ],
+      "expected_secondary_axes": [
+        "authority_or_public_case"
+      ],
+      "comparison_status": "pending_route_replay"
+    },
+    {
+      "id": "jonbenet_ramsey",
+      "title": "JonBenet Ramsey and the Killing Planet",
+      "source_book_id": "salerno_exploring_family_murders",
+      "source_file": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "metadata_basis": "source_explicit_prose",
+      "metadata_confidence": "high",
+      "source_metadata_note": "JonBenet was reported missing on December 26, 1996, by her mother, Patsy, at 5:52 a.m. I used the time of the call to the police.",
+      "query": {
+        "mode": "manual",
+        "datetime_local": "1996-12-26T05:52:00",
+        "location": "Boulder, Colorado",
+        "timezone": "America/Denver",
+        "house_system_code": "R"
+      },
+      "expected_primary_axes": [
+        "child_victim",
+        "family_involvement",
+        "violence_homicide"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup"
+      ],
+      "comparison_status": "pending_route_replay"
+    },
+    {
+      "id": "susan_smith",
+      "title": "Susan Smith: Anything for Love",
+      "source_book_id": "salerno_exploring_family_murders",
+      "source_file": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "metadata_basis": "source_explicit_prose",
+      "metadata_confidence": "medium",
+      "source_metadata_note": "The awful deed took place at approximately 9:00 p.m. on October 25, 1994.",
+      "query": {
+        "mode": "manual",
+        "datetime_local": "1994-10-25T21:00:00",
+        "location": "Union, South Carolina",
+        "timezone": "America/New_York",
+        "house_system_code": "R"
+      },
+      "expected_primary_axes": [
+        "family_involvement",
+        "child_victim",
+        "deception_coverup",
+        "violence_homicide"
+      ],
+      "comparison_status": "pending_route_replay"
+    }
+  ]
+}

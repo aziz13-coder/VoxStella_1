@@ -1,0 +1,20 @@
+{
+  "id": "deafness_predisposition",
+  "name": "Deafness predisposition",
+  "domain": "disease_sensory",
+  "description": "Ear vulnerability hinted by specific ear degrees and Neptune/Water afflictions to 3rd/ASC.",
+  "confidence": "low",
+  "polarity": "negative",
+  "sources": ["Carter: ear degrees 3° Aries/Libra; Neptune/Moon involvement suspected"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "degree_hit", "labels": ["3 Aries","3 Libra"], "min_hits": 1, "multiplier": 1.0, "weight": 6 },
+      { "kind": "angle_aspect", "planet": "Neptune", "type": "hard", "angle": "ASC", "max_orb": 6, "weight": 6 },
+      { "kind": "house_afflicted", "houses": [3], "any": true, "weight": 6 }
+    ],
+    "dampeners": [],
+    "escalators": []
+  }
+}
+

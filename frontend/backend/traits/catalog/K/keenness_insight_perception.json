@@ -1,0 +1,22 @@
+{
+  "id": "keenness_insight_perception",
+  "name": "Keenness (insight/perception)",
+  "domain": "cognitive_style",
+  "description": "Quick, incisive perception from strong Mercury and Air; Scorpio/Water adds depth; Neptune fog and mutable scatter can blunt.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter: Air/Mercury intellect; Scorpio depth; Neptune fog when afflicted"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": 10 },
+      { "kind": "element", "element": "Air", "min_share": 0.35, "weight": 6 },
+      { "kind": "sign_emphasis", "sign": "Scorpio", "min": 1.5, "weight": 6 },
+      { "kind": "aspect", "pair": ["Mercury","Neptune"], "type": "soft", "max_orb": 6, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Neptune", "afflicted": true, "weight": -6 },
+      { "kind": "modality", "modality": "Mutable", "min_share": 0.40, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

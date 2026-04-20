@@ -1,0 +1,20 @@
+{
+  "id": "imagination",
+  "name": "Imagination",
+  "domain": "cognitive_affective",
+  "description": "Vivid imagination with Pisces/Cancer and Water; Moon/Neptune support; inner life focus via 4th/12th.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Water imagination; Pisces/Cancer; Moon/Neptune"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "element", "element": "Water", "min_share": 0.35, "weight": 10 },
+      { "kind": "sign_group_emphasis", "group": ["Pisces","Cancer"], "min": 2.0, "weight": 8 },
+      { "kind": "planet_status", "planet": "Moon", "strong": true, "weight": 6 },
+      { "kind": "planet_status", "planet": "Neptune", "strong": true, "weight": 4 },
+      { "kind": "house_emphasis", "houses": [4,12], "min_total": 2, "weight": 6 }
+    ],
+    "dampeners": [ { "kind": "element", "element": "Air", "min_share": 0.40, "weight": -6 } ],
+    "escalators": [] }
+}
+

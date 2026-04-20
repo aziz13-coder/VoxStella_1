@@ -1,0 +1,25 @@
+{
+  "id": "modesty",
+  "name": "Modesty",
+  "domain": "social_style",
+  "description": "Reserved, careful self-presentation; preference for service and accuracy over display.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Virgo", "min": 1.5, "weight": 12 },
+      { "kind": "element", "element": "Earth", "min_share": 0.35, "weight": 10 },
+      { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": 8 },
+      { "kind": "planet_in_sign", "planet": "Mercury", "sign": "Virgo", "weight": 6 },
+      { "kind": "angle_aspect", "planet": "Mercury", "type": "soft", "angle": "ASC", "max_orb": 6, "weight": 4 },
+      { "kind": "house_emphasis", "houses": [6], "min_total": 1, "weight": 6 }
+    ],
+    "dampeners": [
+      { "kind": "sign_emphasis", "sign": "Leo", "min": 1.5, "weight": -10 },
+      { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": -6 }
+    ],
+    "escalators": []
+  }
+}

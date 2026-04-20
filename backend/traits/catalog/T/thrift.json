@@ -1,0 +1,22 @@
+{
+  "id": "thrift",
+  "name": "Thrift",
+  "domain": "material_style",
+  "description": "Economy and careful management of resources with Taurus/Earth and Saturn support; inflated Jupiter aspects and luxury without Saturn reduce.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter: Earth/Taurus supply; Saturn prudence"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Taurus", "min": 1.5, "weight": 6 },
+      { "kind": "element", "element": "Earth", "min_share": 0.35, "weight": 6 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": 8 },
+      { "kind": "house_emphasis", "houses": [2,6], "min_total": 1, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "aspect", "pair": ["Sun","Jupiter"], "type": "hard", "max_orb": 6, "weight": -6 },
+      { "kind": "planet_status", "planet": "Jupiter", "afflicted": true, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

@@ -1,0 +1,21 @@
+{
+  "id": "vision_big_picture",
+  "name": "Vision (big‑picture outlook)",
+  "domain": "outlook",
+  "description": "Big‑picture foresight guided by principles and systems with Sagittarius/Jupiter or Aquarius/11th emphasis; Virgo over‑detail and Saturn pessimism reduce.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter: Sagittarius hope/self‑development; Aquarius natural facts as universal laws"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_group_emphasis", "group": ["Sagittarius","Aquarius"], "min": 2.0, "weight": 8 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [9,11], "min_total": 1, "weight": 6 }
+    ],
+    "dampeners": [
+      { "kind": "sign_emphasis", "sign": "Virgo", "min": 1.5, "weight": -4 },
+      { "kind": "planet_status", "planet": "Saturn", "afflicted": true, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

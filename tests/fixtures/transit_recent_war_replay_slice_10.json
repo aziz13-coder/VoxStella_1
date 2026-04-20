@@ -1,0 +1,36 @@
+[
+  {
+    "id": "israel_roaring_lion_broad_strike",
+    "display_name": "Israel Operation Roaring Lion broad strike update",
+    "event_label": "IDF real-time update during the opening day of the Israel-Iran war",
+    "natal_datetime": "1948-05-14T16:00:00",
+    "natal_location": "Tel Aviv, Israel",
+    "natal_timezone": "Asia/Jerusalem",
+    "resolved_location": "Tel Aviv-Yafo, Tel Aviv District, Israel",
+    "latitude": 32.0853,
+    "longitude": 34.7818,
+    "house_system_code": "R",
+    "event_datetime": "2026-02-28T22:28:00+02:00",
+    "control_datetimes": [
+      "2026-02-27T22:28:00+02:00",
+      "2026-02-21T22:28:00+02:00"
+    ],
+    "measurement_mode": "recent_war_response_cluster",
+    "time_basis": "official_idf_real_time_update_22_28_broad_strike_entry",
+    "time_confidence": "high",
+    "expected_war_hit_descriptions": [
+      "Moon Quincunx C7 (contra-antiscia)"
+    ],
+    "expected_war_keywords": [
+      "attack_violence",
+      "conflict"
+    ],
+    "minimum_hit_count": 1,
+    "minimum_significance_sum_delta": 9.0,
+    "sources": {
+      "natal": "https://www.astro.com/astro-databank/Nation:_Israel",
+      "event": "https://www.idf.il/en/mini-sites/operation-roaring-lion/real-time-updates-day-by-day/february-28-2026-real-time-updates-operation-roaring-lion/",
+      "context": "https://apnews.com/article/iran-us-israel-trump-lebanon-march-27-2026-195444c54cbb7545d0a77f8ffbc0e4c0"
+    }
+  }
+]

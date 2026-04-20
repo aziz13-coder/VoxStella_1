@@ -1,0 +1,166 @@
+{
+  "generated_on": "2026-04-04",
+  "generator": "scripts/build_astrocartography_runtime_assets.py",
+  "sources": [
+    "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+    "horary_knowledge/astrocartography_knowledge_base/reference/03_techniques_and_ranges.md",
+    "horary_knowledge/astrocartography_knowledge_base/reference/05_feature_notes.md"
+  ],
+  "range_policy": {
+    "primary_radius_km": 300,
+    "extended_radius_km": 500,
+    "crossing_radius_note": "Crossing radius follows the same default as lines, but exact crossings rank more strongly.",
+    "source_ref": {
+      "file": "horary_knowledge/astrocartography_knowledge_base/reference/03_techniques_and_ranges.md",
+      "section": "Product Default Recommendation"
+    }
+  },
+  "interpretation_policy": {
+    "style": "source_backed_runtime_asset",
+    "note": "Explain each nearby line in plain language using a corpus-backed interpretation library."
+  },
+  "bodies": {
+    "Sun": {
+      "core_themes": "identity, vitality, purpose",
+      "common_upside": "confidence, leadership, recognition",
+      "common_caution": "ego inflation, pressure to perform",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Planet Baselines"
+      }
+    },
+    "Moon": {
+      "core_themes": "emotion, belonging, care",
+      "common_upside": "intuition, family ties, receptivity",
+      "common_caution": "volatility, moodiness, dependency",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Planet Baselines"
+      }
+    },
+    "Mercury": {
+      "core_themes": "language, trade, learning",
+      "common_upside": "writing, networking, teaching, sales",
+      "common_caution": "nervousness, scattered focus",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Planet Baselines"
+      }
+    },
+    "Venus": {
+      "core_themes": "love, beauty, harmony",
+      "common_upside": "attraction, art, diplomacy, ease",
+      "common_caution": "indulgence, passivity, vanity",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Planet Baselines"
+      }
+    },
+    "Mars": {
+      "core_themes": "action, heat, courage",
+      "common_upside": "initiative, athletic drive, boldness",
+      "common_caution": "conflict, haste, irritation",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Planet Baselines"
+      }
+    },
+    "Jupiter": {
+      "core_themes": "growth, opportunity, meaning",
+      "common_upside": "expansion, generosity, teaching, luck",
+      "common_caution": "excess, overconfidence",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Planet Baselines"
+      }
+    },
+    "Saturn": {
+      "core_themes": "structure, duty, realism",
+      "common_upside": "discipline, mastery, endurance",
+      "common_caution": "heaviness, isolation, delay",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Planet Baselines"
+      }
+    },
+    "Uranus": {
+      "core_themes": "disruption, innovation, freedom",
+      "common_upside": "breakthrough, independence, reinvention",
+      "common_caution": "instability, shock, restlessness",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Planet Baselines"
+      }
+    },
+    "Neptune": {
+      "core_themes": "vision, spirituality, imagination",
+      "common_upside": "inspiration, compassion, artistry",
+      "common_caution": "confusion, glamour, escapism",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Planet Baselines"
+      }
+    },
+    "Pluto": {
+      "core_themes": "intensity, power, regeneration",
+      "common_upside": "deep transformation, strategic force",
+      "common_caution": "obsession, control struggles",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Planet Baselines"
+      }
+    },
+    "North Node": {
+      "core_themes": "development, pull toward growth",
+      "common_upside": "meaningful contacts, future-facing movement",
+      "common_caution": "over-identifying with destiny language",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Planet Baselines"
+      }
+    },
+    "Chiron": {
+      "core_themes": "wound, healing, teaching through pain",
+      "common_upside": "insight, integration, mentoring",
+      "common_caution": "reopening unresolved pain",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Planet Baselines"
+      }
+    }
+  },
+  "angles": {
+    "ASC": {
+      "interprets_through": "selfhood, body, projection, personal identity",
+      "user_shorthand": "what I become here",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Angle Modifiers"
+      }
+    },
+    "DSC": {
+      "interprets_through": "partnership, clients, allies, opponents",
+      "user_shorthand": "who I meet here",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Angle Modifiers"
+      }
+    },
+    "MC": {
+      "interprets_through": "career, reputation, calling, public outcomes",
+      "user_shorthand": "what I do here",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Angle Modifiers"
+      }
+    },
+    "IC": {
+      "interprets_through": "home, roots, family, internal safety",
+      "user_shorthand": "how I live here",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Angle Modifiers"
+      }
+    }
+  }
+}

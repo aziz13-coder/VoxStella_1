@@ -1,0 +1,20 @@
+{
+  "id": "greed_covetousness",
+  "name": "Greed / covetousness",
+  "domain": "material_attitude",
+  "description": "Possessive material attitude with Taurus/fixed and 2nd house emphasis; Venus/Jupiter afflicted.",
+  "confidence": "medium",
+  "polarity": "negative",
+  "sources": ["Carter: Taurus/fixed; 2nd; Venus/Jupiter afflicted"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Taurus", "min": 1.5, "weight": 8 },
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.35, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [2], "min_total": 1, "weight": 8 },
+      { "kind": "planet_status", "planet": "Venus", "afflicted": true, "weight": 6 },
+      { "kind": "planet_status", "planet": "Jupiter", "afflicted": true, "weight": 6 }
+    ],
+    "dampeners": [ { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -8 } ],
+    "escalators": [] }
+}
+

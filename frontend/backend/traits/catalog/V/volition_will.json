@@ -1,0 +1,22 @@
+{
+  "id": "volition_will",
+  "name": "Volition (will)",
+  "domain": "will",
+  "description": "Direct, initiating will‑force asserting being into action with Aries/Sun/Mars strength and 1st/10th emphasis; mutable drift and Neptune diffusion reduce focus.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Aries — the Will to Be"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Aries", "min": 1.5, "weight": 8 },
+      { "kind": "planet_status", "planet": "Sun", "strong": true, "weight": 6 },
+      { "kind": "planet_status", "planet": "Mars", "strong": true, "weight": 8 },
+      { "kind": "house_emphasis", "houses": [1,10], "min_total": 1, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "modality", "modality": "Mutable", "min_share": 0.40, "weight": -6 },
+      { "kind": "planet_status", "planet": "Neptune", "strong": true, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

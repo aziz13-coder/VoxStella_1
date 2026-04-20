@@ -1,0 +1,26 @@
+{
+  "id": "yearning_for_security",
+  "name": "Yearning for security (safety/caretaking)",
+  "domain": "protection_drive",
+  "description": "Need for safety, continuity, and caretaking structures.",
+  "confidence": "high",
+  "polarity": "neutral",
+  "sources": [
+    "Carter: Water likely to suffer/protective; benefics exalted in Cancer/Pisces"
+  ],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "element", "element": "Water", "min_share": 0.35, "weight": 4 },
+      { "kind": "sign_emphasis", "sign": "Cancer", "min": 1.5, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [4], "min_total": 1, "weight": 4 },
+      { "kind": "planet_status", "planet": "Moon", "strong": true, "weight": 6 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 3 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": 3 }
+    ],
+    "dampeners": [
+      { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": -4 },
+      { "kind": "planet_status", "planet": "Mars", "strong": true, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

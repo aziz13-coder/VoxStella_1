@@ -1,0 +1,22 @@
+{
+  "id": "wit",
+  "name": "Wit",
+  "domain": "cognitive_style",
+  "description": "Quick, playful wordplay and mental agility with Gemini/Air and dignified Mercury; Saturn heaviness and Mercury–Neptune fog blunt wit.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Gemini/Air agility; Mercury ‘convertible’"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Gemini", "min": 1.5, "weight": 8 },
+      { "kind": "element", "element": "Air", "min_share": 0.35, "weight": 6 },
+      { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": 10 },
+      { "kind": "house_emphasis", "houses": [3], "min_total": 1, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "aspect", "pair": ["Mercury","Saturn"], "type": "hard", "max_orb": 6, "weight": -6 },
+      { "kind": "aspect", "pair": ["Mercury","Neptune"], "type": "hard", "max_orb": 6, "weight": -8 }
+    ],
+    "escalators": [] }
+}
+

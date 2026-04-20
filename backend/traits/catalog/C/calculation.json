@@ -1,0 +1,22 @@
+{
+  "id": "calculation",
+  "name": "Calculation (method & organization)",
+  "domain": "executive_function",
+  "description": "Analytical calculation and practical organization associated with Virgo/Capricorn and Mercury–Saturn rationality.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter: Virgo analysis/use; Capricorn organization/government; Mercury–Saturn rationality"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Virgo", "min": 1.5, "weight": 8 },
+      { "kind": "sign_emphasis", "sign": "Capricorn", "min": 1.5, "weight": 8 },
+      { "kind": "aspect", "pair": ["Mercury","Saturn"], "type": "soft", "max_orb": 6, "weight": 8 },
+      { "kind": "house_emphasis", "houses": [6,10], "min_total": 2, "weight": 6 }
+    ],
+    "dampeners": [
+      { "kind": "aspect", "pair": ["Mercury","Neptune"], "type": "hard", "max_orb": 6, "weight": -6 }
+    ],
+    "escalators": []
+  }
+}

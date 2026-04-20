@@ -1,0 +1,24 @@
+{
+  "id": "zeal_for_reform",
+  "name": "Zeal for reform (progressive drive)",
+  "domain": "social_orientation",
+  "description": "Strong drive to improve systems or champion progressive causes.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": [
+    "Carter: Aquarius loves mankind; Uranus reforms; 11th house causes"
+  ],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Aquarius", "min": 1.5, "weight": 5 },
+      { "kind": "planet_status", "planet": "Uranus", "strong": true, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [11], "min_total": 1, "weight": 3 }
+    ],
+    "dampeners": [
+      { "kind": "sign_emphasis", "sign": "Capricorn", "min": 1.5, "weight": -4 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -4 },
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.35, "weight": -2 }
+    ],
+    "escalators": [] }
+}
+

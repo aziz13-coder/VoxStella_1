@@ -1,0 +1,23 @@
+{
+  "id": "psychism",
+  "name": "Psychism (imaginative sensitivity)",
+  "domain": "imaginative_faculty",
+  "description": "Rich inner life and sensitivity to subtle impressions with Water/Pisces and Moon/Neptune strength; 12th‑house quiet supports.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter: Water more imaginative than Fire; inward‑turning reserve"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "element", "element": "Water", "min_share": 0.35, "weight": 8 },
+      { "kind": "sign_emphasis", "sign": "Pisces", "min": 1.5, "weight": 6 },
+      { "kind": "planet_status", "planet": "Moon", "strong": true, "weight": 4 },
+      { "kind": "planet_status", "planet": "Neptune", "strong": true, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [12], "min_total": 1, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "element", "element": "Fire", "min_share": 0.40, "weight": -6 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

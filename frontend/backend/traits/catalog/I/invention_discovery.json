@@ -1,0 +1,27 @@
+{
+  "id": "invention_discovery",
+  "name": "Invention & Discovery",
+  "domain": "cognition_creativity",
+  "description": "Inventive and discovery-minded bent with marked Uranian angularity, Mercury-Uranus contact, Aquarius emphasis, and visible Mercury or 10th-house expression.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter: Uranus prominence; Mercury-Uranus contact; Aquarius emphasis"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "angle_aspect", "planet": "Uranus", "type": "any", "angle": "ASC", "max_orb": 8, "weight": 6 },
+      { "kind": "angle_aspect", "planet": "Uranus", "type": "any", "angle": "MC", "max_orb": 10, "weight": 8 },
+      { "kind": "aspect", "pair": ["Mercury", "Uranus"], "type": "any", "max_orb": 6, "allowed_names": ["Conjunction", "Sextile", "Trine", "Square", "Opposition", "Quincunx"], "weight": 10 },
+      { "kind": "aspect", "pair": ["Sun", "Uranus"], "type": "any", "max_orb": 6, "allowed_names": ["Conjunction", "Sextile", "Trine", "Square", "Opposition", "Quincunx"], "weight": 5 },
+      { "kind": "aspect", "pair": ["Jupiter", "Uranus"], "type": "any", "max_orb": 6, "allowed_names": ["Conjunction", "Sextile", "Trine", "Square", "Opposition"], "weight": 5 },
+      { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": 5 },
+      { "kind": "angle_aspect", "planet": "Mercury", "type": "soft", "angle": "MC", "max_orb": 8, "weight": 4 },
+      { "kind": "sign_emphasis", "sign": "Aquarius", "min": 1.5, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [10, 11], "min_total": 2, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Saturn", "afflicted": true, "weight": -4 }
+    ],
+    "escalators": []
+  }
+}

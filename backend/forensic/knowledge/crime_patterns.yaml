@@ -1,0 +1,33 @@
+# Crime Patterns & Indicators (reference + some rule stubs may map to these)
+
+violence_indicators:
+  Mars_afflictions: "Gunshots, stabbing, blood; sharp weapons; fires."
+  Saturn_afflictions: "Blunt force, crushing, beating; hypoxia via constriction."
+  Algol_conjunctions: "Strangulation, beheading, asphyxiation; extreme fear."
+  Uranus_aspects: "Sudden, explosive violence; electrical fires; erratic breakage."
+  Pluto_aspects: "Sexual assault, coercion/control; total destruction, disposal."
+
+psychological_patterns:
+  Venus_in_perp_sign: "Unrequited attraction; obsession/jealousy motive."
+  strong_12th_house: "Hidden/secret motives, concealment, confinement; self-undoing."
+  mute_signs_emphasis: "Secrecy/silence themes (Cancer, Scorpio, Pisces)."
+  fixed_grand_cross: "Obstruction, stand-off, entrenched lies or contradictory narratives."
+
+specific_crime_patterns:
+  kidnapping: "Mars–Neptune opposition; confusion with force; abduction."
+  drug_overdose: "Jupiter–Neptune conjunctions; 6th house emphasis (body, illness)."
+  domestic_violence: "7th house ruler/spouse; Uranus on 7th; hard malefic aspects."
+  child_abuse: "Venus/Mars on 5th; perpetrator connected to household/family."
+  coverup_murder: "Strong 12th; Saturn–Neptune squares; concealment, erasure, gas/fluids."
+
+case_types:
+  suicide:
+    key_indicators: "12th ruler with Saturn; Venus in 12th; self-undoing emphasis."
+    additional_signs: "Depression indicators, isolation, dissolving support."
+  murder:
+    key_indicators: "7th house active; victim’s planet hard aspects to malefics."
+    additional_signs: "Perpetrator clearly defined; motive traceable through sect/houses."
+  accident:
+    key_indicators: "6th emphasis; Uranus prominent; lack of perpetrator signature."
+    additional_signs: "Sudden events; no criminal intent; mechanical failure."
+

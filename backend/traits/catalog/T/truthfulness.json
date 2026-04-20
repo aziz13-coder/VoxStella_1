@@ -1,0 +1,21 @@
+{
+  "id": "truthfulness",
+  "name": "Truthfulness",
+  "domain": "virtue",
+  "description": "Orientation toward honest statement based on principle and belief with Sagittarius/Jupiter and 9th emphasis; Mercury–Neptune fog reduces clarity.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter: Sagittarius/Jupiter truth/hope; 9th house"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Sagittarius", "min": 1.5, "weight": 6 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 8 },
+      { "kind": "house_emphasis", "houses": [9], "min_total": 1, "weight": 4 },
+      { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "aspect", "pair": ["Mercury","Neptune"], "type": "hard", "max_orb": 6, "weight": -8 }
+    ],
+    "escalators": [] }
+}
+

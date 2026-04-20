@@ -1,0 +1,23 @@
+{
+  "id": "courage_aries",
+  "name": "Courage (Aries expression)",
+  "domain": "virtue",
+  "description": "Fiery courage and self‑assertion associated with Aries and Mars.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Aries = self‑assertion; courage"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Aries", "min": 1.5, "weight": 12 },
+      { "kind": "planet_status", "planet": "Mars", "strong": true, "weight": 10 },
+      { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": 6 },
+      { "kind": "angle_aspect", "planet": "Mars", "type": "soft", "angle": "ASC", "max_orb": 6, "weight": 6 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Mars", "afflicted": true, "weight": -8 }
+    ],
+    "escalators": []
+  }
+}
+

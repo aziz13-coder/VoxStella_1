@@ -1,0 +1,38 @@
+# IC (4th House Cusp) Sign Meanings — outcome/end-of-matter context
+
+Aries:
+  outcome: "Fast, decisive close; confrontation or self-initiated action ends it; ‘cut and run,’ defense/force prevails, flare-up is the last straw."
+  keywords: ["fast", "decisive", "confrontation", "self-initiated", "force", "flare-up"]
+Taurus:
+  outcome: "Fixed, slow close; status quo or material settlement; restitution/compensation; entrenched positions hold; minimal change."
+  keywords: ["fixed", "slow", "status quo", "material settlement", "restitution", "minimal change"]
+Gemini:
+  outcome: "Split or two-track outcome; paperwork/communications decide; plea deals, reversible terms, short interim resolutions."
+  keywords: ["split", "two-track", "paperwork", "communications", "plea deals", "reversible", "interim"]
+Cancer:
+  outcome: "Private/family-driven close; retreat, caretaking, or a return to safety; protective decisions, emotional closure."
+  keywords: ["private", "family", "retreat", "caretaking", "safety", "protective", "emotional closure"]
+Leo:
+  outcome: "Public, dramatic finish; pride/reputation central; leadership call or ‘honor restored’; risk of downfall via hubris."
+  keywords: ["public", "dramatic", "pride", "reputation", "leadership", "honor", "hubris"]
+Virgo:
+  outcome: "Procedural, technical close; audits, details, or health/service facts decide; ‘by-the-book’ remediation and fixes."
+  keywords: ["procedural", "technical", "audits", "details", "health/service", "by-the-book", "remediation"]
+Libra:
+  outcome: "Mediated/negotiated end; settlement, compromise, or formal adjudication; optics and fairness balance the scales."
+  keywords: ["mediated", "negotiated", "settlement", "compromise", "adjudication", "fairness"]
+Scorpio:
+  outcome: "Final, irreversible close; secrets exposed, power/bond ties severed; penalties, purging, or deep transformation."
+  keywords: ["final", "irreversible", "secrets exposed", "power severed", "penalties", "purging", "transformation"]
+Sagittarius:
+  outcome: "Principle or precedent sets the finish; higher authority/jurisdiction weighs in; broadened scope, release, or dismissal."
+  keywords: ["principle", "precedent", "jurisdiction", "release", "dismissal", "broadened scope"]
+Capricorn:
+  outcome: "Hard stop via authority; consequences, restriction, or duty accepted; institutional ruling; sober, lasting closure."
+  keywords: ["hard stop", "authority", "restriction", "duty", "institutional ruling", "sober", "lasting"]
+Aquarius:
+  outcome: "Break with the past; abrupt pivot, reform, or unconventional remedy; group consensus or tech/process change seals it."
+  keywords: ["break", "abrupt pivot", "reform", "unconventional", "group consensus", "tech/process change"]
+Pisces:
+  outcome: "Dissolving fade-out; mercy, leniency, or surrender; ambiguity remains; sacrifice/withdrawal rather than a tidy bow."
+  keywords: ["dissolving", "mercy", "leniency", "surrender", "ambiguity", "sacrifice", "withdrawal"]

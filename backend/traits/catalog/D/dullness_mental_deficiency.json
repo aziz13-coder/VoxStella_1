@@ -1,0 +1,23 @@
+{
+  "id": "dullness_mental_deficiency",
+  "name": "Dullness / mental deficiency risk",
+  "domain": "cognitive_limitation",
+  "description": "Risk indicator via Water afflictions to the 3rd house and Mercury affliction.",
+  "confidence": "low",
+  "polarity": "negative",
+  "sources": ["Carter: Water afflicting the 3rd house"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "house_afflicted", "houses": [3], "any": true, "weight": 10 },
+      { "kind": "element", "element": "Water", "min_share": 0.35, "weight": 6 },
+      { "kind": "planet_status", "planet": "Mercury", "afflicted": true, "weight": 8 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": -8 },
+      { "kind": "element", "element": "Air", "min_share": 0.35, "weight": -6 }
+    ],
+    "escalators": []
+  }
+}
+

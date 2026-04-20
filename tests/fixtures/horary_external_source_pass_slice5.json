@@ -1,0 +1,65 @@
+[
+  {
+    "id": "weather_wedding_skyscript_source_pass",
+    "question": "What will the weather be for the wedding?",
+    "source_url": "https://www.skyscript.co.uk/forums/viewtopic.php?t=754",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "cold/wet or weather judged from the wedding occasion",
+    "source_expected_category": "general",
+    "source_expected_houses": [
+      7
+    ],
+    "source_expected_focus": "The Skyscript discussion frames the wedding itself as a 7th-house matter, while distinguishing that from a 5th-house reception or social celebration focus.",
+    "current_engine_category": "general",
+    "current_engine_houses": [
+      7
+    ],
+    "current_engine_quesited_house": 7,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Current router matches the marriage-event weather framing by using the 7th house for the wedding occasion itself."
+  },
+  {
+    "id": "weather_garden_party_reddit_source_pass",
+    "question": "What will the weather be for the garden party?",
+    "source_url": "https://www.reddit.com/r/horary/comments/15dvyyo/removed/",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "event weather judged from the party significator",
+    "source_expected_category": "general",
+    "source_expected_houses": [
+      5
+    ],
+    "source_expected_focus": "The published horary discussion says there is no separate weather house here; the conditions are judged from the event lord, using a garden party as a 5th-house example.",
+    "current_engine_category": "general",
+    "current_engine_houses": [
+      5
+    ],
+    "current_engine_quesited_house": 5,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Current router now recognizes secular celebration-event weather and judges the party from the 5th house."
+  },
+  {
+    "id": "medical_result_arrive_reddit_source_pass",
+    "question": "When will the medical test result arrive?",
+    "source_url": "https://www.reddit.com/r/horary/comments/ol1cue",
+    "source_kind": "mixed_external_source_pass",
+    "source_normalized_from_context": true,
+    "article_expected_verdict": "timing",
+    "source_expected_category": "health",
+    "source_expected_houses": [
+      1,
+      7
+    ],
+    "source_expected_focus": "The Reddit horary timing post treats the medical result as the quesited contact itself, explicitly debating and rejecting a letter-style framing. The normalized question text here includes the medical context that was present in the post body.",
+    "current_engine_category": "health",
+    "current_engine_houses": [
+      1,
+      7
+    ],
+    "current_engine_quesited_house": 7,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Current router generalizes the medical-result contact family when the medical context is included in the question text."
+  }
+]

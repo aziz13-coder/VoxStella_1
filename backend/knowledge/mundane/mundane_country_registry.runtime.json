@@ -1,0 +1,299 @@
+{
+  "version": "2026-04-11",
+  "polities": [
+    {
+      "id": "united_kingdom",
+      "label": "United Kingdom",
+      "capital": "London, United Kingdom",
+      "default_location": "London, United Kingdom",
+      "timezone": "Europe/London",
+      "visibility_scope": "national",
+      "source_tags": ["green_national_horoscopes", "national_chart_candidates"],
+      "national_charts": [
+        {
+          "id": "uk_1801",
+          "label": "United Kingdom 1801",
+          "datetime": "1801-01-01T00:00:00",
+          "location": "Greenwich, England",
+          "timezone": "Europe/London",
+          "status": "preferred",
+          "source_tags": ["national_chart_candidates"]
+        },
+        {
+          "id": "great_britain_1707",
+          "label": "Great Britain 1707",
+          "datetime": "1707-05-01T00:00:00",
+          "location": "London, England",
+          "timezone": "Europe/London",
+          "status": "candidate",
+          "source_tags": ["national_chart_candidates"]
+        }
+      ]
+    },
+    {
+      "id": "france",
+      "label": "France",
+      "capital": "Paris, France",
+      "default_location": "Paris, France",
+      "timezone": "Europe/Paris",
+      "visibility_scope": "national",
+      "source_tags": ["green_national_horoscopes", "national_chart_candidates"],
+      "national_charts": [
+        {
+          "id": "france_third_republic_1870",
+          "label": "France Third Republic 1870",
+          "datetime": "1870-09-04T16:36:00",
+          "valid_from": "1870-09-04T16:36:00",
+          "valid_to": "1946-10-30T14:40:00",
+          "location": "Paris, France",
+          "timezone": "Europe/Paris",
+          "status": "preferred",
+          "source_tags": ["national_chart_candidates"]
+        },
+        {
+          "id": "france_fourth_republic_1946",
+          "label": "France Fourth Republic 1946",
+          "datetime": "1946-10-30T14:40:00",
+          "valid_from": "1946-10-30T14:40:00",
+          "valid_to": "1958-10-04T00:00:00",
+          "location": "Paris, France",
+          "timezone": "Europe/Paris",
+          "status": "alternate",
+          "source_tags": ["green_national_horoscopes", "national_chart_candidates"],
+          "research_flags": ["regime_specific_chart", "candidate_chart_selection"]
+        }
+      ]
+    },
+    {
+      "id": "germany",
+      "label": "Germany",
+      "capital": "Berlin, Germany",
+      "default_location": "Berlin, Germany",
+      "timezone": "Europe/Berlin",
+      "visibility_scope": "national",
+      "source_tags": ["green_national_horoscopes", "national_chart_candidates"],
+      "national_charts": [
+        {
+          "id": "german_empire_1871",
+          "label": "German Empire 1871",
+          "datetime": "1871-01-18T13:00:00",
+          "valid_from": "1871-01-18T13:00:00",
+          "valid_to": "1918-11-09T13:30:00",
+          "location": "Versailles, France",
+          "timezone": "Europe/Paris",
+          "status": "preferred",
+          "source_tags": ["national_chart_candidates"]
+        },
+        {
+          "id": "german_republic_1918",
+          "label": "German Republic 1918",
+          "datetime": "1918-11-09T13:30:00",
+          "valid_from": "1918-11-09T13:30:00",
+          "valid_to": "1933-01-30T11:00:00",
+          "location": "Berlin, Germany",
+          "timezone": "Europe/Berlin",
+          "status": "candidate",
+          "source_tags": ["green_national_horoscopes", "national_chart_candidates"],
+          "research_flags": ["regime_specific_chart", "candidate_chart_selection"]
+        },
+        {
+          "id": "third_reich_1933",
+          "label": "Third Reich 1933",
+          "datetime": "1933-01-30T11:00:00",
+          "valid_from": "1933-01-30T11:00:00",
+          "valid_to": "1945-05-08T00:00:00",
+          "location": "Berlin, Germany",
+          "timezone": "Europe/Berlin",
+          "status": "candidate",
+          "source_tags": ["green_national_horoscopes", "national_chart_candidates"],
+          "research_flags": ["regime_specific_chart", "candidate_chart_selection", "election_chart"]
+        }
+      ]
+    },
+    {
+      "id": "india",
+      "label": "India",
+      "capital": "New Delhi, India",
+      "default_location": "New Delhi, India",
+      "timezone": "Asia/Kolkata",
+      "visibility_scope": "national",
+      "source_tags": ["green_national_horoscopes", "national_chart_candidates"],
+      "national_charts": [
+        {
+          "id": "india_dominion_1947",
+          "label": "India Dominion 1947",
+          "datetime": "1947-08-15T00:00:00",
+          "valid_from": "1947-08-15T00:00:00",
+          "valid_to": "1950-01-26T00:00:00",
+          "location": "New Delhi, India",
+          "timezone": "Asia/Kolkata",
+          "status": "preferred",
+          "source_tags": ["green_national_horoscopes", "national_chart_candidates"]
+        },
+        {
+          "id": "india_republic_1950",
+          "label": "India Republic 1950",
+          "datetime": "1950-01-26T00:00:00",
+          "valid_from": "1950-01-26T00:00:00",
+          "location": "New Delhi, India",
+          "timezone": "Asia/Kolkata",
+          "status": "candidate",
+          "source_tags": ["green_national_horoscopes", "national_chart_candidates"],
+          "research_flags": ["time_uncertain_chart", "candidate_chart_selection"]
+        }
+      ]
+    },
+    {
+      "id": "myanmar",
+      "label": "Myanmar / Burma",
+      "aliases": ["burma"],
+      "capital": "Yangon, Myanmar",
+      "default_location": "Yangon, Myanmar",
+      "timezone": "Asia/Yangon",
+      "visibility_scope": "national",
+      "source_tags": ["national_chart_candidates"],
+      "national_charts": [
+        {
+          "id": "burma_1948",
+          "label": "Burma 1948 Independence",
+          "datetime": "1948-01-04T04:20:00",
+          "location": "Rangoon, Burma",
+          "timezone": "Asia/Yangon",
+          "status": "preferred",
+          "source_tags": ["national_chart_candidates"]
+        }
+      ]
+    },
+    {
+      "id": "iran",
+      "label": "Iran",
+      "capital": "Tehran, Iran",
+      "default_location": "Tehran, Iran",
+      "timezone": "Asia/Tehran",
+      "visibility_scope": "national",
+      "source_tags": [],
+      "research_flags": ["no_national_chart_registered"],
+      "national_charts": []
+    },
+    {
+      "id": "iraq",
+      "label": "Iraq",
+      "capital": "Baghdad, Iraq",
+      "default_location": "Baghdad, Iraq",
+      "timezone": "Asia/Baghdad",
+      "visibility_scope": "national",
+      "source_tags": [],
+      "research_flags": ["no_national_chart_registered"],
+      "national_charts": []
+    },
+    {
+      "id": "israel",
+      "label": "Israel",
+      "capital": "Jerusalem, Israel",
+      "default_location": "Jerusalem, Israel",
+      "timezone": "Asia/Jerusalem",
+      "visibility_scope": "national",
+      "source_tags": ["green_national_horoscopes", "national_chart_candidates"],
+      "national_charts": [
+        {
+          "id": "israel_proclamation_1948",
+          "label": "Israel Proclamation 1948",
+          "datetime": "1948-05-14T16:00:00",
+          "valid_from": "1948-05-14T16:00:00",
+          "location": "Tel Aviv, Israel",
+          "timezone": "Asia/Jerusalem",
+          "status": "preferred",
+          "source_tags": ["green_national_horoscopes", "national_chart_candidates"],
+          "research_flags": ["candidate_chart_selection", "alternative_founding_chart_present"]
+        },
+        {
+          "id": "israel_mandate_termination_1948",
+          "label": "Israel Mandate Termination 1948",
+          "datetime": "1948-05-15T00:00:00",
+          "valid_from": "1948-05-15T00:00:00",
+          "location": "Tel Aviv, Israel",
+          "timezone": "Asia/Jerusalem",
+          "status": "alternate",
+          "source_tags": ["green_national_horoscopes", "national_chart_candidates"],
+          "research_flags": ["candidate_chart_selection", "alternative_founding_chart_present"]
+        }
+      ]
+    },
+    {
+      "id": "saudi_arabia",
+      "label": "Saudi Arabia",
+      "capital": "Riyadh, Saudi Arabia",
+      "default_location": "Riyadh, Saudi Arabia",
+      "timezone": "Asia/Riyadh",
+      "visibility_scope": "national",
+      "source_tags": [],
+      "research_flags": ["no_national_chart_registered"],
+      "national_charts": []
+    },
+    {
+      "id": "egypt",
+      "label": "Egypt",
+      "capital": "Cairo, Egypt",
+      "default_location": "Cairo, Egypt",
+      "timezone": "Africa/Cairo",
+      "visibility_scope": "national",
+      "source_tags": [],
+      "research_flags": ["no_national_chart_registered"],
+      "national_charts": []
+    },
+    {
+      "id": "russia",
+      "label": "Russia",
+      "capital": "Moscow, Russia",
+      "default_location": "Moscow, Russia",
+      "timezone": "Europe/Moscow",
+      "visibility_scope": "national",
+      "source_tags": [],
+      "research_flags": ["no_national_chart_registered"],
+      "national_charts": []
+    },
+    {
+      "id": "ukraine",
+      "label": "Ukraine",
+      "capital": "Kyiv, Ukraine",
+      "default_location": "Kyiv, Ukraine",
+      "timezone": "Europe/Kyiv",
+      "visibility_scope": "national",
+      "source_tags": [],
+      "research_flags": ["no_national_chart_registered"],
+      "national_charts": []
+    },
+    {
+      "id": "china",
+      "label": "China",
+      "capital": "Beijing, China",
+      "default_location": "Beijing, China",
+      "timezone": "Asia/Shanghai",
+      "visibility_scope": "national",
+      "source_tags": [],
+      "research_flags": ["no_national_chart_registered"],
+      "national_charts": []
+    },
+    {
+      "id": "united_states",
+      "label": "United States",
+      "capital": "Washington, DC, United States",
+      "default_location": "Washington, DC, United States",
+      "timezone": "America/New_York",
+      "visibility_scope": "national",
+      "source_tags": ["national_chart_candidates"],
+      "national_charts": [
+        {
+          "id": "us_1776_watters",
+          "label": "United States 1776",
+          "datetime": "1776-07-04T02:17:00",
+          "location": "Philadelphia, Pennsylvania, United States",
+          "timezone": "America/New_York",
+          "status": "contested",
+          "source_tags": ["national_chart_candidates"],
+          "research_flags": ["candidate_chart_selection", "contested_chart"]
+        }
+      ]
+    }
+  ]
+}

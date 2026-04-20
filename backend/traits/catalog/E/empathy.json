@@ -1,0 +1,24 @@
+{
+  "id": "empathy",
+  "name": "Empathy",
+  "domain": "affect_social_feeling",
+  "description": "Empathy via Water triplicity and Pisces/Cancer; Moon/Jupiter/Neptune support.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Water empathy; Moon/Jupiter/Neptune support"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "element", "element": "Water", "min_share": 0.35, "weight": 10 },
+      { "kind": "sign_group_emphasis", "group": ["Pisces","Cancer"], "min": 2.0, "weight": 8 },
+      { "kind": "planet_status", "planet": "Moon", "strong": true, "weight": 6 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 4 },
+      { "kind": "planet_status", "planet": "Neptune", "strong": true, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Moon", "afflicted": true, "weight": -6 }
+    ],
+    "escalators": []
+  }
+}
+

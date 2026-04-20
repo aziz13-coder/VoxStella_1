@@ -1,0 +1,23 @@
+{
+  "id": "receptivity",
+  "name": "Receptivity",
+  "domain": "temperament",
+  "description": "Negative/receptive stance that absorbs influences without losing identity, with Water/Moon prominence and 4th/12th emphasis; Fire/Cardinal thrust reduces.",
+  "confidence": "high",
+  "polarity": "neutral",
+  "sources": ["Carter: Water protective/receptive; imaginative inwardness"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "element", "element": "Water", "min_share": 0.35, "weight": 10 },
+      { "kind": "planet_status", "planet": "Moon", "strong": true, "weight": 8 },
+      { "kind": "house_emphasis", "houses": [4,12], "min_total": 1, "weight": 4 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 3 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": 3 }
+    ],
+    "dampeners": [
+      { "kind": "element", "element": "Fire", "min_share": 0.40, "weight": -6 },
+      { "kind": "modality", "modality": "Cardinal", "min_share": 0.35, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

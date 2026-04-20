@@ -1,0 +1,14 @@
+{
+  "id": "insomnia",
+  "name": "Insomnia",
+  "domain": "disease_sleep",
+  "description": "Sleep disturbance via Mercury overstimulation, Saturn worry, Mars activity, and 12th house involvement; placeholder pending specifics.",
+  "confidence": "low",
+  "polarity": "negative",
+  "sources": ["Carter: I section (to extract)"],
+  "logic": { "base": 0,
+    "boosts": [ { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": 4 }, { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": 4 }, { "kind": "planet_status", "planet": "Mars", "strong": true, "weight": 4 }, { "kind": "house_emphasis", "houses": [12], "min_total": 1, "weight": 6 } ],
+    "dampeners": [],
+    "escalators": [] }
+}
+

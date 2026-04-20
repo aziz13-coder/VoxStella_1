@@ -1,0 +1,21 @@
+{
+  "id": "libido_sexual_drive_style",
+  "name": "Libido / Sexual drive (style)",
+  "domain": "drive_attachment",
+  "description": "Intensity and style of sexual drive shown by Mars and Scorpio with 5th/8th emphasis; Saturn restrains, Venus/Libra refine style.",
+  "confidence": "medium",
+  "polarity": "neutral",
+  "sources": ["Carter: Mars/Scorpio drive; 5th/8th houses; Saturn restraint"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "planet_status", "planet": "Mars", "strong": true, "weight": 8 },
+      { "kind": "sign_emphasis", "sign": "Scorpio", "min": 1.5, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [5,8], "min_total": 2, "weight": 6 },
+      { "kind": "aspect", "pair": ["Venus","Mars"], "type": "soft", "max_orb": 6, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -6 }
+    ],
+    "escalators": [] }
+}
+

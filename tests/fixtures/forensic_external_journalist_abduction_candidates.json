@@ -1,0 +1,579 @@
+{
+  "generated_at": "2026-04-06T00:00:00+00:00",
+  "purpose": "Resolved journalist abduction benchmark set for validating forensic route behavior before any private shadow analysis of an active case",
+  "sources": [
+    {
+      "id": "cpj_rory_carroll_2005",
+      "kind": "press_freedom_alert",
+      "title": "Correspondent abducted in Baghdad",
+      "url": "https://cpj.org/2005/10/correspondent-abducted-in-baghdad/",
+      "metadata_strength": "high",
+      "notes": "CPJ records that Rory Carroll was seized on October 19, 2005 as he left a house in Sadr City after an interview."
+    },
+    {
+      "id": "pressgazette_rory_carroll_2005",
+      "kind": "reported_first_person_account",
+      "title": "War-zone crisis: What to do when the unthinkable happens",
+      "url": "https://pressgazette.co.uk/archive-content/war-zone-crisis-what-to-do-when-the-unthinkable-happens/",
+      "metadata_strength": "high",
+      "notes": "The article quotes Carroll's own account: 'It was 2.15pm on Wednesday' when the kidnapping began."
+    },
+    {
+      "id": "guardian_sgrena_2005",
+      "kind": "reported_history",
+      "title": "Italian reporter kidnapped in Iraq",
+      "url": "https://www.theguardian.com/media/2005/feb/04/pressandpublishing.Iraqandthemedia",
+      "metadata_strength": "high",
+      "notes": "The Guardian reports that four gunmen snatched Giuliana Sgrena from her car at about 2pm outside Baghdad University."
+    },
+    {
+      "id": "fox_sgrena_2005",
+      "kind": "reported_history",
+      "title": "Italian Journalist Kidnapped in Baghdad",
+      "url": "https://www.foxnews.com/story/italian-journalist-kidnapped-in-baghdad",
+      "metadata_strength": "high",
+      "notes": "Fox reports that Sgrena was seized shortly before 2 p.m. near the Baghdad University compound at the Jadriyah bridge."
+    },
+    {
+      "id": "cpj_jill_release_2006",
+      "kind": "press_freedom_alert",
+      "title": "CPJ welcomes release of Jill Carroll",
+      "url": "https://cpj.org/2006/03/cpj-welcomes-release-of-jill-carroll/amp/",
+      "metadata_strength": "high",
+      "notes": "CPJ states that Carroll was seized on January 7, 2006 while leaving the office of Adnan al-Dulaimi in the Adil neighborhood of western Baghdad."
+    },
+    {
+      "id": "csm_jill_statement_2006",
+      "kind": "newsroom_statement",
+      "title": "A statement from the Monitor",
+      "url": "https://ccnmtl.columbia.edu/projects/caseconsortium/casestudies/24/casestudy/files/csm/csm_stmt20060110.pdf",
+      "metadata_strength": "medium",
+      "notes": "The Christian Science Monitor says Carroll was abducted in western Baghdad on Saturday morning local time in the Adil neighborhood."
+    },
+    {
+      "id": "csm_carroll_psa_2006",
+      "kind": "newsroom_case_material",
+      "title": "60 Second Spot: It's time for Jill Carroll to come safely home",
+      "url": "https://ccnmtl.columbia.edu/projects/caseconsortium/casestudies/24/casestudy/files/csm/carroll_psa.pdf",
+      "metadata_strength": "high",
+      "notes": "The Christian Science Monitor case material describes Carroll's 10 a.m. interview appointment and says she was dropped off roughly 20 minutes earlier before being seized shortly after leaving the office area."
+    },
+    {
+      "id": "cpj_james_brandon_2004",
+      "kind": "press_freedom_alert",
+      "title": "British journalist abducted in Basra, later released",
+      "url": "https://cpj.org/2004/08/british-journalist-abducted-in-basra-later-release/",
+      "metadata_strength": "high",
+      "notes": "CPJ records that James Brandon was taken from Al-Diyafa Hotel in Basra at about 11 p.m. local time on August 12, 2004 and released the following day."
+    },
+    {
+      "id": "almezan_alan_johnston_2007",
+      "kind": "human_rights_field_report",
+      "title": "Al Mezan condemns the kidnapping of BBC journalist",
+      "url": "https://electronicintifada.net/content/al-mezan-condemns-kidnapping-bbc-journalist/3163",
+      "metadata_strength": "high",
+      "notes": "Al Mezan field information says that at approximately 14:45 on March 12, 2007, four gunmen in a white Subaru blocked Alan Johnston on Al Wehda Street and forced him out of his car."
+    },
+    {
+      "id": "cpj_alan_johnston_release_2007",
+      "kind": "press_freedom_alert",
+      "title": "BBC correspondent Alan Johnston Freed",
+      "url": "https://cpj.org/2007/07/bbc-correspondent-alan-johnston-freed/",
+      "metadata_strength": "high",
+      "notes": "CPJ records that Johnston was released alive in early July 2007 after nearly four months in captivity."
+    },
+    {
+      "id": "pchr_fox_centanni_wiig_2006",
+      "kind": "human_rights_annual_report",
+      "title": "Annual Report 2007",
+      "url": "https://pchrgaza.org/wp-content/uploads/2021/09/ann_rep_07-en.pdf",
+      "metadata_strength": "high",
+      "notes": "PCHR documents that at approximately 19:40 on August 14, 2006, armed men kidnapped Fox journalists Steve Centanni and Olaf Wiig in Gaza City."
+    },
+    {
+      "id": "cpj_fox_centanni_wiig_2006",
+      "kind": "press_freedom_alert",
+      "title": "CPJ calls for release of Fox News journalists kidnapped in Gaza",
+      "url": "https://cpj.org/2006/08/cpj-calls-for-release-of-fox-news-journalists-kidn/",
+      "metadata_strength": "high",
+      "notes": "CPJ says gunmen ambushed the Fox crew on Omar al-Mukhtar Street in central Gaza City on August 14, 2006 and abducted Steve Centanni and Olaf Wiig."
+    }
+  ],
+  "cases": [
+    {
+      "id": "rory_carroll_sadr_city_abduction",
+      "title": "Rory Carroll abduction",
+      "source_id": "pressgazette_rory_carroll_2005",
+      "expected_primary_axes": [
+        "abduction_missing_person"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup",
+        "authority_or_public_case"
+      ],
+      "contradictory_axes": [
+        "family_involvement",
+        "child_victim",
+        "accident_or_disaster",
+        "domestic_partner_involvement"
+      ],
+      "execution_tier": "tier_3_manual_review",
+      "current_status": "manual_review_only",
+      "chart_capture_status": "source_explicit_minute_anchor",
+      "metadata_basis": "first_person_time_plus_CPJ_location_and_outcome",
+      "metadata_confidence": "high",
+      "hard_outcomes": {
+        "date_local": "2005-10-19",
+        "location": "Sadr City, Baghdad, Iraq",
+        "outcome": "released alive on 2005-10-20",
+        "known_scene_markers": [
+          "armed group seizure",
+          "war-zone journalist target",
+          "temporary hidden custody"
+        ]
+      },
+      "not_replay_ready_reason": "The anchor is strong and the route now surfaces a transport-style abduction signature, but this benchmark remains part of a broader unresolved journalist-abduction set and has not yet been promoted into a replay slice.",
+      "recommended_next_step": "Keep as the lead resolved benchmark case while testing whether the abduction logic can generalize beyond transport-style kidnapping into longer-custody and public-snatch journalist cases.",
+      "tested_anchors": [
+        {
+          "id": "rory_2005_10_19_1415",
+          "basis": "Carroll's own quoted 2:15pm anchor",
+          "query": {
+            "mode": "manual",
+            "datetime": "2005-10-19T14:15:00",
+            "location": "Sadr City, Baghdad, Iraq",
+            "timezone": "Asia/Baghdad",
+            "house_system_code": "R",
+            "latitude": "33.3905897",
+            "longitude": "44.4570662",
+            "origin": "33.3905897,44.4570662"
+          },
+          "status_code": 200,
+          "success": true,
+          "comparison_status": "aligned",
+          "categories": {
+            "Abduction": 1,
+            "Deception": 2,
+            "Houses": 1
+          },
+          "finding_titles": [
+            "Abduction or forced-seizure transport pattern is active",
+            "Malefic in the 6th house",
+            "Mercury in a mute sign",
+            "Mute signs on 3rd/9th"
+          ]
+        }
+      ],
+      "map_validation": {
+        "origin_source_expected": "query_origin",
+        "origin_note": "Public district-level Sadr City anchor resolved to a stable geocoder point for repeatable chart and map benchmarking.",
+        "required_roles": [
+          "H7_ruler",
+          "H3_ruler",
+          "Moon"
+        ],
+        "movement_fact_status": "public_sources_identify_the_seizure_point_or_scene_type_but_not_a_transport_heading",
+        "geometry_status": "not_scored_due_to_missing_public_heading"
+      }
+    },
+    {
+      "id": "giuliana_sgrena_baghdad_abduction",
+      "title": "Giuliana Sgrena abduction",
+      "source_id": "fox_sgrena_2005",
+      "expected_primary_axes": [
+        "abduction_missing_person"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup",
+        "authority_or_public_case"
+      ],
+      "contradictory_axes": [
+        "family_involvement",
+        "child_victim",
+        "accident_or_disaster",
+        "domestic_partner_involvement"
+      ],
+      "execution_tier": "tier_3_manual_review",
+      "current_status": "manual_review_only",
+      "chart_capture_status": "source_explicit_approximate_anchor",
+      "metadata_basis": "reported_shortly_before_2pm_anchor_plus_public_location",
+      "metadata_confidence": "high",
+      "hard_outcomes": {
+        "date_local": "2005-02-04",
+        "location": "Baghdad University / Jadriyah bridge area, Baghdad, Iraq",
+        "outcome": "released alive on 2005-03-04",
+        "known_scene_markers": [
+          "gunmen blocked the car",
+          "war-zone journalist target",
+          "extended concealed captivity"
+        ]
+      },
+      "not_replay_ready_reason": "The route now aligns at a cleaner 13:45 anchor inside the same publicly reported shortly-before-2pm window, but the source still gives an approximate window rather than a witness-stamped minute, so this remains a benchmark case instead of a promoted replay slice.",
+      "recommended_next_step": "Keep as the lead benchmark for public-road journalist seizures where a work/public axis meets route pressure and extended concealed captivity.",
+      "tested_anchors": [
+        {
+          "id": "sgrena_2005_02_04_1345",
+          "basis": "shortly before 2pm approximation from public reporting",
+          "query": {
+            "mode": "manual",
+            "datetime": "2005-02-04T13:45:00",
+            "location": "Baghdad University, Baghdad, Iraq",
+            "timezone": "Asia/Baghdad",
+            "house_system_code": "R",
+            "latitude": "33.2726951",
+            "longitude": "44.3795485",
+            "origin": "33.2726951,44.3795485"
+          },
+          "status_code": 200,
+          "success": true,
+          "comparison_status": "aligned",
+          "categories": {
+            "Abduction": 1,
+            "Associates": 1,
+            "Deception": 2,
+            "Houses": 1,
+            "Stressors": 1,
+            "Violence": 2
+          },
+          "finding_titles": [
+            "Life/death overlap points to violence or homicide",
+            "Abduction or worksite-seizure pattern is active",
+            "1st ruler in the 8th house",
+            "Malefic contrary to sect (angular)",
+            "Hidden victim with angular violence markers",
+            "Friend or close associate axis is active",
+            "Mercury combust the Sun",
+            "Mute signs on angles"
+          ]
+        }
+      ],
+      "map_validation": {
+        "origin_source_expected": "query_origin",
+        "origin_note": "Public Baghdad University / Jadriyah bridge-area anchor resolved to a stable public-location proxy for repeatable benchmarking.",
+        "required_roles": [
+          "H7_ruler",
+          "H3_ruler",
+          "H12_ruler"
+        ],
+        "movement_fact_status": "public_sources_identify_the_seizure_point_or_scene_type_but_not_a_transport_heading",
+        "geometry_status": "not_scored_due_to_missing_public_heading"
+      }
+    },
+    {
+      "id": "jill_carroll_adil_abduction",
+      "title": "Jill Carroll abduction",
+      "source_id": "csm_carroll_psa_2006",
+      "expected_primary_axes": [
+        "abduction_missing_person"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup",
+        "violence_homicide",
+        "authority_or_public_case"
+      ],
+      "contradictory_axes": [
+        "family_involvement",
+        "child_victim",
+        "accident_or_disaster",
+        "domestic_partner_involvement"
+      ],
+      "execution_tier": "tier_3_manual_review",
+      "current_status": "manual_review_only",
+      "chart_capture_status": "source_explicit_meeting_window",
+      "metadata_basis": "10 a.m. interview appointment window plus newsroom material saying Carroll was dropped off about 20 minutes earlier and seized shortly after leaving the office area",
+      "metadata_confidence": "medium",
+      "hard_outcomes": {
+        "date_local": "2006-01-07",
+        "location": "Adil neighborhood, western Baghdad, Iraq",
+        "outcome": "released alive on 2006-03-30",
+        "known_scene_markers": [
+          "armed seizure from street",
+          "interpreter killed",
+          "driver escaped",
+          "extended captivity"
+        ]
+      },
+      "not_replay_ready_reason": "The route now aligns at the documented 10 a.m. meeting window, but the source still describes a short window rather than a single witness-stamped minute, so it remains a benchmark case rather than a promoted replay slice.",
+      "recommended_next_step": "Keep as the main validation case for public-place seizure logic in journalist abductions and watch for any relapse into domestic or family contamination.",
+      "tested_anchors": [
+        {
+          "id": "jill_2006_01_07_1000",
+          "basis": "10 a.m. appointment window with pre-drop timing from newsroom material",
+          "query": {
+            "mode": "manual",
+            "datetime": "2006-01-07T10:00:00",
+            "location": "Adil district, Baghdad, Iraq",
+            "timezone": "Asia/Baghdad",
+            "house_system_code": "R",
+            "latitude": "33.3331581",
+            "longitude": "44.3091987",
+            "origin": "33.3331581,44.3091987"
+          },
+          "status_code": 200,
+          "success": true,
+          "comparison_status": "aligned",
+          "categories": {
+            "Abduction": 1,
+            "Deception": 2,
+            "Houses": 2,
+            "Violence": 1
+          },
+          "finding_titles": [
+            "Life/death overlap points to violence or homicide",
+            "Abduction or public-place seizure pattern is active",
+            "1st ruler in the 8th house",
+            "Malefic in the 6th house",
+            "Mute signs on angles",
+            "Mute signs on 3rd/9th"
+          ]
+        }
+      ],
+      "map_validation": {
+        "origin_source_expected": "query_origin",
+        "origin_note": "Public Adil district anchor resolved to a stable district proxy for repeatable chart and map benchmarking.",
+        "required_roles": [
+          "H7_ruler",
+          "H3_ruler",
+          "Moon"
+        ],
+        "movement_fact_status": "public_sources_identify_the_seizure_point_or_scene_type_but_not_a_transport_heading",
+        "geometry_status": "not_scored_due_to_missing_public_heading"
+      }
+    },
+    {
+      "id": "james_brandon_basra_abduction",
+      "title": "James Brandon abduction",
+      "source_id": "cpj_james_brandon_2004",
+      "expected_primary_axes": [
+        "abduction_missing_person"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup",
+        "authority_or_public_case"
+      ],
+      "contradictory_axes": [
+        "family_involvement",
+        "child_victim",
+        "accident_or_disaster",
+        "domestic_partner_involvement"
+      ],
+      "execution_tier": "tier_3_manual_review",
+      "current_status": "manual_review_only",
+      "chart_capture_status": "source_explicit_minute_anchor",
+      "metadata_basis": "CPJ about-11-p.m. local anchor plus a sourced Istiqlal Street hotel-cluster proxy for Al-Diyafa Hotel because the exact hotel string does not geocode reliably in the route harness",
+      "metadata_confidence": "high",
+      "hard_outcomes": {
+        "date_local": "2004-08-12",
+        "location": "Al-Diyafa Hotel / Basra, Iraq",
+        "outcome": "released alive on 2004-08-13",
+        "known_scene_markers": [
+          "armed hotel-room seizure",
+          "gunmen stormed journalist hotel",
+          "temporary hidden custody"
+        ]
+      },
+      "not_replay_ready_reason": "The public time is strong and the route now aligns when the query uses sourced hotel-cluster proxy coordinates on Al-Istiqlal Street, but the exact hotel-room coordinate is still a proxy rather than a venue-stamped source location, so this remains a benchmark case instead of a promoted replay slice.",
+      "recommended_next_step": "Keep as the hotel-seizure benchmark and preserve the coordinate override path for venue-level forensic work where public geocoders cannot resolve the exact lodging string.",
+      "tested_anchors": [
+        {
+          "id": "james_2004_08_12_2300",
+          "basis": "CPJ about-11-p.m. local anchor plus sourced Al-Istiqlal Street hotel-cluster proxy coordinates",
+          "query": {
+            "mode": "manual",
+            "datetime": "2004-08-12T23:00:00",
+            "location": "Al-Istiqlal Street, Al Ashar, Basra, Iraq",
+            "timezone": "Asia/Baghdad",
+            "house_system_code": "R",
+            "latitude": "30.51624",
+            "longitude": "47.84212",
+            "origin": "30.51624,47.84212"
+          },
+          "status_code": 200,
+          "success": true,
+          "comparison_status": "aligned",
+          "categories": {
+            "Abduction": 1,
+            "Deception": 4
+          },
+          "finding_titles": [
+            "Abduction or transient-stay seizure pattern is active",
+            "Mercury retrograde",
+            "Node with Neptune/Mercury (karmic ruse/lie scheme)",
+            "Mute signs on angles",
+            "Mute signs on 3rd/9th"
+          ]
+        }
+      ],
+      "map_validation": {
+        "origin_source_expected": "query_origin",
+        "origin_note": "Source-backed Al-Istiqlal Street hotel-cluster proxy used because the exact Al-Diyafa Hotel string does not geocode reliably.",
+        "required_roles": [
+          "H7_ruler",
+          "H3_ruler",
+          "H12_ruler"
+        ],
+        "movement_fact_status": "public_sources_identify_the_seizure_point_or_scene_type_but_not_a_transport_heading",
+        "geometry_status": "not_scored_due_to_missing_public_heading"
+      }
+    },
+    {
+      "id": "alan_johnston_gaza_abduction",
+      "title": "Alan Johnston abduction",
+      "source_id": "almezan_alan_johnston_2007",
+      "expected_primary_axes": [
+        "abduction_missing_person"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup",
+        "authority_or_public_case"
+      ],
+      "contradictory_axes": [
+        "family_involvement",
+        "child_victim",
+        "accident_or_disaster",
+        "domestic_partner_involvement"
+      ],
+      "execution_tier": "tier_3_manual_review",
+      "current_status": "manual_review_only",
+      "chart_capture_status": "source_explicit_approximate_minute_anchor",
+      "metadata_basis": "Al Mezan gives an approximately 14:45 street seizure; the chart query uses Gaza City center because the street-level string does not geocode reliably in the route harness",
+      "metadata_confidence": "high",
+      "hard_outcomes": {
+        "date_local": "2007-03-12",
+        "location": "Al Wehda Street / Gaza City, Gaza Strip",
+        "outcome": "released alive on 2007-07-04 after 114 days in captivity",
+        "known_scene_markers": [
+          "gunmen blocked vehicle in public street",
+          "foreign journalist target",
+          "extended concealed captivity"
+        ]
+      },
+      "not_replay_ready_reason": "The route now aligns at the public 14:45 anchor, but the source still gives an approximate street-seizure minute and the benchmark query continues to use Gaza City center because the street-level string does not geocode reliably in the route harness.",
+      "recommended_next_step": "Keep as the main Gaza benchmark for public-road abduction and use it to guard against regressions back into child/family spillover.",
+      "tested_anchors": [
+        {
+          "id": "alan_2007_03_12_1445",
+          "basis": "Al Mezan approximately 14:45 anchor",
+          "query": {
+            "mode": "manual",
+            "datetime": "2007-03-12T14:45:00",
+            "location": "Gaza City, Gaza Strip",
+            "timezone": "Asia/Gaza",
+            "house_system_code": "R",
+            "latitude": "31.5050311",
+            "longitude": "34.4641381",
+            "origin": "31.5050311,34.4641381"
+          },
+          "status_code": 200,
+          "success": true,
+          "comparison_status": "aligned",
+          "categories": {
+            "Abduction": 1,
+            "Associates": 1,
+            "Deception": 3,
+            "Houses": 2,
+            "Violence": 2
+          },
+          "finding_titles": [
+            "Life/death overlap points to violence or homicide",
+            "Abduction or confrontation-on-the-route pattern is active",
+            "1st ruler in the 8th house",
+            "Hidden victim with angular violence markers",
+            "Friend or close associate axis is active",
+            "Malefic in the 6th house",
+            "Venus in detriment with Saturn influence",
+            "Mute signs on angles"
+          ]
+        }
+      ],
+      "map_validation": {
+        "origin_source_expected": "query_origin",
+        "origin_note": "Public Gaza City proxy retained because the Al Wehda Street string is not stable enough across the route harness geocoder.",
+        "required_roles": [
+          "H7_ruler",
+          "H3_ruler",
+          "H12_ruler"
+        ],
+        "movement_fact_status": "public_sources_identify_the_seizure_point_or_scene_type_but_not_a_transport_heading",
+        "geometry_status": "not_scored_due_to_missing_public_heading"
+      }
+    },
+    {
+      "id": "centanni_wiig_gaza_abduction",
+      "title": "Steve Centanni and Olaf Wiig abduction",
+      "source_id": "pchr_fox_centanni_wiig_2006",
+      "expected_primary_axes": [
+        "abduction_missing_person"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup",
+        "authority_or_public_case"
+      ],
+      "contradictory_axes": [
+        "family_involvement",
+        "child_victim",
+        "accident_or_disaster",
+        "domestic_partner_involvement"
+      ],
+      "execution_tier": "tier_3_manual_review",
+      "current_status": "manual_review_only",
+      "chart_capture_status": "source_explicit_approximate_minute_anchor",
+      "metadata_basis": "PCHR gives an approximately 19:40 Gaza City seizure and CPJ confirms the Omar al-Mukhtar Street ambush; the chart query uses Gaza City center because the street-level string does not geocode reliably in the route harness",
+      "metadata_confidence": "high",
+      "hard_outcomes": {
+        "date_local": "2006-08-14",
+        "location": "Omar al-Mukhtar Street / Gaza City, Gaza Strip",
+        "outcome": "released alive on 2006-08-27 after 13 days in captivity",
+        "known_scene_markers": [
+          "vehicle ambush on central street",
+          "armed multi-actor seizure",
+          "extended hidden custody"
+        ]
+      },
+      "not_replay_ready_reason": "The route now aligns at the 19:40 ambush anchor, but the source still gives an approximate public-street minute and the benchmark query continues to use Gaza City center because the street-level string does not geocode reliably in the route harness.",
+      "recommended_next_step": "Keep as the benchmark for multi-actor vehicle ambushes and use it to guard against regressions where witness logic outruns abduction.",
+      "tested_anchors": [
+        {
+          "id": "centanni_2006_08_14_1940",
+          "basis": "PCHR approximately 19:40 anchor",
+          "query": {
+            "mode": "manual",
+            "datetime": "2006-08-14T19:40:00",
+            "location": "Gaza City, Gaza Strip",
+            "timezone": "Asia/Gaza",
+            "house_system_code": "R",
+            "latitude": "31.5050311",
+            "longitude": "34.4641381",
+            "origin": "31.5050311,34.4641381"
+          },
+          "status_code": 200,
+          "success": true,
+          "comparison_status": "aligned",
+          "categories": {
+            "Abduction": 1,
+            "Deception": 1,
+            "Houses": 1,
+            "Witness": 1
+          },
+          "finding_titles": [
+            "Abduction or worksite-seizure pattern is active",
+            "Witness or accomplice signatures are active",
+            "Malefic in the 6th house",
+            "Mute signs on 3rd/9th"
+          ]
+        }
+      ],
+      "map_validation": {
+        "origin_source_expected": "query_origin",
+        "origin_note": "Public Gaza City proxy retained because the Omar al-Mukhtar Street string is not stable enough across the route harness geocoder.",
+        "required_roles": [
+          "H7_ruler",
+          "H3_ruler",
+          "H12_ruler"
+        ],
+        "movement_fact_status": "public_sources_identify_the_seizure_point_or_scene_type_but_not_a_transport_heading",
+        "geometry_status": "not_scored_due_to_missing_public_heading"
+      }
+    }
+  ]
+}

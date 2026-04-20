@@ -1,0 +1,23 @@
+{
+  "id": "quarrelsomeness",
+  "name": "Quarrelsomeness",
+  "domain": "social_conflict",
+  "description": "Tendency toward quarrels and disharmony when Libra/Venus or Air factors are stressed by affliction; benefic Libra/Venus support restores peace.",
+  "confidence": "high",
+  "polarity": "negative",
+  "sources": ["Carter: Afflictions to Libra/Venus or Air cause quarrels; benefics bring content/peace"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "planet_status", "planet": "Venus", "afflicted": true, "weight": 10 },
+      { "kind": "planet_status", "planet": "Mercury", "afflicted": true, "weight": 6 },
+      { "kind": "planet_status", "planet": "Saturn", "afflicted": true, "weight": 4 },
+      { "kind": "house_emphasis", "houses": [7,11], "min_total": 1, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": -8 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": -8 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

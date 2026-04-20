@@ -1,0 +1,21 @@
+{
+  "id": "upheaval",
+  "name": "Upheaval",
+  "domain": "life_pattern",
+  "description": "Sudden breaks with the past and rapid reorganization with Uranus angularity/hard aspects and cardinal overload; strong Saturn consolidates and steadies.",
+  "confidence": "medium",
+  "polarity": "negative",
+  "sources": ["Carter: Uranian abruptness; cardinal action"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "planet_status", "planet": "Uranus", "strong": true, "weight": 10 },
+      { "kind": "aspect", "pair": ["Mars","Uranus"], "type": "hard", "max_orb": 6, "weight": 8 },
+      { "kind": "modality", "modality": "Cardinal", "min_share": 0.40, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [1,10,8,11], "min_total": 2, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -8 }
+    ],
+    "escalators": [] }
+}
+

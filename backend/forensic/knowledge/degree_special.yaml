@@ -1,0 +1,54 @@
+# Comprehensive Degree Key (selected highlights; extend as needed)
+
+special:
+  Gemini_15:
+    label: Assassination degree (trad.)
+    notes: "High-risk, targeted acts when tied to malefics or Moon."
+  Virgo_18:
+    label: Evil/Devil degree (trad.)
+    notes: "Intense difficulty; hospital/illness or sabotage themes."
+  Capricorn_22:
+    label: Kill/Evidence degree (trad.)
+    notes: "Evidence, hard proofs, cold-case activation; authority involvement."
+  Pisces_24:
+    label: Hidden enemy degree (trad.)
+    notes: "Secret opposition, disguise, missing persons, water/gas involvement."
+
+sign_degrees:
+  Aries:
+    - degree: [1,13,25]
+      keywords: [fast, aggressive, argument, head, weapons, police, first, leader]
+  Taurus:
+    - degree: [2,14,26]
+      keywords: [banking, food, nature, value, belongings, throat, singing]
+  Gemini:
+    - degree: [3,15,27]
+      keywords: [two, child, local, vehicles, cars, communication, phone, theft]
+  Cancer:
+    - degree: [4,16,28]
+      keywords: [mother, home, public, water, domestic, dogs]
+  Leo:
+    - degree: [5,17,29]
+      keywords: [royal, strength, sports, leader, children, bars, outdoors]
+  Virgo:
+    - degree: [6,18,30]
+      keywords: [health, sickness, work, hospitals, doctors, pets]
+  Libra:
+    - degree: [7,19]
+      keywords: [beauty, couple, music, art, marriage, courtroom, justice]
+  Scorpio:
+    - degree: [8,20]
+      keywords: [secret, death, sex, rape, insurance, jealousy, investigators, graves]
+  Sagittarius:
+    - degree: [9,21]
+      keywords: [college, foreign, horses, planning, publishing]
+  Capricorn:
+    - degree: [10,22]
+      keywords: [public office, government, slow, black, cold, fear, poverty]
+  Aquarius:
+    - degree: [11,23]
+      keywords: [cut, interrupt, divorce, high places, airport, technology]
+  Pisces:
+    - degree: [12,24]
+      keywords: [swimming, drugs, water, disguised, missing, hotels, prisons]
+

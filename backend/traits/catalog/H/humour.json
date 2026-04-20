@@ -1,0 +1,19 @@
+{
+  "id": "humour",
+  "name": "Humour (sense of)",
+  "domain": "affect_communication",
+  "description": "Humour via Gemini/Sagittarius perspective and Mercury–Jupiter harmony; wit/play in 3rd/5th/9th.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter: Gemini/Sag; Mercury/Jupiter"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Gemini", "min": 1.5, "weight": 6 },
+      { "kind": "sign_emphasis", "sign": "Sagittarius", "min": 1.5, "weight": 6 },
+      { "kind": "aspect", "pair": ["Mercury","Jupiter"], "type": "soft", "max_orb": 6, "weight": 8 },
+      { "kind": "house_emphasis", "houses": [3,5,9], "min_total": 2, "weight": 6 }
+    ],
+    "dampeners": [ { "kind": "aspect", "pair": ["Mercury","Saturn"], "type": "hard", "max_orb": 6, "weight": -6 } ],
+    "escalators": [] }
+}
+

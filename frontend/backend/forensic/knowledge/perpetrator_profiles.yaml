@@ -1,0 +1,307 @@
+# Perpetrator Behavioral Profiling Knowledge Dictionary
+
+identification:
+  core_location: "7th House (Descendant) analysis"
+  markers:
+    primary_ruler: "7th House/Descendant sign ruler"
+    secondary_indicators: "Planets in 7th House"
+    co_conspirators: "Multiple planets in 7th House"
+    hidden_accomplices: "6th/12th House connections"
+    relationship_dynamic: "Aspects between 1st/7th rulers"
+
+behavioral_trait_matrix:
+  Mars_dominated:
+    behavioral_characteristics:
+      keywords: ["Explosive", "Impulsive", "Aggressive", "Violent", "Rash", "Cruel", "Destructive", "Stubborn", "Jealous", "Angry", "Lustful", "Unfeeling", "Domineering", "Volatile", "Ruthless"]
+      violence_level: "High to extreme"
+      method: "Immediate action; direct confrontation; weapons; blitz attacks"
+      temperament: "Aggressive, impulsive, hot‑tempered"
+      physical: "Muscular build, scars, red complexion"
+      profession: "Military, police, athletics, construction"
+      motive: "Rage, revenge, dominance assertion"
+    criminal_patterns:
+      weapon_violence: "Guns, knives, and physical weapons as primary tools"
+      domestic_abuse: "Jealous, violent and aggressive nature; sexual energy; physical violence within domestic settings"
+      impulsive_crime: "Stops thinking and acts out of anger; heat‑of‑the‑moment offenses"
+      repeat_offenses: "Continues hurtful actions even when victims plead to stop"
+      blitz_attack: "Sudden, overwhelming violence aimed to quickly subdue the victim"
+      sexual_assault: "Sexual assault/rape; coercive sexual domination; sexual sadism"
+      weapon_based_crimes: "Bladed weapons and firearms prominently used to assert control"
+      heat_of_passion_murder: "Crimes committed in rage without premeditation"
+      domestic_violence_escalation: "Pattern of escalating domestic incidents culminating in severe harm"
+      territorial_possessive_crimes: "Assaults over territory, jealousy, or perceived ownership of partner"
+      crimes_of_dominance: "Violence to establish physical/psychological dominance over victim"
+      ritual_violence: "Ritualized or repeated violent acts reflecting obsession/control"
+      torture_sadism: "Infliction of pain for control, intimidation, or gratification"
+    manifestations:
+      immediate_action: "Acts first, little to no contemplation before violence"
+      sexual_violence: "Sexual desire under Mars twisted into perversion/assault"
+      physical_psychological_domination: "Seeks both physical and psychological domination"
+      explosive_temper: "Volatile temper tantrums that can escalate to deadly force"
+    sign_variations:
+      Aries: "Spontaneous violence, head injuries inflicted"
+      Taurus: "Strangulation, slow methodical torture"
+      Gemini: "Multiple weapons, quick strikes, hands"
+      Cancer: "Family violence, emotional triggers"
+      Leo: "Dramatic violence, public displays"
+      Virgo: "Precise, clinical methods, workplace violence"
+      Libra: "Relationship violence, balanced brutality"
+      Scorpio: "Sexual violence, obsessive stalking"
+      Sagittarius: "Long‑distance weapons, hunting methods"
+      Capricorn: "Premeditated, cold calculation"
+      Aquarius: "Unusual methods, group violence"
+      Pisces: "Drowning, drugs, confused violence"
+    investigative_keywords:
+      - "Blitz attacks (sudden, overwhelming violence)"
+      - "Physical brutality"
+      - "Sexual assault/rape"
+      - "Weapon-based crimes (especially bladed weapons, firearms)"
+      - "Heat-of-passion murders"
+      - "Domestic violence escalation"
+      - "Territorial/possessive crimes"
+      - "Crimes of dominance"
+      - "Ritual violence"
+      - "Torture/sadism"
+    psychology:
+      profile_words: ["Domineering", "Impulsive", "Aggressive", "Volatile", "Ruthless"]
+
+  Saturn_dominated:
+    behavioral_characteristics:
+      control_level: "Maximum, domineering"
+      method: "Long‑term planning, systematic approach"
+      temperament: "Cold, calculating, patient"
+      physical: "Older, thin/gaunt, dark features"
+      profession: "Authority, government, senior executive"
+      motive: "Power, control, elimination of obstacles"
+    expressions:
+      well_aspected: "Methodical professional killer"
+      afflicted: "Controlling abuser, long‑term stalker"
+      angular: "Positions of authority/power"
+      with_malefics: "Extreme cruelty, sadistic tendencies"
+      retrograde: "Past connections, unfinished business"
+
+  Neptune_dominated:
+    behavioral_characteristics:
+      deception_level: "Master manipulator"
+      method: "Drugs, poisoning, gaslighting, disguise"
+      temperament: "Charming façade, hidden dark side"
+      physical: "Changeable appearance, soft features, blue eyes"
+      profession: "Doctor, artist, therapist, substance trade"
+      motive: "Fantasy fulfillment, escape from reality"
+    warning_signs:
+      conj_seventh: "Conjunction to 7th House → Unknown/disguised perpetrator"
+      oppose_personals: "Opposition to personal planets → Victim deceived"
+      in_twelfth: "In 12th House → Hidden deception/addictions"
+      with_venus: "Romantic deception, false identity"
+      with_mercury: "Lies, false information, cover‑ups"
+
+  Sun_dominated:
+    behavioral_characteristics:
+      motive: "Power‑motivated crimes; seeks control and dominance"
+      method: "Manipulative leadership; uses charisma to gain victim's trust"
+      temperament: "Attention‑seeking, superiority complex; believes they won't get caught"
+      public_behavior: "May taunt police or media; craves recognition"
+      profession: "Leaders, public figures, influencers, managers"
+
+  Mercury_dominated:
+    behavioral_characteristics:
+      physical: "Small stature or youthful appearance; quick, agile movements"
+      temperament: "Youthful, adaptive, curious, talkative; nervous energy"
+      method: "Research & stalking; conducts thorough research on victims; surveillance and information‑gathering"
+      profession: "Communications, transport, IT/tech, journalism, sales"
+
+  Venus_dominated:
+    behavioral_characteristics:
+      physical: "Charming, seductive, attractive/beautiful presentation"
+      temperament: "Self‑centered, dominating, suppressive when afflicted; possessive"
+      motive: "Relationship/pleasure/control in partnerships; image/status maintenance"
+      method: "Lure via romance/affection/gifts; grooming; leverage of beauty/social charm"
+      relationship_pattern: "When influenced by malefics → no fairness/pleasure/equality in partnerships"
+      domestic_context: "May dominate/suppress spouse/children; perceived as aggressor/abuser"
+    manifestations:
+      influenced_by_malefics: "Partnerships turn coercive; inequity and control dynamics"
+      with_pluto: "Stalking/obsession/compulsion; fatal attraction; repulsion‑obsession cycles"
+      with_mars: "Jealousy violence; triangle conflicts; sexual coercion"
+      angular: "Public charm/visibility; social leverage to access victims"
+    keywords:
+      - Charming
+      - Seductive
+      - Beautiful
+      - Self‑centered
+      - Dominating
+      - Suppressive
+      - Obsessive (with Pluto)
+      - Jealous (with Mars)
+
+  Jupiter_dominated:
+    behavioral_characteristics:
+      keywords: ["Pompous", "Boastful", "Extravagant", "Obstinate", "Blind optimism", "Excess", "Overindulgence", "Presumptuous", "Boisterous", "Entitled", "Superior", "Grandiose", "Lacks moderation", "Boundary issues"]
+      temperament: "Grandiose confidence; blind optimism; tendency to overreach and ignore limits"
+      motive: "Entitlement and superiority; invincibility and greed — believes they deserve the rewards and will ‘win’"
+      method: "Crimes of scale; abuse of status; cross‑border/international dealings; gambling mentality (doubling down)"
+      profession: "Law, education, religion, publishing; executive or international business roles"
+    criminal_patterns:
+      financial_crimes_of_scale: "Large‑scale fraud, embezzlement, investment schemes"
+      abuse_of_authority: "Corruption in legal, educational, or religious institutions"
+      gambling_related_offenses: "Gambling addiction leading to fraud to cover losses"
+      international_foreign_crimes: "Crimes involving foreign travel, borders, international business"
+      educational_religious_fraud: "Exploitation of teaching or spiritual authority"
+    manifestations:
+      in_aries: "Crusading or pioneering attitude with over‑the‑top behavior"
+      retrograde: "Plans backfire; overconfidence undone; may be caught eventually"
+      in_seventh: "Close to victim; often a ‘friend’ or trusted person"
+      in_fifth: "Parties, fun, drinking/celebrating; gambling contexts"
+      with_malefics: "Amplifies harm; evaluate if Jupiter acts as functional malefic in chart"
+    profile_categories:
+      white_collar_fraudster: "Believes they deserve rewards; gambling mentality about ‘doubling down’"
+      corrupt_authority: "Judges, lawyers, professors, religious leaders who abuse position"
+      ponzi_schemer: "Expansion leveraged to build ever‑growing fraudulent schemes"
+      international_criminal: "Operates across borders; foreign business fraud"
+      gambling_addicted_embezzler: "Steals to fund addiction, then more to cover losses"
+    psychology:
+      core_motivations: ["False sense of superiority and entitlement", "Invincibility and greed (‘will win’)", "Inability to consider limitations", "Amplifies everything — makes bad things bigger too"]
+    victim_context:
+      trust_positions: "Often people who trust them due to position of authority"
+      proximity: "May be right next to the victim as friend or trusted advisor"
+      familial: "Victims in familial/home concerns — family members or close associates"
+      dependents: "Students, parishioners, clients, or investors who look up to them"
+
+  Pluto_dominated:
+    behavioral_characteristics:
+      destruction_level: "Total annihilation intent"
+      method: "Extreme violence, sexual assault, torture"
+      temperament: "Obsessive, transformative, power‑hungry"
+      physical: "Intense gaze, magnetic presence"
+      profession: "Psychology, occult, underworld"
+      motive: "Total domination, transformation through destruction"
+    manifestations:
+      angular: "Mass destruction capability"
+      with_personals: "Obsessive targeting of personal planets"
+      in_eighth: "In 8th House → Death/rebirth through violence"
+      with_mars: "Sexual violence, extreme brutality"
+      with_venus: "Fatal attraction, possessive love"
+
+  Moon_dominated:
+    behavioral_characteristics:
+      keywords: ["Emotional", "Reactive", "Nurturing", "Possessive", "Protective", "Attachment‑driven", "Cyclical", "Instinctual", "Moody", "Family‑focused"]
+      motive: "Emotional security, attachment and belonging; unresolved maternal/familial wounds"
+      method: "Caregiver access/control, domestic settings, emotional manipulation; reactive outbursts rather than planning"
+      temperament: "Mood‑driven, sensitive, protective‑possessive; projects feelings onto others; easily triggered"
+      public_behavior: "Appears caring or helpful; cycles between withdrawal and engagement; highly responsive to emotional tides"
+      profession: "Caregiving, domestic work, childcare, nursing, hospitality, food/home services"
+    key_indicators:
+      - "FBI serial offender profiles frequently highlight dysfunctional families and mother‑related issues"
+      - "Strong link to maternal issues and family dysfunction"
+      - "Moon co‑signifies the victim; when dominant in perpetrator, suggests emotional projection onto the victim"
+    manifestations:
+      maternal_family_fixation: "Deep‑seated issues with mother figures or family dynamics"
+      emotional_triggers: "Instinctive reactions to triggers rather than logical responses"
+      nurturing_turned_destructive: "Nurturing energy perverted into possessive or controlling behavior"
+      cyclical_patterns: "Behavior follows emotional cycles; waxing/waning like lunar phases"
+    environmental_influences:
+      unstable_transits: "Unexpected change, uncertainty and emotional instability during significant lunar transits"
+      full_moon_activity: "More active or triggered during full‑moon periods"
+      lunar_peaks_sensitivity: "Heightened emotions and sensitivity during lunar peaks"
+    investigative_keywords:
+      - "Emotional manipulation"
+      - "Caregiver dysfunction"
+      - "Possessive attachment"
+      - "Reactive violence (not premeditated)"
+      - "Family‑oriented crimes"
+      - "Maternal obsession"
+      - "Emotional dependence"
+      - "Cyclical behavior patterns"
+
+appearance:
+  eye_color_matrix:
+    asc_window_degrees: 30
+    mapping:
+      Neptune: "Blue"
+      Uranus: "Green"
+      Saturn: "Dark/black"
+      Mars: "Brown/hazel"
+      Venus: "Light brown/amber"
+      multiple: "Mixed/unusual eye colors"
+  body_type:
+    Jupiter: "Large build, overweight"
+    Saturn: "Thin, gaunt, bony structure"
+    Mars: "Muscular, athletic"
+    Venus: "Attractive, well‑proportioned"
+    Mercury: "Small, youthful appearance"
+    Uranus: "Unusual height (very tall/short)"
+    Neptune: "Soft features, changeable appearance"
+    Pluto: "Intense, magnetic presence"
+  chiron_marks:
+    Aries: "Head scars, facial injuries"
+    Taurus: "Neck scars, throat marks"
+    Gemini: "Hand/arm scars, finger injuries"
+    Mercury_aspect: "Skin conditions, tattoos"
+    Mars_aspect: "Violence‑related scars"
+
+relationship_to_victim:
+  patterns:
+    conjunction: "Very close relationship, family/lover"
+    trine_sextile: "Friendly relationship, easy access"
+    square: "Conflict, enemy, rival, rejected suitor"
+    opposition: "Direct confrontation, open enemy"
+    no_aspect: "Stranger, random encounter"
+    same_house: "Very intimate connection"
+    mutual_reception: "Equal exchange/power dynamic"
+    dispositor_control: "One planet controls the other via dispositorship"
+  victim_knowledge:
+    personal_planets_aspecting: "Known to victim"
+    seventh_ruler_in_first: "Very familiar person"
+    first_ruler_in_seventh: "Victim trusts perpetrator"
+    moon_sun_contact: "Emotional familiarity"
+    venus_mars_contact: "Romantic/sexual connection"
+    mercury_involvement: "Communication/friendship link"
+
+motives:
+  jealousy_scorpio:
+    indicators: ["Scorpio prominence", "8th House emphasis", "Pluto angular", "Mars–Venus aspects", "Pollux/Algol contacts"]
+  financial:
+    indicators: ["2nd/8th axis", "Venus–Saturn aspects", "Jupiter–Neptune", "Taurus emphasis", "Capricorn prominence"]
+  domestic_violence:
+    indicators: ["Cancer/4th House", "Moon–Mars aspects", "Venus in detriment", "Saturn in 4th", "Aries degrees"]
+  revenge:
+    indicators: ["South Node prominence", "Saturn retrograde", "Mercury retrograde", "12th House emphasis", "Mars–Saturn aspects"]
+
+environment:
+  by_7th_ruler_house:
+    '1': "At victim's location"
+    '2': "Enclosed space, vehicle trunk"
+    '3': "In vehicle, on the move"
+    '4': "At home, familiar environment"
+    '5': "Entertainment venue, with children"
+    '6': "Workplace, health facility"
+    '7': "Comfortable in open confrontation"
+    '8': "Underground, hidden location"
+    '9': "Outdoors, distant location"
+    '10': "Public place, authority setting"
+    '11': "With friends, group setting"
+    '12': "Hidden, secret location"
+
+professions_by_dominance:
+  Mars: ["Military", "Police", "Athletics", "Surgery"]
+  Venus: ["Arts", "Beauty", "Hospitality", "Luxury"]
+  Mercury: ["Communications", "Transport", "Theft/tech"]
+  Jupiter: ["Education", "Religion", "Law", "Publishing"]
+  Saturn: ["Government", "Construction", "Elderly care"]
+  Uranus: ["Technology", "Aviation", "Astrology"]
+  Neptune: ["Healthcare", "Arts", "Substances", "Fraud"]
+  Pluto: ["Psychology", "Research", "Underworld"]
+  combinations:
+    Mars_Mercury: "Motorcycle/vehicle crimes"
+    Saturn_Mercury: "Computer crimes, elderly abuse"
+    Neptune_Venus: "Medical malpractice, art fraud"
+    Jupiter_Scorpio: "Religious extremism, abuse of power"
+    Uranus_H3: "High‑tech theft, cyber crime"
+    Pluto_H8: "Financial crimes, insurance fraud"
+
+psychology:
+  conditions: ["Neptune prominent → addiction/delusions", "Uranus afflicted → outbursts/instability", "Mercury retrograde → communication disorders", "Moon afflicted → emotional instability", "12th House emphasis → hidden illness/isolation", "Algol contacts → severe disturbance", "Saturn–Moon → depression/coldness", "Mars–Neptune → drug‑induced violence"]
+  patterns: ["Repetitive degrees → obsessive", "Intercepted signs → hidden traits", "Retrograde planets → past‑focused", "VoC Moon → disconnected from consequences", "Grand Cross → extreme pressure", "T‑Square → focused destructive energy"]
+
+capture_probability:
+  factors: ["7th ruler weak/debilitated → easy to catch", "7th ruler angular/strong → difficult apprehension", "Mars trine 7th ruler → cooperation/confession", "Mars square 7th ruler → violent resistance", "Mercury retrograde → investigation delays", "Jupiter aspects → favorable/unfavorable legal process", "Saturn involvement → long investigation, eventual justice", "Neptune prominence → case may never be solved"]
+  escape_indicators: ["7th ruler in 9th → flees far", "7th ruler in 12th → hides successfully", "Uranus prominent → sudden disappearance", "Neptune aspects → identity change/disguise", "3rd House emphasis → constantly moving", "Sagittarius prominence → international flight"]

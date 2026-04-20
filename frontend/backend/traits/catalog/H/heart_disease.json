@@ -1,0 +1,24 @@
+{
+  "id": "heart_disease",
+  "name": "Heart disease (predisposition)",
+  "domain": "disease_cardiovascular",
+  "description": "Cardiac strain and structural heart issues with Leo/Sun debility and harsh Saturn/Mars contacts.",
+  "confidence": "medium",
+  "polarity": "negative",
+  "sources": ["Carter — Encyclopaedia of Psychological Astrology, H: Heart disease."],
+  "engine_rule": "If Sun is afflicted (hard Saturn/Mars) and Leo/5th emphasis is present, increase cardiovascular risk flag.",
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Leo", "min": 1.5, "weight": 6 },
+      { "kind": "planet_status", "planet": "Sun", "afflicted": true, "weight": 8 },
+      { "kind": "aspect", "pair": ["Saturn","Sun"], "type": "hard", "max_orb": 6, "weight": 6 },
+      { "kind": "aspect", "pair": ["Mars","Sun"], "type": "hard", "max_orb": 6, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [5,6], "min_total": 2, "weight": 6 }
+    ],
+    "dampeners": [
+      { "kind": "aspect", "pair": ["Sun","Jupiter"], "type": "soft", "max_orb": 6, "weight": -6 },
+      { "kind": "aspect", "pair": ["Sun","Venus"], "type": "soft", "max_orb": 6, "weight": -6 },
+      { "kind": "house_emphasis", "houses": [5], "min_total": 1, "weight": -4 }
+    ],
+    "escalators": [] }
+}

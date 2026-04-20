@@ -1,0 +1,25 @@
+{
+  "id": "xenodochy",
+  "name": "Xenodochy (hospitality to strangers)",
+  "domain": "social_practice",
+  "description": "Active hospitality toward strangers/guests; institutional care and welcome.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": [
+    "Carter: Air/Libra/Venus; Aquarius; Jupiter"
+  ],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Aquarius", "min": 1.5, "weight": 5 },
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": 5 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": 5 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 5 },
+      { "kind": "house_emphasis", "houses": [11,7,9], "min_total": 1, "weight": 3 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -4 },
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.35, "weight": -3 }
+    ],
+    "escalators": [] }
+}
+

@@ -1,0 +1,19 @@
+{
+  "id": "cardinal_initiatory",
+  "name": "Initiatory drive (Cardinal)",
+  "domain": "modality",
+  "description": "Active, pushful, purposive; initiatory drive of the Cardinal quality.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Cardinal = active, pushful, purposive"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "modality", "modality": "Cardinal", "min_share": 0.35, "weight": 14 },
+      { "kind": "angle_aspect", "planet": "Mars", "type": "soft", "angle": "ASC", "max_orb": 6, "weight": 6 }
+    ],
+    "dampeners": [],
+    "escalators": []
+  }
+}
+

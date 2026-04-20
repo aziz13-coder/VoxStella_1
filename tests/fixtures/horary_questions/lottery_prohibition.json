@@ -1,0 +1,629 @@
+{
+  "id": 1755430661993,
+  "question": "will I win in the lottery?",
+  "category": "general",
+  "asked_at_local": "8/17/2025, 2:37:41 PM",
+  "asked_at_utc": "2025-08-17T11:37:41.779Z",
+  "tz": "Asia/Jerusalem",
+  "location": {
+    "city": "ישראל",
+    "country": "Unknown",
+    "lat": 30.8124247,
+    "lon": 34.8594762
+  },
+  "house_system": "Regiomontanus",
+  "houses": [
+    252.67,
+    281.75,
+    318.25,
+    354.97,
+    24.35,
+    48.56,
+    72.67,
+    101.75,
+    138.25,
+    174.97,
+    204.35,
+    228.56
+  ],
+  "rulers": {},
+  "aspects": [
+    {
+      "applying": false,
+      "aspect": "Sextile",
+      "degrees_to_exact": 5.08,
+      "exact_time": null,
+      "orb": 5.08,
+      "planet1": "Moon",
+      "planet2": "Mercury"
+    },
+    {
+      "applying": false,
+      "aspect": "Trine",
+      "degrees_to_exact": 4.97,
+      "exact_time": null,
+      "orb": 4.97,
+      "planet1": "Moon",
+      "planet2": "Mars"
+    },
+    {
+      "applying": true,
+      "aspect": "Sextile",
+      "degrees_to_exact": 0.1,
+      "exact_time": null,
+      "orb": 0.1,
+      "planet1": "Mercury",
+      "planet2": "Mars"
+    },
+    {
+      "applying": false,
+      "aspect": "Trine",
+      "degrees_to_exact": 5.57,
+      "exact_time": null,
+      "orb": 5.57,
+      "planet1": "Mercury",
+      "planet2": "Saturn"
+    },
+    {
+      "applying": false,
+      "aspect": "Conjunction",
+      "degrees_to_exact": 5.14,
+      "exact_time": null,
+      "orb": 5.14,
+      "planet1": "Venus",
+      "planet2": "Jupiter"
+    },
+    {
+      "applying": true,
+      "aspect": "Square",
+      "degrees_to_exact": 8.52,
+      "exact_time": null,
+      "orb": 8.52,
+      "planet1": "Mars",
+      "planet2": "Jupiter"
+    },
+    {
+      "applying": false,
+      "aspect": "Opposition",
+      "degrees_to_exact": 5.67,
+      "exact_time": null,
+      "orb": 5.67,
+      "planet1": "Mars",
+      "planet2": "Saturn"
+    }
+  ],
+  "planets": {
+    "Jupiter": {
+      "degree_in_sign": 15.120945238320118,
+      "dignity_score": 6,
+      "house": 8,
+      "latitude": -0.055780884524891,
+      "longitude": 105.12094523832012,
+      "retrograde": false,
+      "sign": "Cancer",
+      "solar_condition": {
+        "condition": "Free of Sun",
+        "description": "Not affected by solar rays",
+        "dignity_effect": 0,
+        "distance_from_sun": 39.7061,
+        "exact_cazimi": false,
+        "traditional_exception": false
+      },
+      "speed": 0.19864062305988348
+    },
+    "Mars": {
+      "degree_in_sign": 6.599769733803299,
+      "dignity_score": -4,
+      "house": 10,
+      "latitude": 0.41788997793261773,
+      "longitude": 186.5997697338033,
+      "retrograde": false,
+      "sign": "Libra",
+      "solar_condition": {
+        "condition": "Free of Sun",
+        "description": "Not affected by solar rays",
+        "dignity_effect": 0,
+        "distance_from_sun": 41.7728,
+        "exact_cazimi": false,
+        "traditional_exception": false
+      },
+      "speed": 0.6337295642879655
+    },
+    "Mercury": {
+      "degree_in_sign": 6.495311628441044,
+      "dignity_score": 0,
+      "house": 8,
+      "latitude": -1.3967887972620718,
+      "longitude": 126.49531162844104,
+      "retrograde": false,
+      "sign": "Leo",
+      "solar_condition": {
+        "condition": "Free of Sun",
+        "description": "Not affected by solar rays",
+        "dignity_effect": 0,
+        "distance_from_sun": 18.3317,
+        "exact_cazimi": false,
+        "traditional_exception": false
+      },
+      "speed": 0.730625313029497
+    },
+    "Moon": {
+      "degree_in_sign": 11.573137600211851,
+      "dignity_score": 1,
+      "house": 6,
+      "latitude": 5.197161044779729,
+      "longitude": 71.57313760021185,
+      "retrograde": false,
+      "sign": "Gemini",
+      "solar_condition": {
+        "condition": "Free of Sun",
+        "description": "Not affected by solar rays",
+        "dignity_effect": 0,
+        "distance_from_sun": 73.2539,
+        "exact_cazimi": false,
+        "traditional_exception": false
+      },
+      "speed": 14.126580400828198
+    },
+    "Saturn": {
+      "degree_in_sign": 0.9288975060234892,
+      "dignity_score": -4,
+      "house": 4,
+      "latitude": -2.4368886376773418,
+      "longitude": 0.9288975060234892,
+      "retrograde": true,
+      "sign": "Aries",
+      "solar_condition": {
+        "condition": "Free of Sun",
+        "description": "Not affected by solar rays",
+        "dignity_effect": 0,
+        "distance_from_sun": 143.8981,
+        "exact_cazimi": false,
+        "traditional_exception": false
+      },
+      "speed": -0.05427864067721249
+    },
+    "Sun": {
+      "degree_in_sign": 24.827017019289997,
+      "dignity_score": 11,
+      "house": 9,
+      "latitude": 0.00013180656236325575,
+      "longitude": 144.82701701929,
+      "retrograde": false,
+      "sign": "Leo",
+      "solar_condition": {
+        "condition": "Free of Sun",
+        "description": "Not affected by solar rays",
+        "dignity_effect": 0,
+        "distance_from_sun": 0,
+        "exact_cazimi": false,
+        "traditional_exception": false
+      },
+      "speed": 0.9617309451622337
+    },
+    "Venus": {
+      "degree_in_sign": 20.25683784177923,
+      "dignity_score": 3,
+      "house": 8,
+      "latitude": -0.640583736491709,
+      "longitude": 110.25683784177923,
+      "retrograde": false,
+      "sign": "Cancer",
+      "solar_condition": {
+        "condition": "Free of Sun",
+        "description": "Not affected by solar rays",
+        "dignity_effect": 0,
+        "distance_from_sun": 34.5702,
+        "exact_cazimi": false,
+        "traditional_exception": false
+      },
+      "speed": 1.1825752891028534
+    }
+  },
+  "traditional_factors": {
+    "frustrating_planet": "Mercury",
+    "perfection_type": "frustration",
+    "querent_strength": 6,
+    "quesited_strength": -4,
+    "reception": false
+  },
+  "solar_factors": {
+    "cazimi_count": 0,
+    "combustion_count": 0,
+    "combustion_ignored": false,
+    "detailed_analyses": {
+      "Jupiter": {
+        "condition": "Free of Sun",
+        "description": "Not affected by solar rays",
+        "dignity_modifier": 0,
+        "distance_from_sun": 39.7061,
+        "effect_ignored": false,
+        "exact_cazimi": false,
+        "planet": "Jupiter",
+        "traditional_exception": false
+      },
+      "Mars": {
+        "condition": "Free of Sun",
+        "description": "Not affected by solar rays",
+        "dignity_modifier": 0,
+        "distance_from_sun": 41.7728,
+        "effect_ignored": false,
+        "exact_cazimi": false,
+        "planet": "Mars",
+        "traditional_exception": false
+      },
+      "Mercury": {
+        "condition": "Free of Sun",
+        "description": "Not affected by solar rays",
+        "dignity_modifier": 0,
+        "distance_from_sun": 18.3317,
+        "effect_ignored": false,
+        "exact_cazimi": false,
+        "planet": "Mercury",
+        "traditional_exception": false
+      },
+      "Moon": {
+        "condition": "Free of Sun",
+        "description": "Not affected by solar rays",
+        "dignity_modifier": 0,
+        "distance_from_sun": 73.2539,
+        "effect_ignored": false,
+        "exact_cazimi": false,
+        "planet": "Moon",
+        "traditional_exception": false
+      },
+      "Saturn": {
+        "condition": "Free of Sun",
+        "description": "Not affected by solar rays",
+        "dignity_modifier": 0,
+        "distance_from_sun": 143.8981,
+        "effect_ignored": false,
+        "exact_cazimi": false,
+        "planet": "Saturn",
+        "traditional_exception": false
+      },
+      "Sun": {
+        "condition": "Free of Sun",
+        "description": "Not affected by solar rays",
+        "dignity_modifier": 0,
+        "distance_from_sun": 0,
+        "effect_ignored": false,
+        "exact_cazimi": false,
+        "planet": "Sun",
+        "traditional_exception": false
+      },
+      "Venus": {
+        "condition": "Free of Sun",
+        "description": "Not affected by solar rays",
+        "dignity_modifier": 0,
+        "distance_from_sun": 34.5702,
+        "effect_ignored": false,
+        "exact_cazimi": false,
+        "planet": "Venus",
+        "traditional_exception": false
+      }
+    },
+    "significant": false,
+    "summary": "No significant solar conditions",
+    "under_beams_count": 0
+  },
+  "verdict": {
+    "label": "NO",
+    "confidence": 85,
+    "rationale": [
+      "Radicality: Chart is radical - Ascendant at 12.7°",
+      "Significators: Querent: Jupiter (ruler of 1), Quesited: Mars (ruler of 5)",
+      "Frustration: Mercury aspects Mars before significator perfection"
+    ]
+  },
+  "key_testimonies": [
+    "• Frustration: Mercury aspects Mars before significator perfection"
+  ],
+  "keyTestimoniesText": "• Frustration: Mercury aspects Mars before significator perfection",
+  "chart_data": {
+    "ascendant": 252.6696,
+    "aspects": [
+      {
+        "applying": false,
+        "aspect": "Sextile",
+        "degrees_to_exact": 5.08,
+        "exact_time": null,
+        "orb": 5.08,
+        "planet1": "Moon",
+        "planet2": "Mercury"
+      },
+      {
+        "applying": false,
+        "aspect": "Trine",
+        "degrees_to_exact": 4.97,
+        "exact_time": null,
+        "orb": 4.97,
+        "planet1": "Moon",
+        "planet2": "Mars"
+      },
+      {
+        "applying": true,
+        "aspect": "Sextile",
+        "degrees_to_exact": 0.1,
+        "exact_time": null,
+        "orb": 0.1,
+        "planet1": "Mercury",
+        "planet2": "Mars"
+      },
+      {
+        "applying": false,
+        "aspect": "Trine",
+        "degrees_to_exact": 5.57,
+        "exact_time": null,
+        "orb": 5.57,
+        "planet1": "Mercury",
+        "planet2": "Saturn"
+      },
+      {
+        "applying": false,
+        "aspect": "Conjunction",
+        "degrees_to_exact": 5.14,
+        "exact_time": null,
+        "orb": 5.14,
+        "planet1": "Venus",
+        "planet2": "Jupiter"
+      },
+      {
+        "applying": true,
+        "aspect": "Square",
+        "degrees_to_exact": 8.52,
+        "exact_time": null,
+        "orb": 8.52,
+        "planet1": "Mars",
+        "planet2": "Jupiter"
+      },
+      {
+        "applying": false,
+        "aspect": "Opposition",
+        "degrees_to_exact": 5.67,
+        "exact_time": null,
+        "orb": 5.67,
+        "planet1": "Mars",
+        "planet2": "Saturn"
+      }
+    ],
+    "house_rulers": {
+      "1": "Jupiter",
+      "2": "Saturn",
+      "3": "Saturn",
+      "4": "Jupiter",
+      "5": "Mars",
+      "6": "Venus",
+      "7": "Mercury",
+      "8": "Moon",
+      "9": "Sun",
+      "10": "Mercury",
+      "11": "Venus",
+      "12": "Mars"
+    },
+    "houses": [
+      252.67,
+      281.75,
+      318.25,
+      354.97,
+      24.35,
+      48.56,
+      72.67,
+      101.75,
+      138.25,
+      174.97,
+      204.35,
+      228.56
+    ],
+    "midheaven": 174.9731,
+    "moon_last_aspect": {
+      "applying": false,
+      "aspect": "Trine",
+      "degrees_difference": 4.97,
+      "orb": 4.97,
+      "perfection_eta_days": 0.35,
+      "perfection_eta_description": "0.4 days ago",
+      "planet": "Mars"
+    },
+    "planets": {
+      "Jupiter": {
+        "degree_in_sign": 15.120945238320118,
+        "dignity_score": 6,
+        "house": 8,
+        "latitude": -0.055780884524891,
+        "longitude": 105.12094523832012,
+        "retrograde": false,
+        "sign": "Cancer",
+        "solar_condition": {
+          "condition": "Free of Sun",
+          "description": "Not affected by solar rays",
+          "dignity_effect": 0,
+          "distance_from_sun": 39.7061,
+          "exact_cazimi": false,
+          "traditional_exception": false
+        },
+        "speed": 0.19864062305988348
+      },
+      "Mars": {
+        "degree_in_sign": 6.599769733803299,
+        "dignity_score": -4,
+        "house": 10,
+        "latitude": 0.41788997793261773,
+        "longitude": 186.5997697338033,
+        "retrograde": false,
+        "sign": "Libra",
+        "solar_condition": {
+          "condition": "Free of Sun",
+          "description": "Not affected by solar rays",
+          "dignity_effect": 0,
+          "distance_from_sun": 41.7728,
+          "exact_cazimi": false,
+          "traditional_exception": false
+        },
+        "speed": 0.6337295642879655
+      },
+      "Mercury": {
+        "degree_in_sign": 6.495311628441044,
+        "dignity_score": 0,
+        "house": 8,
+        "latitude": -1.3967887972620718,
+        "longitude": 126.49531162844104,
+        "retrograde": false,
+        "sign": "Leo",
+        "solar_condition": {
+          "condition": "Free of Sun",
+          "description": "Not affected by solar rays",
+          "dignity_effect": 0,
+          "distance_from_sun": 18.3317,
+          "exact_cazimi": false,
+          "traditional_exception": false
+        },
+        "speed": 0.730625313029497
+      },
+      "Moon": {
+        "degree_in_sign": 11.573137600211851,
+        "dignity_score": 1,
+        "house": 6,
+        "latitude": 5.197161044779729,
+        "longitude": 71.57313760021185,
+        "retrograde": false,
+        "sign": "Gemini",
+        "solar_condition": {
+          "condition": "Free of Sun",
+          "description": "Not affected by solar rays",
+          "dignity_effect": 0,
+          "distance_from_sun": 73.2539,
+          "exact_cazimi": false,
+          "traditional_exception": false
+        },
+        "speed": 14.126580400828198
+      },
+      "Saturn": {
+        "degree_in_sign": 0.9288975060234892,
+        "dignity_score": -4,
+        "house": 4,
+        "latitude": -2.4368886376773418,
+        "longitude": 0.9288975060234892,
+        "retrograde": true,
+        "sign": "Aries",
+        "solar_condition": {
+          "condition": "Free of Sun",
+          "description": "Not affected by solar rays",
+          "dignity_effect": 0,
+          "distance_from_sun": 143.8981,
+          "exact_cazimi": false,
+          "traditional_exception": false
+        },
+        "speed": -0.05427864067721249
+      },
+      "Sun": {
+        "degree_in_sign": 24.827017019289997,
+        "dignity_score": 11,
+        "house": 9,
+        "latitude": 0.00013180656236325575,
+        "longitude": 144.82701701929,
+        "retrograde": false,
+        "sign": "Leo",
+        "solar_condition": {
+          "condition": "Free of Sun",
+          "description": "Not affected by solar rays",
+          "dignity_effect": 0,
+          "distance_from_sun": 0,
+          "exact_cazimi": false,
+          "traditional_exception": false
+        },
+        "speed": 0.9617309451622337
+      },
+      "Venus": {
+        "degree_in_sign": 20.25683784177923,
+        "dignity_score": 3,
+        "house": 8,
+        "latitude": -0.640583736491709,
+        "longitude": 110.25683784177923,
+        "retrograde": false,
+        "sign": "Cancer",
+        "solar_condition": {
+          "condition": "Free of Sun",
+          "description": "Not affected by solar rays",
+          "dignity_effect": 0,
+          "distance_from_sun": 34.5702,
+          "exact_cazimi": false,
+          "traditional_exception": false
+        },
+        "speed": 1.1825752891028534
+      }
+    },
+    "solar_conditions_summary": {
+      "cazimi_planets": [],
+      "combusted_planets": [],
+      "free_planets": [
+        {
+          "distance_from_sun": 0,
+          "planet": "Sun"
+        },
+        {
+          "distance_from_sun": 73.2539,
+          "planet": "Moon"
+        },
+        {
+          "distance_from_sun": 18.3317,
+          "planet": "Mercury"
+        },
+        {
+          "distance_from_sun": 34.5702,
+          "planet": "Venus"
+        },
+        {
+          "distance_from_sun": 41.7728,
+          "planet": "Mars"
+        },
+        {
+          "distance_from_sun": 39.7061,
+          "planet": "Jupiter"
+        },
+        {
+          "distance_from_sun": 143.8981,
+          "planet": "Saturn"
+        }
+      ],
+      "significant_conditions": 0,
+      "under_beams_planets": []
+    },
+    "timezone_info": {
+      "coordinates": {
+        "latitude": 30.8124247,
+        "longitude": 34.8594762
+      },
+      "local_time": "2025-08-17T14:37:41.779124+03:00",
+      "location_name": "ישראל",
+      "timezone": "Asia/Jerusalem",
+      "utc_time": "2025-08-17T11:37:41.779124+00:00"
+    }
+  },
+  "calculation_metadata": {
+    "api_version": "2.0.0",
+    "calculation_time_seconds": 5.798230886459351,
+    "engine_version": "Enhanced Traditional Horary 2.0",
+    "enhanced_features_used": {
+      "directional_motion_awareness": true,
+      "enhanced_denial_conditions": true,
+      "fail_fast_geocoding": true,
+      "future_retrograde_checks": true,
+      "reception_weighting_nuance": true,
+      "sequence_enforcement": true,
+      "solar_condition_enhancements": true,
+      "variable_moon_timing": true
+    },
+    "enhanced_parameters": {
+      "exaltation_confidence_boost": 15
+    },
+    "override_flags_applied": {
+      "ignore_combustion": false,
+      "ignore_radicality": false,
+      "ignore_saturn_7th": false,
+      "ignore_void_moon": false
+    },
+    "timestamp": "2025-08-17T11:37:41.986818+00:00"
+  },
+  "notes": ""
+}

@@ -1,0 +1,23 @@
+{
+  "id": "candor",
+  "name": "Candor / frankness",
+  "domain": "tempo_decision_style",
+  "description": "Candor associated with Sagittarius/Jupiter and Libra/Venus truth-telling and balance.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter: Libra/Venus candor; Sagittarius/Jupiter frankness"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Sagittarius", "min": 1.5, "weight": 8 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 8 },
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": 6 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Saturn", "afflicted": true, "weight": -6 },
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.40, "weight": -4 }
+    ],
+    "escalators": []
+  }
+}

@@ -1,0 +1,140 @@
+import importlib.util
+import json
+from pathlib import Path
+
+
+BACKEND_DIR = Path(__file__).resolve().parent
+
+
+def _load_app_module():
+    app_path = BACKEND_DIR / "app.py"
+    spec = importlib.util.spec_from_file_location("backend_app_metadata_test", app_path)
+    module = importlib.util.module_from_spec(spec)
+    assert spec and spec.loader
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_version_endpoint_returns_coherent_metadata():
+    module = _load_app_module()
+    client = module.app.test_client()
+
+    response = client.get("/api/version")
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["app_version"] == module.APP_VERSION
+    assert payload["api_version"] == module.API_VERSION
+    assert payload["engine_version"] == module.ENGINE_VERSION
+    assert payload["release_date"] == module.RELEASE_DATE
+    assert isinstance(payload.get("backend_build"), dict)
+    assert payload["backend_build"].get("metadata_source")
+    assert isinstance((payload["backend_build"].get("git") or {}), dict)
+    assert isinstance(payload.get("features"), list)
+
+
+def test_health_endpoint_exposes_app_and_api_versions():
+    module = _load_app_module()
+    client = module.app.test_client()
+
+    response = client.get("/api/health?skip_network=true")
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["version"] == module.APP_VERSION
+    assert payload["api_version"] == module.API_VERSION
+    assert payload["engine_version"] == module.ENGINE_VERSION
+    assert payload["release_date"] == module.RELEASE_DATE
+    assert isinstance(payload.get("backend_build"), dict)
+
+
+def test_build_metadata_loader_reads_pyinstaller_internal_path(tmp_path):
+    from build_metadata import load_build_metadata
+
+    internal_dir = tmp_path / "_internal"
+    internal_dir.mkdir(parents=True)
+    expected = {
+        "metadata_version": 1,
+        "runtime_kind": "pyinstaller_bundle",
+        "built_at_utc": "2026-04-18T12:45:00+00:00",
+    }
+    (internal_dir / "build_metadata.json").write_text(json.dumps(expected), encoding="utf-8")
+
+    payload = load_build_metadata(tmp_path)
+
+    assert payload["metadata_source"] == "file"
+    assert payload["runtime_kind"] == "pyinstaller_bundle"
+    assert payload["built_at_utc"] == expected["built_at_utc"]
+
+
+def test_chart_request_log_summary_redacts_raw_values():
+    module = _load_app_module()
+
+    question = "Will I get the job?"
+    location = "Jerusalem, Israel"
+    summary = module._chart_request_log_summary(
+        question=question,
+        location=location,
+        date_str="02/04/2026",
+        time_str="13:37",
+        timezone_str="Asia/Jerusalem",
+        use_current_time=False,
+        manual_houses="1st=Aries",
+        use_reasoning_v1=True,
+    )
+
+    assert summary == {
+        "question_chars": len(question),
+        "location_chars": len(location),
+        "custom_date_supplied": True,
+        "custom_time_supplied": True,
+        "timezone_supplied": True,
+        "use_current_time": False,
+        "manual_houses": True,
+        "use_reasoning_v1": True,
+    }
+    assert question not in str(summary)
+    assert location not in str(summary)
+
+
+def test_calculate_chart_forwards_coordinate_overrides(monkeypatch):
+    module = _load_app_module()
+    client = module.app.test_client()
+
+    captured = {}
+
+    class DummyEngine:
+        def judge(self, question, settings):
+            captured["question"] = question
+            captured["settings"] = settings
+            return {
+                "judgment": "YES",
+                "confidence": 77,
+                "reasoning": [],
+                "chart_data": None,
+            }
+
+    monkeypatch.setattr(module, "horary_engine", DummyEngine())
+    monkeypatch.setattr(module, "should_bypass_license", lambda: True)
+
+    response = client.post(
+        "/api/calculate-chart",
+        json={
+            "question": "Will I get the job?",
+            "location": "New York, NY, USA",
+            "useCurrentTime": False,
+            "date": "18/04/2026",
+            "time": "06:30",
+            "timezone": "America/New_York",
+            "latitude": 40.7128,
+            "longitude": -74.006,
+            "locationName": "New York, New York, United States",
+        },
+    )
+
+    assert response.status_code == 200
+    assert captured["question"] == "Will I get the job?"
+    assert captured["settings"]["location"] == "New York, NY, USA"
+    assert captured["settings"]["location_name"] == "New York, New York, United States"
+    assert captured["settings"]["latitude"] == 40.7128
+    assert captured["settings"]["longitude"] == -74.006

@@ -1,0 +1,19 @@
+{
+  "id": "homesickness",
+  "name": "Homesickness",
+  "domain": "affect_attachment",
+  "description": "Yearning for home via Cancer/4th/Water with Moon afflicted (esp. by Saturn); Neptune adds idealization.",
+  "confidence": "medium",
+  "polarity": "negative",
+  "sources": ["Carter: Cancer/4th; Moon afflicted"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Cancer", "min": 1.5, "weight": 8 },
+      { "kind": "house_emphasis", "houses": [4], "min_total": 1, "weight": 8 },
+      { "kind": "planet_status", "planet": "Moon", "afflicted": true, "weight": 8 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": 4 }
+    ],
+    "dampeners": [ { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": -6 } ],
+    "escalators": [] }
+}
+

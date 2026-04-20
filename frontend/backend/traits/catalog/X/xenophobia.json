@@ -1,0 +1,28 @@
+{
+  "id": "xenophobia",
+  "name": "Xenophobia (fear of outsiders)",
+  "domain": "social_attitude",
+  "description": "Fear/hostility toward outsiders arising from defensive identification with home/ingroup and rigid fixed attitudes.",
+  "confidence": "medium",
+  "polarity": "negative",
+  "sources": [
+    "Carter: Fixed under affliction; Water/Cancer protection; Libra/Venus afflictions → quarrels; Aquarius love of mankind"
+  ],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.35, "weight": 4 },
+      { "kind": "sign_emphasis", "sign": "Cancer", "min": 1.5, "weight": 4 },
+      { "kind": "element", "element": "Water", "min_share": 0.35, "weight": 3 },
+      { "kind": "planet_status", "planet": "Saturn", "afflicted": true, "weight": 6 },
+      { "kind": "planet_status", "planet": "Venus", "afflicted": true, "weight": 4 },
+      { "kind": "house_emphasis", "houses": [4,11,9], "min_total": 1, "weight": 2 }
+    ],
+    "dampeners": [
+      { "kind": "sign_emphasis", "sign": "Aquarius", "min": 1.5, "weight": -6 },
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": -4 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": -5 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": -3 }
+    ],
+    "escalators": [] }
+}
+

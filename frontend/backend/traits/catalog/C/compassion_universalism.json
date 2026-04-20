@@ -1,0 +1,20 @@
+{
+  "id": "compassion_universalism",
+  "name": "Compassion / universalism (Aquarius)",
+  "domain": "social_orientation",
+  "description": "Fixed Air’s perception of natural facts as universal laws — community‑mindedness/love of mankind.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Aquarius universalist orientation"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Aquarius", "min": 1.5, "weight": 12 }
+    ],
+    "dampeners": [
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.40, "weight": -4 },
+      { "kind": "planet_status", "planet": "Saturn", "afflicted": true, "weight": -4 }
+    ],
+    "escalators": []
+  }
+}

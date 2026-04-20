@@ -1,0 +1,88 @@
+{
+  "generated_at": "YYYY-MM-DDTHH:MM:SS+TZ",
+  "purpose": "Private active-case shadow package for <case> based on public-source bounded anchors only",
+  "status": "active_case_private_shadow_only",
+  "do_not_use_for": [
+    "publication",
+    "operational guidance",
+    "location prediction",
+    "claims of certainty"
+  ],
+  "public_facts": [
+    {
+      "id": "<source_id>",
+      "url": "https://example.com",
+      "notes": "<public fact summary only>"
+    }
+  ],
+  "case": {
+    "id": "<case_id>",
+    "title": "<case title>",
+    "location": "<scene cluster>",
+    "coordinates_proxy": {
+      "lat": 0.0,
+      "lon": 0.0
+    },
+    "window_basis": "<why the time window was selected>",
+    "hard_known_facts": [
+      "<fact 1>",
+      "<fact 2>"
+    ],
+    "not_known_publicly": [
+      "<unknown 1>",
+      "<unknown 2>"
+    ]
+  },
+  "anchors": [
+    {
+      "id": "<anchor_id>",
+      "basis": "<earliest|midpoint|latest or exact verified timestamp basis>",
+      "query": {
+        "mode": "manual",
+        "location": "<scene cluster>",
+        "timezone": "<tz>",
+        "house_system_code": "R",
+        "latitude": "<lat>",
+        "longitude": "<lon>",
+        "origin": "<lat,lon>",
+        "abduction": "1",
+        "datetime": "YYYY-MM-DDTHH:MM:SS"
+      },
+      "status_code": 200,
+      "success": true,
+      "comparison_status": "aligned",
+      "matched_axes": [
+        "abduction_missing_person"
+      ],
+      "missed_axes": [],
+      "contradicted_axes": [],
+      "categories": {
+        "Abduction": 1,
+        "Deception": 1
+      },
+      "finding_titles": [
+        "<finding 1>",
+        "<finding 2>"
+      ],
+      "abduction_map": {
+        "origin_source": "query_origin",
+        "origin": {
+          "lat": 0.0,
+          "lon": 0.0
+        },
+        "bearings": [
+          {
+            "role": "H7_ruler",
+            "planet": "<planet>",
+            "azimuth_deg": 0.0
+          }
+        ]
+      }
+    }
+  ],
+  "overall_assessment": {
+    "best_anchor": "<anchor_id>",
+    "summary": "<best-fit summary bounded to public facts>",
+    "map_limit": "<why geometry is or is not scoreable>"
+  }
+}

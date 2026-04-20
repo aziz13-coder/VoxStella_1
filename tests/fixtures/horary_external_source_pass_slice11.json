@@ -1,0 +1,72 @@
+[
+  {
+    "id": "move_house_astrologyweekly_source_pass",
+    "question": "Will we move house?",
+    "source_url": "https://astrologyweekly.com/threads/will-we-move-house.39969/",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "move / relocation involving the home",
+    "source_expected_category": "property",
+    "source_expected_houses": [
+      1,
+      4
+    ],
+    "source_expected_focus": "A move-house question remains centered on the home and living situation, so the 4th house stays primary rather than being treated as generic travel.",
+    "current_engine_category": "property",
+    "current_engine_houses": [
+      1,
+      4
+    ],
+    "current_engine_quesited_house": 4,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Current router already keeps a move-house question on the property axis."
+  },
+  {
+    "id": "buy_new_house_astrologyweekly_source_pass",
+    "question": "Will we buy a new house?",
+    "source_url": "https://astrologyweekly.com/threads/will-we-buy-a-new-house.128518/",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "property acquisition / purchase",
+    "source_expected_category": "property",
+    "source_expected_houses": [
+      1,
+      4,
+      7
+    ],
+    "source_expected_focus": "A house purchase remains a property question centered on the 4th, with the seller or contracting other side joining through the 7th. It should not collapse into generic money logic just because the verb is 'buy'.",
+    "current_engine_category": "property",
+    "current_engine_houses": [
+      1,
+      4,
+      7
+    ],
+    "current_engine_quesited_house": 4,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Aligned after the shared property transition pass keeps the house in the 4th and the seller or contracting counterparty in the 7th."
+  },
+  {
+    "id": "sell_house_soon_astrologyweekly_source_pass",
+    "question": "Will we sell the house soon?",
+    "source_url": "https://astrologyweekly.com/threads/will-we-sell-the-house-soon-within-6-mos.148833/",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "property sale / disposition",
+    "source_expected_category": "property",
+    "source_expected_houses": [
+      1,
+      4,
+      7
+    ],
+    "source_expected_focus": "A house sale still centers on the house in the 4th and the other party in the 7th. It should not flatten into generic transaction money routing just because the verb is 'sell'.",
+    "current_engine_category": "property",
+    "current_engine_houses": [
+      1,
+      4,
+      7
+    ],
+    "current_engine_quesited_house": 4,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Aligned after the shared property transition pass keeps the house in the 4th and the buyer or contracting counterparty in the 7th."
+  }
+]

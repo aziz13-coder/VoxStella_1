@@ -1,0 +1,22 @@
+{
+  "id": "reticence",
+  "name": "Reticence",
+  "domain": "communication_style",
+  "description": "Holds back speech and self‑disclosure with Virgo/Saturn/Water strengths and 6th/12th emphasis; Fire display and Gemini loquacity reduce.",
+  "confidence": "medium",
+  "polarity": "neutral",
+  "sources": ["Carter: Virgo careful speech; Saturn reserve; Water privacy"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Virgo", "min": 1.5, "weight": 6 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": 6 },
+      { "kind": "element", "element": "Water", "min_share": 0.35, "weight": 4 },
+      { "kind": "house_emphasis", "houses": [6,12], "min_total": 2, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": -6 },
+      { "kind": "sign_emphasis", "sign": "Gemini", "min": 1.5, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

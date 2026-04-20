@@ -1,0 +1,70 @@
+[
+  {
+    "id": "loan_applied_for_astrologyweekly_source_pass",
+    "question": "Will I get the loan I applied for?",
+    "source_url": "https://astrologyweekly.com/threads/will-i-get-the-loan-i-applied-for.16572/",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "loan approval / borrowing money",
+    "source_expected_category": "money",
+    "source_expected_houses": [
+      1,
+      8
+    ],
+    "source_expected_focus": "The thread explicitly treats the loan as the 8th-house matter of other people's money, with the querent and the loan itself as the operative first-pass axis.",
+    "current_engine_category": "money",
+    "current_engine_houses": [
+      1,
+      8
+    ],
+    "current_engine_quesited_house": 8,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Current router already keeps a generic loan-approval question on the querent/other-people's-money axis."
+  },
+  {
+    "id": "bank_loan_approved_astrologyweekly_source_pass",
+    "question": "Will my bank loan be approved?",
+    "source_url": "https://astrologyweekly.com/threads/horary-test-will-my-bank-loan-be-approved.8990/",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "bank loan approval",
+    "source_expected_category": "money",
+    "source_expected_houses": [
+      1,
+      7,
+      8
+    ],
+    "source_expected_focus": "The thread explicitly discusses the house of the lender and the lender's money. With a named bank, the counterparty in the 7th and the money or loan in the 8th should both remain in view.",
+    "current_engine_category": "money",
+    "current_engine_houses": [
+      1,
+      7,
+      8
+    ],
+    "current_engine_quesited_house": 8,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Aligned after the shared loan/lender doctrine pass keeps the named bank as the 7th-house counterparty and the loan itself on the turned 2nd, or radical 8th."
+  },
+  {
+    "id": "loan_desperately_need_astrologyweekly_source_pass",
+    "question": "Will I recieve the loan I deperatley need?",
+    "source_url": "https://astrologyweekly.com/threads/will-i-recieve-the-loan-i-deperatley-need.45855/",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "loan / financial assistance from others",
+    "source_expected_category": "money",
+    "source_expected_houses": [
+      1,
+      8
+    ],
+    "source_expected_focus": "The thread states directly that money from other people belongs to the 8th. The possible source, such as a bank or coworker, is secondary to the core borrowing axis in this wording.",
+    "current_engine_category": "money",
+    "current_engine_houses": [
+      1,
+      8
+    ],
+    "current_engine_quesited_house": 8,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Current router matches the basic borrowing doctrine by keeping the loan on the 8th as other people's money."
+  }
+]

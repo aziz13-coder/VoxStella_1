@@ -1,0 +1,24 @@
+{
+  "id": "reliability",
+  "name": "Reliability",
+  "domain": "character_trait",
+  "description": "Consistency and follow‑through with Earth/Fixed dominance and 2nd/6th/10th emphasis; supported by Venus/Mercury/Saturn in good condition.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Earth supply/steady work; Fixed conservative/steady"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "element", "element": "Earth", "min_share": 0.35, "weight": 8 },
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.35, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [2,6,10], "min_total": 2, "weight": 6 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": 3 },
+      { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": 4 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": 6 }
+    ],
+    "dampeners": [
+      { "kind": "modality", "modality": "Mutable", "min_share": 0.40, "weight": -6 },
+      { "kind": "aspect", "pair": ["Mercury","Neptune"], "type": "hard", "max_orb": 6, "weight": -6 }
+    ],
+    "escalators": [] }
+}
+

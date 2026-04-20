@@ -1,0 +1,67 @@
+# Forensic Astrology Aspects — dictionary (non-rule reference)
+
+orb_guidelines:
+  conjunction: 8
+  opposition: 10
+  square: 8
+  trine: 10
+  sextile: 5
+
+applying_vs_separating:
+  applying:
+    meaning: Stronger, events building toward crisis
+    note: Faster planet at lower degree approaching slower planet
+  separating:
+    meaning: Weaker, events moving away from crisis
+    note: Faster planet at higher degree moving away from slower planet
+
+core_meanings:
+  conjunction:
+    general: Two planets in same place fuse; most powerful union
+    forensic: Direct connection, immediate influence, combined energies
+  opposition:
+    general: Polarity; across-the-table tension; externalized conflict
+    forensic: Direct confrontation; victim–perpetrator axis dynamics
+  square:
+    general: Friction, obstacle, acute stress; breakout potential
+    forensic: Violent confrontation, resistance, escalation risks
+  trine:
+    general: Ease, flow, facilitation
+    forensic: Planned/assisted actions, complicity, smooth execution
+  sextile:
+    general: Opportunity, minor facilitation
+    forensic: Peripheral involvement; enabling but not central (unless angular rulers)
+
+patterns:
+  grand_trine:
+    general: Three trines forming a triangle
+    forensic: Coordinated flow across parties; can aid elaborate operations (cf. crime_patterns)
+  t_square:
+    general: Opposition with a third planet squaring both ends
+    forensic: Intense conflict with a trigger; explosive outcomes
+  grand_cross:
+    general: Four squares/oppositions forming a cross
+    forensic: Maximum tension; multiple conflict vectors; complex event structure
+
+# Specific combinations — avoid duplicates of items already covered in crime_patterns or deception_rules
+specific_pairs:
+  Sun_Moon:
+    conjunction: Crisis involving both solar/lunar figures; family polarity highlighted
+    opposition: Gender/family tensions; public/private split
+  Mercury_Mars:
+    any: Mental agitation; aggressive ideas; heated messages; escalation by words/vehicles
+  Venus_Uranus:
+    any: Sudden relational rifts; sexual shock; unpredictable dynamics
+  Moon_Uranus:
+    opposition: Sudden emotional shock; violent separations; panic
+    any: Rapid mood/scene change; volatility in the public sphere
+  Jupiter_Pluto:
+    opposition: Power/law themes; children/themes of growth entangled with coercion
+    any: Excess linked to control; organized leverage, large resources
+  Ruler1_Ruler7:
+    axis: Victim–perpetrator relationship confirmed when closely configured (aspect or strong dignity links)
+
+notes:
+  - Exact aspects (tighter orb) increase weight; angular house rulers amplify importance.
+  - Consider applying/separating to time the sequence; Moon aspects often act as timers.
+

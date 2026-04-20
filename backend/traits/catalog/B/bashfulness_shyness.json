@@ -1,0 +1,22 @@
+{
+  "id": "bashfulness_shyness",
+  "name": "Bashfulness (shyness)",
+  "domain": "temperament",
+  "description": "Reserved or shy presentation tied to protective Water dynamics and withdrawal houses.",
+  "confidence": "low",
+  "polarity": "negative",
+  "sources": ["Carter (cross-ref: Shyness)"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "element", "element": "Water", "min_share": 0.35, "weight": 8 },
+      { "kind": "house_emphasis", "houses": [12, 4], "min_total": 2, "weight": 8 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": 6 }
+    ],
+    "dampeners": [
+      { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": -6 }
+    ],
+    "escalators": []
+  }
+}
+

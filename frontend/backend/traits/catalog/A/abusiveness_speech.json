@@ -1,0 +1,22 @@
+{
+  "id": "abusiveness_speech",
+  "name": "Abusiveness (speech)",
+  "domain": "communication",
+  "description": "Harsh, cutting speech when Water sensitizes and Mercury is hit by Mars/Uranus.",
+  "confidence": "medium",
+  "polarity": "negative",
+  "sources": ["Carter"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "element", "element": "Water", "min_share": 0.35, "weight": 8 },
+      { "kind": "aspect", "pair": ["Mercury","Mars"], "type": "hard", "max_orb": 6, "weight": 12 },
+      { "kind": "aspect", "pair": ["Mercury","Uranus"], "type": "hard", "max_orb": 6, "weight": 12 },
+      { "kind": "angle_aspect", "planet": "Mercury", "type": "hard", "angle": "ASC", "max_orb": 6, "weight": 6 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": -8 }
+    ],
+    "escalators": []
+  }
+}

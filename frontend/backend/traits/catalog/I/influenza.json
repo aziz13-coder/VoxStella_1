@@ -1,0 +1,14 @@
+{
+  "id": "influenza",
+  "name": "Influenza",
+  "domain": "disease_infectious",
+  "description": "Placeholder: respiratory infection tendency; to refine with Carter’s indicators.",
+  "confidence": "low",
+  "polarity": "negative",
+  "sources": ["Carter: I section (to extract)"],
+  "logic": { "base": 0,
+    "boosts": [ { "kind": "house_emphasis", "houses": [12,6], "min_total": 2, "weight": 6 } ],
+    "dampeners": [],
+    "escalators": [] }
+}
+

@@ -1,0 +1,24 @@
+{
+  "id": "withdrawal",
+  "name": "Withdrawal (retreat)",
+  "domain": "behavioral_state",
+  "description": "Turning inward or retreating from the world with 12th‑house emphasis, Water (Pisces/Cancer), and Moon/Neptune strength; Cardinal/Fire outward thrust reduces.",
+  "confidence": "high",
+  "polarity": "neutral",
+  "sources": ["Carter: 12th = places of retirement (monasteries, asylums)"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "house_emphasis", "houses": [12], "min_total": 1, "weight": 8 },
+      { "kind": "element", "element": "Water", "min_share": 0.35, "weight": 6 },
+      { "kind": "sign_group_emphasis", "group": ["Pisces","Cancer"], "min": 2.0, "weight": 4 },
+      { "kind": "planet_status", "planet": "Moon", "strong": true, "weight": 3 },
+      { "kind": "planet_status", "planet": "Neptune", "strong": true, "weight": 3 }
+    ],
+    "dampeners": [
+      { "kind": "modality", "modality": "Cardinal", "min_share": 0.40, "weight": -6 },
+      { "kind": "element", "element": "Fire", "min_share": 0.40, "weight": -4 },
+      { "kind": "sign_emphasis", "sign": "Aries", "min": 1.5, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

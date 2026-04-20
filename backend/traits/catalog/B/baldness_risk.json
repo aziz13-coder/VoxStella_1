@@ -1,0 +1,16 @@
+{
+  "id": "baldness_risk",
+  "name": "Baldness risk",
+  "domain": "appearance",
+  "description": "Predisposition to hair thinning; cross-reference to Hair section. Placeholder until hair mapping is complete.",
+  "confidence": "low",
+  "polarity": "negative",
+  "sources": ["Carter (B: Baldness → Hair)"],
+  "logic": {
+    "base": 0,
+    "boosts": [],
+    "dampeners": [],
+    "escalators": []
+  }
+}
+

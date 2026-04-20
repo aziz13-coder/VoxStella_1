@@ -1,0 +1,22 @@
+{
+  "id": "domination_capricorn",
+  "name": "Domination (Capricorn theme)",
+  "domain": "zodiac_psychology",
+  "description": "Desire to dominate/organize associated with Capricorn/Saturn; can turn harsh under affliction.",
+  "confidence": "medium",
+  "polarity": "negative",
+  "sources": ["Carter: Capricorn domination/organization"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Capricorn", "min": 1.5, "weight": 10 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": 8 },
+      { "kind": "angle_aspect", "planet": "Saturn", "type": "hard", "angle": "MC", "max_orb": 6, "weight": 6 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Saturn", "afflicted": true, "weight": -8 }
+    ],
+    "escalators": []
+  }
+}
+

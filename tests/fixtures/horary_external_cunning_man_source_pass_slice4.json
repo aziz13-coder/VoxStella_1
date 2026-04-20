@@ -1,0 +1,66 @@
+[
+  {
+    "id": "weather_lughnasadh_source_pass",
+    "question": "What will the weather be for Lughnasadh?",
+    "source_url": "https://cunning-man.co.uk/what-will-the-weather-be-for-lughnasadh/",
+    "source_kind": "cunning_man_source_pass",
+    "article_expected_verdict": "warm/mostly fair with some rain chance",
+    "source_expected_category": "general",
+    "source_expected_houses": [
+      9
+    ],
+    "source_expected_focus": "The article treats Lughnasadh as a religious festival and judges the weather from the festival's 9th-house significator rather than from a generic opponent axis.",
+    "current_engine_category": "general",
+    "current_engine_houses": [
+      9
+    ],
+    "current_engine_quesited_house": 9,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Current router now judges weather for a religious festival from the event's own 9th-house significator."
+  },
+  {
+    "id": "covid_test_result_timing_source_pass",
+    "question": "When will my COVID test result arrive?",
+    "source_url": "https://cunning-man.co.uk/test-result-timing/",
+    "source_kind": "cunning_man_source_pass",
+    "article_expected_verdict": "timing",
+    "source_expected_category": "health",
+    "source_expected_houses": [
+      1,
+      7
+    ],
+    "source_expected_focus": "The article treats the medical result as the operative contact/report from the medical side, explicitly rejecting an education-style exam reading and rejecting a 3rd-from-7th letter frame.",
+    "current_engine_category": "health",
+    "current_engine_houses": [
+      1,
+      7
+    ],
+    "current_engine_quesited_house": 7,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Current router now treats medical result arrival as a health contact/timing question rather than letting the word 'test' force it into education."
+  },
+  {
+    "id": "train_arrive_v2_source_pass",
+    "question": "What time will the train arrive?",
+    "source_url": "https://cunning-man.co.uk/what-time-will-the-train-arrive-2/",
+    "source_kind": "cunning_man_source_pass",
+    "article_expected_verdict": "timing",
+    "source_expected_category": "travel",
+    "source_expected_houses": [
+      1,
+      3
+    ],
+    "source_expected_focus": "The article explicitly treats the train as part of the querent's commute and judges it from the 3rd house.",
+    "current_engine_category": "travel",
+    "current_engine_houses": [
+      1,
+      3
+    ],
+    "current_engine_quesited_house": 3,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Current router stays aligned on the short-transit 3rd-house doctrine."
+  }
+]

@@ -1,0 +1,23 @@
+{
+  "id": "discontent_disharmony",
+  "name": "Discontent / disharmony",
+  "domain": "affect_social_adjustment",
+  "description": "Quarrels/discord when Air/Libra/Venus are afflicted; benefics to Libra/Venus bring peace.",
+  "confidence": "high",
+  "polarity": "negative",
+  "sources": ["Carter: afflictions to Libra/Venus/Air cause disharmony; benefics bring contentment"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "planet_status", "planet": "Venus", "afflicted": true, "weight": 12 },
+      { "kind": "sign_group_emphasis", "group": ["Gemini","Libra","Aquarius"], "min": 3.0, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [3,7,11], "min_total": 2, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": -10 },
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": -8 }
+    ],
+    "escalators": []
+  }
+}
+

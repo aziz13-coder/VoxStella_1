@@ -1,0 +1,22 @@
+{
+  "id": "self_indulgence",
+  "name": "Self‑indulgence",
+  "domain": "shadow_tendency",
+  "description": "Over‑gratification and extravagance when Fire dominates under affliction, especially via hard Sun–Jupiter or weak Saturn/Earth anchors.",
+  "confidence": "high",
+  "polarity": "negative",
+  "sources": ["Carter: Fire under affliction → self‑indulgence/extravagance"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": 6 },
+      { "kind": "aspect", "pair": ["Sun","Jupiter"], "type": "hard", "max_orb": 6, "weight": 10 },
+      { "kind": "planet_status", "planet": "Jupiter", "afflicted": true, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [5,9], "min_total": 1, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -8 },
+      { "kind": "element", "element": "Earth", "min_share": 0.35, "weight": -6 }
+    ],
+    "escalators": [] }
+}
+

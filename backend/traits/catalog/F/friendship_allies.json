@@ -1,0 +1,22 @@
+{
+  "id": "friendship_allies",
+  "name": "Friendship / allies",
+  "domain": "social_orientation",
+  "description": "Aquarius/11th house emphasize friends and allies; discord arises when Air/Libra/Venus are afflicted.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Aquarius/11th = friends; Air/Libra/Venus harmony"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Aquarius", "min": 1.5, "weight": 10 },
+      { "kind": "house_emphasis", "houses": [11], "min_total": 1, "weight": 10 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Venus", "afflicted": true, "weight": -8 },
+      { "kind": "sign_group_emphasis", "group": ["Gemini","Libra","Aquarius"], "min": 3.0, "weight": -4 }
+    ],
+    "escalators": []
+  }
+}
+

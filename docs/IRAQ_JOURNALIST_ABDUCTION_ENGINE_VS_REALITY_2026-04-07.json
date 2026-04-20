@@ -1,0 +1,625 @@
+{
+  "cases": [
+    {
+      "id": "rory_carroll_sadr_city_abduction",
+      "title": "Rory Carroll abduction",
+      "location": "Sadr City, Baghdad, Iraq",
+      "outcome": "released alive on 2005-10-20",
+      "scene_markers": [
+        "armed group seizure",
+        "war-zone journalist target",
+        "temporary hidden custody"
+      ],
+      "anchor_id": "rory_2005_10_19_1415",
+      "anchor_basis": "Carroll's own quoted 2:15pm anchor",
+      "datetime": "2005-10-19T14:15:00",
+      "status_code": 200,
+      "success": true,
+      "comparison_status": "aligned",
+      "matched_axes": [
+        "abduction_missing_person"
+      ],
+      "contradicted_axes": [],
+      "categories": {
+        "Abduction": 1,
+        "Deception": 2,
+        "Houses": 1
+      },
+      "finding_titles": [
+        "Abduction or forced-seizure transport pattern is active",
+        "Malefic in the 6th house",
+        "Mercury in a mute sign",
+        "Mute signs on 3rd/9th"
+      ],
+      "map_origin_source": "query_origin",
+      "map_origin": {
+        "lat": 33.3905897,
+        "lon": 44.4570662
+      },
+      "map_roles": [
+        "H1_ruler",
+        "H7_ruler",
+        "H3_ruler",
+        "H8_ruler",
+        "H12_ruler",
+        "Moon"
+      ],
+      "map_bearings": [
+        {
+          "role": "H1_ruler",
+          "planet": "Saturn",
+          "azimuth_deg": 64.8
+        },
+        {
+          "role": "H7_ruler",
+          "planet": "Sun",
+          "azimuth_deg": 134.38
+        },
+        {
+          "role": "H3_ruler",
+          "planet": "Venus",
+          "azimuth_deg": 189.83
+        },
+        {
+          "role": "H8_ruler",
+          "planet": "Venus",
+          "azimuth_deg": 189.83
+        },
+        {
+          "role": "H12_ruler",
+          "planet": "Saturn",
+          "azimuth_deg": 64.8
+        },
+        {
+          "role": "Moon",
+          "planet": "Moon",
+          "azimuth_deg": 345.11
+        }
+      ]
+    },
+    {
+      "id": "giuliana_sgrena_baghdad_abduction",
+      "title": "Giuliana Sgrena abduction",
+      "location": "Baghdad University / Jadriyah bridge area, Baghdad, Iraq",
+      "outcome": "released alive on 2005-03-04",
+      "scene_markers": [
+        "gunmen blocked the car",
+        "war-zone journalist target",
+        "extended concealed captivity"
+      ],
+      "anchor_id": "sgrena_2005_02_04_1345",
+      "anchor_basis": "shortly before 2pm approximation from public reporting",
+      "datetime": "2005-02-04T13:45:00",
+      "status_code": 200,
+      "success": true,
+      "comparison_status": "aligned",
+      "matched_axes": [
+        "abduction_missing_person"
+      ],
+      "contradicted_axes": [],
+      "categories": {
+        "Abduction": 2,
+        "Associates": 1,
+        "Deception": 2,
+        "Houses": 1,
+        "Stressors": 1,
+        "Violence": 2
+      },
+      "finding_titles": [
+        "Life/death overlap points to violence or homicide",
+        "Abduction or worksite-seizure pattern is active",
+        "Abduction or deceptive public-assignment seizure pattern is active",
+        "1st ruler in the 8th house",
+        "Malefic contrary to sect (angular)",
+        "Hidden victim with angular violence markers",
+        "Friend or close associate axis is active",
+        "Mercury combust the Sun",
+        "Mute signs on angles"
+      ],
+      "map_origin_source": "query_origin",
+      "map_origin": {
+        "lat": 33.2726951,
+        "lon": 44.3795485
+      },
+      "map_roles": [
+        "H1_ruler",
+        "H7_ruler",
+        "H3_ruler",
+        "H8_ruler",
+        "H12_ruler",
+        "Moon"
+      ],
+      "map_bearings": [
+        {
+          "role": "H1_ruler",
+          "planet": "Mercury",
+          "azimuth_deg": 148.47
+        },
+        {
+          "role": "H7_ruler",
+          "planet": "Jupiter",
+          "azimuth_deg": 60.46
+        },
+        {
+          "role": "H3_ruler",
+          "planet": "Sun",
+          "azimuth_deg": 153.31
+        },
+        {
+          "role": "H8_ruler",
+          "planet": "Saturn",
+          "azimuth_deg": 314.48
+        },
+        {
+          "role": "H12_ruler",
+          "planet": "Venus",
+          "azimuth_deg": 142.35
+        },
+        {
+          "role": "Moon",
+          "planet": "Moon",
+          "azimuth_deg": 112.68
+        }
+      ]
+    },
+    {
+      "id": "jill_carroll_adil_abduction",
+      "title": "Jill Carroll abduction",
+      "location": "Adil neighborhood, western Baghdad, Iraq",
+      "outcome": "released alive on 2006-03-30",
+      "scene_markers": [
+        "armed seizure from street",
+        "interpreter killed",
+        "driver escaped",
+        "extended captivity"
+      ],
+      "anchor_id": "jill_2006_01_07_1000",
+      "anchor_basis": "10 a.m. appointment window with pre-drop timing from newsroom material",
+      "datetime": "2006-01-07T10:00:00",
+      "status_code": 200,
+      "success": true,
+      "comparison_status": "aligned",
+      "matched_axes": [
+        "abduction_missing_person"
+      ],
+      "contradicted_axes": [],
+      "categories": {
+        "Abduction": 1,
+        "Deception": 2,
+        "Houses": 2,
+        "Violence": 1
+      },
+      "finding_titles": [
+        "Life/death overlap points to violence or homicide",
+        "Abduction or public-place seizure pattern is active",
+        "1st ruler in the 8th house",
+        "Malefic in the 6th house",
+        "Mute signs on angles",
+        "Mute signs on 3rd/9th"
+      ],
+      "map_origin_source": "query_origin",
+      "map_origin": {
+        "lat": 33.3331581,
+        "lon": 44.3091987
+      },
+      "map_roles": [
+        "H1_ruler",
+        "H7_ruler",
+        "H3_ruler",
+        "H8_ruler",
+        "H12_ruler",
+        "Moon"
+      ],
+      "map_bearings": [
+        {
+          "role": "H1_ruler",
+          "planet": "Jupiter",
+          "azimuth_deg": 140.72
+        },
+        {
+          "role": "H7_ruler",
+          "planet": "Mercury",
+          "azimuth_deg": 200.64
+        },
+        {
+          "role": "H3_ruler",
+          "planet": "Venus",
+          "azimuth_deg": 226.09
+        },
+        {
+          "role": "H8_ruler",
+          "planet": "Venus",
+          "azimuth_deg": 226.09
+        },
+        {
+          "role": "H12_ruler",
+          "planet": "Saturn",
+          "azimuth_deg": 54.77
+        },
+        {
+          "role": "Moon",
+          "planet": "Moon",
+          "azimuth_deg": 299.57
+        }
+      ]
+    },
+    {
+      "id": "james_brandon_basra_abduction",
+      "title": "James Brandon abduction",
+      "location": "Al-Diyafa Hotel / Basra, Iraq",
+      "outcome": "released alive on 2004-08-13",
+      "scene_markers": [
+        "armed hotel-room seizure",
+        "gunmen stormed journalist hotel",
+        "temporary hidden custody"
+      ],
+      "anchor_id": "james_2004_08_12_2300",
+      "anchor_basis": "CPJ about-11-p.m. local anchor plus sourced Al-Istiqlal Street hotel-cluster proxy coordinates",
+      "datetime": "2004-08-12T23:00:00",
+      "status_code": 200,
+      "success": true,
+      "comparison_status": "aligned",
+      "matched_axes": [
+        "abduction_missing_person"
+      ],
+      "contradicted_axes": [],
+      "categories": {
+        "Abduction": 1,
+        "Deception": 4
+      },
+      "finding_titles": [
+        "Abduction or transient-stay seizure pattern is active",
+        "Mercury retrograde",
+        "Node with Neptune/Mercury (karmic ruse/lie scheme)",
+        "Mute signs on angles",
+        "Mute signs on 3rd/9th"
+      ],
+      "map_origin_source": "query_origin",
+      "map_origin": {
+        "lat": 30.51624,
+        "lon": 47.84212
+      },
+      "map_roles": [
+        "H1_ruler",
+        "H7_ruler",
+        "H3_ruler",
+        "H8_ruler",
+        "H12_ruler"
+      ],
+      "map_bearings": [
+        {
+          "role": "H1_ruler",
+          "planet": "Venus",
+          "azimuth_deg": 337.23
+        },
+        {
+          "role": "H7_ruler",
+          "planet": "Mars",
+          "azimuth_deg": 47.93
+        },
+        {
+          "role": "H3_ruler",
+          "planet": "Moon",
+          "azimuth_deg": 350.64
+        },
+        {
+          "role": "H8_ruler",
+          "planet": "Jupiter",
+          "azimuth_deg": 67.97
+        },
+        {
+          "role": "H12_ruler",
+          "planet": "Jupiter",
+          "azimuth_deg": 67.97
+        }
+      ]
+    },
+    {
+      "id": "phil_sands_baghdad_abduction_holdout",
+      "title": "Phil Sands abduction",
+      "location": "Baghdad, Iraq",
+      "outcome": "released alive after five days in captivity",
+      "scene_markers": [
+        "armed street ambush",
+        "interpreter and driver present",
+        "temporary hidden rural custody"
+      ],
+      "anchor_id": "phil_2005_12_26_1030",
+      "anchor_basis": "mid-morning proxy inside the publicly reported Baghdad morning ambush window",
+      "datetime": "2005-12-26T10:30:00",
+      "status_code": 200,
+      "success": true,
+      "comparison_status": "aligned",
+      "matched_axes": [
+        "abduction_missing_person"
+      ],
+      "contradicted_axes": [],
+      "categories": {
+        "Abduction": 1,
+        "Deception": 2,
+        "Degree Signatures": 1,
+        "Headwinds": 1,
+        "Houses": 2,
+        "Violence": 2
+      },
+      "finding_titles": [
+        "Moon in Via Combusta",
+        "Life/death overlap points to violence or homicide",
+        "Abduction or public-place seizure pattern is active",
+        "1st ruler in the 8th house",
+        "Moon under death pressure",
+        "Malefic in the 6th house",
+        "Moon applying to malefic by hard aspect",
+        "Mute signs on angles",
+        "Mute signs on 3rd/9th"
+      ],
+      "map_origin_source": "query_origin",
+      "map_origin": {
+        "lat": 33.3152,
+        "lon": 44.3661
+      },
+      "map_roles": [
+        "H1_ruler",
+        "H7_ruler",
+        "H3_ruler",
+        "H8_ruler",
+        "H12_ruler",
+        "Moon"
+      ],
+      "map_bearings": [
+        {
+          "role": "H1_ruler",
+          "planet": "Jupiter",
+          "azimuth_deg": 142.64
+        },
+        {
+          "role": "H7_ruler",
+          "planet": "Mercury",
+          "azimuth_deg": 185.05
+        },
+        {
+          "role": "H3_ruler",
+          "planet": "Venus",
+          "azimuth_deg": 231.32
+        },
+        {
+          "role": "H8_ruler",
+          "planet": "Venus",
+          "azimuth_deg": 231.32
+        },
+        {
+          "role": "H12_ruler",
+          "planet": "Saturn",
+          "azimuth_deg": 58.3
+        },
+        {
+          "role": "Moon",
+          "planet": "Moon",
+          "azimuth_deg": 133.07
+        }
+      ]
+    },
+    {
+      "id": "meutya_hafid_ramadi_abduction_holdout",
+      "title": "Meutya Hafid and Budiyanto abduction",
+      "location": "near Ramadi, Iraq",
+      "outcome": "released alive on 2005-02-21",
+      "scene_markers": [
+        "armed road seizure",
+        "vehicle stop during field travel",
+        "temporary hidden custody"
+      ],
+      "anchor_id": "meutya_2005_02_15_1400",
+      "anchor_basis": "daytime route proxy inside the publicly reported Ramadi seizure window",
+      "datetime": "2005-02-15T14:00:00",
+      "status_code": 200,
+      "success": true,
+      "comparison_status": "aligned",
+      "matched_axes": [
+        "abduction_missing_person"
+      ],
+      "contradicted_axes": [],
+      "categories": {
+        "Abduction": 1,
+        "Deception": 3,
+        "Houses": 1
+      },
+      "finding_titles": [
+        "Abduction or confrontation-on-the-route pattern is active",
+        "Malefic in the 6th house",
+        "Mercury combust the Sun",
+        "Node with Neptune/Mercury (karmic ruse/lie scheme)",
+        "Mute signs on angles"
+      ],
+      "map_origin_source": "query_origin",
+      "map_origin": {
+        "lat": 33.4256,
+        "lon": 43.2992
+      },
+      "map_roles": [
+        "H1_ruler",
+        "H7_ruler",
+        "H3_ruler",
+        "H8_ruler",
+        "H12_ruler"
+      ],
+      "map_bearings": [
+        {
+          "role": "H1_ruler",
+          "planet": "Moon",
+          "azimuth_deg": 268.46
+        },
+        {
+          "role": "H7_ruler",
+          "planet": "Saturn",
+          "azimuth_deg": 304.71
+        },
+        {
+          "role": "H3_ruler",
+          "planet": "Sun",
+          "azimuth_deg": 148.59
+        },
+        {
+          "role": "H8_ruler",
+          "planet": "Saturn",
+          "azimuth_deg": 304.71
+        },
+        {
+          "role": "H12_ruler",
+          "planet": "Mercury",
+          "azimuth_deg": 151.08
+        }
+      ]
+    },
+    {
+      "id": "romanian_journalists_jadriya_abduction_holdout",
+      "title": "Romanian journalists Jadriya abduction",
+      "location": "Jadriya / Flowerland Hotel area, Baghdad, Iraq",
+      "outcome": "released alive on 2005-05-22 after 55 days in captivity",
+      "scene_markers": [
+        "hotel-area evening seizure",
+        "multi-hostage captivity",
+        "later evidence of coordinated deception by insiders"
+      ],
+      "anchor_id": "romanian_2005_03_28_2030",
+      "anchor_basis": "hotel-employee report of an approximately 20:30 seizure outside the Flowerland Hotel",
+      "datetime": "2005-03-28T20:30:00",
+      "status_code": 200,
+      "success": true,
+      "comparison_status": "aligned",
+      "matched_axes": [
+        "abduction_missing_person"
+      ],
+      "contradicted_axes": [],
+      "categories": {
+        "Abduction": 1,
+        "Deception": 4,
+        "Degree Signatures": 2
+      },
+      "finding_titles": [
+        "Moon in Via Combusta",
+        "Abduction or social-gathering seizure pattern is active",
+        "Mercury retrograde",
+        "Mercury combust the Sun",
+        "Mute signs on angles",
+        "Mute signs on 3rd/9th",
+        "Mid-degree focus (\u224815\u00b0)"
+      ],
+      "map_origin_source": "query_origin",
+      "map_origin": {
+        "lat": 33.278889,
+        "lon": 44.387222
+      },
+      "map_roles": [
+        "H1_ruler",
+        "H7_ruler",
+        "H3_ruler",
+        "H8_ruler",
+        "H12_ruler",
+        "Moon"
+      ],
+      "map_bearings": [
+        {
+          "role": "H1_ruler",
+          "planet": "Mars",
+          "azimuth_deg": 341.5
+        },
+        {
+          "role": "H7_ruler",
+          "planet": "Venus",
+          "azimuth_deg": 66.95
+        },
+        {
+          "role": "H3_ruler",
+          "planet": "Saturn",
+          "azimuth_deg": 115.94
+        },
+        {
+          "role": "H8_ruler",
+          "planet": "Mercury",
+          "azimuth_deg": 62.98
+        },
+        {
+          "role": "H12_ruler",
+          "planet": "Venus",
+          "azimuth_deg": 66.95
+        },
+        {
+          "role": "Moon",
+          "planet": "Moon",
+          "azimuth_deg": 253.59
+        }
+      ]
+    },
+    {
+      "id": "richard_butler_basra_hotel_abduction_holdout",
+      "title": "Richard Butler Basra hotel abduction",
+      "location": "Sultan Palace Hotel, Basra, Iraq",
+      "outcome": "released alive on 2008-04-14 after roughly two months in captivity",
+      "scene_markers": [
+        "armed hotel-room seizure",
+        "captors dressed as police",
+        "extended hidden custody"
+      ],
+      "anchor_id": "richard_2008_02_10_0230",
+      "anchor_basis": "middle-of-the-night hotel seizure reconstructed from Butler's own account",
+      "datetime": "2008-02-10T02:30:00",
+      "status_code": 200,
+      "success": true,
+      "comparison_status": "aligned",
+      "matched_axes": [
+        "abduction_missing_person"
+      ],
+      "contradicted_axes": [],
+      "categories": {
+        "Abduction": 1,
+        "Deception": 3
+      },
+      "finding_titles": [
+        "Abduction or deceptive public-assignment seizure pattern is active",
+        "Mercury retrograde",
+        "Mercury combust the Sun",
+        "Mute signs on angles"
+      ],
+      "map_origin_source": "query_origin",
+      "map_origin": {
+        "lat": 30.5078,
+        "lon": 47.83739
+      },
+      "map_roles": [
+        "H1_ruler",
+        "H7_ruler",
+        "H3_ruler",
+        "H8_ruler",
+        "H12_ruler"
+      ],
+      "map_bearings": [
+        {
+          "role": "H1_ruler",
+          "planet": "Jupiter",
+          "azimuth_deg": 255.72
+        },
+        {
+          "role": "H7_ruler",
+          "planet": "Mercury",
+          "azimuth_deg": 282.57
+        },
+        {
+          "role": "H3_ruler",
+          "planet": "Saturn",
+          "azimuth_deg": 130.65
+        },
+        {
+          "role": "H8_ruler",
+          "planet": "Moon",
+          "azimuth_deg": 351.61
+        },
+        {
+          "role": "H12_ruler",
+          "planet": "Mars",
+          "azimuth_deg": 64.21
+        }
+      ]
+    }
+  ]
+}

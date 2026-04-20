@@ -1,0 +1,36 @@
+{
+  "generated_at": "2026-03-25T00:00:00+00:00",
+  "purpose": "Third external-source replay slice extending the forensic test set into a modern head-of-government assassination chart with a strong same-day event-time anchor",
+  "cases": [
+    {
+      "id": "shinzo_abe_assassination",
+      "title": "Assassination of Shinzo Abe",
+      "source_kind": "same_day_press_report_with_police_timing",
+      "source_title": "The Asahi Shimbun report on the shooting of former Prime Minister Shinzo Abe in Nara",
+      "source_url": "https://www.asahi.com/ajw/articles/14664249",
+      "metadata_basis": "same_day_press_report_with_around_11_30_jst_anchor",
+      "metadata_confidence": "high",
+      "source_metadata_note": "The same-day Asahi report says two shots were heard while Abe was giving a speech in front of Yamato-Saidaiji Station in Nara at around 11:30 a.m. on July 8, 2022. That is a strong public-event anchor for a modern political assassination chart.",
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2022-07-08T11:30:00",
+        "location": "Nara, Japan",
+        "timezone": "Asia/Tokyo",
+        "house_system_code": "R"
+      },
+      "expected_primary_axes": [
+        "violence_homicide",
+        "authority_or_public_case"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup"
+      ],
+      "contradictory_axes": [
+        "family_involvement",
+        "accident_or_disaster",
+        "abduction_missing_person"
+      ],
+      "comparison_status": "pending_route_replay"
+    }
+  ]
+}

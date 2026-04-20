@@ -1,0 +1,21 @@
+{
+  "id": "fortitude",
+  "name": "Fortitude (endurance)",
+  "domain": "virtue",
+  "description": "Endurance and strength to endure associated with Scorpio/Mars/Saturn; 8th depth.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Scorpio strength to endure"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Scorpio", "min": 1.5, "weight": 10 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": 6 },
+      { "kind": "planet_status", "planet": "Mars", "strong": true, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [8], "min_total": 1, "weight": 6 }
+    ],
+    "dampeners": [],
+    "escalators": []
+  }
+}
+

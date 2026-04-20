@@ -1,0 +1,112 @@
+[
+  {
+    "id": "will_i_get_into_university_usa",
+    "question": "Will I get into a university in the USA?",
+    "source_url": "https://cunning-man.co.uk/will-i-get-into-a-university-in-the-usa/",
+    "source_kind": "cunning_man_source_pass",
+    "article_expected_verdict": "NO",
+    "source_expected_category": "education",
+    "source_expected_houses": [
+      1,
+      9
+    ],
+    "source_expected_focus": "Higher education and foreign study are judged from the 9th in the article's rationale.",
+    "current_engine_category": "education",
+    "current_engine_houses": [
+      1,
+      9
+    ],
+    "current_engine_quesited_house": 9,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Current engine now routes higher education and foreign study with the 9th as the primary quesited house."
+  },
+  {
+    "id": "will_we_win_award_source_pass",
+    "question": "Will we win the award?",
+    "source_url": "https://cunning-man.co.uk/will-we-win-the-award/",
+    "source_kind": "cunning_man_source_pass",
+    "article_expected_verdict": "NO",
+    "source_expected_category": "general",
+    "source_expected_houses": [
+      1,
+      7
+    ],
+    "source_expected_focus": "A team-versus-others contest can still be read on the standard 1st/7th competition axis.",
+    "current_engine_category": "general",
+    "current_engine_houses": [
+      1,
+      7
+    ],
+    "current_engine_quesited_house": 7,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Current router already handles this as a generic contest-style question."
+  },
+  {
+    "id": "will_i_get_job_source_pass",
+    "question": "Will I get the job?",
+    "source_url": "https://cunning-man.co.uk/will-i-get-the-job/",
+    "source_kind": "cunning_man_source_pass",
+    "article_expected_verdict": "NO",
+    "source_expected_category": "career",
+    "source_expected_houses": [
+      1,
+      10
+    ],
+    "source_expected_focus": "The article explicitly judges the potential job as Lord 10.",
+    "current_engine_category": "career",
+    "current_engine_houses": [
+      1,
+      10
+    ],
+    "current_engine_quesited_house": 10,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Current router is aligned with the article's core career doctrine."
+  },
+  {
+    "id": "how_will_i_do_in_my_exams_source_pass",
+    "question": "How will I do in my exams?",
+    "source_url": "https://cunning-man.co.uk/horary-astrology-how-will-i-do-in-my-exams/",
+    "source_kind": "cunning_man_source_pass",
+    "article_expected_verdict": "YES",
+    "source_expected_category": "education",
+    "source_expected_houses": [
+      1,
+      9
+    ],
+    "source_expected_focus": "The fetched article explicitly treats the exams above elementary level as Lord 9.",
+    "current_engine_category": "education",
+    "current_engine_houses": [
+      1,
+      9
+    ],
+    "current_engine_quesited_house": 9,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Current engine now routes higher-level exams as 9th-house education questions instead of forcing a 10th-first success frame."
+  },
+  {
+    "id": "what_time_will_the_train_arrive_source_pass",
+    "question": "What time will the train arrive?",
+    "source_url": "https://cunning-man.co.uk/what-time-will-the-train-arrive/",
+    "source_kind": "cunning_man_source_pass",
+    "article_expected_verdict": "timing",
+    "source_expected_category": "travel",
+    "source_expected_houses": [
+      1,
+      3
+    ],
+    "source_expected_focus": "The fetched article explicitly treats the train as part of the querent's commute and judges it from the 3rd house.",
+    "current_engine_category": "travel",
+    "current_engine_houses": [
+      1,
+      3
+    ],
+    "current_engine_quesited_house": 3,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Current router now recognizes local transit and train-arrival questions as 3rd-house travel matters."
+  }
+]

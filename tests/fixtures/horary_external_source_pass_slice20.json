@@ -1,0 +1,74 @@
+[
+  {
+    "id": "buy_specific_car_astrologyweekly_source_pass",
+    "question": "Should I buy the car?",
+    "source_url": "https://astrologyweekly.com/threads/should-i-buy-the-car.132163/",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "mixed / caution",
+    "source_expected_category": "money",
+    "source_expected_houses": [
+      1,
+      7,
+      8
+    ],
+    "source_expected_focus": "The source discussion explicitly rejects treating the car-to-be-bought as the querent's 3rd-house vehicle, because it still belongs to the seller. The seller is kept on the 7th and the seller's car on the turned 2nd from that house, or radical 8th.",
+    "current_engine_category": "money",
+    "current_engine_houses": [
+      1,
+      7,
+      8
+    ],
+    "current_engine_quesited_house": 8,
+    "current_engine_intent": "QUALITY",
+    "source_alignment": true,
+    "alignment_note": "The shared vehicle doctrine now keeps the seller on the 7th and the seller's possession axis for the car on the radical 8th."
+  },
+  {
+    "id": "sell_own_car_july_astrologyweekly_source_pass",
+    "question": "Will I be able to sell my car in July?",
+    "source_url": "https://astrologyweekly.com/threads/will-i-be-able-to-sell-my-car-in-july.154154/",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "NO in July / later buyer",
+    "source_expected_category": "money",
+    "source_expected_houses": [
+      1,
+      3,
+      7
+    ],
+    "source_expected_focus": "The source keeps the querent's car explicitly on the 3rd as vehicle, while the sale itself still implies another party or buyer. This is not just a bare 1st/7th transaction frame.",
+    "current_engine_category": "money",
+    "current_engine_houses": [
+      1,
+      3,
+      7
+    ],
+    "current_engine_quesited_house": 7,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "The shared vehicle doctrine now keeps the querent's car explicitly visible on the 3rd while still keeping the buyer and sale axis on the 7th."
+  },
+  {
+    "id": "partner_new_car_astrologyweekly_source_pass",
+    "question": "Will my partner buy a new car within a month?",
+    "source_url": "https://blog.astrologyweekly.com/weekly-horary/buy-new-car.php",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "YES",
+    "source_expected_category": "money",
+    "source_expected_houses": [
+      7,
+      8,
+      9
+    ],
+    "source_expected_focus": "The source explicitly keeps the partner on the 7th and the new car on the partner's turned 2nd or turned 3rd, because it may be read either as the partner's possession or as a vehicle.",
+    "current_engine_category": "money",
+    "current_engine_houses": [
+      7,
+      8,
+      9
+    ],
+    "current_engine_quesited_house": 8,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "The shared vehicle doctrine now outranks the generic relationship path and keeps the partner with the turned possession and vehicle houses."
+  }
+]

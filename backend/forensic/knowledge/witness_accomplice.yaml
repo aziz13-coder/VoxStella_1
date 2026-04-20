@@ -1,0 +1,25 @@
+# Witness & Accomplice Qualifiers — knowledge helpers for deriving concise keywords
+
+roles:
+  Mercury:
+    base: "witness/sibling/messenger; neighbors; statements and recordings"
+  H3:
+    base: "neighbors/local area, vehicles, short trips, messages"
+  H11:
+    base: "friends, groups, associates, social networks"
+  H6:
+    base: "work/service/health contexts; employees, tools"
+  H12:
+    base: "hidden enemies, confinement/institutions, secrecy"
+
+condition_modifiers:
+  angular: "central witness; prominent, close to the scene"
+  succedent: "indirect witness; helpful but not central"
+  cadent: "peripheral witness; hearsay or limited view"
+  retrograde: "retracted/changes story; returns later"
+  cazimi: "privileged access/inside information"
+  combustion: "compromised/hidden; under pressure"
+  under_beams: "concealed/influenced; not fully visible"
+  anaretic: "last‑minute/urgent testimony"
+  ingress: "new/inexperienced witness"
+  via_combusta: "distressed/frightened; unreliable affect"

@@ -1,0 +1,19 @@
+{
+  "id": "hospitality",
+  "name": "Hospitality",
+  "domain": "social_behavior",
+  "description": "Hospitable disposition via Cancer home themes and benefic Venus/Jupiter; houses 4/5.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter: Cancer home; Venus/Jupiter benefics"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Cancer", "min": 1.5, "weight": 8 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": 6 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [4,5], "min_total": 2, "weight": 6 }
+    ],
+    "dampeners": [],
+    "escalators": [] }
+}
+

@@ -1,0 +1,24 @@
+{
+  "id": "zeal_for_truth",
+  "name": "Zeal for truth (earnest seeking)",
+  "domain": "virtue",
+  "description": "Earnest pursuit of truth and meaning anchored in principle.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": [
+    "Carter: Sagittarius/Jupiter — religion/philosophy/hope; 9th house truth-seeking"
+  ],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Sagittarius", "min": 1.5, "weight": 6 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [9], "min_total": 1, "weight": 4 },
+      { "kind": "planet_status", "planet": "Sun", "strong": true, "weight": 2 }
+    ],
+    "dampeners": [
+      { "kind": "aspect", "pair": ["Mercury","Neptune"], "type": "hard", "max_orb": 6, "weight": -6 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -2 }
+    ],
+    "escalators": [] }
+}
+

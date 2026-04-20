@@ -1,0 +1,19 @@
+{
+  "id": "honesty",
+  "name": "Honesty",
+  "domain": "ethic_character",
+  "description": "Truth‑telling and candour with Sagittarius/Jupiter and Aries/Mars frankness; Libra/Venus tact may soften.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter: Sagittarius/Jupiter truth; Aries frankness"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Sagittarius", "min": 1.5, "weight": 8 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 8 },
+      { "kind": "sign_emphasis", "sign": "Aries", "min": 1.5, "weight": 6 },
+      { "kind": "planet_status", "planet": "Mars", "strong": true, "weight": 4 }
+    ],
+    "dampeners": [ { "kind": "planet_status", "planet": "Jupiter", "afflicted": true, "weight": -6 } ],
+    "escalators": [] }
+}
+

@@ -1,0 +1,18 @@
+{
+  "id": "humanitarianism",
+  "name": "Humanitarianism",
+  "domain": "social_orientation",
+  "description": "Love of mankind/animals/nature and universalist view when Aquarius/11th are emphasized and rulers are harmonious.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter: Aquarius/11th humanitarianism"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Aquarius", "min": 1.5, "weight": 10 },
+      { "kind": "house_emphasis", "houses": [11], "min_total": 1, "weight": 10 },
+      { "kind": "element", "element": "Air", "min_share": 0.35, "weight": 6 }
+    ],
+    "dampeners": [ { "kind": "planet_status", "planet": "Saturn", "afflicted": true, "weight": -6 } ],
+    "escalators": [] }
+}
+

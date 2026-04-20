@@ -1,0 +1,22 @@
+{
+  "id": "unconventionality",
+  "name": "Unconventionality",
+  "domain": "social_orientation",
+  "description": "Preference for reform, new methods, and nonconformist outlooks with Aquarius/Uranus and 11th emphasis; rigid Capricorn/Saturn and fixed dogmatism reduce.",
+  "confidence": "high",
+  "polarity": "neutral",
+  "sources": ["Carter: Aquarius/Uranus reforming spirit; love of mankind"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Aquarius", "min": 1.5, "weight": 8 },
+      { "kind": "planet_status", "planet": "Uranus", "strong": true, "weight": 8 },
+      { "kind": "house_emphasis", "houses": [11], "min_total": 1, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "sign_emphasis", "sign": "Capricorn", "min": 1.5, "weight": -4 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -4 },
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.45, "weight": -3 }
+    ],
+    "escalators": [] }
+}
+

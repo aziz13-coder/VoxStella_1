@@ -1,0 +1,18 @@
+{
+  "id": "hysteria",
+  "name": "Hysteria (historical term)",
+  "domain": "disease_neuropsych",
+  "description": "Obsolete label historically applied to dissociative/somatoform states; Carter associates Moon–Neptune and watery emphasis.",
+  "confidence": "medium",
+  "polarity": "negative",
+  "sources": ["Carter — Encyclopaedia of Psychological Astrology, H: Hysteria."],
+  "engine_rule": "If Moon–Neptune is hard and watery houses/signs dominate, increase flag for neurotic/suggestible patterns (historical taxonomy).",
+  "logic": { "base": 0,
+    "boosts": [ { "kind": "house_emphasis", "houses": [12,6], "min_total": 2, "weight": 8 }, { "kind": "planet_status", "planet": "Moon", "afflicted": true, "weight": 6 }, { "kind": "planet_status", "planet": "Neptune", "afflicted": true, "weight": 6 }, { "kind": "aspect", "pair": ["Moon","Neptune"], "type": "hard", "max_orb": 6, "weight": 8 }, { "kind": "element", "element": "Water", "min_share": 0.35, "weight": 4 } ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "afflicted": false, "weight": -4 },
+      { "kind": "planet_status", "planet": "Mercury", "strong": true, "afflicted": false, "weight": -4 },
+      { "kind": "element", "element": "Earth", "min_share": 0.35, "weight": -4 }
+    ],
+    "escalators": [] }
+}

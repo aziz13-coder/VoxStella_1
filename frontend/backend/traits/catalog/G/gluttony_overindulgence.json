@@ -1,0 +1,19 @@
+{
+  "id": "gluttony_overindulgence",
+  "name": "Gluttony / over‑indulgence",
+  "domain": "appetite_habit",
+  "description": "Over‑indulgence via Jupiter/Venus in excess; Taurus and 2nd/5th emphasis; Saturn restraint reduces.",
+  "confidence": "medium",
+  "polarity": "negative",
+  "sources": ["Carter: Jupiter/Venus excess; Taurus/2nd/5th"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "planet_status", "planet": "Jupiter", "afflicted": true, "weight": 8 },
+      { "kind": "planet_status", "planet": "Venus", "afflicted": true, "weight": 6 },
+      { "kind": "sign_emphasis", "sign": "Taurus", "min": 1.5, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [2,5], "min_total": 2, "weight": 6 }
+    ],
+    "dampeners": [ { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -8 } ],
+    "escalators": [] }
+}
+

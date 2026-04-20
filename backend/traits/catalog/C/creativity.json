@@ -1,0 +1,23 @@
+{
+  "id": "creativity",
+  "name": "Creativity (self‑expression)",
+  "domain": "self_expression",
+  "description": "Creative self‑manifestation associated with Leo/Sun/5th house; aesthetic input from Venus.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Leo/Sun self‑manifestation; 5th = play/creation"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Leo", "min": 1.5, "weight": 10 },
+      { "kind": "planet_status", "planet": "Sun", "strong": true, "weight": 10 },
+      { "kind": "house_emphasis", "houses": [5], "min_total": 1, "weight": 8 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Sun", "afflicted": true, "weight": -6 },
+      { "kind": "planet_status", "planet": "Saturn", "afflicted": true, "weight": -6 }
+    ],
+    "escalators": []
+  }
+}

@@ -1,0 +1,129 @@
+{
+  "version": "1.0",
+  "traits": [
+    {
+      "id": "communication_distortion",
+      "name": "Communication Distortion",
+      "domain": "character_trait",
+      "description": "Signals of obscured or distorted communication when Mercury is combust the Sun.",
+      "confidence": "experimental",
+      "sources": ["Traditional visibility (combustion)", "Phase overlay"],
+      "logic": {
+        "base": 0,
+        "boosts": [
+          { "kind": "solar", "condition": "combustion", "planet": "Mercury", "phase": "applying", "scale_by_distance": true, "weight": 20 }
+        ],
+        "dampeners": [
+          { "kind": "solar", "condition": "combustion", "planet": "Mercury", "phase": "separating", "weight": -8 }
+        ],
+        "escalators": []
+      }
+    },
+    {
+      "id": "muted_communication",
+      "name": "Muted Communication",
+      "domain": "character_trait",
+      "description": "Communication subdued by the Sun’s beams (Mercury under beams).",
+      "confidence": "experimental",
+      "sources": ["Traditional under the beams", "Phase overlay"],
+      "logic": {
+        "base": 0,
+        "boosts": [
+          { "kind": "solar", "condition": "under the beams", "planet": "Mercury", "phase": "applying", "min_dist": 8.5, "max_dist": 17.0, "scale_by_distance": true, "weight": 12 }
+        ],
+        "dampeners": [
+          { "kind": "solar", "condition": "under the beams", "planet": "Mercury", "phase": "separating", "weight": -5 }
+        ],
+        "escalators": []
+      }
+    },
+    {
+      "id": "guarded_affection",
+      "name": "Guarded Affection",
+      "domain": "character_trait",
+      "description": "Social/affectional expression veiled when Venus is under the beams.",
+      "confidence": "experimental",
+      "sources": ["Traditional under the beams", "Phase overlay"],
+      "logic": {
+        "base": 0,
+        "boosts": [
+          { "kind": "solar", "condition": "under the beams", "planet": "Venus", "phase": "applying", "min_dist": 8.5, "max_dist": 17.0, "scale_by_distance": true, "weight": 10 }
+        ],
+        "dampeners": [
+          { "kind": "solar", "condition": "under the beams", "planet": "Venus", "phase": "separating", "weight": -4 }
+        ],
+        "escalators": []
+      }
+    },
+    {
+      "id": "mania",
+      "name": "Mania",
+      "domain": "psychological",
+      "description": "Explosive nervous tension and impulsive outbursts, especially with Mars–Uranus stress.",
+      "confidence": "medium",
+      "sources": ["Carter"],
+      "logic": {
+        "base": 0,
+        "boosts": [
+          { "kind": "aspect", "pair": ["Uranus", "Mars"], "type": "hard", "max_orb": 4, "min_severity": "moderate", "weight": 25 },
+          { "kind": "aspect", "pair": ["Uranus", "Mercury"], "type": "hard", "max_orb": 4, "weight": 15 },
+          { "kind": "modality", "modality": "Fixed", "min_share": 0.35, "weight": 10 },
+          { "kind": "angle_aspect", "planet": "Uranus", "type": "hard", "min_severity": "severe", "weight": 15 }
+        ],
+        "dampeners": [
+          { "kind": "planet_status", "planet": "Venus", "strong": true, "afflicted": false, "weight": -15 },
+          { "kind": "sign_emphasis", "sign": "Libra", "min": 2.0, "weight": -10 },
+          { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -10 }
+        ],
+        "escalators": [
+          { "kind": "flag", "name": "mercury_shock", "effect": "+10" },
+          { "kind": "flag", "name": "neptune_station_or_angular", "effect": "+10" }
+        ]
+      }
+    },
+    {
+      "id": "melancholia",
+      "name": "Melancholia",
+      "domain": "psychological",
+      "description": "Persistent low mood and withdrawal linked to Saturn and strong Water signatures.",
+      "confidence": "medium",
+      "sources": ["Carter"],
+      "logic": {
+        "base": 0,
+        "boosts": [
+          { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": 20 },
+          { "kind": "element", "element": "Water", "min_share": 0.35, "weight": 15 },
+          { "kind": "house_emphasis", "houses": [4, 12], "min_total": 2, "weight": 10 },
+          { "kind": "planet_status", "planet": "Moon", "afflicted": true, "weight": 10 }
+        ],
+        "dampeners": [
+          { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": -10 },
+          { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": -8 },
+          { "kind": "element", "element": "Fire", "min_share": 0.3, "weight": -8 }
+        ],
+        "escalators": []
+      }
+    },
+    {
+      "id": "maladjustment",
+      "name": "Maladjustment",
+      "domain": "psychological",
+      "description": "Disharmony and relational discord when Air/Venus are afflicted.",
+      "confidence": "high",
+      "sources": ["Carter"],
+      "logic": {
+        "base": 0,
+        "boosts": [
+          { "kind": "planet_status", "planet": "Venus", "afflicted": true, "weight": 18 },
+          { "kind": "sign_group_emphasis", "group": ["Gemini","Libra","Aquarius"], "min": 3.0, "weight": 12 },
+          { "kind": "house_emphasis", "houses": [7, 11], "min_total": 2, "weight": 8 }
+        ],
+        "dampeners": [
+          { "kind": "planet_status", "planet": "Venus", "strong": true, "afflicted": false, "weight": -12 },
+          { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -6 }
+        ],
+        "escalators": []
+      }
+    }
+  ]
+}

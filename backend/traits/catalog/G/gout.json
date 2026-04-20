@@ -1,0 +1,18 @@
+{
+  "id": "gout",
+  "name": "Gout",
+  "domain": "disease_metabolic",
+  "description": "Metabolic tendency approximated by Jupiter/Saturn patterns and fixed earthiness; placeholder until Carter’s specifics are extracted.",
+  "confidence": "low",
+  "polarity": "negative",
+  "sources": ["Carter: Gout (TBD)"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 6 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": 4 },
+      { "kind": "sign_group_emphasis", "group": ["Taurus","Virgo","Capricorn"], "min": 3.0, "weight": 4 }
+    ],
+    "dampeners": [],
+    "escalators": [] }
+}
+

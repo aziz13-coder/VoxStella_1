@@ -1,0 +1,14 @@
+{
+  "id": "joyfulness",
+  "name": "Joyfulness (buoyant spirits)",
+  "domain": "affect_mood",
+  "description": "Cheerful, expansive tone when Jupiter and Fire are strong, especially through Leo/Sagittarius and 5th‑house expression.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter: Fire/Jupiter cheerfulness"],
+  "logic": { "base": 0,
+    "boosts": [ { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 10 }, { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": 8 }, { "kind": "sign_group_emphasis", "group": ["Leo","Sagittarius"], "min": 2.0, "weight": 6 }, { "kind": "house_emphasis", "houses": [5], "min_total": 1, "weight": 6 } ],
+    "dampeners": [ { "kind": "planet_status", "planet": "Saturn", "afflicted": true, "weight": -8 } ],
+    "escalators": [] }
+}
+

@@ -1,0 +1,20 @@
+{
+  "id": "gaiety_cheerfulness",
+  "name": "Gaiety (cheerfulness)",
+  "domain": "affect_mood",
+  "description": "Buoyant spirits with Fire and benefic support (Sun/Jupiter), especially via Leo/Sagittarius and 5th‑house strength.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter: Fire warmth; Sun/Jupiter cheerfulness"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": 10 },
+      { "kind": "planet_status", "planet": "Sun", "strong": true, "weight": 8 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 6 },
+      { "kind": "sign_group_emphasis", "group": ["Leo","Sagittarius"], "min": 2.0, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [5], "min_total": 1, "weight": 6 }
+    ],
+    "dampeners": [ { "kind": "planet_status", "planet": "Saturn", "afflicted": true, "weight": -6 } ],
+    "escalators": [] }
+}
+

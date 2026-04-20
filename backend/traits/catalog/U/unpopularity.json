@@ -1,0 +1,23 @@
+{
+  "id": "unpopularity",
+  "name": "Unpopularity",
+  "domain": "social_outcome",
+  "description": "Cold, austere tone that alienates when Saturn/Capricorn severity is prominent and Venus/Jupiter are weakened; 10th/11th emphasis shows in public standing and groups.",
+  "confidence": "medium",
+  "polarity": "negative",
+  "sources": ["Carter: Saturn severity vs Venus/Jupiter popularity/goodwill"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": 8 },
+      { "kind": "sign_emphasis", "sign": "Capricorn", "min": 1.5, "weight": 6 },
+      { "kind": "planet_status", "planet": "Venus", "afflicted": true, "weight": 6 },
+      { "kind": "planet_status", "planet": "Jupiter", "afflicted": true, "weight": 4 },
+      { "kind": "house_emphasis", "houses": [10,11], "min_total": 1, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": -6 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

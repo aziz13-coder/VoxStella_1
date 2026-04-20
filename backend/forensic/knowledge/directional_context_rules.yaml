@@ -1,0 +1,1038 @@
+- id: violence_life_death_overlap
+  title: Life/death overlap points to violence or homicide
+  category: Violence
+  weight: 4
+  condition:
+    any:
+      - houses.first_ruler_rules_8th: true
+      - houses.first_ruler_in_8_or_12: true
+  rationale: When the victim ruler also rules death matters or falls into hidden/death houses, violence or homicide becomes a primary forensic direction.
+  evidence:
+    - houses.first_ruler
+    - houses.first_ruler_house
+    - houses.eighth_ruler
+
+- id: violence_moon_under_death_pressure
+  title: Moon under death pressure
+  category: Violence
+  weight: 3
+  condition:
+    any:
+      - planets.Moon.house: 8
+      - all:
+          - moon.in_4_8_12: true
+          - moon.hard_malefic_contact: true
+      - all:
+          - moon.hard_malefic_contact: true
+          - any:
+              - houses.malefics_angular_count>=: 2
+              - houses.first_ruler_rules_8th: true
+              - houses.first_ruler_in_8_or_12: true
+  rationale: Moon pressure in death/end-matter houses or under hard malefic attack often describes violence, homicide, or acute bodily danger.
+  evidence:
+    - moon
+    - houses.malefics_angular_count
+
+- id: violence_hidden_victim_with_angular_malefic
+  title: Hidden victim with angular violence markers
+  category: Violence
+  weight: 3
+  condition:
+    all:
+      - houses.malefics_angular_count>=: 1
+      - any:
+          - houses.first_ruler_in_8_or_12: true
+          - moon.in_4_8_12: true
+  rationale: A hidden or endangered victim combined with an angular malefic is a grounded violence or homicide signature.
+  evidence:
+    - houses.first_ruler_house
+    - moon
+    - houses.malefics_angular_count
+
+- id: violence_malefic_in_8th_with_hidden_context
+  title: Malefic in the 8th with hidden or family-linked context
+  category: Violence
+  weight: 3
+  condition:
+    all:
+      - houses.malefics_in_8th>=: 1
+      - any:
+          - planets.Sun.house: 12
+          - planets.Moon.house: 12
+          - houses.first_and_seventh_rulers_same_house: true
+          - houses.fourth_ruler_house: 4
+  rationale: A malefic lodged in the 8th, combined with hidden luminaries or a tight family/domestic context, is a grounded homicide signature rather than a simple background stress marker.
+  evidence:
+    - houses.malefics_in_8th
+    - planets.Sun
+    - planets.Moon
+    - houses.first_and_seventh_rulers_same_house
+    - houses.fourth_ruler_house
+
+- id: domestic_partner_axis_contact
+  title: Partner axis is active in a domestic matter
+  category: Domestic
+  weight: 3
+  condition:
+    all:
+      - any:
+          - houses.first_and_seventh_rulers_aspected: true
+          - houses.first_and_seventh_rulers_same_house: true
+      - any:
+          - aspects.Venus_to_Saturn.type: [conjunction, square, opposition]
+          - aspects.Saturn_to_Venus.type: [conjunction, square, opposition]
+          - aspects.Venus_to_Mars.type: [conjunction, square, opposition]
+          - aspects.Mars_to_Venus.type: [conjunction, square, opposition]
+          - planets.Moon.house: 4
+      - any:
+          - planets.Moon.house: 4
+          - houses.fourth_ruler_in_4_8_12: true
+          - houses.seventh_ruler_house: [2, 4, 7, 12]
+  rationale: Close 1st/7th contact plus relationship or domestic stress is a strong spouse or partner involvement marker.
+  evidence:
+    - houses.first_and_seventh_rulers_aspected
+    - houses.first_and_seventh_rulers_same_house
+    - houses.seventh_ruler_house
+    - aspects.Venus_to_Saturn
+    - aspects.Venus_to_Mars
+    - planets.Moon
+
+- id: domestic_partner_near_home_axis
+  title: Partner involvement tied to the home axis
+  category: Domestic
+  weight: 2
+  condition:
+    all:
+      - any:
+          - houses.seventh_ruler_in_3_4_12: true
+          - houses.seventh_ruler_house: [2, 4, 7, 12]
+      - any:
+          - planets.Moon.house: 4
+          - houses.fourth_ruler_in_4_8_12: true
+          - houses.fourth_ruler_hard_afflicted: true
+      - any:
+          - aspects.Venus_to_Saturn.type: [conjunction, square, opposition]
+          - aspects.Saturn_to_Venus.type: [conjunction, square, opposition]
+          - aspects.Venus_to_Mars.type: [conjunction, square, opposition]
+          - aspects.Mars_to_Venus.type: [conjunction, square, opposition]
+          - aspects.Moon_to_Venus.type: [square, opposition]
+          - aspects.Venus_to_Moon.type: [square, opposition]
+  rationale: Home-axis contact alone is too broad in cold-case charts; require a tighter partner/home link plus relational stress before reading this as spouse or partner involvement.
+  evidence:
+    - houses.seventh_ruler
+    - houses.seventh_ruler_house
+    - houses.fourth_ruler
+    - houses.fourth_ruler_house
+    - planets.Moon
+
+- id: family_domestic_moon_signature
+  title: Family axis activated by Moon and domestic houses
+  category: Family
+  weight: 3
+  condition:
+    all:
+      - any:
+          - planets.Moon.house: [4, 8]
+          - houses.fourth_ruler_in_8_or_12: true
+      - any:
+          - moon.hard_malefic_contact: true
+          - houses.fourth_ruler_hard_afflicted: true
+          - houses.malefics_in_8th>=: 1
+  rationale: Family involvement should require a real home-axis signature plus separate death or malefic pressure; Moon-in-Cancer alone is too broad.
+  evidence:
+    - planets.Moon
+    - houses.fourth_ruler
+    - houses.fourth_ruler_house
+
+- id: family_home_axis_under_pressure
+  title: Home and family axis under pressure
+  category: Family
+  weight: 2
+  condition:
+    all:
+      - any:
+          - planets.Moon.house: [4, 8]
+          - houses.fourth_ruler_in_8_or_12: true
+      - any:
+          - moon.hard_malefic_contact: true
+          - houses.fourth_ruler_hard_afflicted: true
+          - houses.malefics_angular_count>=: 2
+  rationale: Occupied or pressured family houses can point to family involvement, but only when the home axis is separately under strong malefic pressure.
+  evidence:
+    - houses.counts
+    - houses.fourth_ruler_house
+    - moon
+    - houses.malefics_angular_count
+
+- id: family_child_rulers_clustered
+  title: Family and child significators cluster together
+  category: Family
+  weight: 3
+  condition:
+    all:
+      - any:
+          - houses.first_fifth_seventh_clustered: true
+          - houses.first_and_fifth_rulers_same_house: true
+          - houses.fifth_and_seventh_rulers_same_house: true
+      - any:
+          - planets.Moon.house: 5
+          - houses.first_ruler_in_5th: true
+          - all:
+              - houses.fifth_ruler_in_8_or_12: true
+              - houses.counts.5>=: 2
+      - any:
+          - moon.hard_malefic_contact: true
+          - houses.malefics_in_8th>=: 1
+          - houses.first_ruler_rules_8th: true
+  rationale: Child-significator clustering should require more than generic 5th-house activation, because the 5th also governs recreation, sex, parties, and adult social context in disappearance charts.
+  evidence:
+    - houses.first_ruler_house
+    - houses.fifth_ruler_house
+    - houses.seventh_ruler_house
+    - houses.counts
+    - houses.malefics_in_8th
+    - moon
+
+- id: child_house_under_stress
+  title: Child house under violence pressure
+  category: Children
+  weight: 4
+  condition:
+    all:
+      - any:
+          - all:
+              - planets.Moon.house: 5
+              - moon.hard_malefic_contact: true
+          - houses.first_ruler_in_5th: true
+          - all:
+              - houses.fifth_ruler_in_8_or_12: true
+              - houses.counts.5>=: 2
+          - all:
+              - houses.counts.5>=: 2
+              - any:
+                  - planets.Mars.house: [5, 11]
+                  - planets.Saturn.house: [5, 11]
+                  - all:
+                      - planets.Sun.house: 5
+                      - any:
+                          - planets.Mars.house: 5
+                          - planets.Saturn.house: 5
+                          - aspects.Sun_to_Mars.type: [conjunction, square, opposition]
+                          - aspects.Mars_to_Sun.type: [conjunction, square, opposition]
+                          - aspects.Sun_to_Saturn.type: [conjunction, square, opposition]
+                          - aspects.Saturn_to_Sun.type: [conjunction, square, opposition]
+      - any:
+          - houses.first_ruler_rules_8th: true
+          - houses.first_ruler_in_8_or_12: true
+          - planets.Moon.house: 8
+          - houses.malefics_angular_count>=: 2
+          - houses.malefics_in_8th>=: 1
+  rationale: A child-victim label should require explicit child-house testimony, not just a displaced 5th ruler, because adult disappearance charts often load the 5th through recreation, sex, or leisure settings. The family corpus also preserves older child-death aphorisms tying Mars or Saturn in the 5th/11th, or a Sun-dominated 5th under infortune pressure, to fatal child cases.
+  evidence:
+    - houses.fifth_ruler
+    - houses.fifth_ruler_house
+    - houses.counts
+    - moon
+    - houses.malefics_angular_count
+
+- id: child_family_overlap
+  title: Child and family signatures overlap
+  category: Children
+  weight: 3
+  condition:
+    all:
+      - any:
+          - planets.Moon.house: 5
+          - houses.first_ruler_in_5th: true
+          - all:
+              - houses.fifth_ruler_in_8_or_12: true
+              - houses.counts.5>=: 2
+      - any:
+          - planets.Moon.house: [4, 8]
+          - houses.fourth_ruler_in_8_or_12: true
+          - houses.fourth_ruler_hard_afflicted: true
+      - any:
+          - moon.hard_malefic_contact: true
+          - houses.malefics_in_8th>=: 1
+          - houses.first_ruler_rules_8th: true
+          - houses.first_ruler_in_8_or_12: true
+  rationale: Family overlap should only become a child label when there is direct child-house testimony, because adult abduction and sexual-assault charts can also energize the 5th without involving minors.
+  evidence:
+    - houses.fifth_ruler
+    - houses.fifth_ruler_house
+    - houses.fourth_ruler
+    - houses.fourth_ruler_house
+    - planets.Moon
+
+- id: water_disappearance_signatures
+  title: Water or drowning signatures are foregrounded
+  category: Water
+  weight: 3
+  condition:
+    any:
+      - all:
+          - moon.water_sign: true
+          - moon.in_4_8_12: true
+          - moon.hard_malefic_contact: true
+      - all:
+          - houses.neptune_present: true
+          - any:
+              - houses.neptune_in_4_8_12: true
+              - houses.neptune_water_sign: true
+          - any:
+              - moon.water_sign: true
+              - houses.water_cusp_4_8_12>=: 1
+      - all:
+          - houses.water_cusp_4_8_12>=: 2
+          - houses.first_ruler_in_4_8_12: true
+          - any:
+              - moon.hard_malefic_contact: true
+              - houses.neptune_present: true
+  rationale: Water classification should rest on compound water testimony; a single Moon-in-water signature is too weak for a drowning or water-disposal label.
+  evidence:
+    - moon
+    - houses.signs
+    - houses.neptune_present
+    - houses.neptune_in_4_8_12
+    - houses.neptune_water_sign
+
+- id: abduction_missing_person_signature
+  title: Abduction or missing-person pattern is active
+  category: Abduction
+  weight: 4
+  condition:
+    all:
+      - any:
+          - houses.seventh_ruler_in_12th: true
+          - aspects.Mars_to_Neptune.type: [conjunction, square, opposition]
+          - aspects.Neptune_to_Mars.type: [conjunction, square, opposition]
+          - all:
+              - houses.seventh_ruler_in_3_4_12: true
+              - any:
+                  - houses.neptune_in_4_8_12: true
+                  - houses.neptune_water_sign: true
+                  - moon.water_sign: true
+      - any:
+          - houses.first_ruler_rules_8th: true
+          - houses.first_ruler_in_8_or_12: true
+          - houses.fifth_ruler_in_8_or_12: true
+      - any:
+          - houses.emphasis12_strong: true
+          - planets.Moon.house: 12
+          - houses.emphasis12_count>=: 1
+  rationale: Abduction needs an explicit abductor or opponent signal plus hidden/death pressure; hidden houses alone are not enough.
+  evidence:
+    - houses.seventh_ruler
+    - houses.seventh_ruler_house
+    - houses.emphasis12_count
+    - aspects.Mars_to_Neptune
+    - aspects.Neptune_to_Mars
+    - houses.first_ruler
+    - houses.fifth_ruler
+    - houses.counts
+
+- id: abduction_transport_or_public_seizure_signature
+  title: Abduction or forced-seizure transport pattern is active
+  category: Abduction
+  weight: 4
+  condition:
+    all:
+      - any:
+          - houses.seventh_ruler_in_8_or_12: true
+          - houses.seventh_ruler_in_3_or_9: true
+      - any:
+          - moon.in_3_or_9: true
+          - houses.third_ruler_in_8_or_12: true
+          - houses.ninth_ruler_in_8_or_12: true
+      - any:
+          - moon.hard_malefic_contact: true
+          - houses.first_ruler_in_8_or_12: true
+          - houses.first_ruler_hard_afflicted: true
+  rationale: "Local sources treat abduction as more than hidden custody alone: the 7th identifies the abductor, the 3rd/9th show movement or transport, and coercive pressure on the victim distinguishes a seizure from a voluntary departure."
+  evidence:
+    - houses.seventh_ruler
+    - houses.seventh_ruler_house
+    - houses.third_ruler
+    - houses.third_ruler_house
+    - houses.ninth_ruler
+    - houses.ninth_ruler_house
+    - houses.first_ruler
+    - houses.first_ruler_house
+    - moon
+
+- id: abduction_public_place_seizure_signature
+  title: Abduction or public-place seizure pattern is active
+  category: Abduction
+  weight: 4
+  condition:
+    all:
+      - houses.seventh_ruler_in_10th: true
+      - houses.tenth_ruler_in_8_or_12: true
+      - any:
+          - houses.first_ruler_in_8_or_12: true
+          - houses.first_ruler_hard_afflicted: true
+          - moon.hard_malefic_contact: true
+  rationale: The local texts read the 7th ruler in the 10th as a meeting in public, while 8th/12th pressure marks death, coercion, or hidden custody; taken together, that supports a public seizure rather than ordinary public visibility.
+  evidence:
+    - houses.seventh_ruler
+    - houses.seventh_ruler_house
+    - houses.tenth_ruler
+    - houses.tenth_ruler_house
+    - houses.first_ruler
+    - houses.first_ruler_house
+    - moon
+
+- id: abduction_worksite_or_assignment_seizure_signature
+  title: Abduction or worksite-seizure pattern is active
+  category: Abduction
+  weight: 4
+  condition:
+    all:
+      - any:
+          - houses.seventh_ruler_house: 6
+          - houses.sixth_ruler_in_7th: true
+      - any:
+          - houses.counts.6>=: 3
+          - houses.malefics_in_6th>=: 1
+          - houses.third_ruler_house: 6
+          - houses.third_ruler_house: 9
+          - houses.ninth_ruler_house: 3
+          - moon.in_3_or_9: true
+      - any:
+          - houses.tenth_ruler_in_8_or_12: true
+          - houses.tenth_ruler_hard_afflicted: true
+          - houses.first_ruler_in_8_or_12: true
+          - houses.first_ruler_hard_afflicted: true
+          - moon.hard_malefic_contact: true
+  rationale: The local texts treat a 6th/7th link as a meeting through work or with the other person at work, while the 3rd/9th describe movement, vehicles, and travel. When that assignment pattern is coupled with route pressure and public or 8th/12th coercive pressure, it supports a seizure on assignment rather than routine job stress.
+  evidence:
+    - houses.sixth_ruler
+    - houses.sixth_ruler_house
+    - houses.seventh_ruler
+    - houses.seventh_ruler_house
+    - houses.tenth_ruler
+    - houses.tenth_ruler_house
+    - houses.counts
+    - moon
+
+- id: abduction_confrontation_route_seizure_signature
+  title: Abduction or confrontation-on-the-route pattern is active
+  category: Abduction
+  weight: 4
+  condition:
+    all:
+      - houses.seventh_ruler_house: 1
+      - any:
+          - houses.third_ruler_house: 9
+          - houses.ninth_ruler_house: 3
+          - moon.in_3_or_9: true
+      - any:
+          - houses.first_ruler_in_8_or_12: true
+          - houses.first_ruler_hard_afflicted: true
+          - houses.malefics_in_6th>=: 1
+  rationale: The local text treats the 7th ruler in the 1st as a sudden confrontation, while the 3rd/9th describe route and travel; when that confrontation lands on a movement axis with separate coercive pressure, it supports a route seizure rather than an ordinary meeting.
+  evidence:
+    - houses.seventh_ruler
+    - houses.seventh_ruler_house
+    - houses.third_ruler
+    - houses.third_ruler_house
+    - houses.ninth_ruler
+    - houses.ninth_ruler_house
+    - houses.first_ruler
+    - houses.first_ruler_house
+    - moon
+
+- id: abduction_transient_hospitality_seizure_signature
+  title: Abduction or transient-stay seizure pattern is active
+  category: Abduction
+  weight: 4
+  condition:
+    all:
+      - houses.seventh_ruler_house: 5
+      - houses.first_ruler_house: 3
+      - any:
+          - houses.third_ruler_house: 3
+          - houses.third_ruler_house: 9
+          - houses.ninth_ruler_house: 3
+          - houses.ninth_ruler_house: 9
+          - moon.in_3_or_9: true
+      - any:
+          - houses.first_ruler: Venus
+          - houses.angles_signs.C1: Taurus
+          - houses.angles_signs.C1: Libra
+      - any:
+          - houses.fifth_and_seventh_rulers_same_house: true
+          - houses.counts.5>=: 3
+      - houses.mute_signs_on_angles: true
+  rationale: "The local corpus treats the 7th as the abductor, the 3rd/9th as movement or the abductor's vehicle, and the 5th as outside interests or adult social settings. It also distinguishes hotels from homes, assigning hotels to Venus and Taurus. When those signals converge, the chart can describe a seizure from a transient or hospitality setting even before 12th-house captivity dominates."
+  evidence:
+    - houses.seventh_ruler
+    - houses.seventh_ruler_house
+    - houses.first_ruler
+    - houses.first_ruler_house
+    - houses.third_ruler
+    - houses.third_ruler_house
+    - houses.ninth_ruler
+    - houses.ninth_ruler_house
+    - houses.counts
+    - houses.angles_signs
+    - moon
+
+- id: abduction_social_or_group_gathering_seizure_signature
+  title: Abduction or social-gathering seizure pattern is active
+  category: Abduction
+  weight: 4
+  condition:
+    all:
+      - any:
+          - houses.seventh_ruler_house: 5
+          - houses.eleventh_ruler_house: 5
+      - any:
+          - houses.counts.5>=: 3
+          - houses.fifth_and_seventh_rulers_same_house: true
+      - any:
+          - houses.fifth_ruler_in_8_or_12: true
+          - houses.eleventh_ruler_in_8_or_12: true
+          - houses.emphasis12_count>=: 1
+          - planets.Sun.house: 12
+          - planets.Moon.house: 12
+      - any:
+          - houses.mute_signs_on_angles: true
+          - houses.mute_sign_on_3rd_or_9th: true
+          - solar.combustion: [Mercury, Venus]
+          - solar.under_beams: [Mercury, Venus]
+  rationale: The local corpus treats the 5th as adult social life, entertainment, parties, and outside interests, the 11th as friends and associates, the 7th as the abductor or other person, and the 12th as confinement. When a social setting is tightly tied to the 7th or 11th and separate hidden-custody testimony is present, the chart supports a social or group-gathering seizure rather than mere deception noise.
+  evidence:
+    - houses.seventh_ruler
+    - houses.seventh_ruler_house
+    - houses.eleventh_ruler
+    - houses.eleventh_ruler_house
+    - houses.fifth_ruler
+    - houses.fifth_ruler_house
+    - houses.counts
+    - houses.emphasis12_count
+    - solar.combustion
+    - solar.under_beams
+
+- id: abduction_deceptive_public_or_assignment_seizure_signature
+  title: Abduction or deceptive public-assignment seizure pattern is active
+  category: Abduction
+  weight: 4
+  condition:
+    all:
+      - any:
+          - houses.seventh_and_tenth_same_ruler: true
+          - houses.seventh_ruler_in_10th: true
+          - houses.tenth_ruler_house: 7
+      - any:
+          - houses.third_ruler_house: [3, 9]
+          - houses.ninth_ruler_house: [3, 9]
+          - moon.in_3_or_9: true
+      - any:
+          - planets.Mercury.retrograde: true
+          - solar.combustion: [Mercury]
+          - solar.under_beams: [Mercury]
+      - any:
+          - houses.first_ruler_in_8_or_12: true
+          - houses.first_ruler_hard_afflicted: true
+          - moon.hard_malefic_contact: true
+          - houses.malefics_angular_count>=: 1
+  rationale: The local sources treat the 7th as the abductor, the 10th as public or professional exposure, and the 3rd/9th as roads, vehicles, and movement. When those axes converge under deceptive Mercury testimony and separate coercive pressure on the victim, the chart supports a fake-authority, assignment, or public-facing seizure rather than an accident narrative.
+  evidence:
+    - houses.seventh_ruler
+    - houses.seventh_ruler_house
+    - houses.tenth_ruler
+    - houses.tenth_ruler_house
+    - houses.seventh_and_tenth_same_ruler
+    - houses.third_ruler
+    - houses.third_ruler_house
+    - houses.ninth_ruler
+    - houses.ninth_ruler_house
+    - solar.combustion
+    - solar.under_beams
+    - moon
+
+- id: witness_or_accomplice_signature
+  title: Witness or accomplice signatures are active
+  category: Witness
+  weight: 3
+  condition:
+    all:
+      - any:
+          - houses.third_ruler_in_8_or_12: true
+          - houses.eleventh_ruler_in_8_or_12: true
+          - houses.eleventh_ruler_house: 7
+      - any:
+          - houses.first_and_seventh_rulers_same_house: true
+          - houses.emphasis12_strong: true
+          - planets.Sun.house: 12
+          - planets.Moon.house: 12
+  rationale: Hidden 3rd/11th-house links or a 7th/11th crossover often point to witnesses, helpers, or accomplices close to the main actor.
+  evidence:
+    - houses.third_ruler
+    - houses.third_ruler_house
+    - houses.eleventh_ruler
+    - houses.eleventh_ruler_house
+    - houses.seventh_ruler_house
+    - houses.first_and_seventh_rulers_same_house
+    - houses.emphasis12_count
+
+- id: friend_or_associate_axis_active
+  title: Friend or close associate axis is active
+  category: Associates
+  weight: 3
+  condition:
+    any:
+      - houses.seventh_and_eleventh_same_ruler: true
+      - all:
+          - houses.seventh_ruler_house: 11
+          - houses.first_and_seventh_rulers_same_house: false
+      - houses.eleventh_ruler_house: 7
+      - all:
+          - houses.eleventh_ruler_angular: true
+          - any:
+              - houses.first_and_seventh_rulers_aspected: true
+              - houses.first_and_seventh_rulers_same_house: true
+  rationale: When the 7th and 11th houses connect, the case often points toward a friend, associate, or someone already known to the victim.
+  evidence:
+    - houses.seventh_ruler
+    - houses.seventh_ruler_house
+    - houses.eleventh_ruler
+    - houses.eleventh_ruler_house
+    - houses.seventh_and_eleventh_same_ruler
+    - houses.first_and_seventh_rulers_aspected
+    - houses.first_and_seventh_rulers_same_house
+
+- id: violence_known_person_social_concealment_pattern
+  title: Known-person violence pattern is active in a social or after-hours setting
+  category: Violence
+  weight: 3
+  condition:
+    all:
+      - any:
+          - houses.seventh_and_eleventh_same_ruler: true
+          - houses.seventh_ruler_house: 11
+          - houses.eleventh_ruler_house: 7
+      - any:
+          - houses.first_and_fifth_rulers_same_house: true
+          - houses.fifth_ruler_house: [5, 7, 11]
+          - houses.counts.5>=: 2
+      - any:
+          - planets.Sun.house: 12
+          - planets.Moon.house: 12
+          - houses.emphasis12_count>=: 1
+      - any:
+          - houses.eighth_ruler_house: [1, 7, 11, 12]
+          - moon.hard_malefic_contact: true
+          - houses.malefics_angular_count>=: 1
+          - houses.first_ruler_in_8_or_12: true
+  rationale: The local corpus treats the 5th as parties, recreation, and adult social life, the 11th as friends and acquaintances, the 7th as the other person or attacker, and the 12th as concealment. When those social and known-person axes converge under hidden-house and death pressure, the chart points toward violence by someone from the victim's social circle rather than a purely public or accidental narrative.
+  evidence:
+    - houses.seventh_ruler
+    - houses.seventh_ruler_house
+    - houses.eleventh_ruler
+    - houses.eleventh_ruler_house
+    - houses.seventh_and_eleventh_same_ruler
+    - houses.fifth_ruler
+    - houses.fifth_ruler_house
+    - houses.counts
+    - houses.eighth_ruler
+    - houses.eighth_ruler_house
+    - houses.emphasis12_count
+    - moon
+
+- id: public_or_authority_axis_foregrounded
+  title: Public or authority axis is foregrounded
+  category: Public
+  weight: 2
+  condition:
+    all:
+      - any:
+          - houses.tenth_ruler_angular: true
+          - houses.counts.10>=: 2
+          - houses.first_ruler_house: 10
+      - any:
+          - houses.first_ruler_in_8_or_12: true
+          - moon.in_4_8_12: true
+          - moon.hard_malefic_contact: true
+          - houses.malefics_in_8th>=: 1
+  rationale: A strong 10th-house or solar signature tied to violence/hidden-house pressure points to an authority, public, or celebrity-linked case.
+  evidence:
+    - houses.tenth_ruler
+    - houses.tenth_ruler_house
+    - houses.counts
+    - planets.Sun
+    - houses.first_ruler_house
+    - moon
+    - houses.malefics_in_8th
+
+- id: public_figure_or_leader_axis
+  title: Solar authority axis marks a public figure or leader case
+  category: Public
+  weight: 2
+  condition:
+    all:
+      - planets.Sun.angular: true
+      - houses.tenth_ruler_house: [7, 9, 10]
+      - any:
+          - houses.first_ruler_in_8_or_12: true
+          - houses.first_ruler_rules_8th: true
+          - houses.malefics_angular_count>=: 2
+  rationale: Salerno repeatedly treats the solar and 10th-house axis as the signature of public figures, authorities, or world leaders. Require an angular Sun, a live 10th-house linkage, and separate violence pressure before reading a case as publicly exposed.
+  evidence:
+    - planets.Sun
+    - houses.tenth_ruler
+    - houses.tenth_ruler_house
+    - houses.first_ruler_house
+    - houses.malefics_angular_count
+
+- id: domestic_partner_known_spouse_homicide
+  title: Partner-linked homicide pattern is active
+  category: Domestic
+  weight: 3
+  condition:
+    all:
+      - houses.first_ruler_house: 7
+      - any:
+          - houses.fourth_ruler_house: 7
+          - planets.Venus.house: 4
+          - houses.counts.7>=: 2
+      - any:
+          - houses.seventh_ruler_house: [8, 12]
+          - aspects.Mercury_to_Saturn.type: [conjunction, square, opposition]
+          - aspects.Saturn_to_Mercury.type: [conjunction, square, opposition]
+          - aspects.Moon_to_Venus.type: [square, opposition]
+          - aspects.Venus_to_Moon.type: [square, opposition]
+  rationale: When the victim ruler falls onto the partner axis and the domestic significators are pressured, the chart points toward partner-linked homicide rather than a random outsider. The local sources tie the 6th to servants, repairmen, and work/service intermediaries, so a bare 7th-ruler-in-6th testimony is too broad to stand in for a spouse by itself.
+  evidence:
+    - houses.first_ruler
+    - houses.first_ruler_house
+    - houses.fourth_ruler
+    - houses.fourth_ruler_house
+    - houses.seventh_ruler
+    - houses.seventh_ruler_house
+    - planets.Venus
+    - aspects.Mercury_to_Saturn
+    - aspects.Moon_to_Venus
+
+- id: violence_home_entry_service_pretext_pattern
+  title: Stranger-at-home or service-pretext violence pattern is active
+  category: Violence
+  weight: 3
+  condition:
+    all:
+      - any:
+          - houses.first_ruler_house: 7
+          - houses.fourth_ruler_house: 7
+          - houses.seventh_ruler_house: 4
+      - any:
+          - houses.seventh_ruler_house: 6
+          - houses.sixth_ruler_in_7th: true
+      - any:
+          - houses.first_ruler_in_8_or_12: true
+          - houses.first_ruler_rules_8th: true
+          - houses.sixth_ruler_house: 8
+          - moon.hard_malefic_contact: true
+          - aspects.Venus_to_Saturn.type: [conjunction, square, opposition]
+          - aspects.Saturn_to_Venus.type: [conjunction, square, opposition]
+  rationale: The local corpus treats the 4th as the home or residence, the 7th as the attacker or stranger, and the 6th as servants, repairmen, domestic workers, and service intermediaries. When the home axis is pulled onto the attacker and service axis under separate death or malefic pressure, the chart supports stranger-at-home violence or a deceptive-entry pattern more than spouse conflict.
+  evidence:
+    - houses.first_ruler
+    - houses.first_ruler_house
+    - houses.fourth_ruler
+    - houses.fourth_ruler_house
+    - houses.sixth_ruler
+    - houses.sixth_ruler_house
+    - houses.seventh_ruler
+    - houses.seventh_ruler_house
+    - aspects.Venus_to_Saturn
+    - moon
+
+- id: family_parental_axis_homicide
+  title: Family homicide pressure concentrates on parental/public houses
+  category: Family
+  weight: 3
+  condition:
+    all:
+      - any:
+          - houses.counts.10>=: 2
+          - houses.first_ruler_house: 10
+      - any:
+          - houses.counts.5>=: 2
+          - houses.fifth_ruler_house: [4, 5, 10]
+          - houses.seventh_ruler_house: [4, 5, 10]
+      - any:
+          - aspects.Sun_to_Jupiter.type: [conjunction, square, opposition]
+          - aspects.Jupiter_to_Sun.type: [conjunction, square, opposition]
+          - aspects.Moon_to_Jupiter.type: [conjunction, square, opposition]
+          - aspects.Jupiter_to_Moon.type: [conjunction, square, opposition]
+          - aspects.Sun_to_Mars.type: [conjunction, square, opposition]
+          - aspects.Mars_to_Sun.type: [conjunction, square, opposition]
+          - aspects.Moon_to_Mars.type: [conjunction, square, opposition]
+          - aspects.Mars_to_Moon.type: [conjunction, square, opposition]
+          - aspects.Sun_to_Saturn.type: [conjunction, square, opposition]
+          - aspects.Saturn_to_Sun.type: [conjunction, square, opposition]
+          - aspects.Moon_to_Saturn.type: [conjunction, square, opposition]
+          - aspects.Saturn_to_Moon.type: [conjunction, square, opposition]
+          - all:
+              - houses.fourth_ruler_hard_afflicted: true
+              - houses.first_ruler_in_8_or_12: true
+  rationale: Dense 5th/10th-house concentration under hard luminary or parental-ruler pressure is a grounded family-homicide signature in parental or filial cases.
+  evidence:
+    - houses.counts
+    - houses.first_ruler_house
+    - houses.fifth_ruler_house
+    - houses.seventh_ruler_house
+    - houses.tenth_ruler_house
+    - aspects.Sun_to_Jupiter
+    - aspects.Moon_to_Jupiter
+    - aspects.Sun_to_Mars
+    - aspects.Moon_to_Mars
+    - aspects.Sun_to_Saturn
+    - aspects.Moon_to_Saturn
+
+- id: family_parricide_homicide_cluster
+  title: Family homicide cluster is active
+  category: Family
+  weight: 4
+  condition:
+    all:
+      - houses.eighth_ruler_in_4_8_12: true
+      - houses.fifth_ruler_in_4_8_12: true
+      - houses.fourth_ruler_angular: true
+      - houses.first_and_seventh_rulers_same_house: true
+      - any:
+          - aspects.Moon_to_Sun.type: [conjunction, square, opposition]
+          - aspects.Sun_to_Moon.type: [conjunction, square, opposition]
+          - aspects.Moon_to_Mercury.type: [conjunction, square, opposition]
+          - aspects.Mercury_to_Moon.type: [conjunction, square, opposition]
+      - any:
+          - aspects.Mars_to_Venus.type: [conjunction, square, opposition]
+          - aspects.Venus_to_Mars.type: [conjunction, square, opposition]
+          - aspects.Mars_to_Jupiter.type: [conjunction, square, opposition]
+          - aspects.Jupiter_to_Mars.type: [conjunction, square, opposition]
+          - aspects.Venus_to_Jupiter.type: [conjunction, square, opposition]
+          - aspects.Jupiter_to_Venus.type: [conjunction, square, opposition]
+  rationale: When the parental 4th/10th axis is activated, the 8th ruler falls into family houses, child significators are pulled into the same family cluster, and the victim-perpetrator planets are in direct contact, the chart points toward family homicide or parricide rather than an outside witness narrative.
+  evidence:
+    - houses.eighth_ruler_house
+    - houses.fifth_ruler_house
+    - houses.fourth_ruler_house
+    - houses.first_ruler_house
+    - houses.seventh_ruler_house
+    - aspects.Moon_to_Sun
+    - aspects.Moon_to_Mercury
+    - aspects.Mars_to_Venus
+    - aspects.Mars_to_Jupiter
+    - aspects.Venus_to_Jupiter
+
+- id: public_axis_saturated
+  title: Public or celebrity case axis is strongly saturated
+  category: Public
+  weight: 2
+  condition:
+    all:
+      - houses.counts.10>=: 2
+      - any:
+          - houses.first_ruler_house: 10
+          - houses.third_ruler_house: 10
+          - houses.tenth_ruler_house: [5, 10]
+  rationale: Repeated 10th-house emphasis is a stable marker for celebrity, authority, or nationally visible cases even before narrower motive rules are applied.
+  evidence:
+    - houses.counts
+    - houses.first_ruler_house
+    - houses.third_ruler_house
+    - houses.tenth_ruler_house
+    - planets.Sun
+
+- id: travel_accident_or_disaster_pattern
+  title: Travel accident or disaster pattern is active
+  category: Disaster
+  weight: 4
+  condition:
+    all:
+      - any:
+          - houses.first_ruler_house: 9
+          - houses.seventh_ruler_house: 9
+          - houses.third_ruler_house: 9
+      - any:
+          - houses.water_cusp_4_8_12>=: 1
+          - houses.neptune_in_4_8_12: true
+          - moon.water_sign: true
+      - any:
+          - moon.hard_malefic_contact: true
+          - houses.malefics_angular_count>=: 1
+      - not:
+          any:
+            - houses.first_ruler_rules_8th: true
+            - houses.first_ruler_in_8_or_12: true
+            - houses.fifth_ruler_in_8_or_12: true
+            - houses.fourth_ruler_in_4_8_12: true
+            - planets.Moon.house: [4, 8]
+            - all:
+                - houses.seventh_and_tenth_same_ruler: true
+                - any:
+                    - planets.Mercury.retrograde: true
+                    - solar.combustion: [Mercury]
+                    - solar.under_beams: [Mercury]
+                    - houses.mute_signs_on_angles: true
+                - any:
+                    - houses.third_ruler_house: [3, 9]
+                    - houses.ninth_ruler_house: [3, 9]
+                    - moon.in_3_or_9: true
+            - all:
+                - any:
+                    - houses.seventh_ruler_house: 5
+                    - houses.eleventh_ruler_house: 5
+                - any:
+                    - houses.fifth_ruler_in_8_or_12: true
+                    - houses.emphasis12_count>=: 1
+                    - planets.Sun.house: 12
+                    - planets.Moon.house: 12
+            - all:
+                - houses.seventh_and_eleventh_same_ruler: true
+                - any:
+                    - houses.first_and_fifth_rulers_same_house: true
+                    - houses.counts.5>=: 2
+                    - houses.fifth_ruler_house: [5, 7, 11]
+                - any:
+                    - planets.Sun.house: 12
+                    - planets.Moon.house: 12
+                    - houses.emphasis12_count>=: 1
+  rationale: Travel houses under water or ending pressure point more toward accident or disaster than toward a domestic homicide narrative.
+  evidence:
+    - houses.first_ruler_house
+    - houses.seventh_ruler_house
+    - houses.third_ruler_house
+    - houses.water_cusp_4_8_12
+    - houses.neptune_in_4_8_12
+    - moon
+    - houses.malefics_angular_count
+
+- id: waterborne_accident_or_disaster_pattern
+  title: Waterborne accident or disaster signatures are foregrounded
+  category: Disaster
+  weight: 4
+  condition:
+    all:
+      - houses.water_cusp_4_8_12>=: 2
+      - any:
+          - houses.third_ruler_house: [3, 7, 9]
+          - houses.first_ruler_house: [3, 5, 9]
+      - any:
+          - moon.hard_malefic_contact: true
+          - all:
+              - moon.water_sign: true
+              - houses.malefics_angular_count>=: 1
+      - not:
+          any:
+            - houses.first_ruler_rules_8th: true
+            - houses.first_ruler_in_8_or_12: true
+            - houses.fifth_ruler_in_8_or_12: true
+            - planets.Moon.house: [4, 8]
+            - houses.fourth_ruler_in_4_8_12: true
+            - houses.fourth_ruler_hard_afflicted: true
+            - all:
+                - houses.seventh_and_tenth_same_ruler: true
+                - any:
+                    - planets.Mercury.retrograde: true
+                    - solar.combustion: [Mercury]
+                    - solar.under_beams: [Mercury]
+                    - houses.mute_signs_on_angles: true
+                - any:
+                    - houses.third_ruler_house: [3, 9]
+                    - houses.ninth_ruler_house: [3, 9]
+                    - moon.in_3_or_9: true
+            - all:
+                - any:
+                    - houses.seventh_ruler_house: 5
+                    - houses.eleventh_ruler_house: 5
+                - any:
+                    - houses.fifth_ruler_in_8_or_12: true
+                    - houses.emphasis12_count>=: 1
+                    - planets.Sun.house: 12
+                    - planets.Moon.house: 12
+            - all:
+                - houses.seventh_and_eleventh_same_ruler: true
+                - any:
+                    - houses.first_and_fifth_rulers_same_house: true
+                    - houses.counts.5>=: 2
+                    - houses.fifth_ruler_house: [5, 7, 11]
+                - any:
+                    - planets.Sun.house: 12
+                    - planets.Moon.house: 12
+                    - houses.emphasis12_count>=: 1
+  rationale: Strong water-house emphasis tied to movement or public transport markers describes a waterborne accident or disaster more than a family-abduction scenario.
+  evidence:
+    - houses.water_cusp_4_8_12
+    - houses.third_ruler_house
+    - houses.tenth_ruler_angular
+    - houses.first_ruler_house
+    - moon
+    - houses.malefics_angular_count
+
+- id: air_disaster_launch_pattern
+  title: Air-disaster launch pattern is active
+  category: Disaster
+  weight: 4
+  condition:
+    all:
+      - houses.angles_signs.C1: [Aquarius]
+      - solar.combustion: [Mercury]
+      - houses.eleventh_ruler_in_8_or_12: true
+      - any:
+          - houses.third_ruler_house: [5, 7, 9]
+          - houses.tenth_ruler_house: [5, 7, 9]
+      - any:
+          - houses.north_node_in_8th: true
+          - houses.mute_signs_on_angles: true
+      - not:
+          any:
+            - houses.first_ruler_rules_8th: true
+            - houses.first_ruler_in_8_or_12: true
+            - houses.fifth_ruler_in_8_or_12: true
+            - houses.fourth_ruler_in_4_8_12: true
+            - planets.Moon.house: [4, 8]
+  rationale: An Aquarian launch axis with a combust travel significator and the 11th-house/public traveler ruler hidden in the 12th points toward an aviation disaster or catastrophic flight failure rather than a domestic case.
+  evidence:
+    - houses.angles_signs
+    - solar.combustion
+    - houses.eleventh_ruler_house
+    - houses.third_ruler_house
+    - houses.tenth_ruler_house
+    - houses.north_node_in_8th
+    - houses.mute_signs_on_angles
+
+- id: structural_catastrophe_pattern
+  title: Structural catastrophe pattern is active
+  category: Disaster
+  weight: 4
+  condition:
+    all:
+      - houses.angles_signs.C7: [Capricorn]
+      - houses.counts.7>=: 3
+      - solar.cazimi: [Venus]
+      - planets.Mercury.retrograde: true
+      - any:
+          - moon.hard_malefic_contact: true
+          - aspects.Moon_to_Saturn.type: [square, opposition]
+          - aspects.Saturn_to_Moon.type: [square, opposition]
+      - any:
+          - houses.seventh_ruler_in_3_4_12: true
+          - houses.eighth_ruler_house: [3, 7, 8]
+      - not:
+          any:
+            - houses.first_ruler_rules_8th: true
+            - houses.first_ruler_in_8_or_12: true
+            - houses.fifth_ruler_in_8_or_12: true
+            - houses.counts.5>=: 2
+            - houses.fourth_ruler_in_4_8_12: true
+  rationale: A Capricorn-saturated crisis axis with Venus cazimi, retrograde Mercury, and the Moon under hard pressure is a grounded large-scale structural or earth-disaster signature rather than an interpersonal crime pattern.
+  evidence:
+    - houses.angles_signs
+    - houses.counts
+    - solar.cazimi
+    - planets.Mercury
+    - moon
+    - houses.seventh_ruler_house
+    - houses.eighth_ruler_house

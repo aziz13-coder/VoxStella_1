@@ -1,0 +1,21 @@
+{
+  "id": "volatility",
+  "name": "Volatility",
+  "domain": "tempo_instability",
+  "description": "Rapid swings of direction or mood with Cardinal dominance under stress and/or fiery afflictions; fixed anchors and Saturn consolidation reduce.",
+  "confidence": "high",
+  "polarity": "negative",
+  "sources": ["Carter: Cardinal under affliction — restless, changing policy; Fire under affliction — turbulent"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "modality", "modality": "Cardinal", "min_share": 0.40, "weight": 8 },
+      { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [1,10,11], "min_total": 1, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.40, "weight": -6 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -6 }
+    ],
+    "escalators": [] }
+}
+

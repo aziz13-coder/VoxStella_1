@@ -1,0 +1,21 @@
+{
+  "id": "fixed_reserve_possession",
+  "name": "Fixed: reserve, intensity, possession",
+  "domain": "quality_modality",
+  "description": "Reserved and conservative; holding power across material/emotional/intellectual lines when Fixed is emphasized.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Fixed quality"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.35, "weight": 12 },
+      { "kind": "house_emphasis", "houses": [2,5,8,11], "min_total": 3, "weight": 6 }
+    ],
+    "dampeners": [
+      { "kind": "modality", "modality": "Mutable", "min_share": 0.40, "weight": -6 }
+    ],
+    "escalators": []
+  }
+}
+

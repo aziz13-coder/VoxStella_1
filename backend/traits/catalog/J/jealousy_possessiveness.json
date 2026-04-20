@@ -1,0 +1,23 @@
+{
+  "id": "jealousy_possessiveness",
+  "name": "Jealousy (possessiveness)",
+  "domain": "temperament_attachment",
+  "description": "Guarded, possessive attachment with fixed‑sign intensity, Venus under Mars/Saturn pressure; Scorpio adds exclusivity.",
+  "confidence": "medium",
+  "polarity": "negative",
+  "sources": ["Carter: Fixed intensity; Venus under malefics; Scorpio depth"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.35, "weight": 10 },
+      { "kind": "aspect", "pair": ["Venus","Mars"], "type": "hard", "max_orb": 6, "weight": 8 },
+      { "kind": "aspect", "pair": ["Venus","Saturn"], "type": "hard", "max_orb": 6, "weight": 8 },
+      { "kind": "sign_emphasis", "sign": "Scorpio", "min": 1.5, "weight": 6 }
+    ],
+    "dampeners": [
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": -6 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": -6 },
+      { "kind": "element", "element": "Air", "min_share": 0.35, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

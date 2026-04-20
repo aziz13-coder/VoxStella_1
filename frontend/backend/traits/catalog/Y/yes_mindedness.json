@@ -1,0 +1,25 @@
+{
+  "id": "yes_mindedness",
+  "name": "Yes-mindedness (agreeableness/compliance)",
+  "domain": "compliance_style",
+  "description": "Tendency to agree or comply to keep harmony and affiliation.",
+  "confidence": "medium",
+  "polarity": "neutral",
+  "sources": [
+    "Carter: Libra/Venus mediation; Air social reason"
+  ],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": 5 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": 5 },
+      { "kind": "house_emphasis", "houses": [7,11], "min_total": 1, "weight": 3 },
+      { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": 2 }
+    ],
+    "dampeners": [
+      { "kind": "sign_emphasis", "sign": "Aries", "min": 1.5, "weight": -4 },
+      { "kind": "planet_status", "planet": "Mars", "strong": true, "weight": -4 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -3 }
+    ],
+    "escalators": [] }
+}
+

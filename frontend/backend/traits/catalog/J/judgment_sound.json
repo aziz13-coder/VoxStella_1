@@ -1,0 +1,14 @@
+{
+  "id": "judgment_sound",
+  "name": "Judgment (sound)",
+  "domain": "cognition_decision_quality",
+  "description": "Capacity to weigh alternatives and decide with fairness via Libra balance, Saturn sobriety, and Mercury clarity.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Libra comparison/adjustment; Saturn sobriety; Mercury clarity"],
+  "logic": { "base": 0,
+    "boosts": [ { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": 8 }, { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": 8 }, { "kind": "aspect", "pair": ["Mercury","Saturn"], "type": "soft", "max_orb": 6, "weight": 8 } ],
+    "dampeners": [ { "kind": "modality", "modality": "Mutable", "min_share": 0.40, "weight": -6 }, { "kind": "planet_status", "planet": "Venus", "afflicted": true, "weight": -6 }, { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": -4 } ],
+    "escalators": [] }
+}
+

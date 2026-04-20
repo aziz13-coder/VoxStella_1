@@ -1,0 +1,543 @@
+{
+  "generated_at": "2026-03-22T15:18:56.595821+00:00",
+  "purpose": "Starter labeled corpus for forensic feature directional evaluation",
+  "comparison_axes": [
+    "violence_homicide",
+    "abduction_missing_person",
+    "deception_coverup",
+    "domestic_partner_involvement",
+    "family_involvement",
+    "child_victim",
+    "water_disappearance_or_drowning",
+    "accident_or_disaster",
+    "friend_or_close_associate",
+    "authority_or_public_case",
+    "accomplice_or_witness"
+  ],
+  "sources": [
+    {
+      "id": "salerno_forensics_by_the_stars",
+      "kind": "case_book",
+      "title": "Forensics by the Stars: Astrology Investigates",
+      "author": "B. D. Salerno",
+      "source_file": "C:\\Users\\sabaa\\Downloads\\codexhorary\\extracted_text_docs\\text_forensics\\Forensics by the Stars Astrology Investigates (B. D. Salerno) (Z-Library).txt",
+      "use": "event-case seeds and replay promotion"
+    },
+    {
+      "id": "salerno_exploring_family_murders",
+      "kind": "case_book",
+      "title": "Exploring Forensic Astrology: The Secrets Behind Famous Family Murders",
+      "author": "B. D. Salerno",
+      "source_file": "C:\\Users\\sabaa\\Downloads\\codexhorary\\extracted_text_docs\\text_forensics\\Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "use": "family homicide, domestic, filicide, parricide, familicide, friend cases"
+    },
+    {
+      "id": "luley_forensic_astrology_for_everyone",
+      "kind": "methodology",
+      "title": "Forensic Astrology for Everyone",
+      "author": "Caroline J. Luley",
+      "source_file": "C:\\Users\\sabaa\\Downloads\\codexhorary\\extracted_text_docs\\text_forensics\\Forensic Astrology for Everyone You Dont Need to be an Astrologer to Locate Lost Objects, Find Missing Persons, Solve\u2026 (Caroline J. Luley) (Z-Library).txt",
+      "use": "taxonomy, lost-object/missing-person methodology, timing and movement framework"
+    }
+  ],
+  "cases": [
+    {
+      "id": "lindbergh_kidnapping",
+      "title": "The Lindbergh Kidnapping",
+      "entry_kind": "case_seed",
+      "book_id": "salerno_forensics_by_the_stars",
+      "source_file": "Forensics by the Stars Astrology Investigates (B. D. Salerno) (Z-Library).txt",
+      "source_section": "Chapter One",
+      "case_family": "kidnapping",
+      "expected_primary_axes": [
+        "abduction_missing_person",
+        "child_victim",
+        "violence_homicide"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup"
+      ],
+      "contradictory_axes": [],
+      "label_basis": "title_and_book_context",
+      "label_confidence": "medium",
+      "execution_tier": "tier_1_directional_seed",
+      "chart_capture_status": "needs_chart_capture",
+      "comparison_status": "not_runnable_yet",
+      "notes": "Seed from explicit case title and opening chapter summary."
+    },
+    {
+      "id": "marilyn_monroe_murder",
+      "title": "The Murder of Marilyn Monroe",
+      "entry_kind": "case_seed",
+      "book_id": "salerno_forensics_by_the_stars",
+      "source_file": "Forensics by the Stars Astrology Investigates (B. D. Salerno) (Z-Library).txt",
+      "source_section": "Chapter Two",
+      "case_family": "suspicious_death",
+      "expected_primary_axes": [
+        "violence_homicide",
+        "authority_or_public_case"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup"
+      ],
+      "contradictory_axes": [
+        "accident_or_disaster"
+      ],
+      "label_basis": "title_and_book_context",
+      "label_confidence": "medium",
+      "execution_tier": "tier_1_directional_seed",
+      "chart_capture_status": "needs_chart_capture",
+      "comparison_status": "not_runnable_yet",
+      "notes": ""
+    },
+    {
+      "id": "ronnie_lee_bakley",
+      "title": "Ronnie Lee Bakley: Death by Beretta?",
+      "entry_kind": "case_seed",
+      "book_id": "salerno_exploring_family_murders",
+      "source_file": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "source_section": "Mariticide",
+      "case_family": "spousal_murder",
+      "expected_primary_axes": [
+        "violence_homicide",
+        "domestic_partner_involvement"
+      ],
+      "expected_secondary_axes": [
+        "authority_or_public_case",
+        "deception_coverup"
+      ],
+      "contradictory_axes": [],
+      "label_basis": "title_and_book_context",
+      "label_confidence": "medium",
+      "execution_tier": "tier_1_directional_seed",
+      "chart_capture_status": "needs_chart_capture",
+      "comparison_status": "not_runnable_yet",
+      "notes": ""
+    },
+    {
+      "id": "phil_hartman",
+      "title": "Phil Hartman: Murder by Wife",
+      "entry_kind": "case_seed",
+      "book_id": "salerno_exploring_family_murders",
+      "source_file": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "source_section": "Mariticide",
+      "case_family": "spousal_murder",
+      "expected_primary_axes": [
+        "violence_homicide",
+        "domestic_partner_involvement"
+      ],
+      "expected_secondary_axes": [
+        "family_involvement"
+      ],
+      "contradictory_axes": [],
+      "label_basis": "title_and_book_context",
+      "label_confidence": "high",
+      "execution_tier": "tier_1_directional_seed",
+      "chart_capture_status": "needs_chart_capture",
+      "comparison_status": "not_runnable_yet",
+      "notes": ""
+    },
+    {
+      "id": "natalie_wood",
+      "title": "Natalie Wood: A Farewell to Splendor",
+      "entry_kind": "case_seed",
+      "book_id": "salerno_exploring_family_murders",
+      "source_file": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "source_section": "Mariticide",
+      "case_family": "suspicious_water_death",
+      "expected_primary_axes": [
+        "water_disappearance_or_drowning",
+        "violence_homicide"
+      ],
+      "expected_secondary_axes": [
+        "domestic_partner_involvement",
+        "authority_or_public_case"
+      ],
+      "contradictory_axes": [
+        "accident_or_disaster"
+      ],
+      "label_basis": "title_and_book_context",
+      "label_confidence": "medium",
+      "execution_tier": "tier_1_directional_seed",
+      "chart_capture_status": "needs_chart_capture",
+      "comparison_status": "not_runnable_yet",
+      "notes": "Book introduction frames this as sudden violence rather than pure accident."
+    },
+    {
+      "id": "scott_peterson",
+      "title": "Scott Peterson: A Talent for Deception",
+      "entry_kind": "case_seed",
+      "book_id": "salerno_exploring_family_murders",
+      "source_file": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "source_section": "Mariticide",
+      "case_family": "spousal_murder",
+      "expected_primary_axes": [
+        "deception_coverup",
+        "domestic_partner_involvement",
+        "violence_homicide"
+      ],
+      "expected_secondary_axes": [
+        "authority_or_public_case"
+      ],
+      "contradictory_axes": [],
+      "label_basis": "title_and_book_context",
+      "label_confidence": "high",
+      "execution_tier": "tier_1_directional_seed",
+      "chart_capture_status": "needs_chart_capture",
+      "comparison_status": "not_runnable_yet",
+      "notes": ""
+    },
+    {
+      "id": "sam_sheppard",
+      "title": "The Sam Sheppard Case",
+      "entry_kind": "case_seed",
+      "book_id": "salerno_exploring_family_murders",
+      "source_file": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "source_section": "Mariticide",
+      "case_family": "spousal_murder_disputed",
+      "expected_primary_axes": [
+        "violence_homicide",
+        "domestic_partner_involvement"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup"
+      ],
+      "contradictory_axes": [],
+      "label_basis": "title_and_book_context",
+      "label_confidence": "low",
+      "execution_tier": "tier_3_manual_review",
+      "chart_capture_status": "needs_chart_capture",
+      "comparison_status": "not_runnable_yet",
+      "notes": "Useful later for false-accusation/exoneration analysis; not a clean starter alignment case."
+    },
+    {
+      "id": "andrea_yates",
+      "title": "Andrea Yates: Closer to God?",
+      "entry_kind": "case_seed",
+      "book_id": "salerno_exploring_family_murders",
+      "source_file": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "source_section": "Filicide",
+      "case_family": "filicide",
+      "expected_primary_axes": [
+        "family_involvement",
+        "child_victim",
+        "violence_homicide"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup"
+      ],
+      "contradictory_axes": [],
+      "label_basis": "title_and_book_context",
+      "label_confidence": "medium",
+      "execution_tier": "tier_1_directional_seed",
+      "chart_capture_status": "needs_chart_capture",
+      "comparison_status": "not_runnable_yet",
+      "notes": ""
+    },
+    {
+      "id": "marvin_gaye",
+      "title": "Marvin Gaye: Death by Father",
+      "entry_kind": "case_seed",
+      "book_id": "salerno_exploring_family_murders",
+      "source_file": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "source_section": "Filicide",
+      "case_family": "family_homicide",
+      "expected_primary_axes": [
+        "family_involvement",
+        "violence_homicide",
+        "authority_or_public_case"
+      ],
+      "expected_secondary_axes": [
+        "domestic_partner_involvement"
+      ],
+      "contradictory_axes": [],
+      "label_basis": "title_and_book_context",
+      "label_confidence": "medium",
+      "execution_tier": "tier_1_directional_seed",
+      "chart_capture_status": "needs_chart_capture",
+      "comparison_status": "not_runnable_yet",
+      "notes": ""
+    },
+    {
+      "id": "jonbenet_ramsey",
+      "title": "JonBenet Ramsey and the Killing Planet",
+      "entry_kind": "case_seed",
+      "book_id": "salerno_exploring_family_murders",
+      "source_file": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "source_section": "Filicide",
+      "case_family": "child_homicide",
+      "expected_primary_axes": [
+        "child_victim",
+        "family_involvement",
+        "violence_homicide"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup",
+        "authority_or_public_case"
+      ],
+      "contradictory_axes": [],
+      "label_basis": "title_and_book_context",
+      "label_confidence": "high",
+      "execution_tier": "tier_1_directional_seed",
+      "chart_capture_status": "needs_chart_capture",
+      "comparison_status": "not_runnable_yet",
+      "notes": ""
+    },
+    {
+      "id": "diane_downs",
+      "title": "Diane Downs: Murder by Mother",
+      "entry_kind": "case_seed",
+      "book_id": "salerno_exploring_family_murders",
+      "source_file": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "source_section": "Filicide",
+      "case_family": "filicide",
+      "expected_primary_axes": [
+        "family_involvement",
+        "child_victim",
+        "violence_homicide"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup"
+      ],
+      "contradictory_axes": [],
+      "label_basis": "title_and_book_context",
+      "label_confidence": "medium",
+      "execution_tier": "tier_1_directional_seed",
+      "chart_capture_status": "needs_chart_capture",
+      "comparison_status": "not_runnable_yet",
+      "notes": ""
+    },
+    {
+      "id": "darlie_routier",
+      "title": "Darlie Routier: The Greater Part of Them",
+      "entry_kind": "case_seed",
+      "book_id": "salerno_exploring_family_murders",
+      "source_file": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "source_section": "Filicide",
+      "case_family": "filicide",
+      "expected_primary_axes": [
+        "family_involvement",
+        "child_victim",
+        "violence_homicide"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup"
+      ],
+      "contradictory_axes": [],
+      "label_basis": "title_and_book_context",
+      "label_confidence": "medium",
+      "execution_tier": "tier_1_directional_seed",
+      "chart_capture_status": "needs_chart_capture",
+      "comparison_status": "not_runnable_yet",
+      "notes": ""
+    },
+    {
+      "id": "alice_crimmins",
+      "title": "Alice Crimmins: Guilty by Lifestyle?",
+      "entry_kind": "case_seed",
+      "book_id": "salerno_exploring_family_murders",
+      "source_file": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "source_section": "Filicide",
+      "case_family": "child_murder_disputed",
+      "expected_primary_axes": [
+        "family_involvement",
+        "child_victim"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup"
+      ],
+      "contradictory_axes": [],
+      "label_basis": "title_and_book_context",
+      "label_confidence": "low",
+      "execution_tier": "tier_3_manual_review",
+      "chart_capture_status": "needs_chart_capture",
+      "comparison_status": "not_runnable_yet",
+      "notes": ""
+    },
+    {
+      "id": "susan_smith",
+      "title": "Susan Smith: Anything for Love",
+      "entry_kind": "case_seed",
+      "book_id": "salerno_exploring_family_murders",
+      "source_file": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "source_section": "Filicide",
+      "case_family": "filicide",
+      "expected_primary_axes": [
+        "family_involvement",
+        "child_victim",
+        "deception_coverup",
+        "violence_homicide"
+      ],
+      "expected_secondary_axes": [],
+      "contradictory_axes": [],
+      "label_basis": "title_and_book_context",
+      "label_confidence": "high",
+      "execution_tier": "tier_1_directional_seed",
+      "chart_capture_status": "needs_chart_capture",
+      "comparison_status": "not_runnable_yet",
+      "notes": ""
+    },
+    {
+      "id": "lizzie_borden",
+      "title": "Lizzie Borden Took an Ax",
+      "entry_kind": "case_seed",
+      "book_id": "salerno_exploring_family_murders",
+      "source_file": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "source_section": "Parricide",
+      "case_family": "parricide",
+      "expected_primary_axes": [
+        "family_involvement",
+        "violence_homicide"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup"
+      ],
+      "contradictory_axes": [],
+      "label_basis": "title_and_book_context",
+      "label_confidence": "medium",
+      "execution_tier": "tier_1_directional_seed",
+      "chart_capture_status": "needs_chart_capture",
+      "comparison_status": "not_runnable_yet",
+      "notes": ""
+    },
+    {
+      "id": "menendez_brothers",
+      "title": "The Menendez Brothers: Implacable Hatred",
+      "entry_kind": "case_seed",
+      "book_id": "salerno_exploring_family_murders",
+      "source_file": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "source_section": "Parricide",
+      "case_family": "parricide",
+      "expected_primary_axes": [
+        "family_involvement",
+        "violence_homicide",
+        "accomplice_or_witness"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup"
+      ],
+      "contradictory_axes": [],
+      "label_basis": "title_and_book_context",
+      "label_confidence": "medium",
+      "execution_tier": "tier_1_directional_seed",
+      "chart_capture_status": "needs_chart_capture",
+      "comparison_status": "not_runnable_yet",
+      "notes": ""
+    },
+    {
+      "id": "charles_whitman",
+      "title": "Charles Whitman, the Tower Sniper",
+      "entry_kind": "case_seed",
+      "book_id": "salerno_exploring_family_murders",
+      "source_file": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "source_section": "Parricide",
+      "case_family": "public_violence",
+      "expected_primary_axes": [
+        "violence_homicide",
+        "authority_or_public_case"
+      ],
+      "expected_secondary_axes": [
+        "family_involvement"
+      ],
+      "contradictory_axes": [],
+      "label_basis": "title_and_book_context",
+      "label_confidence": "medium",
+      "execution_tier": "tier_1_directional_seed",
+      "chart_capture_status": "needs_chart_capture",
+      "comparison_status": "not_runnable_yet",
+      "notes": ""
+    },
+    {
+      "id": "john_list",
+      "title": "John List: The Bogeyman of Westfield",
+      "entry_kind": "case_seed",
+      "book_id": "salerno_exploring_family_murders",
+      "source_file": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "source_section": "Familicide",
+      "case_family": "familicide",
+      "expected_primary_axes": [
+        "family_involvement",
+        "violence_homicide",
+        "deception_coverup"
+      ],
+      "expected_secondary_axes": [],
+      "contradictory_axes": [],
+      "label_basis": "title_and_book_context",
+      "label_confidence": "high",
+      "execution_tier": "tier_1_directional_seed",
+      "chart_capture_status": "needs_chart_capture",
+      "comparison_status": "not_runnable_yet",
+      "notes": ""
+    },
+    {
+      "id": "amityville_defeo",
+      "title": "Butch DeFeo and the Amityville Murders: From High Hopes to Horror",
+      "entry_kind": "case_seed",
+      "book_id": "salerno_exploring_family_murders",
+      "source_file": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "source_section": "Familicide",
+      "case_family": "familicide",
+      "expected_primary_axes": [
+        "family_involvement",
+        "violence_homicide"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup"
+      ],
+      "contradictory_axes": [],
+      "label_basis": "title_and_book_context",
+      "label_confidence": "medium",
+      "execution_tier": "tier_1_directional_seed",
+      "chart_capture_status": "needs_chart_capture",
+      "comparison_status": "not_runnable_yet",
+      "notes": ""
+    },
+    {
+      "id": "bob_crane",
+      "title": "Bob Crane: Was His Best Friend Guilty?",
+      "entry_kind": "case_seed",
+      "book_id": "salerno_exploring_family_murders",
+      "source_file": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "source_section": "Murder by Friend",
+      "case_family": "friend_homicide",
+      "expected_primary_axes": [
+        "friend_or_close_associate",
+        "violence_homicide"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup",
+        "authority_or_public_case"
+      ],
+      "contradictory_axes": [],
+      "label_basis": "title_and_book_context",
+      "label_confidence": "medium",
+      "execution_tier": "tier_1_directional_seed",
+      "chart_capture_status": "needs_chart_capture",
+      "comparison_status": "not_runnable_yet",
+      "notes": ""
+    },
+    {
+      "id": "gianni_versace",
+      "title": "Did Gianni Versace Know His Killer?",
+      "entry_kind": "case_seed",
+      "book_id": "salerno_exploring_family_murders",
+      "source_file": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "source_section": "Murder by Friend",
+      "case_family": "celebrity_homicide",
+      "expected_primary_axes": [
+        "violence_homicide",
+        "authority_or_public_case"
+      ],
+      "expected_secondary_axes": [
+        "friend_or_close_associate"
+      ],
+      "contradictory_axes": [],
+      "label_basis": "title_and_book_context",
+      "label_confidence": "medium",
+      "execution_tier": "tier_1_directional_seed",
+      "chart_capture_status": "needs_chart_capture",
+      "comparison_status": "not_runnable_yet",
+      "notes": ""
+    }
+  ]
+}

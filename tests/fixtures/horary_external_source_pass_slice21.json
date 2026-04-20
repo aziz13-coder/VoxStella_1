@@ -1,0 +1,74 @@
+[
+  {
+    "id": "citizenship_timing_astrologyweekly_source_pass",
+    "question": "When will I get my citizenship?",
+    "source_url": "https://astrologyweekly.com/threads/when-will-i-get-my-citizenship.61547/",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "timing / yes eventually",
+    "source_expected_category": "travel",
+    "source_expected_houses": [
+      1,
+      9,
+      10
+    ],
+    "source_expected_focus": "Citizenship is treated as an immigration or foreign-status matter on the 9th, with the state or approving authority also visible through the 10th rather than as a message or generic other party.",
+    "current_engine_category": "travel",
+    "current_engine_houses": [
+      1,
+      9,
+      10
+    ],
+    "current_engine_quesited_house": 9,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Aligned after the citizenship and residency-status doctrine pass keeps the status on the 9th and the approving authority on the 10th."
+  },
+  {
+    "id": "permanent_resident_status_astrologyweekly_source_pass",
+    "question": "When will i get permanent resident?",
+    "source_url": "https://astrologyweekly.com/threads/when-will-i-get-permanent-resident.30240/",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "timing / eventually",
+    "source_expected_category": "travel",
+    "source_expected_houses": [
+      1,
+      9,
+      10
+    ],
+    "source_expected_focus": "Permanent residence is still a status or authorization to remain in a foreign place, so the 9th and the official decision-maker remain primary rather than a generic 7th-house other party.",
+    "current_engine_category": "travel",
+    "current_engine_houses": [
+      1,
+      9,
+      10
+    ],
+    "current_engine_quesited_house": 9,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Aligned after the citizenship and residency-status doctrine pass recognizes permanent residence as a 9th-house status with the approving authority on the 10th."
+  },
+  {
+    "id": "husband_green_card_astrologyweekly_source_pass",
+    "question": "When will my husband's green card be approved?",
+    "source_url": "https://astrologyweekly.com/threads/when-will-my-husbands-green-card-be-approved.64921/",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "timing / yes",
+    "source_expected_category": "travel",
+    "source_expected_houses": [
+      7,
+      3,
+      4
+    ],
+    "source_expected_focus": "The husband is the operative subject on the 7th. His green card or immigration paper is his turned 9th, or radical 3rd, and the approving authority should also be turned from him rather than left on the querent's radical 10th.",
+    "current_engine_category": "travel",
+    "current_engine_houses": [
+      7,
+      3,
+      4
+    ],
+    "current_engine_quesited_house": 3,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Aligned after the turned immigration-status pass keeps the husband as operative subject, with his turned 9th and turned 10th visible."
+  }
+]

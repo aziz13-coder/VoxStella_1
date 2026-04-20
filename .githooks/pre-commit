@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Block commits that modify packaged/build artifacts
+deny_globs=(
+  'frontend/dist-electron/**'
+  'frontend/backend/build/**'
+  'frontend/dist/**'
+  'website/**'
+  '**/win-unpacked/**'
+  '**/resources/**'
+  '**/venv/**'
+  '**/node_modules/**'
+  'licensing_server/.admin_token'
+  'licensing_server/*.db'
+  'licensing_server/*.db-shm'
+  'licensing_server/*.db-wal'
+  'licensing_server/keys/*.key'
+  'licensing_server/keys/*.pem'
+)
+
+changed=$(git diff --cached --name-only)
+bad=()
+for f in $changed; do
+  for g in "${deny_globs[@]}"; do
+    if [[ "$f" == $g ]]; then
+      bad+=("$f")
+      break
+    fi
+  done
+done
+
+if (( ${#bad[@]} > 0 )); then
+  echo "\n[pre-commit] Blocked changes to packaged/build artifacts:" >&2
+  printf '  - %s\n' "${bad[@]}" >&2
+  echo "\nEdit source files instead (see AGENTS.md)." >&2
+  exit 1
+fi
+
+exit 0

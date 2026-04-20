@@ -1,0 +1,24 @@
+{
+  "id": "tactlessness",
+  "name": "Tactlessness",
+  "domain": "social_shadow",
+  "description": "Blurting or over‑frankness without regard for balance when Fire is inflated (Sun–Jupiter/Mars) and Venus/Saturn mediation is weak.",
+  "confidence": "medium",
+  "polarity": "negative",
+  "sources": ["Carter: Fire under affliction; Libra/Venus mediation"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": 6 },
+      { "kind": "aspect", "pair": ["Sun","Jupiter"], "type": "hard", "max_orb": 6, "weight": 8 },
+      { "kind": "aspect", "pair": ["Sun","Mars"], "type": "hard", "max_orb": 6, "weight": 6 },
+      { "kind": "planet_status", "planet": "Venus", "afflicted": true, "weight": 6 },
+      { "kind": "planet_status", "planet": "Saturn", "afflicted": true, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": -6 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": -6 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -6 }
+    ],
+    "escalators": [] }
+}
+

@@ -1,0 +1,110 @@
+[
+  {
+    "id": "full_face_lift_cosmetic_surgery_source_pass",
+    "question": "Will I go for the full face lift?",
+    "source_url": "https://skyscript.co.uk/forums/viewtopic.php?t=5059",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "elective cosmetic surgery / advisability",
+    "source_expected_category": "general",
+    "source_expected_houses": [
+      1,
+      2
+    ],
+    "source_expected_focus": "The Skyscript discussion explicitly treats cosmetic surgery as a first-house appearance question, with the second house added for cost, rather than a normal illness or generic other-party chart.",
+    "current_engine_category": "general",
+    "current_engine_houses": [
+      1,
+      2
+    ],
+    "current_engine_quesited_house": 1,
+    "current_engine_intent": "OCCURRENCE",
+    "current_engine_doctrine_family": "cosmetic_procedure",
+    "source_expected_doctrine_assertions": {
+      "subject_house": 1,
+      "cost_house": 2,
+      "quesited_house": 1,
+      "doctrine_contains": "body and appearance",
+      "expected_null_analyses": [
+        "pet_analysis"
+      ]
+    },
+    "source_alignment": true,
+    "alignment_note": "Aligned after the cosmetic-procedure doctrine pass keeps appearance and cost in view instead of a generic other-party axis."
+  },
+  {
+    "id": "operation_go_smoothly_source_pass",
+    "question": "Will the operation go smoothly?",
+    "source_url": "https://wroskopos.wordpress.com/2010/03/31/will-the-operation-go-smoothly/",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "medical procedure / operation outcome",
+    "source_expected_category": "health",
+    "source_expected_houses": [
+      1,
+      6,
+      7,
+      8
+    ],
+    "source_expected_focus": "The Wroskopos delineation explicitly keeps the patient on the 1st, the illness on the 6th, the doctor on the 7th, and the surgery itself on the 8th.",
+    "current_engine_category": "health",
+    "current_engine_houses": [
+      1,
+      6,
+      7,
+      8
+    ],
+    "current_engine_quesited_house": 8,
+    "current_engine_intent": "OCCURRENCE",
+    "current_engine_doctrine_family": "medical_procedure",
+    "source_expected_doctrine_assertions": {
+      "subject_house": 1,
+      "illness_house": 6,
+      "doctor_house": 7,
+      "procedure_house": 8,
+      "quesited_house": 8,
+      "doctrine_contains": "patient, illness, practitioner, and surgery itself",
+      "expected_null_analyses": [
+        "pet_analysis"
+      ]
+    },
+    "source_alignment": true,
+    "alignment_note": "Aligned after the surgery doctrine pass keeps the patient, illness, surgeon, and operation together and fixes the old pet false positive."
+  },
+  {
+    "id": "big_surgery_yes_no_source_pass",
+    "question": "Big surgery, yes or no?",
+    "source_url": "https://astrologyweekly.com/threads/big-surgery-yes-or-no.153043/latest",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "major surgery outcome / timing",
+    "source_expected_category": "health",
+    "source_expected_houses": [
+      1,
+      6,
+      7,
+      8
+    ],
+    "source_expected_focus": "A major surgery question should stay inside a medical procedure frame, keeping patient, illness, practitioner, and surgery together rather than falling to generic 1/7 occurrence logic.",
+    "current_engine_category": "health",
+    "current_engine_houses": [
+      1,
+      6,
+      7,
+      8
+    ],
+    "current_engine_quesited_house": 8,
+    "current_engine_intent": "OCCURRENCE",
+    "current_engine_doctrine_family": "medical_procedure",
+    "source_expected_doctrine_assertions": {
+      "subject_house": 1,
+      "illness_house": 6,
+      "doctor_house": 7,
+      "procedure_house": 8,
+      "quesited_house": 8,
+      "doctrine_contains": "patient, illness, practitioner, and surgery itself",
+      "expected_null_analyses": [
+        "pet_analysis"
+      ]
+    },
+    "source_alignment": true,
+    "alignment_note": "Aligned after the surgery doctrine pass keeps major surgery inside a shared medical-procedure family instead of generic occurrence routing."
+  }
+]

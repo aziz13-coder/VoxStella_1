@@ -1,0 +1,22 @@
+{
+  "id": "learning_facility",
+  "name": "Learning (facility)",
+  "domain": "cognition_study",
+  "description": "Facility with study/information handling when Mercury and the 3rd are strong; hindered by Water afflicting the 3rd.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Mercury/Air intellect; 3rd‑house Water affliction cautions"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": 10 },
+      { "kind": "house_emphasis", "houses": [3,9], "min_total": 2, "weight": 6 },
+      { "kind": "element", "element": "Air", "min_share": 0.35, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "house_afflicted", "houses": [3], "any": true, "weight": -6 },
+      { "kind": "element", "element": "Water", "min_share": 0.40, "weight": -4 },
+      { "kind": "planet_status", "planet": "Mercury", "afflicted": true, "weight": -6 }
+    ],
+    "escalators": [] }
+}
+

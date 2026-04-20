@@ -1,0 +1,14 @@
+{
+  "id": "justice_advocacy",
+  "name": "Justice‑seeking (advocacy)",
+  "domain": "social_action",
+  "description": "Active pursuit of fairness where Libra/Aquarius themes combine with Jupiterian principle.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter: Libra/Aquarius; Jupiter principle"],
+  "logic": { "base": 0,
+    "boosts": [ { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": 8 }, { "kind": "sign_emphasis", "sign": "Aquarius", "min": 1.5, "weight": 6 }, { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 8 } ],
+    "dampeners": [ { "kind": "planet_status", "planet": "Venus", "afflicted": true, "weight": -6 }, { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": -4 }, { "kind": "planet_status", "planet": "Saturn", "afflicted": true, "weight": -6 } ],
+    "escalators": [] }
+}
+

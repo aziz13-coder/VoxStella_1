@@ -1,0 +1,43 @@
+{
+  "id": "materialism_attitude",
+  "name": "Materialism (attitude)",
+  "domain": "material_attitude",
+  "description": "Preference for the tangible and literal: Saturnian action upon 9th/Jupiter/Sagittarius with Earth emphasis; indulgent or brutal/intellectual variants per Venus/Mars/Mercury. Historical synthesis.",
+  "confidence": "medium",
+  "polarity": "negative",
+  "sources": [
+    "Carter — Encyclopaedia of Psychological Astrology (Materialism helper)",
+    "Traditional determination: Saturn on 9th/Jupiter; Earth dominance"
+  ],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "house_emphasis", "houses": [9], "min_total": 1, "weight": 8 },
+      { "kind": "house_afflicted", "houses": [9], "any": true, "weight": 4 },
+
+      { "kind": "element", "element": "Earth", "min_share": 0.35, "weight": 6 },
+
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": 6 },
+      { "kind": "aspect", "pair": ["Saturn","Jupiter"], "type": "hard", "max_orb": 6, "min_severity": "mild", "weight": 8 },
+      { "kind": "planet_status", "planet": "Jupiter", "afflicted": true, "weight": 6 },
+
+      { "kind": "sign_group_emphasis", "group": ["Taurus","Libra"], "min": 2.0, "weight": 4 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": 3 },
+
+      { "kind": "planet_in_sign", "planet": "Sun", "sign": "Leo", "weight": 3 },
+      { "kind": "planet_in_sign", "planet": "Jupiter", "sign": "Sagittarius", "weight": 3 },
+
+      { "kind": "planet_status", "planet": "Mars", "strong": true, "weight": 2 },
+      { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": 2 },
+      { "kind": "planet_in_sign", "planet": "Mercury", "sign": "Virgo", "weight": 2 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Neptune", "strong": true, "weight": -8 },
+      { "kind": "sign_emphasis", "sign": "Pisces", "min": 1.5, "weight": -4 },
+      { "kind": "house_emphasis", "houses": [12], "min_total": 1, "weight": -3 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": -4 }
+    ],
+    "escalators": []
+  }
+}
+

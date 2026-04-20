@@ -1,0 +1,18 @@
+{
+  "id": "death_retreat_theme",
+  "name": "Death as retreat (symbolic theme)",
+  "domain": "motif",
+  "description": "Symbolic motif of termination/retreat linked to watery houses (4/12).",
+  "confidence": "low",
+  "polarity": "neutral",
+  "sources": ["Carter: Death as retreat; watery houses"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "house_emphasis", "houses": [4,12], "min_total": 2, "weight": 8 }
+    ],
+    "dampeners": [],
+    "escalators": []
+  }
+}
+

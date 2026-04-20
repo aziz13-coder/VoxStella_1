@@ -1,0 +1,23 @@
+{
+  "id": "resourcefulness",
+  "name": "Resourcefulness",
+  "domain": "problem_solving",
+  "description": "Finding means under pressure with Scorpio/8th emphasis and well‑handled malefics; Mars–Saturn harmony helps; mutable diffusion and Neptune drift reduce.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter: Scorpio means and endurance; Water preserves"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Scorpio", "min": 1.5, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [8], "min_total": 1, "weight": 6 },
+      { "kind": "planet_status", "planet": "Mars", "strong": true, "weight": 6 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": 6 },
+      { "kind": "aspect", "pair": ["Mars","Saturn"], "type": "soft", "max_orb": 6, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "modality", "modality": "Mutable", "min_share": 0.40, "weight": -4 },
+      { "kind": "planet_status", "planet": "Neptune", "afflicted": true, "weight": -6 }
+    ],
+    "escalators": [] }
+}
+

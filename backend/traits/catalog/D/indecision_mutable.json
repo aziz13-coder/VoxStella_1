@@ -1,0 +1,22 @@
+{
+  "id": "indecision_mutable",
+  "name": "Indecision (mutable under stress)",
+  "domain": "modality_negative",
+  "description": "Lack of decision/force associated with Mutable dominance under affliction.",
+  "confidence": "medium",
+  "polarity": "negative",
+  "sources": ["Carter: Mutable under affliction lacks decision/force"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "modality", "modality": "Mutable", "min_share": 0.40, "weight": 12 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Mars", "strong": true, "weight": -8 },
+      { "kind": "planet_status", "planet": "Sun", "strong": true, "weight": -6 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": -6 }
+    ],
+    "escalators": []
+  }
+}
+

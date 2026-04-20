@@ -1,0 +1,4 @@
+{
+  "publicKeyB64": "BASE64_PUBLIC_KEY_FROM_licensing_server/keys/generate_keys.py",
+  "serverUrl": "https://license.voxstella.app"
+}

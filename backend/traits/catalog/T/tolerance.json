@@ -1,0 +1,23 @@
+{
+  "id": "tolerance",
+  "name": "Tolerance",
+  "domain": "ethical_style",
+  "description": "Allowing breadth for differences and generosity of judgment with Sagittarius/Jupiter breadth and Libra/Venus fair dealing; fixed dogmatism and Mars heat reduce.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter: Sagittarius breadth; Libra adjustment; generosity of judgment"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Sagittarius", "min": 1.5, "weight": 6 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 8 },
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": 6 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [9,7,11], "min_total": 1, "weight": 3 }
+    ],
+    "dampeners": [
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.40, "weight": -6 },
+      { "kind": "planet_status", "planet": "Mars", "strong": true, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

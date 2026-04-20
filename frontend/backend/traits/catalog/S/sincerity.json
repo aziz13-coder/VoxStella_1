@@ -1,0 +1,22 @@
+{
+  "id": "sincerity",
+  "name": "Sincerity",
+  "domain": "virtue",
+  "description": "Truth‑orientation and frankness rooted in principle with Sagittarius/Jupiter and Aquarius candor; Mercury–Neptune fog and people‑pleasing reduce clarity.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter: Sagittarius & Jupiter truth/hope; Aquarius candor"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Sagittarius", "min": 1.5, "weight": 6 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 8 },
+      { "kind": "sign_emphasis", "sign": "Aquarius", "min": 1.5, "weight": 4 },
+      { "kind": "house_emphasis", "houses": [9,11], "min_total": 1, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "aspect", "pair": ["Mercury","Neptune"], "type": "hard", "max_orb": 6, "weight": -8 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": -3 }
+    ],
+    "escalators": [] }
+}
+

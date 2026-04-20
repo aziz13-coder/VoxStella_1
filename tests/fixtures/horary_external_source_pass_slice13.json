@@ -1,0 +1,72 @@
+[
+  {
+    "id": "will_i_get_the_visa_source_pass",
+    "question": "Will I get the visa?",
+    "source_url": "https://astrologyweekly.com/threads/will-i-get-the-visa.132108/post-1026302",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "visa approval / issuance",
+    "source_expected_category": "travel",
+    "source_expected_houses": [
+      1,
+      9
+    ],
+    "source_expected_focus": "The visa itself is treated as a 9th-house foreign-travel and border-crossing matter, with the querent on the 1st.",
+    "current_engine_category": "travel",
+    "current_engine_houses": [
+      1,
+      9
+    ],
+    "current_engine_quesited_house": 9,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Aligned after the visa doctrine pass keeps the visa itself on the 9th as a foreign-travel authorization."
+  },
+  {
+    "id": "travel_application_approved_source_pass",
+    "question": "Will my travel application be approved?",
+    "source_url": "https://astrologyweekly.com/threads/will-my-travel-application-be-approved.149133/",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "travel authorization / approval",
+    "source_expected_category": "travel",
+    "source_expected_houses": [
+      1,
+      9,
+      10
+    ],
+    "source_expected_focus": "The thread explicitly treats the travel side as 9th-house and the approving agency as 10th-house, so both axes remain relevant.",
+    "current_engine_category": "travel",
+    "current_engine_houses": [
+      1,
+      9,
+      10
+    ],
+    "current_engine_quesited_house": 9,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Aligned after the visa doctrine pass keeps the authorization on the 9th and the approving agency on the 10th."
+  },
+  {
+    "id": "work_visa_source_pass",
+    "question": "Will I get visa for work?",
+    "source_url": "https://astrologyweekly.com/threads/will-i-get-visa-for-work.99237/latest",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "work visa / permit approval",
+    "source_expected_category": "travel",
+    "source_expected_houses": [
+      1,
+      9,
+      10
+    ],
+    "source_expected_focus": "The thread explicitly keeps the visa or papers on the 9th while the work outcome remains tied to the 10th, so a work-visa chart should not reduce to career alone.",
+    "current_engine_category": "travel",
+    "current_engine_houses": [
+      1,
+      9,
+      10
+    ],
+    "current_engine_quesited_house": 9,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Aligned after the visa doctrine pass keeps the visa on the 9th while also surfacing the work and authority axis on the 10th."
+  }
+]

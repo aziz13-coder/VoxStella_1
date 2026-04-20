@@ -1,0 +1,21 @@
+{
+  "id": "responsibility",
+  "name": "Responsibility (sense of duty)",
+  "domain": "ethic",
+  "description": "Sense of duty, organization, and long‑range accountability with Capricorn/Saturn and 10th‑house emphasis; mutable afflictions and escapism reduce.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Capricorn organizes Nature; mutable under affliction shirks duties"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Capricorn", "min": 1.5, "weight": 8 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": 10 },
+      { "kind": "house_emphasis", "houses": [10], "min_total": 1, "weight": 6 }
+    ],
+    "dampeners": [
+      { "kind": "modality", "modality": "Mutable", "min_share": 0.40, "weight": -6 },
+      { "kind": "planet_status", "planet": "Neptune", "afflicted": true, "weight": -6 }
+    ],
+    "escalators": [] }
+}
+

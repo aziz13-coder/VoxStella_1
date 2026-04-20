@@ -1,0 +1,22 @@
+{
+  "id": "energy_vitality",
+  "name": "Energy / vitality",
+  "domain": "drive_activity",
+  "description": "Outgoing life‑energy and buoyant spirits with Fire and strong Sun/Mars; unchecked becomes reckless.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Fire; Sun/Mars"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": 10 },
+      { "kind": "planet_status", "planet": "Sun", "strong": true, "weight": 8 },
+      { "kind": "planet_status", "planet": "Mars", "strong": true, "weight": 8 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Mars", "afflicted": true, "weight": -8 }
+    ],
+    "escalators": []
+  }
+}
+

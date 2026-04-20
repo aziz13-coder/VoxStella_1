@@ -1,0 +1,319 @@
+{
+  "generated_at": "2026-04-07T00:00:00+03:00",
+  "purpose": "Private active-case shadow package for Shelly Kittleson based on public-source bounded anchors only",
+  "status": "active_case_private_shadow_only",
+  "do_not_use_for": [
+    "publication",
+    "operational guidance",
+    "location prediction",
+    "claims of certainty"
+  ],
+  "public_facts": [
+    {
+      "id": "cpj_data_shelly_2026",
+      "url": "https://cpj.org/data/people/shelly-kittleson/",
+      "notes": "CPJ says she was kidnapped in broad daylight on March 31, 2026 while waiting roadside on Saadoun Street; a friend met her about an hour earlier and said the embassy warned her of militia threats."
+    },
+    {
+      "id": "ap_profile_2026_04_01",
+      "url": "https://apnews.com/article/iraq-kidnapped-journalist-baghdad-shelly-kittleson-477189bde5915becc3f523a2ebc9df86",
+      "notes": "AP says she remains missing, authorities believe she is still in Baghdad, one suspect was arrested after a chase/crash, and U.S. officials alleged Kataib Hezbollah involvement while stressing prior warnings."
+    },
+    {
+      "id": "shafaq_2026_03_31",
+      "url": "https://shafaq.com/en/Security/Iraq-arrests-suspect-in-US-journalist-Shelly-Kittleson-kidnapping",
+      "notes": "Shafaq timestamps a local report at 19:55:50 Baghdad time and places the seizure near the Palestine Hotel on Al-Saadoun Street."
+    },
+    {
+      "id": "964media_2026_03_31",
+      "url": "https://en.964media.com/46569/",
+      "notes": "964media published at 19:37 Baghdad time and described an armed group in black uniforms carrying out the abduction near the Palestine Hotel on Saadoun Street."
+    },
+    {
+      "id": "india_today_relay_video",
+      "url": "https://www.dailymotion.com/video/xa3zkpy",
+      "notes": "Broadcast relay says CCTV shows cars blocking her path, kidnappers dragging her into a vehicle, and transfer into another car, but no verifiable on-screen timecode is visible in the public copy."
+    },
+    {
+      "id": "cjr_analysis_2026_04_03",
+      "url": "https://www.cjr.org/analysis/shelly-kittleson-iraq-abduction-middle-east-kidnapped-journalist.php",
+      "notes": "CJR says CFWIJ saw footage confirming broad-daylight seizure by men who did not conceal themselves and that a person had asked her to wait outside a hotel entrance, suggesting a setup."
+    }
+  ],
+  "case": {
+    "id": "shelly_kittleson_baghdad_2026_03_31",
+    "title": "Shelly Kittleson abduction shadow pass",
+    "location": "Saadoun Street near Palestine Hotel, Baghdad, Iraq",
+    "coordinates_proxy": {
+      "lat": 33.3152,
+      "lon": 44.4183
+    },
+    "window_basis": "public_sources_support an afternoon-to-early-evening Baghdad seizure but do not publish a chart-safe exact minute",
+    "hard_known_facts": [
+      "street-side abduction in central Baghdad on 2026-03-31",
+      "public-place seizure near the Palestine Hotel on Saadoun Street",
+      "multiple vehicles involved",
+      "at least two visible abductors on CCTV relay reporting",
+      "one suspect arrested after a chase/crash, with another vehicle escaping",
+      "continuing hidden custody risk; she remains missing",
+      "public reporting ties prior threats to Iran-aligned militia risk"
+    ],
+    "not_known_publicly": [
+      "a verified minute-grade CCTV timestamp",
+      "a public transport heading for the abductors",
+      "confirmed outcome beyond ongoing captivity risk",
+      "officially confirmed group attribution"
+    ]
+  },
+  "anchors": [
+    {
+      "id": "shelly_2026_03_31_1530",
+      "basis": "earliest conservative broad-daylight anchor inside the public afternoon/evening window",
+      "query": {
+        "mode": "manual",
+        "location": "Saadoun Street near Palestine Hotel, Baghdad, Iraq",
+        "timezone": "Asia/Baghdad",
+        "house_system_code": "R",
+        "latitude": "33.3152",
+        "longitude": "44.4183",
+        "origin": "33.3152,44.4183",
+        "abduction": "1",
+        "datetime": "2026-03-31T15:30:00"
+      },
+      "status_code": 200,
+      "success": true,
+      "comparison_status": "misaligned",
+      "matched_axes": [],
+      "missed_axes": [
+        "abduction_missing_person"
+      ],
+      "contradicted_axes": [],
+      "categories": {
+        "Associates": 1,
+        "Deception": 2,
+        "Headwinds": 1,
+        "Public": 1,
+        "Stressors": 1,
+        "Truth": 1
+      },
+      "finding_titles": [
+        "Malefic contrary to sect (angular)",
+        "Friend or close associate axis is active",
+        "Moon applying to malefic by hard aspect",
+        "Jupiter\u2013Mercury easy aspect (clarity)",
+        "Public or authority axis is foregrounded",
+        "Mercury in a mute sign",
+        "Mute signs on angles"
+      ],
+      "abduction_map": {
+        "origin_source": "query_origin",
+        "origin": {
+          "lat": 33.3152,
+          "lon": 44.4183
+        },
+        "bearings": [
+          {
+            "role": "H1_ruler",
+            "planet": "Mercury",
+            "azimuth_deg": 104.37
+          },
+          {
+            "role": "H7_ruler",
+            "planet": "Jupiter",
+            "azimuth_deg": 267.88
+          },
+          {
+            "role": "H3_ruler",
+            "planet": "Venus",
+            "azimuth_deg": 119.58
+          },
+          {
+            "role": "H8_ruler",
+            "planet": "Mars",
+            "azimuth_deg": 106.35
+          },
+          {
+            "role": "H12_ruler",
+            "planet": "Sun",
+            "azimuth_deg": 110.11
+          },
+          {
+            "role": "Moon",
+            "planet": "Moon",
+            "azimuth_deg": 283.94
+          }
+        ]
+      }
+    },
+    {
+      "id": "shelly_2026_03_31_1700",
+      "basis": "mid-window anchor between daylight and early-evening reporting",
+      "query": {
+        "mode": "manual",
+        "location": "Saadoun Street near Palestine Hotel, Baghdad, Iraq",
+        "timezone": "Asia/Baghdad",
+        "house_system_code": "R",
+        "latitude": "33.3152",
+        "longitude": "44.4183",
+        "origin": "33.3152,44.4183",
+        "abduction": "1",
+        "datetime": "2026-03-31T17:00:00"
+      },
+      "status_code": 200,
+      "success": true,
+      "comparison_status": "aligned",
+      "matched_axes": [
+        "abduction_missing_person"
+      ],
+      "missed_axes": [],
+      "contradicted_axes": [],
+      "categories": {
+        "Abduction": 1,
+        "Deception": 4,
+        "Houses": 1,
+        "Truth": 1,
+        "Violence": 2,
+        "Witness": 1
+      },
+      "finding_titles": [
+        "Abduction or worksite-seizure pattern is active",
+        "Moon under death pressure",
+        "Hidden victim with angular violence markers",
+        "Witness or accomplice signatures are active",
+        "Malefic in the 6th house",
+        "Sun/Moon in 12th house",
+        "Jupiter\u2013Mercury easy aspect (clarity)",
+        "Mercury in a mute sign",
+        "Mute signs on angles",
+        "Mute signs on 3rd/9th"
+      ],
+      "abduction_map": {
+        "origin_source": "query_origin",
+        "origin": {
+          "lat": 33.3152,
+          "lon": 44.4183
+        },
+        "bearings": [
+          {
+            "role": "H1_ruler",
+            "planet": "Mercury",
+            "azimuth_deg": 91.97
+          },
+          {
+            "role": "H7_ruler",
+            "planet": "Jupiter",
+            "azimuth_deg": 249.57
+          },
+          {
+            "role": "H3_ruler",
+            "planet": "Mars",
+            "azimuth_deg": 93.42
+          },
+          {
+            "role": "H8_ruler",
+            "planet": "Mars",
+            "azimuth_deg": 93.42
+          },
+          {
+            "role": "H12_ruler",
+            "planet": "Sun",
+            "azimuth_deg": 95.61
+          },
+          {
+            "role": "Moon",
+            "planet": "Moon",
+            "azimuth_deg": 271.18
+          }
+        ]
+      }
+    },
+    {
+      "id": "shelly_2026_03_31_1830",
+      "basis": "latest pre-publication anchor before the first 19:37 Baghdad report",
+      "query": {
+        "mode": "manual",
+        "location": "Saadoun Street near Palestine Hotel, Baghdad, Iraq",
+        "timezone": "Asia/Baghdad",
+        "house_system_code": "R",
+        "latitude": "33.3152",
+        "longitude": "44.4183",
+        "origin": "33.3152,44.4183",
+        "abduction": "1",
+        "datetime": "2026-03-31T18:30:00"
+      },
+      "status_code": 200,
+      "success": true,
+      "comparison_status": "misaligned",
+      "matched_axes": [
+        "abduction_missing_person"
+      ],
+      "missed_axes": [],
+      "contradicted_axes": [
+        "family_involvement"
+      ],
+      "categories": {
+        "Abduction": 1,
+        "Deception": 3,
+        "Houses": 2,
+        "Truth": 1,
+        "Violence": 3
+      },
+      "finding_titles": [
+        "Life/death overlap points to violence or homicide",
+        "Abduction or worksite-seizure pattern is active",
+        "1st ruler also rules the 8th",
+        "Moon under death pressure",
+        "Stranger-at-home or service-pretext violence pattern is active",
+        "Malefic in the 6th house",
+        "Sun/Moon in 12th house",
+        "Jupiter\u2013Mercury easy aspect (clarity)",
+        "Mercury in a mute sign",
+        "Mute signs on angles"
+      ],
+      "abduction_map": {
+        "origin_source": "query_origin",
+        "origin": {
+          "lat": 33.3152,
+          "lon": 44.4183
+        },
+        "bearings": [
+          {
+            "role": "H1_ruler",
+            "planet": "Venus",
+            "azimuth_deg": 87.46
+          },
+          {
+            "role": "H7_ruler",
+            "planet": "Mars",
+            "azimuth_deg": 80.74
+          },
+          {
+            "role": "H3_ruler",
+            "planet": "Jupiter",
+            "azimuth_deg": 186.1
+          },
+          {
+            "role": "H8_ruler",
+            "planet": "Venus",
+            "azimuth_deg": 87.46
+          },
+          {
+            "role": "H12_ruler",
+            "planet": "Mercury",
+            "azimuth_deg": 78.93
+          },
+          {
+            "role": "Moon",
+            "planet": "Moon",
+            "azimuth_deg": 258.46
+          }
+        ]
+      }
+    }
+  ],
+  "overall_assessment": {
+    "best_anchor": "shelly_2026_03_31_1700",
+    "summary": "The 17:00 Baghdad anchor is the cleanest match to known public facts: abduction, concealed custody risk, multi-actor/witness structure, and public-street seizure. The 15:30 anchor underfires abduction, while 18:30 overweights violence and leaks into family/home-style language.",
+    "map_limit": "The map payload is usable for origin fidelity and role-bearing coverage, but public sources do not publish a transport heading, so geometry cannot be scored against reality."
+  }
+}

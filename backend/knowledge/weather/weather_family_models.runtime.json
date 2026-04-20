@@ -1,0 +1,48 @@
+{
+  "families": [
+    {
+      "id": "flood_risk",
+      "label": "Flood Risk",
+      "benchmark_family_id": "floods",
+      "status": "seed_runtime",
+      "description": "Research-gated assessment of flood pressure from seasonal moisture backdrop, short-term trigger charts, and locality-sensitive water testimony.",
+      "summary": "Separates flood pressure from generic rain by preserving heavy-precipitation, excess-water, and flash-flood style signatures.",
+      "source_tags": ["riske", "bonatti", "watters", "green_carter"],
+      "required_layers": ["framework_layer", "trigger_layer", "locality_layer"],
+      "research_flags": ["seed_runtime", "benchmark_backed", "research_gated", "not_meteorology_complete"]
+    },
+    {
+      "id": "hurricane_pressure",
+      "label": "Hurricane Pressure",
+      "benchmark_family_id": "hurricanes",
+      "status": "seed_runtime",
+      "description": "Research-gated assessment of tropical-storm and hurricane pressure from storm-track, wind, and moisture testimonies.",
+      "summary": "Keeps tropical storm sequences distinct from flood or generalized rain output.",
+      "source_tags": ["riske", "watters", "green_carter"],
+      "required_layers": ["framework_layer", "trigger_layer", "locality_layer"],
+      "research_flags": ["seed_runtime", "benchmark_backed", "research_gated", "not_meteorology_complete"]
+    },
+    {
+      "id": "severe_convective_pressure",
+      "label": "Severe Convective Pressure",
+      "benchmark_family_id": "thunderstorms_tornadoes",
+      "status": "seed_runtime",
+      "description": "Research-gated assessment of thunderstorm, hail, and tornado pressure from convective and abrupt-change testimonies.",
+      "summary": "Groups thunderstorms, hail, and tornadoes together as a first severe-convection family instead of over-splitting thin evidence.",
+      "source_tags": ["riske", "watters"],
+      "required_layers": ["framework_layer", "trigger_layer", "locality_layer"],
+      "research_flags": ["seed_runtime", "benchmark_backed", "research_gated", "not_meteorology_complete"]
+    },
+    {
+      "id": "wind_event_pressure",
+      "label": "Wind Event Pressure",
+      "benchmark_family_id": "wind",
+      "status": "seed_runtime",
+      "description": "Research-gated assessment of strong-wind and front-driven event pressure, including regional wind regimes.",
+      "summary": "Preserves Mercury/front/wind logic as its own family instead of collapsing it into generic storm output.",
+      "source_tags": ["riske", "watters", "bonatti"],
+      "required_layers": ["framework_layer", "trigger_layer", "locality_layer"],
+      "research_flags": ["seed_runtime", "benchmark_backed", "research_gated", "not_meteorology_complete"]
+    }
+  ]
+}

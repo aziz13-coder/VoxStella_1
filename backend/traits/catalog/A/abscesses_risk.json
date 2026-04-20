@@ -1,0 +1,20 @@
+{
+  "id": "abscesses_risk",
+  "name": "Abscess risk",
+  "domain": "pathology",
+  "description": "Tendency toward abscess/boils when Venus is afflicted alongside specific degree windows.",
+  "confidence": "high",
+  "polarity": "negative",
+  "sources": ["Carter"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "degree_hit", "labels": ["25 Leo","25 Aquarius","21 Aries","21 Libra"], "min_hits": 1, "multiplier": 1.25, "weight": 8 },
+      { "kind": "aspect", "pair": ["Venus","Mars"], "type": "hard", "max_orb": 6, "weight": 10 },
+      { "kind": "aspect", "pair": ["Venus","Saturn"], "type": "hard", "max_orb": 6, "weight": 10 }
+    ],
+    "dampeners": [],
+    "escalators": []
+  }
+}
+

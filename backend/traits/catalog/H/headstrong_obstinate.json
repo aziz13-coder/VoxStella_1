@@ -1,0 +1,18 @@
+{
+  "id": "headstrong_obstinate",
+  "name": "Headstrong / Obstinate",
+  "domain": "temperament_style",
+  "description": "Headstrong obstinacy with Fixed signs strong and Aries impulse; fixed houses add holding power.",
+  "confidence": "medium",
+  "polarity": "negative",
+  "sources": ["Carter: Fixed obstinacy; Aries impulse"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.35, "weight": 10 },
+      { "kind": "sign_emphasis", "sign": "Aries", "min": 1.5, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [2,5,8,11], "min_total": 3, "weight": 6 }
+    ],
+    "dampeners": [ { "kind": "modality", "modality": "Mutable", "min_share": 0.40, "weight": -6 } ],
+    "escalators": [] }
+}
+

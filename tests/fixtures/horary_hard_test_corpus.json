@@ -1,0 +1,154 @@
+[
+  {
+    "id": "government_job_office_yes",
+    "level": "deterministic",
+    "source_kind": "live_engine",
+    "question": "Will I get a job? (government position)",
+    "location": "Washington, District of Columbia",
+    "coordinates": {
+      "lat": 38.8950368,
+      "lon": -77.0365427
+    },
+    "date": "2001-05-15",
+    "time": "10:20",
+    "timezone": "America/New_York",
+    "expected_verdict": "YES",
+    "expected_category": "career",
+    "expected_perfection_type": "direct",
+    "expected_reasoning_contains": [
+      "Querent: Moon (ruler of 1), Quesited: Mars (ruler of 10)",
+      "Moon not void of course",
+      "Perfection: Applying major aspect present"
+    ]
+  },
+  {
+    "id": "lottery_frustration_no",
+    "level": "deterministic",
+    "source_kind": "question_fixture",
+    "source_file": "lottery_prohibition.json",
+    "expected_verdict": "NO",
+    "expected_category": "gambling",
+    "expected_perfection_type": "frustration",
+    "expected_reasoning_contains": [
+      "Mercury aspects Mars before significator perfection",
+      "Moon not void of course"
+    ]
+  },
+  {
+    "id": "funding_same_ruler_yes",
+    "level": "deterministic",
+    "source_kind": "question_fixture",
+    "source_file": "funding_same_ruler.json",
+    "expected_verdict": "YES",
+    "expected_category": "funding",
+    "expected_perfection_type": "direct",
+    "expected_reasoning_contains": [
+      "Shared Significator: Venus rules both houses 1 and 8",
+      "Same planet rules both significators"
+    ]
+  },
+  {
+    "id": "physiotherapy_exam_yes",
+    "level": "deterministic",
+    "source_kind": "question_fixture",
+    "source_file": "physiotherapy_exam_yes.json",
+    "expected_verdict": "YES",
+    "expected_category": "education",
+    "expected_perfection_type": "moon_sun_education",
+    "expected_reasoning_contains": [
+      "Moon (co-significator) applying Trine to Sun (examiner/authority)",
+      "Moon not void of course"
+    ]
+  },
+  {
+    "id": "masters_program_no_perfection_no",
+    "level": "deterministic",
+    "source_kind": "question_fixture",
+    "source_file": "masters_no_perfection.json",
+    "expected_verdict": "NO",
+    "expected_category": "education",
+    "expected_perfection_type": "denial_secondary_balance",
+    "expected_reasoning_contains": [
+      "No perfection found - strict evaluation for event likelihood",
+      "No direct perfection found between Sun and Venus"
+    ]
+  },
+  {
+    "id": "pivot_frustration_no",
+    "level": "deterministic",
+    "source_kind": "question_fixture",
+    "source_file": "pivot_frustration.json",
+    "expected_verdict": "NO",
+    "expected_category": "general",
+    "expected_perfection_type": "frustration",
+    "expected_reasoning_contains": [
+      "Mars aspects Sun before significator perfection"
+    ]
+  },
+  {
+    "id": "conceive_yes_manual_review",
+    "level": "manual_review",
+    "source_kind": "manual_review",
+    "source_file": "conceive_review.json",
+    "expected_verdict": "YES",
+    "expected_category": "pregnancy",
+    "expected_perfection_type": "pregnancy_sufficiency",
+    "expected_reasoning_contains": [
+      "Moon not void of course",
+      "L1"
+    ]
+  },
+  {
+    "id": "marriage_no_manual_review",
+    "level": "manual_review",
+    "source_kind": "manual_review",
+    "source_file": "marry_review.json",
+    "expected_verdict": "UNCLEAR",
+    "expected_category": "marriage",
+    "expected_perfection_type": "mixed_or_inconclusive_secondary_balance",
+    "expected_reasoning_contains": [
+      "No perfection found - strict evaluation for event likelihood",
+      "mixed_reception"
+    ]
+  },
+  {
+    "id": "divorce_no_manual_review",
+    "level": "manual_review",
+    "source_kind": "manual_review",
+    "source_file": "divorce_review.json",
+    "expected_verdict": "NO",
+    "expected_category": "relationship",
+    "expected_perfection_type": "denial_secondary_balance",
+    "expected_reasoning_contains": [
+      "No perfection found - strict evaluation for event likelihood",
+      "No direct perfection found between Jupiter and Mercury"
+    ]
+  },
+  {
+    "id": "property_invest_no_manual_review",
+    "level": "manual_review",
+    "source_kind": "manual_review",
+    "source_file": "property_invest_review.json",
+    "expected_verdict": "NO",
+    "expected_category": "property",
+    "expected_perfection_type": "none",
+    "expected_reasoning_contains": [
+      "Property family: advisability/profit",
+      "10th-house profit testimony",
+      "4th-house property condition"
+    ]
+  },
+  {
+    "id": "reconcile_no_manual_review",
+    "level": "manual_review",
+    "source_kind": "manual_review",
+    "source_file": "reconcile_review.json",
+    "expected_verdict": "NO",
+    "expected_category": "relationship",
+    "expected_perfection_type": "prohibition",
+    "expected_reasoning_contains": [
+      "Prohibition:",
+      "pre-empting the significators' perfection"
+    ]
+  }
+]

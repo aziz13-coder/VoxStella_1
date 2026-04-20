@@ -1,0 +1,22 @@
+{
+  "id": "seriousness",
+  "name": "Seriousness",
+  "domain": "temperament",
+  "description": "Grave, dutiful approach with long‑range perspective via Saturn/Capricorn and 10th‑house emphasis; jovial Fire/Venus ease reduces gravity.",
+  "confidence": "high",
+  "polarity": "neutral",
+  "sources": ["Carter: Capricorn & Saturn — ambition with restraint"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": 10 },
+      { "kind": "sign_emphasis", "sign": "Capricorn", "min": 1.5, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [10], "min_total": 1, "weight": 6 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": -4 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": -4 },
+      { "kind": "element", "element": "Fire", "min_share": 0.40, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

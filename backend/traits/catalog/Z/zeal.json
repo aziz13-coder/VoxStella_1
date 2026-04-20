@@ -1,0 +1,28 @@
+{
+  "id": "zeal",
+  "name": "Zeal (ardent pursuit)",
+  "domain": "drive",
+  "description": "Ardent, energetic pursuit of aims or convictions.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": [
+    "Carter: Aries/Sagittarius/Fire — initiative, hope, religion/philosophy"
+  ],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Aries", "min": 1.5, "weight": 6 },
+      { "kind": "planet_status", "planet": "Mars", "strong": true, "weight": 6 },
+      { "kind": "sign_emphasis", "sign": "Sagittarius", "min": 1.5, "weight": 5 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 5 },
+      { "kind": "planet_status", "planet": "Sun", "strong": true, "weight": 4 },
+      { "kind": "house_emphasis", "houses": [1,9,10], "min_total": 1, "weight": 3 }
+    ],
+    "dampeners": [
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": -3 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -4 },
+      { "kind": "aspect", "pair": ["Mercury","Neptune"], "type": "hard", "max_orb": 6, "weight": -4 },
+      { "kind": "planet_status", "planet": "Neptune", "afflicted": true, "weight": -3 }
+    ],
+    "escalators": [] }
+}
+

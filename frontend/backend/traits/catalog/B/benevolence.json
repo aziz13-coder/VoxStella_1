@@ -1,0 +1,19 @@
+{
+  "id": "benevolence",
+  "name": "Benevolence",
+  "domain": "character",
+  "description": "Kindness and philanthropy chiefly Jupiterian; effective when paired with Saturnian organization.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 14 },
+      { "kind": "sign_emphasis", "sign": "Pisces", "min": 1.5, "weight": 6 },
+      { "kind": "planet_in_sign", "planet": "Jupiter", "sign": "Pisces", "weight": 6 }
+    ],
+    "dampeners": [],
+    "escalators": []
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "id": "yearning_for_freedom",
+  "name": "Yearning for freedom (autonomy/reform)",
+  "domain": "social_orientation",
+  "description": "Desire for autonomy, reform, and liberation from constraint.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": [
+    "Carter: Aquarius humanitarian/reforming tone; Uranus abrupt breaks"
+  ],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Aquarius", "min": 1.5, "weight": 6 },
+      { "kind": "planet_status", "planet": "Uranus", "strong": true, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [11], "min_total": 1, "weight": 3 }
+    ],
+    "dampeners": [
+      { "kind": "sign_emphasis", "sign": "Capricorn", "min": 1.5, "weight": -4 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -4 },
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.35, "weight": -2 }
+    ],
+    "escalators": [] }
+}
+

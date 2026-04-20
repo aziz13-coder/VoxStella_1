@@ -1,0 +1,21 @@
+{
+  "id": "cooperation",
+  "name": "Cooperation",
+  "domain": "social_function",
+  "description": "Cooperation via Air triplicity and Libra comparison/adjustment.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Air principle of cooperation; Libra comparison/adjustment"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "element", "element": "Air", "min_share": 0.35, "weight": 10 },
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": 8 }
+    ],
+    "dampeners": [
+      { "kind": "sign_emphasis", "sign": "Aries", "min": 1.5, "weight": -6 },
+      { "kind": "planet_status", "planet": "Venus", "afflicted": true, "weight": -8 }
+    ],
+    "escalators": []
+  }
+}

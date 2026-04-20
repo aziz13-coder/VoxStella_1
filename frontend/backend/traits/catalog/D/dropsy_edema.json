@@ -1,0 +1,20 @@
+{
+  "id": "dropsy_edema",
+  "name": "Dropsy / edema",
+  "domain": "disease_fluid_retention",
+  "description": "Fluid retention risk associated with Moon/Jupiter and Water emphasis; to refine with D details.",
+  "confidence": "low",
+  "polarity": "negative",
+  "sources": ["Carter: Dropsy"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "planet_status", "planet": "Moon", "strong": true, "weight": 6 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 6 },
+      { "kind": "element", "element": "Water", "min_share": 0.35, "weight": 6 }
+    ],
+    "dampeners": [],
+    "escalators": []
+  }
+}
+

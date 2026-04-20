@@ -1,0 +1,22 @@
+{
+  "id": "dreaminess_inner_life",
+  "name": "Dreaminess / rich inner life",
+  "domain": "cognitive_affective",
+  "description": "Imaginative inner life associated with Water/Pisces and Moon prominence.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Water → imagination; Pisces dreams"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "element", "element": "Water", "min_share": 0.35, "weight": 10 },
+      { "kind": "sign_emphasis", "sign": "Pisces", "min": 1.5, "weight": 8 },
+      { "kind": "planet_status", "planet": "Moon", "strong": true, "weight": 6 }
+    ],
+    "dampeners": [
+      { "kind": "modality", "modality": "Cardinal", "min_share": 0.40, "weight": -6 }
+    ],
+    "escalators": []
+  }
+}
+

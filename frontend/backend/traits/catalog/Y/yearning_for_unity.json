@@ -1,0 +1,26 @@
+{
+  "id": "yearning_for_unity",
+  "name": "Yearning for unity (humanitarian/mystical)",
+  "domain": "ethical_spiritual",
+  "description": "Draw toward common good or spiritual unity across differences.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": [
+    "Carter: Aquarius love of mankind; Pisces resignation/abnegation"
+  ],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Aquarius", "min": 1.5, "weight": 5 },
+      { "kind": "house_emphasis", "houses": [11,12], "min_total": 1, "weight": 3 },
+      { "kind": "sign_emphasis", "sign": "Pisces", "min": 1.5, "weight": 4 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 3 },
+      { "kind": "planet_status", "planet": "Neptune", "strong": true, "weight": 3 }
+    ],
+    "dampeners": [
+      { "kind": "sign_emphasis", "sign": "Leo", "min": 1.5, "weight": -3 },
+      { "kind": "aspect", "pair": ["Saturn","Venus"], "type": "hard", "max_orb": 6, "weight": -4 },
+      { "kind": "aspect", "pair": ["Saturn","Moon"], "type": "hard", "max_orb": 6, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

@@ -1,0 +1,21 @@
+{
+  "id": "enterprise_initiative",
+  "name": "Enterprise (initiative)",
+  "domain": "action_tendency",
+  "description": "Cardinal push and willingness to begin; Aries/Mars adds direct initiative.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Cardinal modality confers push; Aries/Mars"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "modality", "modality": "Cardinal", "min_share": 0.35, "weight": 10 },
+      { "kind": "planet_status", "planet": "Mars", "strong": true, "weight": 8 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Mars", "afflicted": true, "weight": -8 }
+    ],
+    "escalators": []
+  }
+}
+

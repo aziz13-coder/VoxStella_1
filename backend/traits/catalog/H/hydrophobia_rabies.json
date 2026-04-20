@@ -1,0 +1,17 @@
+{
+  "id": "hydrophobia_rabies",
+  "name": "Hydrophobia (rabies)",
+  "domain": "disease_infectious",
+  "description": "Classical ‘hydrophobia’ from rabies; symbolism blends animal injury (Mars) with nervous/toxic disturbance (Neptune).",
+  "confidence": "low",
+  "polarity": "negative",
+  "sources": ["Carter — Encyclopaedia of Psychological Astrology, H: Hydrophobia."],
+  "engine_rule": "If Mars–Neptune hard aspect is angular and 6th/12th activated, flag infectious neuro risk (historical).",
+  "logic": { "base": 0,
+    "boosts": [ { "kind": "element", "element": "Water", "min_share": 0.35, "weight": 6 }, { "kind": "planet_status", "planet": "Neptune", "afflicted": true, "weight": 6 }, { "kind": "aspect", "pair": ["Mars","Neptune"], "type": "hard", "max_orb": 6, "weight": 8 }, { "kind": "house_emphasis", "houses": [6,12], "min_total": 2, "weight": 6 } ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Sun", "strong": true, "afflicted": false, "weight": -4 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "afflicted": false, "weight": -4 }
+    ],
+    "escalators": [] }
+}

@@ -1,0 +1,22 @@
+{
+  "id": "nervous_tension",
+  "name": "Nervous tension",
+  "domain": "psychophysiological",
+  "description": "Sudden, explosive surges of energy and irritability when Uranus hard‑aspects Mars, especially with Fixed involvement; Libra/Venus/Saturn mitigate.",
+  "confidence": "high",
+  "polarity": "negative",
+  "sources": ["Carter: Uranus abruptness; Uranus–Mars explosive anger; Libra moderation"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "aspect", "pair": ["Mars","Uranus"], "type": "hard", "max_orb": 6, "weight": 12 },
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.35, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [1,12], "min_total": 1, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": -6 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": -4 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -6 }
+    ],
+    "escalators": [] }
+}
+

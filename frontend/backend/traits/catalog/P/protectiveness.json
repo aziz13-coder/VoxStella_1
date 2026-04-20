@@ -1,0 +1,24 @@
+{
+  "id": "protectiveness",
+  "name": "Protectiveness",
+  "domain": "care_orientation",
+  "description": "Guardianship and caretaking with strong Water/Cancer and Moon; benefic exaltations in Cancer/Pisces support; Fire/Aries excess reduces.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Water preserves life; sympathetic/helpful guardian; 4th/12th"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "element", "element": "Water", "min_share": 0.35, "weight": 8 },
+      { "kind": "sign_emphasis", "sign": "Cancer", "min": 1.5, "weight": 6 },
+      { "kind": "planet_status", "planet": "Moon", "strong": true, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [4,12], "min_total": 1, "weight": 4 },
+      { "kind": "planet_in_sign", "planet": "Jupiter", "sign": "Cancer", "weight": 3 },
+      { "kind": "planet_in_sign", "planet": "Venus", "sign": "Pisces", "weight": 3 }
+    ],
+    "dampeners": [
+      { "kind": "element", "element": "Fire", "min_share": 0.40, "weight": -6 },
+      { "kind": "sign_emphasis", "sign": "Aries", "min": 1.5, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

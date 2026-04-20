@@ -1,0 +1,247 @@
+[
+  {
+    "id": "andrea_yates",
+    "status_code": 200,
+    "success": true,
+    "comparison": {
+      "status": "aligned",
+      "matched_axes": [
+        "family_involvement",
+        "child_victim",
+        "violence_homicide"
+      ],
+      "missed_axes": [],
+      "contradicted_axes": []
+    },
+    "categories": {
+      "Children": 1,
+      "Deception": 3,
+      "Degree Signatures": 1,
+      "Family": 1,
+      "Headwinds": 1,
+      "Water": 1
+    },
+    "top_finding_titles": [
+      "Child house under violence pressure",
+      "Family and child significators cluster together",
+      "Water or drowning signatures are foregrounded",
+      "Moon applying to malefic by hard aspect",
+      "Mercury retrograde"
+    ]
+  },
+  {
+    "id": "darlie_routier",
+    "status_code": 200,
+    "success": true,
+    "comparison": {
+      "status": "aligned",
+      "matched_axes": [
+        "family_involvement",
+        "child_victim",
+        "violence_homicide"
+      ],
+      "missed_axes": [],
+      "contradicted_axes": []
+    },
+    "categories": {
+      "Abduction": 1,
+      "Deception": 1,
+      "Domestic": 1,
+      "Family": 1,
+      "Headwinds": 1,
+      "Houses": 1,
+      "Public": 1,
+      "Stressors": 1,
+      "Violence": 2,
+      "Water": 1
+    },
+    "top_finding_titles": [
+      "Life/death overlap points to violence or homicide",
+      "Abduction or missing-person pattern is active",
+      "1st ruler also rules the 8th",
+      "Malefic contrary to sect (angular)",
+      "Moon under death pressure"
+    ]
+  },
+  {
+    "id": "lizzie_borden",
+    "status_code": 200,
+    "success": true,
+    "comparison": {
+      "status": "aligned",
+      "matched_axes": [
+        "family_involvement",
+        "violence_homicide"
+      ],
+      "missed_axes": [],
+      "contradicted_axes": []
+    },
+    "categories": {
+      "Abduction": 1,
+      "Family": 1,
+      "Headwinds": 1,
+      "Houses": 1,
+      "Public": 1,
+      "Stressors": 1,
+      "Violence": 2
+    },
+    "top_finding_titles": [
+      "Life/death overlap points to violence or homicide",
+      "Abduction or missing-person pattern is active",
+      "1st ruler also rules the 8th",
+      "Malefic contrary to sect (angular)",
+      "Moon under death pressure"
+    ]
+  },
+  {
+    "id": "menendez_brothers",
+    "status_code": 200,
+    "success": true,
+    "comparison": {
+      "status": "aligned",
+      "matched_axes": [
+        "family_involvement",
+        "violence_homicide",
+        "accomplice_or_witness"
+      ],
+      "missed_axes": [],
+      "contradicted_axes": []
+    },
+    "categories": {
+      "Deception": 4,
+      "Domestic": 1,
+      "Family": 1,
+      "Public": 1,
+      "Violence": 1,
+      "Witness": 1
+    },
+    "top_finding_titles": [
+      "Malefic in the 8th with hidden or family-linked context",
+      "Partner axis is active in a domestic matter",
+      "Family and child significators cluster together",
+      "Witness or accomplice signatures are active",
+      "Venus\u2013Saturn hard aspects"
+    ]
+  },
+  {
+    "id": "john_list",
+    "status_code": 200,
+    "success": true,
+    "comparison": {
+      "status": "aligned",
+      "matched_axes": [
+        "family_involvement",
+        "violence_homicide",
+        "deception_coverup"
+      ],
+      "missed_axes": [],
+      "contradicted_axes": []
+    },
+    "categories": {
+      "Abduction": 1,
+      "Children": 2,
+      "Deception": 4,
+      "Domestic": 2,
+      "Family": 1,
+      "Houses": 2,
+      "Violence": 2,
+      "Water": 1
+    },
+    "top_finding_titles": [
+      "Life/death overlap points to violence or homicide",
+      "Child house under violence pressure",
+      "Abduction or missing-person pattern is active",
+      "Moon under death pressure",
+      "Partner axis is active in a domestic matter"
+    ]
+  },
+  {
+    "id": "amityville_defeo",
+    "status_code": 200,
+    "success": true,
+    "comparison": {
+      "status": "aligned",
+      "matched_axes": [
+        "family_involvement",
+        "violence_homicide"
+      ],
+      "missed_axes": [],
+      "contradicted_axes": []
+    },
+    "categories": {
+      "Children": 2,
+      "Deception": 2,
+      "Family": 1,
+      "Truth": 1,
+      "Water": 1
+    },
+    "top_finding_titles": [
+      "Child house under violence pressure",
+      "Family axis activated by Moon and domestic houses",
+      "Child and family signatures overlap",
+      "Water or drowning signatures are foregrounded",
+      "Venus in detriment with Saturn influence"
+    ]
+  },
+  {
+    "id": "bob_crane",
+    "status_code": 200,
+    "success": true,
+    "comparison": {
+      "status": "aligned",
+      "matched_axes": [
+        "friend_or_close_associate",
+        "violence_homicide"
+      ],
+      "missed_axes": [],
+      "contradicted_axes": []
+    },
+    "categories": {
+      "Associates": 1,
+      "Deception": 2,
+      "Degree Signatures": 1,
+      "Houses": 1,
+      "Public": 1,
+      "Violence": 1
+    },
+    "top_finding_titles": [
+      "Life/death overlap points to violence or homicide",
+      "1st ruler also rules the 8th",
+      "Friend or close associate axis is active",
+      "Public or authority axis is foregrounded",
+      "Mercury in a mute sign"
+    ]
+  },
+  {
+    "id": "gianni_versace",
+    "status_code": 200,
+    "success": true,
+    "comparison": {
+      "status": "aligned",
+      "matched_axes": [
+        "violence_homicide",
+        "authority_or_public_case"
+      ],
+      "missed_axes": [],
+      "contradicted_axes": []
+    },
+    "categories": {
+      "Abduction": 1,
+      "Deception": 4,
+      "Domestic": 1,
+      "Family": 1,
+      "Houses": 1,
+      "Public": 1,
+      "Violence": 1,
+      "Water": 1,
+      "Witness": 1
+    },
+    "top_finding_titles": [
+      "Life/death overlap points to violence or homicide",
+      "Abduction or missing-person pattern is active",
+      "Partner axis is active in a domestic matter",
+      "Family axis activated by Moon and domestic houses",
+      "Water or drowning signatures are foregrounded"
+    ]
+  }
+]

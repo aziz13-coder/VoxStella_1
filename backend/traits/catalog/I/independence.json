@@ -1,0 +1,14 @@
+{
+  "id": "independence",
+  "name": "Independence",
+  "domain": "character_stance",
+  "description": "Independent stance with Uranus prominence and Aries/Aquarius accents; Saturn/Air balance tempers coldness.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter: Uranus prominence; Aries/Aquarius"],
+  "logic": { "base": 0,
+    "boosts": [ { "kind": "angle_aspect", "planet": "Uranus", "type": "soft", "angle": "ASC", "max_orb": 6, "weight": 8 }, { "kind": "sign_group_emphasis", "group": ["Aries","Aquarius"], "min": 2.0, "weight": 6 } ],
+    "dampeners": [ { "kind": "planet_status", "planet": "Saturn", "afflicted": true, "weight": -6 } ],
+    "escalators": [] }
+}
+

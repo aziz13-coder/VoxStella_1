@@ -1,0 +1,25 @@
+{
+  "id": "zealous_asceticism",
+  "name": "Zealous asceticism (strict abstinence)",
+  "domain": "virtue_abstinence",
+  "description": "Eager strictness in diet/pleasure for moral or spiritual aims.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": [
+    "Carter: Abstemiousness — Moon with Saturn; Saturn well placed; 6th/12th support"
+  ],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "aspect", "pair": ["Moon","Saturn"], "type": "soft", "max_orb": 6, "weight": 10 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": 8 },
+      { "kind": "sign_emphasis", "sign": "Capricorn", "min": 1.5, "weight": 4 },
+      { "kind": "house_emphasis", "houses": [6,12], "min_total": 1, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": -6 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": -4 },
+      { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

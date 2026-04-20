@@ -1,0 +1,22 @@
+{
+  "id": "organization_capricorn",
+  "name": "Organization (Capricorn structuring)",
+  "domain": "executive_function",
+  "description": "Capacity to structure and govern processes into coherent systems with Capricorn/Saturn strength; Mars exalted in Capricorn adds drive; 10th supports.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Capricorn desire to organize Nature; Mars exalted in Capricorn"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Capricorn", "min": 1.5, "weight": 10 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": 8 },
+      { "kind": "planet_in_sign", "planet": "Mars", "sign": "Capricorn", "weight": 4 },
+      { "kind": "house_emphasis", "houses": [10], "min_total": 1, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "modality", "modality": "Mutable", "min_share": 0.40, "weight": -4 },
+      { "kind": "planet_status", "planet": "Neptune", "afflicted": true, "weight": -6 }
+    ],
+    "escalators": [] }
+}
+

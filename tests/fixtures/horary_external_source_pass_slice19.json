@@ -1,0 +1,70 @@
+[
+  {
+    "id": "masters_scholarship_astrologyweekly_source_pass",
+    "question": "Will I be accepted for masters scholarship?",
+    "source_url": "https://astrologyweekly.com/threads/will-i-be-accepted-for-masters-scholarship.70538/",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "NO (not eligible)",
+    "source_expected_category": "education",
+    "source_expected_houses": [
+      1,
+      9,
+      2
+    ],
+    "source_expected_focus": "The source explicitly keeps the masters program and higher education on the 9th, while also noting the querent's 2nd-house income as a decisive part of scholarship eligibility. This is not just a generic success or funding chart.",
+    "current_engine_category": "education",
+    "current_engine_houses": [
+      1,
+      9,
+      2
+    ],
+    "current_engine_quesited_house": 9,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "The shared aid doctrine now keeps the masters scholarship on the 9th while surfacing the linked 2nd-house eligibility or income axis noted in the source reasoning."
+  },
+  {
+    "id": "brother_scholarship_astrologyweekly_source_pass",
+    "question": "Will my brother be granted a scholarship?",
+    "source_url": "https://astrologyweekly.com/threads/grant-for-a-scholarship.14045/",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "partial grant / mixed",
+    "source_expected_category": "education",
+    "source_expected_houses": [
+      3,
+      11
+    ],
+    "source_expected_focus": "The source explicitly treats the brother as the 3rd house and the scholarship for his higher studies as his turned 9th, which lands on the radical 11th. The question should not collapse back into radical funding houses.",
+    "current_engine_category": "education",
+    "current_engine_houses": [
+      3,
+      11
+    ],
+    "current_engine_quesited_house": 11,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "The fixture now preserves the source's explicit brother context, and the shared aid doctrine keeps the brother on the 3rd with his turned 9th scholarship axis on the radical 11th."
+  },
+  {
+    "id": "financial_aid_astrologyweekly_source_pass",
+    "question": "Will I get the financial aid?",
+    "source_url": "https://astrologyweekly.com/threads/will-i-get-the-financial-aid.134185/",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "some money / likely yes",
+    "source_expected_category": "funding",
+    "source_expected_houses": [
+      1,
+      10
+    ],
+    "source_expected_focus": "The source discussion treats this as public financial aid from the government or another official body, keeping public money and official support on the 10th rather than reading it as simple personal money.",
+    "current_engine_category": "funding",
+    "current_engine_houses": [
+      1,
+      10
+    ],
+    "current_engine_quesited_house": 10,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "The shared aid doctrine now keeps public financial aid on the official or governmental support axis in the 10th instead of flattening it into personal money."
+  }
+]

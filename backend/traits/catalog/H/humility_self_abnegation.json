@@ -1,0 +1,18 @@
+{
+  "id": "humility_self_abnegation",
+  "name": "Humility / self‑abnegation",
+  "domain": "character_tendency",
+  "description": "Yielding, self‑effacing tendency via Pisces’ self‑abnegation and Virgo’s modesty; 12th house.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter: Pisces/Virgo modesty; H12"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Pisces", "min": 1.5, "weight": 8 },
+      { "kind": "sign_emphasis", "sign": "Virgo", "min": 1.5, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [12], "min_total": 1, "weight": 6 }
+    ],
+    "dampeners": [ { "kind": "sign_emphasis", "sign": "Leo", "min": 1.5, "weight": -8 } ],
+    "escalators": [] }
+}
+

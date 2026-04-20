@@ -1,0 +1,21 @@
+{
+  "id": "regeneration",
+  "name": "Regeneration (renewal after crisis)",
+  "domain": "transformative_capacity",
+  "description": "Power to recover and renew after crisis with Scorpio/8th emphasis and well‑aspected Mars/Saturn, emerging with greater strength.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter: Scorpio’s strength through suffering; 8th rebirth"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Scorpio", "min": 1.5, "weight": 8 },
+      { "kind": "house_emphasis", "houses": [8], "min_total": 1, "weight": 6 },
+      { "kind": "planet_status", "planet": "Mars", "strong": true, "weight": 6 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": 6 }
+    ],
+    "dampeners": [
+      { "kind": "modality", "modality": "Mutable", "min_share": 0.40, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

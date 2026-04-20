@@ -1,0 +1,62 @@
+[
+  {
+    "id": "charles_diana_wedding",
+    "display_name": "Charles and Diana wedding",
+    "event_label": "St Paul's Cathedral wedding ceremony",
+    "natal_datetime": "1948-11-14T21:14:00",
+    "natal_location": "London, England",
+    "natal_timezone": "Europe/London",
+    "latitude": 51.5074,
+    "longitude": -0.1278,
+    "resolved_location": "London, England",
+    "event_datetime": "1981-07-29T11:20:00+01:00",
+    "control_datetime": "1981-07-22T11:20:00+01:00",
+    "house_system_code": "W",
+    "time_basis": "aa_chart_db_wedding_service_start",
+    "time_confidence": "medium",
+    "measurement_mode": "prediction_cluster",
+    "expected_prediction_descriptions": [
+      "Jupiter Semi-sextile Mercury",
+      "Jupiter Trine Sun (antiscia)",
+      "Jupiter Sextile Sun (contra-antiscia)"
+    ],
+    "minimum_prediction_match_count": 2,
+    "minimum_prediction_count_delta": 2,
+    "sources": {
+      "natal": "https://www.astro.com/astro-databank/Charles,_King_of_the_United_Kingdom",
+      "event_time_basis": "https://www.astrologicalassociation.com/product/prince-charles-and-princess-diana-wedding/",
+      "event_day_context": "https://genome.ch.bbc.co.uk/schedules/service_bbc_one_london/1981-07-29"
+    }
+  },
+  {
+    "id": "prince_harry_wedding",
+    "display_name": "Prince Harry wedding",
+    "event_label": "St George's Chapel wedding ceremony",
+    "natal_datetime": "1984-09-15T16:20:00",
+    "natal_location": "London, England",
+    "natal_timezone": "Europe/London",
+    "latitude": 51.5074,
+    "longitude": -0.1278,
+    "resolved_location": "London, England",
+    "event_datetime": "2018-05-19T12:00:00+01:00",
+    "control_datetime": "2018-05-12T12:00:00+01:00",
+    "house_system_code": "W",
+    "time_basis": "official_order_of_service_start",
+    "time_confidence": "high",
+    "measurement_mode": "support_hit_delta",
+    "expected_support_descriptions": [
+      "Venus Conjunction C7"
+    ],
+    "expected_support_keywords": [
+      "family_celebration",
+      "marriage",
+      "wedding"
+    ],
+    "minimum_support_delta": 15.0,
+    "sources": {
+      "natal": "https://www.astro.com/astro-databank/Harry,_Prince,_Duke_of_Sussex",
+      "event_time_basis": "https://www.royal.uk/sites/default/files/media/order_of_service.pdf",
+      "event_day_context": "https://www.royal.uk/royalwedding"
+    }
+  }
+]

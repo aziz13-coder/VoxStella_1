@@ -1,0 +1,101 @@
+{
+  "generated_at": "2026-04-06T00:00:00+00:00",
+  "purpose": "Exploratory homicide-documentary probe set. This currently assumes the user's Netflix reference maps to Homicide: New York, episode 'Party Monster', covering the Joey Comunale case.",
+  "sources": [
+    {
+      "id": "metacritic_homicide_new_york_s2",
+      "kind": "episode_listing",
+      "title": "Homicide: New York season 2",
+      "url": "https://www.metacritic.com/tv/homicide-new-york/season-2/",
+      "metadata_strength": "medium",
+      "notes": "Metacritic lists season 2 episode 1 as 'Party Monster'."
+    },
+    {
+      "id": "peacock_party_monster_episode",
+      "kind": "episode_listing",
+      "title": "Homicide New York - Party Monster",
+      "url": "https://www.peacocktv.com/watch-online/tv/homicide-new-york/6665643876922241112/seasons/2/episodes/party-monster-episode-1/5050bfd0-9e7b-3b81-b88b-9d577853ec08",
+      "metadata_strength": "medium",
+      "notes": "Secondary platform listing tying the episode label 'Party Monster' to the Joey Comunale case context."
+    },
+    {
+      "id": "abc7_joey_comunale_timeline",
+      "kind": "reported_history",
+      "title": "Case of missing man from Connecticut leads to arrest of socialite James Rackover",
+      "url": "https://abc7ny.com/joey-comunale-james-rackover-lawrence-dilon-socialite/1617730/",
+      "metadata_strength": "high",
+      "notes": "ABC7 reports the broad timeline of Comunale's disappearance, the Manhattan apartment, and the later New Jersey body discovery."
+    },
+    {
+      "id": "cbs_joey_comunale_social_media",
+      "kind": "reported_history",
+      "title": "Suspect in Joey Comunale murder case posted clues about crime on social media",
+      "url": "https://www.cbsnews.com/news/joey-comunale-murder-james-rackover-instagram-facebook-clues/",
+      "metadata_strength": "high",
+      "notes": "CBS documents the concealment and social-media taunting elements after the homicide."
+    }
+  ],
+  "cases": [
+    {
+      "id": "joey_comunale_party_monster_probe",
+      "title": "Joey Comunale homicide probe",
+      "assumption_note": "This probe assumes the user's Netflix reference 'Homicide S3:E1' means the currently identifiable Party Monster episode about Joey Comunale. Replace if the user names a different episode.",
+      "hard_outcomes": {
+        "date_local": "2016-11-13",
+        "location": "420 East 58th Street / Sutton Place area, Manhattan, New York, USA",
+        "outcome": "homicide with later body transport and concealment in New Jersey",
+        "known_scene_markers": [
+          "fatal apartment assault after an after-party",
+          "body transport and concealment",
+          "later social-media taunting and cover-up behavior"
+        ]
+      },
+      "tested_anchors": [
+        {
+          "id": "joey_2016_11_13_0640",
+          "basis": "pre-departure apartment window probe",
+          "query": {
+            "mode": "manual",
+            "datetime": "2016-11-13T06:40:00",
+            "location": "420 East 58th Street, Manhattan, New York, USA",
+            "timezone": "America/New_York",
+            "house_system_code": "R"
+          }
+        },
+        {
+          "id": "joey_2016_11_13_0650",
+          "basis": "departure-window proxy from public timeline reporting",
+          "query": {
+            "mode": "manual",
+            "datetime": "2016-11-13T06:50:00",
+            "location": "420 East 58th Street, Manhattan, New York, USA",
+            "timezone": "America/New_York",
+            "house_system_code": "R"
+          }
+        },
+        {
+          "id": "joey_2016_11_13_0700",
+          "basis": "immediate post-departure apartment window probe",
+          "query": {
+            "mode": "manual",
+            "datetime": "2016-11-13T07:00:00",
+            "location": "420 East 58th Street, Manhattan, New York, USA",
+            "timezone": "America/New_York",
+            "house_system_code": "R"
+          }
+        },
+        {
+          "id": "joey_2016_11_13_0730",
+          "basis": "later apartment window probe",
+          "query": {
+            "mode": "manual",
+            "datetime": "2016-11-13T07:30:00",
+            "location": "420 East 58th Street, Manhattan, New York, USA",
+            "timezone": "America/New_York",
+            "house_system_code": "R"
+          }
+        }
+      ]
+    }
+  ]
+}

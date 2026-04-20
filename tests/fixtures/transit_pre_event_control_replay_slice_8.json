@@ -1,0 +1,149 @@
+[
+  {
+    "id": "obama_nobel_peace_announcement",
+    "display_name": "Barack Obama Nobel Peace Prize announcement",
+    "event_label": "Nobel Peace Prize announced",
+    "natal_datetime": "1961-08-04T19:24:00",
+    "natal_location": "Honolulu, Hawaii",
+    "natal_timezone": "Pacific/Honolulu",
+    "latitude": 21.304547,
+    "longitude": -157.8556764,
+    "resolved_location": "Honolulu, Honolulu County, Hawaii, United States",
+    "event_datetime": "2009-10-09T11:00:00+02:00",
+    "control_datetimes": [
+      "2009-10-02T11:00:00+02:00",
+      "2009-09-25T11:00:00+02:00"
+    ],
+    "house_system_code": "R",
+    "measurement_mode": "honor_prediction_and_context",
+    "time_basis": "official_norwegian_nobel_committee_announcement_slot",
+    "time_confidence": "medium",
+    "expected_event_types": [
+      "opportunity_received"
+    ],
+    "expected_prediction_descriptions": [
+      "Jupiter Conjunction Asc"
+    ],
+    "expected_context_descriptions": [
+      "Saturn Sextile MC"
+    ],
+    "expected_context_keywords": [
+      "career",
+      "authority_earned",
+      "structure_established"
+    ],
+    "minimum_prediction_delta": 20.0,
+    "minimum_hit_delta": 20.0,
+    "sources": {
+      "natal": "https://www.astro.com/astro-databank/Obama%2C_Barack",
+      "event_announcement": "https://www.nobelprize.org/prizes/peace/2009/prize-announcement/",
+      "event_press_release": "https://www.nobelprize.org/prizes/peace/2009/press-release/",
+      "time_basis": "https://www.nobelprize.org/prizes/about/prize-announcement-dates/"
+    }
+  },
+  {
+    "id": "al_gore_nobel_peace_announcement",
+    "display_name": "Al Gore Nobel Peace Prize announcement",
+    "event_label": "Nobel Peace Prize announced",
+    "natal_datetime": "1948-03-31T12:53:00",
+    "natal_location": "Washington, District of Columbia",
+    "natal_timezone": "America/New_York",
+    "latitude": 38.8950368,
+    "longitude": -77.0365427,
+    "resolved_location": "Washington, District of Columbia, United States",
+    "event_datetime": "2007-10-12T11:00:00+02:00",
+    "control_datetimes": [
+      "2007-10-05T11:00:00+02:00",
+      "2007-09-28T11:00:00+02:00"
+    ],
+    "house_system_code": "R",
+    "measurement_mode": "honor_prediction_only",
+    "time_basis": "official_norwegian_nobel_committee_announcement_slot",
+    "time_confidence": "medium",
+    "expected_event_types": [
+      "opportunity_received"
+    ],
+    "expected_prediction_descriptions": [
+      "Jupiter Trine Saturn"
+    ],
+    "expected_context_descriptions": [
+      "Saturn Semi-sextile Venus (antiscia)",
+      "Saturn Quincunx Venus (contra-antiscia)"
+    ],
+    "expected_context_keywords": [
+      "career",
+      "authority_earned",
+      "structure_established"
+    ],
+    "minimum_prediction_delta": 40.0,
+    "sources": {
+      "natal": "https://www.astro.com/astro-databank/Gore%2C_Al",
+      "event_announcement": "https://www.nobelprize.org/prizes/peace/2007/press-release/",
+      "event_facts": "https://www.nobelprize.org/prizes/peace/2007/gore/facts/",
+      "time_basis": "https://www.nobelprize.org/prizes/about/prize-announcement-dates/"
+    }
+  },
+  {
+    "id": "george_w_bush_iraq_address",
+    "display_name": "George W. Bush Iraq address",
+    "event_label": "Address announcing military operations in Iraq",
+    "natal_datetime": "1946-07-06T07:26:00",
+    "natal_location": "New Haven, Connecticut",
+    "natal_timezone": "America/New_York",
+    "latitude": 41.3082138,
+    "longitude": -72.9250518,
+    "resolved_location": "New Haven, South Central Connecticut Planning Region, Connecticut, United States",
+    "event_datetime": "2003-03-19T22:16:00-05:00",
+    "control_datetimes": [
+      "2003-03-12T22:16:00-05:00",
+      "2003-03-05T22:16:00-05:00"
+    ],
+    "house_system_code": "R",
+    "measurement_mode": "crisis_hit",
+    "time_basis": "official_oval_office_address_timestamp",
+    "time_confidence": "high",
+    "expected_crisis_hit_descriptions": [
+      "Mars Quincunx Mercury"
+    ],
+    "expected_crisis_keywords": [
+      "accident_major"
+    ],
+    "minimum_hit_delta": 20.0,
+    "sources": {
+      "natal": "https://www.astro.com/astro-databank/Bush%2C_George_W.",
+      "event": "https://georgewbush-whitehouse.archives.gov/news/releases/2003/03/20030319-17.html"
+    }
+  },
+  {
+    "id": "charles_diana_wedding",
+    "display_name": "Charles and Diana wedding",
+    "event_label": "St Paul's Cathedral wedding ceremony",
+    "natal_datetime": "1948-11-14T21:14:00",
+    "natal_location": "London, England",
+    "natal_timezone": "Europe/London",
+    "latitude": 51.5074,
+    "longitude": -0.1278,
+    "resolved_location": "London, England",
+    "event_datetime": "1981-07-29T11:20:00+01:00",
+    "control_datetimes": [
+      "1981-07-22T11:20:00+01:00",
+      "1981-07-15T11:20:00+01:00"
+    ],
+    "house_system_code": "W",
+    "measurement_mode": "marriage_cluster_score",
+    "time_basis": "aa_chart_db_wedding_service_start",
+    "time_confidence": "medium",
+    "expected_prediction_descriptions": [
+      "Jupiter Semi-sextile Mercury",
+      "Jupiter Trine Sun (antiscia)",
+      "Jupiter Sextile Sun (contra-antiscia)"
+    ],
+    "minimum_match_count": 2,
+    "minimum_match_score_delta": 50.0,
+    "sources": {
+      "natal": "https://www.astro.com/astro-databank/Charles,_King_of_the_United_Kingdom",
+      "event_time_basis": "https://www.astrologicalassociation.com/product/prince-charles-and-princess-diana-wedding/",
+      "event_day_context": "https://genome.ch.bbc.co.uk/schedules/service_bbc_one_london/1981-07-29"
+    }
+  }
+]

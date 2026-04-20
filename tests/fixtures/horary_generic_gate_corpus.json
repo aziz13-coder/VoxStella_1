@@ -1,0 +1,101 @@
+[
+  {
+    "id": "masters_program_no_perfection_no",
+    "source": "hard_corpus",
+    "source_ref": "masters_program_no_perfection_no",
+    "question_family": "occurrence",
+    "current_expected_verdict": "NO",
+    "current_expected_perfection_type": "none",
+    "secondary_signal_profile": "none",
+    "target_bucket": "denial_secondary_balance",
+    "notes": "True no-route denial control."
+  },
+  {
+    "id": "will_my_tenant_send_full_payment",
+    "source": "book_replay",
+    "source_ref": "will_my_tenant_send_full_payment",
+    "question_family": "occurrence",
+    "current_expected_verdict": "NO",
+    "current_expected_perfection_type": "none",
+    "secondary_signal_profile": "none",
+    "target_bucket": "denial_secondary_balance",
+    "notes": "Weak-resource no-route denial control."
+  },
+  {
+    "id": "will_i_profit_from_this_bet",
+    "source": "book_replay",
+    "source_ref": "will_i_profit_from_this_bet",
+    "question_family": "occurrence",
+    "current_expected_verdict": "NO",
+    "current_expected_perfection_type": "none",
+    "secondary_signal_profile": "low",
+    "target_bucket": "denial_secondary_balance",
+    "notes": "Moon/VOC-sensitive no-route denial control."
+  },
+  {
+    "id": "divorce_no_manual_review",
+    "source": "hard_corpus",
+    "source_ref": "divorce_no_manual_review",
+    "question_family": "occurrence",
+    "current_expected_verdict": "NO",
+    "current_expected_perfection_type": "none",
+    "secondary_signal_profile": "low",
+    "target_bucket": "denial_secondary_balance",
+    "notes": "Negative relational no-route control."
+  },
+  {
+    "id": "pay_rise_article_spec",
+    "source": "external_cunning_man",
+    "source_ref": "pay_rise_article_spec",
+    "question_family": "occurrence",
+    "current_expected_verdict": "NO",
+    "current_expected_perfection_type": "none",
+    "secondary_signal_profile": "low",
+    "target_bucket": "denial_secondary_balance",
+    "notes": "External no-route denial control."
+  },
+  {
+    "id": "marriage_no_manual_review",
+    "source": "hard_corpus",
+    "source_ref": "marriage_no_manual_review",
+    "question_family": "occurrence",
+    "current_expected_verdict": "NO",
+    "current_expected_perfection_type": "none",
+    "secondary_signal_profile": "high",
+    "target_bucket": "mixed_or_inconclusive_secondary_balance",
+    "notes": "Mixed reception plus Moon support with no direct perfection."
+  },
+  {
+    "id": "is_there_any_hope_for_us_getting_back_together_should_i_wait_for_her",
+    "source": "book_replay",
+    "source_ref": "is_there_any_hope_for_us_getting_back_together_should_i_wait_for_her",
+    "question_family": "occurrence",
+    "current_expected_verdict": "NO",
+    "current_expected_perfection_type": "none",
+    "secondary_signal_profile": "high",
+    "target_bucket": "mixed_or_inconclusive_secondary_balance",
+    "notes": "Moon and mixed reception support despite no route."
+  },
+  {
+    "id": "will_investing_in_this_business_prove_profitable_for_me",
+    "source": "book_replay",
+    "source_ref": "will_investing_in_this_business_prove_profitable_for_me",
+    "question_family": "occurrence",
+    "current_expected_verdict": "NO",
+    "current_expected_perfection_type": "none",
+    "secondary_signal_profile": "high",
+    "target_bucket": "mixed_or_inconclusive_secondary_balance",
+    "notes": "One-way reception and applying support signal with no direct perfection."
+  },
+  {
+    "id": "will_i_get_the_job_at_uw",
+    "source": "book_replay",
+    "source_ref": "will_i_get_the_job_at_uw",
+    "question_family": "occurrence",
+    "current_expected_verdict": "NO",
+    "current_expected_perfection_type": "none",
+    "secondary_signal_profile": "medium",
+    "target_bucket": "mixed_or_inconclusive_secondary_balance",
+    "notes": "One-way reception without route; useful mild-support career case."
+  }
+]

@@ -1,0 +1,67 @@
+# Sensitive runtime/admin artifacts
+licensing_server/.admin_token
+licensing_server/licenses.db
+licensing_server/*.db
+licensing_server/*.db-shm
+licensing_server/*.db-wal
+licensing_server/keys/*.key
+licensing_server/keys/*.pem
+frontend/license.config.json
+frontend/.env
+frontend/.env.local
+frontend/.env.production
+
+# Runtime logs/cache
+backend/*.log
+backend/research/.cache/
+frontend/backend/research/.cache/
+**/__pycache__/
+*.pyc
+*.log
+*.err.log
+*.out.log
+*.backup
+tmp_*
+
+# Virtual envs / dependencies
+**/venv/
+**/.venv/
+**/node_modules/
+
+# Generated build artifacts (source of truth is src/backend folders)
+backend/build/
+backend/dist/
+frontend/dist/
+frontend/dist-electron/
+frontend/backend/build/
+frontend/backend/dist/
+frontend/backend/runtime/
+website/
+**/win-unpacked/
+**/resources/
+
+# Local workspace and recovery clutter
+.claude/
+.playwright-cli/
+.pytest_cache/
+.tmp/
+tmp/
+output/
+build-logs/
+backups/
+backup-pngs/
+temp_asar_check/
+tmp_asar_extract/
+website-backup-*/
+frontend/output/
+backend/Lotto(10).csv
+backend/Untitled.png
+frontend/backend/Lotto(10).csv
+frontend/backend/Untitled.png
+licensing_server/command cloudflare.txt
+licensing_server/New Text Document.txt
+/*.pdf
+/*.docx
+/*.odt
+/*.epub
+/*.png

@@ -1,0 +1,393 @@
+{
+  "generated_at": "2026-04-06T00:00:00+00:00",
+  "purpose": "Holdout journalist abduction probes used to compare live forensic output and abduction-map behavior against additional resolved real-world cases without altering the original six-case validation gate.",
+  "sources": [
+    {
+      "id": "cpj_iraq_abducted_report_2008",
+      "kind": "press_freedom_report",
+      "title": "Abducted in Iraq",
+      "url": "https://cpj.org/reports/2008/04/abducted/amp/",
+      "metadata_strength": "high",
+      "notes": "CPJ's Iraq abduction report summarizes multiple resolved journalist kidnappings including Phil Sands, Meutya Hafid, Budiyanto, Richard Butler, and the Romanian crew."
+    },
+    {
+      "id": "cnn_phil_sands_2006",
+      "kind": "first_person_recollection",
+      "title": "CNN transcript: kidnapped journalist Phil Sands recounts ordeal",
+      "url": "https://transcripts.cnn.com/show/smn/date/2006-03-25/segment/04",
+      "metadata_strength": "medium",
+      "notes": "Phil Sands describes the Baghdad kidnapping in first-person terms after his release, confirming a street ambush and hidden custody."
+    },
+    {
+      "id": "irish_times_phil_sands_2006",
+      "kind": "reported_history",
+      "title": "Abducted British journalist freed in Iraq",
+      "url": "https://www.irishtimes.com/news/abducted-british-journalist-freed-in-iraq-1.768220",
+      "metadata_strength": "medium",
+      "notes": "The Irish Times reports that Phil Sands was ambushed in Baghdad on December 26, 2005 and held for five days before release."
+    },
+    {
+      "id": "aljazeera_meutya_2005",
+      "kind": "reported_history",
+      "title": "Indonesians plead for pair’s release",
+      "url": "https://www.aljazeera.com/news/2005/2/19/indonesians-plead-for-pairs-release",
+      "metadata_strength": "high",
+      "notes": "Al Jazeera reports that Meutya Hafid and Budiyanto were pulled from their hired car by armed men near Ramadi while on assignment."
+    },
+    {
+      "id": "upi_meutya_release_2005",
+      "kind": "reported_history",
+      "title": "Indonesian journalists freed in Iraq",
+      "url": "https://www.upi.com/Top_News/2005/02/21/Indonesian-journalists-freed-in-Iraq/42831108986899/",
+      "metadata_strength": "medium",
+      "notes": "UPI confirms the release of Meutya Hafid and Budiyanto after six days in captivity."
+    },
+    {
+      "id": "wikinews_romanian_2005",
+      "kind": "reported_history",
+      "title": "Three Romanian journalists abducted in Iraq",
+      "url": "https://en.wikinews.org/wiki/Three_Romanian_journalists_abducted_in_Iraq",
+      "metadata_strength": "medium",
+      "notes": "Wikinews preserves the public hotel-employee timing report that the kidnapping occurred at approximately 20:30 outside the Flowerland Hotel in Jadriya, while Prima TV lost contact at 19:45."
+    },
+    {
+      "id": "cpj_romanian_release_2005",
+      "kind": "press_freedom_alert",
+      "title": "Romanian journalists and translator released",
+      "url": "https://cpj.org/2005/05/romanian-journalists-and-translator-released/",
+      "metadata_strength": "high",
+      "notes": "CPJ confirms the release of the Romanian journalists and their translator after nearly two months in captivity."
+    },
+    {
+      "id": "cbs_richard_butler_2008",
+      "kind": "first_person_recollection",
+      "title": "Richard Butler: A Hostage’s Story",
+      "url": "https://www.cbsnews.com/news/richard-butler-a-hostages-story/",
+      "metadata_strength": "high",
+      "notes": "Butler recounts being awakened in his Basra hotel room by armed men dressed as police and taken into custody."
+    },
+    {
+      "id": "abc_richard_butler_release_2008",
+      "kind": "reported_history",
+      "title": "British journalist freed after Iraqi army raid",
+      "url": "https://www.abc.net.au/news/2008-04-15/british-journalist-freed-after-iraqi-army-raid/2404290",
+      "metadata_strength": "high",
+      "notes": "ABC confirms that Butler and his interpreter were seized at gunpoint from their Basra hotel on February 10 and that Butler was released alive in April."
+    }
+  ],
+  "cases": [
+    {
+      "id": "phil_sands_baghdad_abduction_holdout",
+      "title": "Phil Sands abduction",
+      "source_id": "cnn_phil_sands_2006",
+      "expected_primary_axes": [
+        "abduction_missing_person"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup",
+        "violence_homicide"
+      ],
+      "contradictory_axes": [
+        "family_involvement",
+        "child_victim",
+        "accident_or_disaster",
+        "domestic_partner_involvement"
+      ],
+      "expected_comparison_status": "aligned",
+      "execution_tier": "tier_3_manual_review",
+      "current_status": "holdout_probe",
+      "chart_capture_status": "source_day_anchor_with_morning_proxy",
+      "metadata_basis": "Same-day reporting plus first-person recollection place the ambush on a bright Baghdad morning on December 26, 2005; the frozen chart uses a mid-morning proxy inside that publicly reported morning window.",
+      "metadata_confidence": "medium",
+      "hard_outcomes": {
+        "date_local": "2005-12-26",
+        "location": "Baghdad, Iraq",
+        "outcome": "released alive after five days in captivity",
+        "known_scene_markers": [
+          "armed street ambush",
+          "interpreter and driver present",
+          "temporary hidden rural custody"
+        ]
+      },
+      "engine_vs_reality_summary": "The live route aligns directionally: abduction fires, violence pressure appears, and the map exposes route/custody roles without drifting into family or accident labels.",
+      "tested_anchors": [
+        {
+          "id": "phil_2005_12_26_1030",
+          "basis": "mid-morning proxy inside the publicly reported Baghdad morning ambush window",
+          "query": {
+            "mode": "manual",
+            "datetime": "2005-12-26T10:30:00",
+            "location": "Baghdad, Iraq",
+            "timezone": "Asia/Baghdad",
+            "house_system_code": "R",
+            "latitude": "33.3152",
+            "longitude": "44.3661",
+            "origin": "33.3152,44.3661"
+          },
+          "status_code": 200,
+          "success": true,
+          "comparison_status": "aligned",
+          "categories": {
+            "Abduction": 1,
+            "Deception": 2,
+            "Degree Signatures": 1,
+            "Headwinds": 1,
+            "Houses": 2,
+            "Violence": 2
+          },
+          "finding_titles": [
+            "Moon in Via Combusta",
+            "Life/death overlap points to violence or homicide",
+            "Abduction or public-place seizure pattern is active",
+            "1st ruler in the 8th house",
+            "Moon under death pressure",
+            "Malefic in the 6th house",
+            "Moon applying to malefic by hard aspect",
+            "Mute signs on angles"
+          ]
+        }
+      ],
+      "map_validation": {
+        "origin_source_expected": "query_origin",
+        "origin_note": "Baghdad city-center proxy is frozen because public reporting identifies the city and seizure type but not the exact block.",
+        "required_roles": [
+          "H7_ruler",
+          "H3_ruler",
+          "Moon"
+        ],
+        "movement_fact_status": "public_sources_describe_the_street_ambush_and_hidden_custody_but_not_a_precise_transport_heading",
+        "geometry_status": "not_scored_due_to_missing_public_heading"
+      }
+    },
+    {
+      "id": "meutya_hafid_ramadi_abduction_holdout",
+      "title": "Meutya Hafid and Budiyanto abduction",
+      "source_id": "aljazeera_meutya_2005",
+      "expected_primary_axes": [
+        "abduction_missing_person"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup"
+      ],
+      "contradictory_axes": [
+        "family_involvement",
+        "child_victim",
+        "accident_or_disaster",
+        "domestic_partner_involvement"
+      ],
+      "expected_comparison_status": "aligned",
+      "execution_tier": "tier_3_manual_review",
+      "current_status": "holdout_probe",
+      "chart_capture_status": "source_day_anchor_with_route_proxy",
+      "metadata_basis": "Public reporting places the seizure on the road near Ramadi while the crew was traveling and refueling; the frozen chart uses a late-afternoon route proxy inside that public day window.",
+      "metadata_confidence": "medium",
+      "hard_outcomes": {
+        "date_local": "2005-02-15",
+        "location": "near Ramadi, Iraq",
+        "outcome": "released alive on 2005-02-21",
+        "known_scene_markers": [
+          "armed road seizure",
+          "vehicle stop during field travel",
+          "temporary hidden custody"
+        ]
+      },
+      "engine_vs_reality_summary": "The live route aligns on the core pattern: abduction fires cleanly and the map exposes route and hidden-custody roles without the family or disaster spill that would be inconsistent with the public record.",
+      "tested_anchors": [
+        {
+          "id": "meutya_2005_02_15_1400",
+          "basis": "daytime route proxy inside the publicly reported Ramadi seizure window",
+          "query": {
+            "mode": "manual",
+            "datetime": "2005-02-15T14:00:00",
+            "location": "Ramadi, Iraq",
+            "timezone": "Asia/Baghdad",
+            "house_system_code": "R",
+            "latitude": "33.4256",
+            "longitude": "43.2992",
+            "origin": "33.4256,43.2992"
+          },
+          "status_code": 200,
+          "success": true,
+          "comparison_status": "aligned",
+          "categories": {
+            "Abduction": 1,
+            "Deception": 3,
+            "Houses": 1
+          },
+          "finding_titles": [
+            "Abduction or confrontation-on-the-route pattern is active",
+            "Malefic in the 6th house",
+            "Mercury combust the Sun",
+            "Node with Neptune/Mercury (karmic ruse/lie scheme)",
+            "Mute signs on angles"
+          ]
+        }
+      ],
+      "map_validation": {
+        "origin_source_expected": "query_origin",
+        "origin_note": "Ramadi city proxy is frozen because the public record describes the route seizure near the city but not a reproducible roadside coordinate.",
+        "required_roles": [
+          "H7_ruler",
+          "H3_ruler",
+          "H12_ruler"
+        ],
+        "movement_fact_status": "public_sources_describe_a_route_stop_and_forced_removal_from_the_vehicle_but_not_a_precise_transport_heading",
+        "geometry_status": "not_scored_due_to_missing_public_heading"
+      }
+    },
+    {
+      "id": "romanian_journalists_jadriya_abduction_holdout",
+      "title": "Romanian journalists Jadriya abduction",
+      "source_id": "wikinews_romanian_2005",
+      "expected_primary_axes": [
+        "abduction_missing_person"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup",
+        "authority_or_public_case"
+      ],
+      "contradictory_axes": [
+        "family_involvement",
+        "child_victim",
+        "accident_or_disaster",
+        "domestic_partner_involvement"
+      ],
+      "expected_comparison_status": "aligned",
+      "execution_tier": "tier_3_manual_review",
+      "current_status": "holdout_probe",
+      "chart_capture_status": "source_explicit_evening_anchor",
+      "metadata_basis": "A public hotel-employee account places the seizure at approximately 20:30 outside the Flowerland Hotel in Jadriya, while the newsroom lost contact at 19:45.",
+      "metadata_confidence": "medium",
+      "hard_outcomes": {
+        "date_local": "2005-03-28",
+        "location": "Jadriya / Flowerland Hotel area, Baghdad, Iraq",
+        "outcome": "released alive on 2005-05-22 after 55 days in captivity",
+        "known_scene_markers": [
+          "hotel-area evening seizure",
+          "multi-hostage captivity",
+          "later evidence of coordinated deception by insiders"
+        ]
+      },
+      "engine_vs_reality_summary": "The live route now aligns directionally. It keeps the strong deception testimony, but it also surfaces a social-gathering seizure pattern that matches the real hotel-area kidnapping and prolonged hidden custody without drifting into family or disaster labels.",
+      "tested_anchors": [
+        {
+          "id": "romanian_2005_03_28_2030",
+          "basis": "hotel-employee report of an approximately 20:30 seizure outside the Flowerland Hotel",
+          "query": {
+            "mode": "manual",
+            "datetime": "2005-03-28T20:30:00",
+            "location": "Al-Jadriya, Baghdad, Iraq",
+            "timezone": "Asia/Baghdad",
+            "house_system_code": "R",
+            "latitude": "33.278889",
+            "longitude": "44.387222",
+            "origin": "33.278889,44.387222"
+          },
+          "status_code": 200,
+          "success": true,
+          "comparison_status": "aligned",
+          "categories": {
+            "Abduction": 1,
+            "Deception": 4,
+            "Degree Signatures": 2
+          },
+          "finding_titles": [
+            "Moon in Via Combusta",
+            "Abduction or social-gathering seizure pattern is active",
+            "Mercury retrograde",
+            "Mercury combust the Sun",
+            "Mute signs on angles",
+            "Mute signs on 3rd/9th",
+            "Mid-degree focus (~15°)"
+          ]
+        }
+      ],
+      "map_validation": {
+        "origin_source_expected": "query_origin",
+        "origin_note": "Jadriya district proxy is frozen because the public record identifies the hotel area but not a reliable present-day geocoder result for the original hotel frontage.",
+        "required_roles": [
+          "H7_ruler",
+          "H3_ruler",
+          "Moon"
+        ],
+        "movement_fact_status": "public_sources_describe_the_hotel_area_seizure_and_long_captivity_but_not_a_precise_transport_heading",
+        "geometry_status": "not_scored_due_to_missing_public_heading"
+      }
+    },
+    {
+      "id": "richard_butler_basra_hotel_abduction_holdout",
+      "title": "Richard Butler Basra hotel abduction",
+      "source_id": "cbs_richard_butler_2008",
+      "expected_primary_axes": [
+        "abduction_missing_person"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup",
+        "authority_or_public_case"
+      ],
+      "contradictory_axes": [
+        "family_involvement",
+        "child_victim",
+        "accident_or_disaster",
+        "domestic_partner_involvement"
+      ],
+      "expected_comparison_status": "aligned",
+      "execution_tier": "tier_3_manual_review",
+      "current_status": "holdout_probe",
+      "chart_capture_status": "source_night_window_with_hotel_point",
+      "metadata_basis": "Butler's own account confirms a middle-of-the-night hotel-room seizure by men dressed as police; the frozen chart uses a 02:30 proxy on the public hotel point.",
+      "metadata_confidence": "medium",
+      "hard_outcomes": {
+        "date_local": "2008-02-10",
+        "location": "Sultan Palace Hotel, Basra, Iraq",
+        "outcome": "released alive on 2008-04-14 after roughly two months in captivity",
+        "known_scene_markers": [
+          "armed hotel-room seizure",
+          "captors dressed as police",
+          "extended hidden custody"
+        ]
+      },
+      "engine_vs_reality_summary": "The live route now aligns directionally. It no longer leaks into disaster language and instead surfaces a deceptive public-assignment seizure pattern that matches the fake-police hotel-room kidnapping and concealed captivity described in the public record.",
+      "tested_anchors": [
+        {
+          "id": "richard_2008_02_10_0230",
+          "basis": "middle-of-the-night hotel seizure reconstructed from Butler's own account",
+          "query": {
+            "mode": "manual",
+            "datetime": "2008-02-10T02:30:00",
+            "location": "Sultan Palace Hotel, Basra, Iraq",
+            "timezone": "Asia/Baghdad",
+            "house_system_code": "R",
+            "latitude": "30.5078",
+            "longitude": "47.83739",
+            "origin": "30.5078,47.83739"
+          },
+          "status_code": 200,
+          "success": true,
+          "comparison_status": "aligned",
+          "categories": {
+            "Abduction": 1,
+            "Deception": 3
+          },
+          "finding_titles": [
+            "Abduction or deceptive public-assignment seizure pattern is active",
+            "Mercury retrograde",
+            "Mercury combust the Sun",
+            "Mute signs on angles"
+          ]
+        }
+      ],
+      "map_validation": {
+        "origin_source_expected": "query_origin",
+        "origin_note": "A stable public hotel point is frozen for the Sultan Palace Hotel because the event is venue-specific and map testing should not depend on live geocoder drift.",
+        "required_roles": [
+          "H7_ruler",
+          "H3_ruler",
+          "H12_ruler"
+        ],
+        "movement_fact_status": "public_sources_describe_the_hotel_room_seizure_and_hidden_custody_but_not_a_precise_transport_heading",
+        "geometry_status": "not_scored_due_to_missing_public_heading"
+      }
+    }
+  ]
+}

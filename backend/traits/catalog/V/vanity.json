@@ -1,0 +1,25 @@
+{
+  "id": "vanity",
+  "name": "Vanity (display)",
+  "domain": "ego_expression_shadow",
+  "description": "Exaggerated self‑display and love of pomp when Fire (esp. Leo) is dominant under affliction; Saturn/Virgo modesty and Libra/Venus balance mitigate.",
+  "confidence": "high",
+  "polarity": "negative",
+  "sources": ["Carter: Fire under affliction → vanity and pomp; Leo display"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": 6 },
+      { "kind": "sign_emphasis", "sign": "Leo", "min": 1.5, "weight": 6 },
+      { "kind": "planet_status", "planet": "Sun", "afflicted": true, "weight": 8 },
+      { "kind": "planet_status", "planet": "Jupiter", "afflicted": true, "weight": 4 },
+      { "kind": "house_emphasis", "houses": [5,10], "min_total": 1, "weight": 3 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -8 },
+      { "kind": "sign_emphasis", "sign": "Virgo", "min": 1.5, "weight": -4 },
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": -4 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

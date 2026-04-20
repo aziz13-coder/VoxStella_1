@@ -1,0 +1,24 @@
+{
+  "id": "frugality_economy",
+  "name": "Frugality / economy",
+  "domain": "material_habit",
+  "description": "Careful, sparing use of resources with Saturn strength and Earth emphasis; Jupiter/Venus excess and Fire bias reduce.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter: Earth practicality; Saturn organization"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": 10 },
+      { "kind": "element", "element": "Earth", "min_share": 0.35, "weight": 8 },
+      { "kind": "house_emphasis", "houses": [2], "min_total": 1, "weight": 6 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Jupiter", "afflicted": true, "weight": -8 },
+      { "kind": "planet_status", "planet": "Venus", "afflicted": true, "weight": -6 },
+      { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": -6 }
+    ],
+    "escalators": []
+  }
+}
+

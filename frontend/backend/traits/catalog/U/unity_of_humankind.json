@@ -1,0 +1,22 @@
+{
+  "id": "unity_of_humankind",
+  "name": "Unity of humankind",
+  "domain": "ethical_orientation",
+  "description": "Sense of kinship across life and orientation to common good or spiritual oneness with Aquarius/11th and Pisces/12th emphasis and benefic support; Leo egocentrism and rigid Saturn reduce.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Aquarius love of mankind; Pisces spiritual sensitivity"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_group_emphasis", "group": ["Aquarius","Pisces"], "min": 2.0, "weight": 8 },
+      { "kind": "house_emphasis", "houses": [11,12], "min_total": 1, "weight": 6 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 4 },
+      { "kind": "planet_status", "planet": "Neptune", "strong": true, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "sign_emphasis", "sign": "Leo", "min": 1.5, "weight": -4 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

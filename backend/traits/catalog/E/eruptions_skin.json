@@ -1,0 +1,20 @@
+{
+  "id": "eruptions_skin",
+  "name": "Eruptions (skin)",
+  "domain": "disease_dermatology",
+  "description": "Non‑specific skin eruptions modeled from abscess/boils axes with inflammatory Venus/Mars patterns.",
+  "confidence": "low",
+  "polarity": "negative",
+  "sources": ["Carter: abscess/boils axes by analogy"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "degree_hit", "labels": ["25 Leo","25 Aquarius","21 Aries","21 Libra"], "min_hits": 1, "multiplier": 1.2, "weight": 6 },
+      { "kind": "aspect", "pair": ["Venus","Mars"], "type": "hard", "max_orb": 6, "weight": 8 },
+      { "kind": "planet_status", "planet": "Mars", "strong": true, "weight": 4 }
+    ],
+    "dampeners": [],
+    "escalators": []
+  }
+}
+

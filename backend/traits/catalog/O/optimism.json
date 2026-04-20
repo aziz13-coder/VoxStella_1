@@ -1,0 +1,23 @@
+{
+  "id": "optimism",
+  "name": "Optimism",
+  "domain": "temperament",
+  "description": "Buoyant confidence and positive expectancy with strong Fire (esp. Sagittarius) and benefic Sun/Jupiter support; 5th/9th expression.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Fire qualities; Sagittarius linked with hope/religion/philosophy"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": 10 },
+      { "kind": "sign_emphasis", "sign": "Sagittarius", "min": 1.5, "weight": 6 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 8 },
+      { "kind": "planet_status", "planet": "Sun", "strong": true, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [5,9], "min_total": 1, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "element", "element": "Water", "min_share": 0.40, "weight": -6 },
+      { "kind": "planet_status", "planet": "Saturn", "afflicted": true, "weight": -8 }
+    ],
+    "escalators": [] }
+}
+

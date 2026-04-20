@@ -1,0 +1,14 @@
+{
+  "id": "impulsiveness",
+  "name": "Impulsiveness",
+  "domain": "action_tendency",
+  "description": "Quick impulse with Aries/Mars and Fire emphasis; Saturn restraint reduces.",
+  "confidence": "medium",
+  "polarity": "negative",
+  "sources": ["Carter: Aries/Mars; Fire"],
+  "logic": { "base": 0,
+    "boosts": [ { "kind": "sign_emphasis", "sign": "Aries", "min": 1.5, "weight": 8 }, { "kind": "planet_status", "planet": "Mars", "strong": true, "weight": 8 }, { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": 6 } ],
+    "dampeners": [ { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -8 }, { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": -6 } ],
+    "escalators": [] }
+}
+

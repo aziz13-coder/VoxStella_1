@@ -1,0 +1,116 @@
+{
+  "generated_on": "2026-03-23",
+  "purpose": "Freeze the current generic-gate baseline before any generic verdict-hierarchy changes.",
+  "frozen_corpus_totals": {
+    "hard_corpus": {
+      "total": 11,
+      "deterministic": 6,
+      "manual_review": 5
+    },
+    "book_corpus": {
+      "extracted_total": 64,
+      "replayed_total": 30,
+      "aligned_total": 27,
+      "deferred_total": 3
+    },
+    "external_cunning_man": {
+      "extracted_total": 14,
+      "replay_ready_total": 3,
+      "aligned_total": 3
+    }
+  },
+  "generic_gate_candidate_queue": [
+    {
+      "id": "masters_program_no_perfection_no",
+      "source": "hard_corpus",
+      "current_expected_verdict": "NO",
+      "current_expected_perfection_type": "none",
+      "reason": "Clean hard-corpus no-route denial; baseline true-denial control for the generic branch."
+    },
+    {
+      "id": "will_my_tenant_send_full_payment",
+      "source": "book_replay",
+      "current_expected_verdict": "NO",
+      "current_expected_perfection_type": "none",
+      "reason": "Aligned no-route money chart; useful for checking denial by weak-resource logic rather than raw route absence."
+    },
+    {
+      "id": "will_i_get_the_job_at_uw",
+      "source": "book_replay",
+      "current_expected_verdict": "NO",
+      "current_expected_perfection_type": "none",
+      "reason": "Aligned no-route career chart; useful for no-route denial where another party reaches the matter first."
+    },
+    {
+      "id": "will_i_profit_from_this_bet",
+      "source": "book_replay",
+      "current_expected_verdict": "NO",
+      "current_expected_perfection_type": "none",
+      "reason": "Aligned no-route profit chart; useful for Moon/VOC and resource-chain weighting."
+    },
+    {
+      "id": "will_investing_in_this_business_prove_profitable_for_me",
+      "source": "book_replay",
+      "current_expected_verdict": "NO",
+      "current_expected_perfection_type": "none",
+      "reason": "Aligned no-route money/profit chart; useful for checking whether secondary testimonies are underweighted."
+    },
+    {
+      "id": "is_there_any_hope_for_us_getting_back_together_should_i_wait_for_her",
+      "source": "book_replay",
+      "current_expected_verdict": "NO",
+      "current_expected_perfection_type": "none",
+      "reason": "Aligned no-route relationship chart; useful for checking whether reconciliation charts are over-denied by the generic branch."
+    },
+    {
+      "id": "marriage_no_manual_review",
+      "source": "hard_corpus",
+      "current_expected_verdict": "NO",
+      "current_expected_perfection_type": "none",
+      "reason": "Manual-review relational no-route case retained as a controlled review example, not as a deterministic oracle."
+    },
+    {
+      "id": "divorce_no_manual_review",
+      "source": "hard_corpus",
+      "current_expected_verdict": "NO",
+      "current_expected_perfection_type": "none",
+      "reason": "Manual-review negative relational no-route case retained for comparison against the same generic branch."
+    },
+    {
+      "id": "pay_rise_article_spec",
+      "source": "external_cunning_man",
+      "current_expected_verdict": "NO",
+      "current_expected_perfection_type": "none",
+      "reason": "External no-route replay anchor for the same generic branch."
+    }
+  ],
+  "deferred_exclusions": [
+    {
+      "id": "will_we_rent_the_house",
+      "reason": "Chained ownership and post-transfer property state doctrine, not generic-gate weighting."
+    },
+    {
+      "id": "will_grandfather_survive_this_time",
+      "reason": "Kinship derivation and maternal-branch ambiguity, not generic-gate weighting."
+    },
+    {
+      "id": "will_barrett_win",
+      "reason": "Contextual public-office identification, not generic-gate weighting."
+    }
+  ],
+  "category_doctrine_exclusions": [
+    "lost_object_recovery",
+    "competition_public_office",
+    "competition_champion_balance",
+    "pregnancy_sufficiency",
+    "pregnancy_status_balance",
+    "children_adoption_balance",
+    "health_diagnosis_balance",
+    "health_progression_balance",
+    "pet_recovery_balance",
+    "property_quality_sufficiency",
+    "property_profit_balance",
+    "relationship_durability_balance",
+    "relationship_affection_balance"
+  ]
+}

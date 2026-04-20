@@ -1,0 +1,31 @@
+{
+  "generated_at": "2026-03-25T00:00:00+00:00",
+  "purpose": "Sixth replay-ready forensic case slice focused on the remaining named holdback whose family-homicide direction was still under-signaled through the live forensic route",
+  "cases": [
+    {
+      "id": "charles_whitman",
+      "title": "Charles Whitman, the Tower Sniper",
+      "source_book_id": "salerno_exploring_family_murders",
+      "source_file": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "metadata_basis": "source_explicit_prose_plus_minute_anchor",
+      "metadata_confidence": "medium",
+      "source_metadata_note": "The local text explicitly says Whitman killed his mother just after midnight on August 1, 1966 after she had moved to Houston; the replay uses a conservative 12:05 AM minute anchor in Houston, Texas for the mother's killing chart.",
+      "query": {
+        "mode": "manual",
+        "datetime_local": "1966-08-01T00:05:00",
+        "location": "Houston, Texas",
+        "timezone": "America/Chicago",
+        "house_system_code": "R"
+      },
+      "expected_primary_axes": [
+        "family_involvement",
+        "violence_homicide"
+      ],
+      "expected_secondary_axes": [
+        "authority_or_public_case"
+      ],
+      "contradictory_axes": [],
+      "comparison_status": "pending_route_replay"
+    }
+  ]
+}

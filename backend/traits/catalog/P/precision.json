@@ -1,0 +1,21 @@
+{
+  "id": "precision",
+  "name": "Precision",
+  "domain": "cognitive_style",
+  "description": "Exactness and careful handling of processes and details with Virgo placements and a strong Mercury; 6th‑house craft.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Virgo analyses processes; patient/careful/discerning"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Virgo", "min": 1.5, "weight": 8 },
+      { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": 8 },
+      { "kind": "house_emphasis", "houses": [6], "min_total": 1, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "aspect", "pair": ["Mercury","Neptune"], "type": "hard", "max_orb": 6, "weight": -8 },
+      { "kind": "modality", "modality": "Mutable", "min_share": 0.45, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

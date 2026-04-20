@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card" style="margin-bottom:16px;">
+  <h3>License {{ lic['license_key'] }}</h3>
+  <p>Email: {{ lic['owner_email'] or '-' }}</p>
+  <p>Plan: {{ lic['plan'] }} · Kind: {{ lic['kind'] or 'perpetual' }} · Status: {{ lic['status'] or 'active' }} · Max Devices: {{ lic['max_devices'] }} · Active: {{ 'yes' if lic['active']==1 else 'no' }} · Current Period End: {% if lic['current_period_end'] %}{{ lic['current_period_end']|dt }}{% else %}-{% endif %} · Last Seen: {% if lic['last_seen'] %}{{ lic['last_seen']|dt }}{% else %}-{% endif %}</p>
+  <form method="post" action="/admin/license/{{ lic['license_key'] }}/toggle" style="display:inline;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+    <button type="submit">{{ 'Deactivate' if lic['active']==1 else 'Activate' }}</button>
+  </form>
+  <form method="post" action="/admin/license/{{ lic['license_key'] }}/delete" style="display:inline; margin-left:8px;" onsubmit="return confirm('Delete license? This removes all activations.');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+    <button type="submit" style="background:#ef4444;">Delete</button>
+  </form>
+</div>
+
+<div class="card" style="margin-bottom:16px;">
+  <h3>Update License</h3>
+  <form method="post" action="/admin/license/{{ lic['license_key'] }}/update" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+    <label>Kind
+      <select name="kind">
+        <option value="perpetual" {% if (lic['kind'] or 'perpetual')=='perpetual' %}selected{% endif %}>perpetual</option>
+        <option value="subscription" {% if (lic['kind'] or '')=='subscription' %}selected{% endif %}>subscription</option>
+      </select>
+    </label>
+    <label>Status
+      <select name="status">
+        {% set s = lic['status'] or 'active' %}
+        <option value="active" {% if s=='active' %}selected{% endif %}>active</option>
+        <option value="past_due" {% if s=='past_due' %}selected{% endif %}>past_due</option>
+        <option value="canceled" {% if s=='canceled' %}selected{% endif %}>canceled</option>
+      </select>
+    </label>
+    <label>Current Period End (YYYY-MM-DD or seconds)
+      <input type="text" name="current_period_end" placeholder="blank = keep current or default {{ default_subscription_term_days }} days" value="{{ lic['current_period_end'] or '' }}" />
+    </label>
+    <label>Cancel at period end
+      <select name="cancel_at_period_end">
+        <option value="0" {% if (lic['cancel_at_period_end'] or 0)==0 %}selected{% endif %}>no</option>
+        <option value="1" {% if (lic['cancel_at_period_end'] or 0)==1 %}selected{% endif %}>yes</option>
+      </select>
+    </label>
+    <label>Max Devices <input type="number" min="1" name="max_devices" value="{{ lic['max_devices'] }}" /></label>
+    <label>Plan
+      <select name="plan">
+        {% set p = lic['plan'] %}
+        <option value="pro" {% if p=='pro' %}selected{% endif %}>pro</option>
+        <option value="standard" {% if p=='standard' %}selected{% endif %}>standard</option>
+      </select>
+    </label>
+    <label>Email <input type="email" name="owner_email" value="{{ lic['owner_email'] or '' }}" /></label>
+    <button type="submit">Update</button>
+  </form>
+</div>
+
+<div class="card">
+  <h3>Activations</h3>
+  <table>
+    <thead><tr><th>Device ID</th><th>Activated At</th><th>Last Activity</th><th></th></tr></thead>
+    <tbody>
+      {% for a in acts %}
+      <tr>
+        <td style="font-family:monospace;">{{ a['device_id'] }}</td>
+        <td>{{ a['activated_at']|dt }}</td>
+        <td>{% if a['last_activity'] %}{{ a['last_activity']|dt }}{% else %}-{% endif %}</td>
+        <td>
+          <form method="post" action="/admin/license/{{ lic['license_key'] }}/deactivate-device" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+            <input type="hidden" name="deviceId" value="{{ a['device_id'] }}" />
+            <button type="submit">Remove Device</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

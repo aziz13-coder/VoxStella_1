@@ -1,0 +1,20 @@
+{
+  "id": "restlessness",
+  "name": "Restlessness",
+  "domain": "tempo",
+  "description": "Frequent shifts of interest or place with strong Mutable quality and mutable‑axis houses; fixed/Saturn anchors reduce.",
+  "confidence": "high",
+  "polarity": "neutral",
+  "sources": ["Carter: Common (mutable) flexible/adaptable; under affliction unreliable/scattered"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "modality", "modality": "Mutable", "min_share": 0.35, "weight": 10 },
+      { "kind": "house_emphasis", "houses": [3,6,9,12], "min_total": 2, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.40, "weight": -6 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -6 }
+    ],
+    "escalators": [] }
+}
+

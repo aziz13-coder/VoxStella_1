@@ -1,0 +1,23 @@
+{
+  "id": "memory",
+  "name": "Memory",
+  "domain": "cognitive",
+  "description": "Capacity to retain and recall; benefits from strong Moon/Mercury and focused Air/Earth balance.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "planet_status", "planet": "Moon", "strong": true, "weight": 12 },
+      { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": 12 },
+      { "kind": "house_emphasis", "houses": [3, 4], "min_total": 2, "weight": 6 }
+    ],
+    "dampeners": [
+      { "kind": "aspect", "pair": ["Mercury", "Neptune"], "type": "hard", "max_orb": 6, "weight": -10 },
+      { "kind": "aspect", "pair": ["Mercury", "Jupiter"], "type": "hard", "max_orb": 6, "weight": -6 }
+    ],
+    "escalators": []
+  }
+}
+

@@ -1,0 +1,36 @@
+{
+  "generated_at": "2026-03-25T00:00:00+00:00",
+  "purpose": "Second external-source replay slice extending public-political homicide coverage after external slice 1",
+  "cases": [
+    {
+      "id": "mlk_assassination",
+      "title": "Assassination of Dr. Martin Luther King Jr.",
+      "source_kind": "official_archival_record",
+      "source_title": "National Archives HSCA report on the assassination of Dr. Martin Luther King Jr.",
+      "source_url": "https://aarclibrary.org/publib/jfk/hsca/report/pdf/HSCA_Report_2A_Ray.pdf",
+      "metadata_basis": "official_archival_exact_shot_time",
+      "metadata_confidence": "high",
+      "source_metadata_note": "The House Select Committee report records that Dr. King was on the balcony at approximately 6:01 PM on April 4, 1968 when the fatal shot was fired. That gives a strong event-time anchor for a public political homicide chart.",
+      "query": {
+        "mode": "manual",
+        "datetime_local": "1968-04-04T18:01:00",
+        "location": "Memphis, Tennessee",
+        "timezone": "America/Chicago",
+        "house_system_code": "R"
+      },
+      "expected_primary_axes": [
+        "violence_homicide",
+        "authority_or_public_case"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup"
+      ],
+      "contradictory_axes": [
+        "family_involvement",
+        "accident_or_disaster",
+        "abduction_missing_person"
+      ],
+      "comparison_status": "pending_route_replay"
+    }
+  ]
+}

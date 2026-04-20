@@ -1,0 +1,21 @@
+{
+  "id": "quiet_authority",
+  "name": "Quiet authority (structured leadership)",
+  "domain": "leadership_style",
+  "description": "Calm, structured influence that organizes without bluster with Capricorn/Saturn strength and 10th‑house emphasis; mutable scatter or flashy Fire reduce composure.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter: Capricorn desire to dominate & organize Nature; Saturn composure"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Capricorn", "min": 1.5, "weight": 8 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": 8 },
+      { "kind": "house_emphasis", "houses": [10], "min_total": 1, "weight": 6 }
+    ],
+    "dampeners": [
+      { "kind": "modality", "modality": "Mutable", "min_share": 0.40, "weight": -4 },
+      { "kind": "element", "element": "Fire", "min_share": 0.40, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

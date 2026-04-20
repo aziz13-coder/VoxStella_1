@@ -1,0 +1,22 @@
+{
+  "id": "utopianism",
+  "name": "Utopianism",
+  "domain": "ideals",
+  "description": "Ideal schemes for social improvement with Aquarius/Uranus strength and Jupiterian vision; 11th‑house collective ideals; Saturn/Earth realism moderates.",
+  "confidence": "medium",
+  "polarity": "neutral",
+  "sources": ["Carter: Aquarius/Uranus reform; Jupiter vision"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Aquarius", "min": 1.5, "weight": 8 },
+      { "kind": "planet_status", "planet": "Uranus", "strong": true, "weight": 8 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [11], "min_total": 1, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -6 },
+      { "kind": "element", "element": "Earth", "min_share": 0.40, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

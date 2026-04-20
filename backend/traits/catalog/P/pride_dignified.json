@@ -1,0 +1,22 @@
+{
+  "id": "pride_dignified",
+  "name": "Pride (dignified bearing)",
+  "domain": "ego_expression",
+  "description": "Dignified, confident bearing and strength of soul with Leo/Sun prominence; positive self‑manifestation via 5th house.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Leo self‑manifestation; Strength of Soul"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Leo", "min": 1.5, "weight": 8 },
+      { "kind": "planet_status", "planet": "Sun", "strong": true, "weight": 8 },
+      { "kind": "house_emphasis", "houses": [5], "min_total": 1, "weight": 4 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 3 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Sun", "afflicted": true, "weight": -8 },
+      { "kind": "planet_status", "planet": "Saturn", "afflicted": true, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

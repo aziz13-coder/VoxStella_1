@@ -1,0 +1,60 @@
+{
+  "cases": [
+    {
+      "id": "einstein",
+      "subject": "Albert Einstein",
+      "birth_local_source": "1879-03-14 10:30 local",
+      "replay_datetime_utc": "1879-03-14T09:30:00+00:00",
+      "location": "Ulm, Germany",
+      "coordinates": {
+        "lat": 48.3984,
+        "lon": 9.9916
+      },
+      "country_label": "Germany",
+      "timezone": "UTC",
+      "house_system_code": "R",
+      "expected_top_traits": [
+        "invention_discovery"
+      ],
+      "expected_summary_traits": [
+        "invention_discovery"
+      ],
+      "expected_positive_polarity": [
+        "invention_discovery"
+      ],
+      "min_top_matches": 1,
+      "min_summary_matches": 1,
+      "min_positive_matches": 1
+    },
+    {
+      "id": "jobs",
+      "subject": "Steve Jobs",
+      "birth_local_source": "1955-02-24 19:15 PST",
+      "replay_datetime_utc": "1955-02-25T03:15:00+00:00",
+      "location": "San Francisco, California, USA",
+      "coordinates": {
+        "lat": 37.7749,
+        "lon": -122.4194
+      },
+      "country_label": "USA",
+      "timezone": "UTC",
+      "house_system_code": "R",
+      "expected_top_traits": [
+        "scholarship"
+      ],
+      "expected_summary_traits": [
+        "scholarship",
+        "invention_discovery",
+        "genius_inventive_scientific"
+      ],
+      "expected_positive_polarity": [
+        "scholarship",
+        "invention_discovery",
+        "genius_inventive_scientific"
+      ],
+      "min_top_matches": 1,
+      "min_summary_matches": 2,
+      "min_positive_matches": 2
+    }
+  ]
+}

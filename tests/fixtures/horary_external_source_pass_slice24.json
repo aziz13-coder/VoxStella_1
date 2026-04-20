@@ -1,0 +1,70 @@
+[
+  {
+    "id": "where_is_my_roommate_astrologyweekly_source_pass",
+    "question": "Where is my roommate?",
+    "source_url": "https://astrologyweekly.com/threads/where-is-my-roommate.132438/",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "whereabouts / welfare",
+    "source_expected_category": "general",
+    "source_expected_houses": [
+      1,
+      7
+    ],
+    "source_expected_focus": "The forum discussion explicitly treats the roommate as a person sharing the home by agreement, so the roommate stays on the 7th rather than being judged like a lost possession.",
+    "current_engine_category": "general",
+    "current_engine_houses": [
+      1,
+      7
+    ],
+    "current_engine_quesited_house": 7,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Aligned after the roommate doctrine pass treats the roommate as a person on the 7th rather than a lost object."
+  },
+  {
+    "id": "what_house_for_roommate_astrologyweekly_source_pass",
+    "question": "What house for a roommate?",
+    "source_url": "https://astrologyweekly.com/threads/what-house-for-a-roommate.25695/",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "doctrine / 7th-house roommate",
+    "source_expected_category": "general",
+    "source_expected_houses": [
+      1,
+      7
+    ],
+    "source_expected_focus": "The thread is explicitly a doctrine discussion about which house signifies a roommate, and the operative answer is the 7th as a person sharing the home by agreement.",
+    "current_engine_category": "general",
+    "current_engine_houses": [
+      1,
+      7
+    ],
+    "current_engine_quesited_house": 7,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Aligned after the roommate doctrine pass surfaces the roommate as the operative 7th-house person instead of reducing the question to property."
+  },
+  {
+    "id": "should_we_move_in_together_astrologyweekly_source_pass",
+    "question": "Should we move in together?",
+    "source_url": "https://astrologyweekly.com/threads/should-we-move-in-together.17388/",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "quality / cohabitation outcome",
+    "source_expected_category": "relationship",
+    "source_expected_houses": [
+      1,
+      7,
+      4
+    ],
+    "source_expected_focus": "The forum discussion explicitly weighs both the partner axis and the home or cohabitation axis, so moving in together should not be reduced to a bare relationship chart without the 4th.",
+    "current_engine_category": "relationship",
+    "current_engine_houses": [
+      1,
+      7,
+      4
+    ],
+    "current_engine_quesited_house": 7,
+    "current_engine_intent": "QUALITY",
+    "source_alignment": true,
+    "alignment_note": "Aligned after the cohabitation doctrine pass keeps the relationship axis together with the 4th-house home."
+  }
+]

@@ -1,0 +1,137 @@
+{
+  "version": "1.0",
+  "houses": {
+    "1": {
+      "keywords_primary": ["self", "body", "character", "temperament", "constitution", "will", "disposition", "inclinations", "self_expression", "soul"],
+      "cusp": "Ascendant",
+      "fortunate": true,
+      "analog_planets": ["Sun", "Moon", "Mercury"]
+    },
+    "2": {
+      "keywords_primary": ["money", "wealth", "resources", "possessions", "assets", "income", "stability", "accumulation"],
+      "cusp": "Gate of Hades",
+      "fortunate": true,
+      "analog_planets": ["Jupiter", "Saturn"]
+    },
+    "3": {
+      "keywords_primary": ["siblings", "communications", "short_journeys", "neighbors", "documents", "letters", "writing", "speech", "early_education", "local_travel"],
+      "cusp": "Goddess",
+      "fortunate": true,
+      "analog_planets": ["Mercury"]
+    },
+    "4": {
+      "keywords_primary": ["home", "parents", "roots", "property", "endings", "private_life", "family", "estate", "land", "foundations", "ancestry", "real_estate"],
+      "cusp": "Imum Coeli (IC)",
+      "fortunate": true,
+      "analog_planets": ["Moon", "Sun", "Saturn", "Jupiter"]
+    },
+    "5": {
+      "keywords_primary": ["children", "pleasure", "creativity", "love_affairs", "speculation", "joy", "recreation", "amusements", "arts", "romance", "fertility"],
+      "cusp": "Good Fortune",
+      "fortunate": true,
+      "analog_planets": ["Sun", "Venus", "Jupiter"]
+    },
+    "6": {
+      "keywords_primary": ["work", "service", "servants", "employees", "animals", "pets", "daily_routine", "illness", "duty", "obligations", "subordinate_position", "health"],
+      "cusp": "Bad Fortune",
+      "fortunate": true,
+      "analog_planets": ["Mercury", "Mars", "Saturn"]
+    },
+    "7": {
+      "keywords_primary": ["marriage", "partnerships", "open_enemies", "contracts", "litigation", "spouse", "alliances", "agreements", "public_relations", "cooperation", "conflict"],
+      "cusp": "Descendant",
+      "fortunate": true,
+      "analog_planets": ["Venus", "Mars"]
+    },
+    "8": {
+      "keywords_primary": ["death", "inheritance", "legacies", "other_peoples_money", "debts", "taxes", "danger", "danger_to_life", "fear", "violent_death", "transformation"],
+      "cusp": "Idle Place",
+      "fortunate": false,
+      "analog_planets": ["Mars", "Saturn"]
+    },
+    "9": {
+      "keywords_primary": ["religion", "faith", "philosophy", "long_journeys", "publishing", "teaching", "law", "legal_matters", "higher_learning", "wisdom", "foreign_affairs"],
+      "cusp": "God/Sun",
+      "fortunate": true,
+      "analog_planets": ["Jupiter", "Sun"]
+    },
+    "10": {
+      "keywords_primary": ["career", "profession", "honors", "public_honors", "reputation", "status", "public_role", "fame", "prestige", "ambition", "achievement", "office"],
+      "cusp": "Midheaven (MC)",
+      "fortunate": true,
+      "analog_planets": ["Sun", "Jupiter", "Saturn"]
+    },
+    "11": {
+      "keywords_primary": ["friends", "benefactors", "patrons", "hopes", "wishes", "associations", "networks", "allies", "protection", "nobility"],
+      "cusp": "Good Spirit",
+      "fortunate": true,
+      "analog_planets": ["Sun", "Jupiter", "Venus"]
+    },
+    "12": {
+      "keywords_primary": ["hidden_enemies", "imprisonment", "prisons", "hospitals", "asylums", "illness", "confinement", "seclusion", "exile", "self_undoing", "sorrow", "tribulation", "secret", "hidden"],
+      "cusp": "Bad Spirit",
+      "fortunate": false,
+      "analog_planets": ["Saturn", "Mars", "Jupiter", "Venus"]
+    }
+  },
+  "planets": {
+    "Sun": {
+      "nature": ["hot", "dry", "benefic", "diurnal"],
+      "keywords_primary": ["authority", "vitality", "honor", "visibility", "leadership", "prestige", "reputation", "fame", "spirit"],
+      "house_affinities": [1, 5, 9, 10, 11]
+    },
+    "Moon": {
+      "nature": ["cold", "moist", "benefic", "nocturnal"],
+      "keywords_primary": ["emotion", "body", "habits", "receptivity", "fertility", "mother", "changeability", "public", "daily_life", "instincts", "domestic"],
+      "house_affinities": [1, 4]
+    },
+    "Mercury": {
+      "nature": ["neutral", "variable", "androgynous"],
+      "keywords_primary": ["mind", "intellect", "communication", "speech", "writing", "commerce", "trade", "negotiation", "contracts", "learning", "youth", "dexterity", "analysis"],
+      "house_affinities": [1, 3, 6]
+    },
+    "Venus": {
+      "nature": ["cold", "moist", "benefic", "nocturnal"],
+      "keywords_primary": ["harmony", "love", "marriage", "beauty", "arts", "aesthetics", "peace", "affection", "pleasure", "attraction", "diplomacy", "sensuality"],
+      "house_affinities": [2, 5, 7, 11]
+    },
+    "Mars": {
+      "nature": ["hot", "dry", "malefic", "nocturnal"],
+      "keywords_primary": ["conflict", "strife", "anger", "war", "military", "courage", "injury", "surgery", "cuts", "heat", "fever", "impulse", "quarrels", "acute_illness"],
+      "house_affinities": [7, 8, 12]
+    },
+    "Jupiter": {
+      "nature": ["hot", "moist", "benefic", "diurnal"],
+      "keywords_primary": ["wealth", "abundance", "generosity", "benevolence", "protection", "justice", "law", "religion", "elevation", "honors", "optimism", "higher_education", "foreign_affairs", "prosperity", "preservation", "mitigation"],
+      "house_affinities": [2, 9, 10, 11, 4]
+    },
+    "Saturn": {
+      "nature": ["cold", "dry", "malefic", "diurnal"],
+      "keywords_primary": ["restriction", "structure", "fear", "coldness", "delay", "discipline", "authority", "chronic", "imprisonment", "secret_enemies", "confinement", "illness", "sorrow", "privation"],
+      "house_affinities": [10, 11, 12, 4]
+    }
+  },
+  "dignities": {
+    "domicile": ["at_home", "full_expression", "stable", "unsubordinated"],
+    "exaltation": ["elevation", "honors", "preferment", "sudden_advance"],
+    "detriment": ["exile", "weakened", "contrary_place"],
+    "fall": ["depressed", "severe_weakness"]
+  },
+  "sect": {
+    "benefic_of_sect": ["sect_benefic", "harmonious_expression"],
+    "malefic_out_of_sect": ["harsher_effects", "contrary", "greater_harm"],
+    "in_sect": ["comfort"],
+    "out_of_sect": ["discomfort"],
+    "hayz": ["optimal_coherence"]
+  },
+  "aspects": {
+    "Conjunction": ["fusion"],
+    "Trine": ["flow", "support"],
+    "Sextile": ["opportunity"],
+    "Square": ["conflict", "obstruction"],
+    "Opposition": ["polarity", "tension"],
+    "Quincunx": ["adjustment", "incongruence", "health"],
+    "Semisquare": ["tension", "irritation"],
+    "Sesquiquadrate": ["tension", "strain"]
+  }
+}

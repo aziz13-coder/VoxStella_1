@@ -1,0 +1,22 @@
+{
+  "id": "weariness",
+  "name": "Weariness",
+  "domain": "energy_tone",
+  "description": "Low energy tone and tendency toward withdrawal with Saturn heaviness, afflicted Sun, and Water withdrawal; Fire vitality and Jupiter buoyancy reduce.",
+  "confidence": "medium",
+  "polarity": "negative",
+  "sources": ["Carter: Fire vitality vs. Saturn austerity; Water withdrawal"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": 8 },
+      { "kind": "planet_status", "planet": "Sun", "afflicted": true, "weight": 6 },
+      { "kind": "element", "element": "Water", "min_share": 0.35, "weight": 4 },
+      { "kind": "house_emphasis", "houses": [12], "min_total": 1, "weight": 3 }
+    ],
+    "dampeners": [
+      { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": -6 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

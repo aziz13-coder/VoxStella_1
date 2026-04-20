@@ -1,0 +1,20 @@
+{
+  "id": "danger_watery_catastrophes",
+  "name": "Danger theme — watery catastrophes",
+  "domain": "environmental_risk",
+  "description": "Watery trigon linked to catastrophe themes; forbidding houses 4/8/12 and malefic activations.",
+  "confidence": "low",
+  "polarity": "negative",
+  "sources": ["Carter: watery trigon and forbidding houses"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "element", "element": "Water", "min_share": 0.35, "weight": 8 },
+      { "kind": "house_emphasis", "houses": [4,8,12], "min_total": 2, "weight": 8 },
+      { "kind": "planet_status", "planet": "Mars", "afflicted": true, "weight": 6 }
+    ],
+    "dampeners": [],
+    "escalators": []
+  }
+}
+

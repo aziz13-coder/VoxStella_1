@@ -1,0 +1,22 @@
+{
+  "id": "valor",
+  "name": "Valor (courage)",
+  "domain": "courage",
+  "description": "Brave willingness to face danger and act decisively with Aries/Scorpio emphasis and strong Mars/Sun; excessive Water caution or Saturn afflicting Mars reduces.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Aries self‑assertion/courage; Scorpio grit/endurance"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_group_emphasis", "group": ["Aries","Scorpio"], "min": 2.0, "weight": 8 },
+      { "kind": "planet_status", "planet": "Mars", "strong": true, "weight": 10 },
+      { "kind": "planet_status", "planet": "Sun", "strong": true, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [1,8,9], "min_total": 1, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "element", "element": "Water", "min_share": 0.40, "weight": -6 },
+      { "kind": "aspect", "pair": ["Saturn","Mars"], "type": "hard", "max_orb": 6, "weight": -6 }
+    ],
+    "escalators": [] }
+}
+

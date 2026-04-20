@@ -1,0 +1,24 @@
+{
+  "id": "unselfishness",
+  "name": "Unselfishness",
+  "domain": "care_orientation",
+  "description": "Readiness to give of self for kin or wider humanity with Water strength, Moon prominence, and benefics in Water; Aries/Mars and cold Saturn reduce.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Higher Water — sympathetic, protective, self‑sacrificing"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "element", "element": "Water", "min_share": 0.35, "weight": 8 },
+      { "kind": "planet_status", "planet": "Moon", "strong": true, "weight": 6 },
+      { "kind": "planet_in_sign", "planet": "Jupiter", "sign": "Cancer", "weight": 3 },
+      { "kind": "planet_in_sign", "planet": "Venus", "sign": "Pisces", "weight": 3 },
+      { "kind": "house_emphasis", "houses": [12,4], "min_total": 1, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "sign_emphasis", "sign": "Aries", "min": 1.5, "weight": -6 },
+      { "kind": "planet_status", "planet": "Mars", "strong": true, "weight": -4 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

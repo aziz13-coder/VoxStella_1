@@ -1,0 +1,21 @@
+{
+  "id": "quibbling",
+  "name": "Quibbling (over‑minutiae)",
+  "domain": "shadow_of_earth",
+  "description": "Overemphasis on minutiae and hair‑splitting when Virgo/Earth dominate without benefic breadth; 6th‑house method focus.",
+  "confidence": "medium",
+  "polarity": "negative",
+  "sources": ["Carter: Earth utilization/manipulation in detail; Virgo patient/careful/discerning (overdone)"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Virgo", "min": 1.5, "weight": 8 },
+      { "kind": "element", "element": "Earth", "min_share": 0.40, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [6], "min_total": 1, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": -6 },
+      { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

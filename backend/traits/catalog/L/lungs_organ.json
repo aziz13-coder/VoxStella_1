@@ -1,0 +1,22 @@
+{
+  "id": "lungs_organ",
+  "name": "Lungs (organ tendency)",
+  "domain": "anatomy_disease",
+  "description": "General respiratory mapping to Gemini/Mercury and Air; susceptibility rises with Mercury afflictions and harsh Mars/Saturn to Mercury.",
+  "confidence": "medium",
+  "polarity": "negative",
+  "sources": ["Carter: Gemini/Mercury respiration analogies"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Gemini", "min": 1.5, "weight": 4 },
+      { "kind": "planet_status", "planet": "Mercury", "afflicted": true, "weight": 6 },
+      { "kind": "aspect", "pair": ["Mars","Mercury"], "type": "hard", "max_orb": 6, "weight": 6 },
+      { "kind": "aspect", "pair": ["Saturn","Mercury"], "type": "hard", "max_orb": 6, "weight": 6 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": -4 },
+      { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

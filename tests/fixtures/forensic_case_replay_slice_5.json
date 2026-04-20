@@ -1,0 +1,63 @@
+{
+  "generated_at": "2026-03-25T00:00:00+00:00",
+  "purpose": "Fifth replay-ready forensic case slice focused on the previously deferred disaster charts that have explicit local-source anchors but needed narrower disaster-direction handling",
+  "cases": [
+    {
+      "id": "twa_flight_800",
+      "title": "The Crash of TWA Flight 800",
+      "source_book_id": "salerno_forensics_by_the_stars",
+      "source_file": "Forensics by the Stars Astrology Investigates (B. D. Salerno) (Z-Library).txt",
+      "metadata_basis": "source_explicit_prose_plus_internal_chart_signature",
+      "metadata_confidence": "medium",
+      "source_metadata_note": "The local text explicitly gives the date and Long Island departure context, and it says the Ascendant is zero degrees Aquarius at take-off; the replay uses the internally solved 8:31 PM local launch time that reproduces that source chart signature.",
+      "query": {
+        "mode": "manual",
+        "datetime_local": "1996-07-17T20:31:00",
+        "location": "Long Island, New York",
+        "timezone": "America/New_York",
+        "house_system_code": "R"
+      },
+      "expected_primary_axes": [
+        "accident_or_disaster"
+      ],
+      "expected_secondary_axes": [
+        "authority_or_public_case",
+        "deception_coverup"
+      ],
+      "contradictory_axes": [
+        "domestic_partner_involvement",
+        "family_involvement",
+        "child_victim"
+      ],
+      "comparison_status": "pending_route_replay"
+    },
+    {
+      "id": "haiti_earthquake",
+      "title": "The Haiti Earthquake",
+      "source_book_id": "salerno_forensics_by_the_stars",
+      "source_file": "Forensics by the Stars Astrology Investigates (B. D. Salerno) (Z-Library).txt",
+      "metadata_basis": "source_explicit_prose_plus_case_context",
+      "metadata_confidence": "medium",
+      "source_metadata_note": "The local text explicitly gives the event time as 4:58 PM local time on January 12, 2010 and identifies the event nationally as Haiti; the replay uses the national geocode anchor 'Haiti' with the local timezone.",
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2010-01-12T16:58:00",
+        "location": "Haiti",
+        "timezone": "America/Port-au-Prince",
+        "house_system_code": "R"
+      },
+      "expected_primary_axes": [
+        "accident_or_disaster"
+      ],
+      "expected_secondary_axes": [
+        "authority_or_public_case"
+      ],
+      "contradictory_axes": [
+        "domestic_partner_involvement",
+        "family_involvement",
+        "child_victim"
+      ],
+      "comparison_status": "pending_route_replay"
+    }
+  ]
+}

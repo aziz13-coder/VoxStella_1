@@ -1,0 +1,46 @@
+[
+  {
+    "id": "george_w_bush_iraq_address",
+    "natal_datetime": "1946-07-06T07:26:00",
+    "natal_location": "New Haven, Connecticut",
+    "natal_timezone": "America/New_York",
+    "resolved_location": "New Haven, Connecticut, USA",
+    "latitude": 41.3083,
+    "longitude": -72.9279,
+    "house_system_code": "W",
+    "event_datetime": "2003-03-19T22:16:00-05:00",
+    "window_hours": 24,
+    "expected_event_row_transits": [
+      "Mars Quincunx Mercury"
+    ],
+    "max_peak_distance_hours": 20.0,
+    "sources": {
+      "natal": "https://www.astro.com/astro-databank/Bush,_George_W.",
+      "event": "https://georgewbush-whitehouse.archives.gov/news/releases/2003/03/20030319-17.html"
+    },
+    "time_basis": "official_white_house_address_timestamp",
+    "time_confidence": "high"
+  },
+  {
+    "id": "shinzo_abe_assassination",
+    "natal_datetime": "1954-09-21T12:00:00",
+    "natal_location": "Tokyo, Japan",
+    "natal_timezone": "Asia/Tokyo",
+    "resolved_location": "Tokyo, Japan",
+    "latitude": 35.6762,
+    "longitude": 139.6503,
+    "house_system_code": "W",
+    "event_datetime": "2022-07-08T11:30:00+09:00",
+    "window_hours": 24,
+    "expected_event_row_transits": [
+      "Jupiter Quincunx Mercury (contra-antiscia)"
+    ],
+    "max_peak_distance_hours": 8.0,
+    "sources": {
+      "natal": "https://www.astro.com/astro-databank/Abe,_Shinzo",
+      "event": "https://www.asahi.com/ajw/articles/14663575"
+    },
+    "time_basis": "official_shooting_slot_used_in_forensic_replay",
+    "time_confidence": "medium"
+  }
+]

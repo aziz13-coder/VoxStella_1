@@ -1,0 +1,22 @@
+{
+  "id": "haemorrhoids",
+  "name": "Haemorrhoids (piles)",
+  "domain": "disease_vascular",
+  "description": "Engorged venous cushions with inflammation/bleeding; Scorpio/8th symbolism plus Saturn (obstruction) and Mars (inflammation).",
+  "confidence": "low",
+  "polarity": "negative",
+  "sources": ["Carter — Encyclopaedia of Psychological Astrology, H: Haemorrhoids."],
+  "engine_rule": "If Saturn and Mars afflict Scorpio/8th or Venus, increment piles risk; reduce if benefics relieve.",
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "aspect", "pair": ["Saturn","Mars"], "type": "hard", "max_orb": 6, "weight": 8 },
+      { "kind": "house_emphasis", "houses": [6,8], "min_total": 2, "weight": 6 },
+      { "kind": "sign_emphasis", "sign": "Scorpio", "min": 1.5, "weight": 4 },
+      { "kind": "aspect", "pair": ["Saturn","Venus"], "type": "hard", "max_orb": 6, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "aspect", "pair": ["Venus","Jupiter"], "type": "soft", "max_orb": 6, "weight": -4 },
+      { "kind": "aspect", "pair": ["Moon","Jupiter"], "type": "soft", "max_orb": 6, "weight": -4 }
+    ],
+    "escalators": [] }
+}

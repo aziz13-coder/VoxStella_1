@@ -1,0 +1,23 @@
+{
+  "id": "vindictiveness",
+  "name": "Vindictiveness",
+  "domain": "shadow_affect",
+  "description": "Harboring grudges with potential for explosive retaliation when Scorpio fixed Water represses and Mars takes hard reactions; Libra/Venus/Jupiter mitigate.",
+  "confidence": "high",
+  "polarity": "negative",
+  "sources": ["Carter: Repressed Scorpio resentments may end explosively"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Scorpio", "min": 1.5, "weight": 8 },
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.35, "weight": 4 },
+      { "kind": "aspect", "pair": ["Mars","Moon"], "type": "hard", "max_orb": 6, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [8,12], "min_total": 1, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": -6 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": -4 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

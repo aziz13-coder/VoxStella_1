@@ -1,0 +1,23 @@
+{
+  "id": "sympathy",
+  "name": "Sympathy",
+  "domain": "care_orientation",
+  "description": "Compassionate identification and helpful guardianship with benefics in Water, Moon strength, and 4th/12th emphasis; harsh Saturn/Mars on the Lights reduce.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Higher Water types — sympathetic/helpful guardian"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "planet_in_sign", "planet": "Jupiter", "sign": "Cancer", "weight": 4 },
+      { "kind": "planet_in_sign", "planet": "Venus", "sign": "Pisces", "weight": 4 },
+      { "kind": "planet_status", "planet": "Moon", "strong": true, "weight": 6 },
+      { "kind": "element", "element": "Water", "min_share": 0.35, "weight": 8 },
+      { "kind": "house_emphasis", "houses": [4,12], "min_total": 1, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "aspect", "pair": ["Mars","Moon"], "type": "hard", "max_orb": 6, "weight": -6 },
+      { "kind": "aspect", "pair": ["Saturn","Moon"], "type": "hard", "max_orb": 6, "weight": -6 }
+    ],
+    "escalators": [] }
+}
+

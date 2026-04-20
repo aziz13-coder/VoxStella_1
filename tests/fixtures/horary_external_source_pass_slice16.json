@@ -1,0 +1,72 @@
+[
+  {
+    "id": "publish_my_book_source_pass",
+    "question": "Will i publish my book?",
+    "source_url": "https://astrologyweekly.com/threads/will-i-publish-my-book.32269/",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "publication of a book",
+    "source_expected_category": "general",
+    "source_expected_houses": [
+      1,
+      9
+    ],
+    "source_expected_focus": "The thread explicitly treats publication as a 9th-house matter, distinguishing it from merely writing the book.",
+    "current_engine_category": "general",
+    "current_engine_houses": [
+      1,
+      9
+    ],
+    "current_engine_quesited_house": 9,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Aligned after the publication doctrine pass keeps publication on the 9th instead of delivery-style goods logic."
+  },
+  {
+    "id": "book_review_published_magazine_source_pass",
+    "question": "Will i get a book review published in this online magazine?",
+    "source_url": "https://astrologyweekly.com/threads/will-i-get-a-book-review-published-in-this-online-magazine.28313/",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "publication in a magazine with payment secondary",
+    "source_expected_category": "general",
+    "source_expected_houses": [
+      1,
+      9,
+      2
+    ],
+    "source_expected_focus": "The source keeps publication itself primary while noting that money or payment is a secondary part of the judgment, not the main house axis.",
+    "current_engine_category": "general",
+    "current_engine_houses": [
+      1,
+      9,
+      2
+    ],
+    "current_engine_quesited_house": 9,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Aligned after the publication doctrine pass keeps publication primary on the 9th while leaving gain secondary on the 2nd."
+  },
+  {
+    "id": "publish_book_and_have_gains_source_pass",
+    "question": "Will I publish my book and have gains from it?",
+    "source_url": "https://astrologyweekly.com/threads/will-i-publish-my-book-and-have-gains-from-it.147475/latest",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "publication and profit from publication",
+    "source_expected_category": "money",
+    "source_expected_houses": [
+      1,
+      9,
+      2
+    ],
+    "source_expected_focus": "The thread keeps publication on the 9th and the querent's gains on the 2nd, even while forum posters debate secondary houses and publisher involvement.",
+    "current_engine_category": "money",
+    "current_engine_houses": [
+      1,
+      9,
+      2
+    ],
+    "current_engine_quesited_house": 9,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Aligned after the publication doctrine pass keeps publication on the 9th and gain from publication on the 2nd."
+  }
+]

@@ -1,0 +1,152 @@
+{
+  "generated_at": "2026-03-25T00:00:00+00:00",
+  "purpose": "Third replay-ready forensic case slice to pressure-test fresh homicide and disaster cases through the real forensic route",
+  "cases": [
+    {
+      "id": "ronnie_lee_bakley",
+      "title": "Ronnie Lee Bakley: Death by Beretta?",
+      "source_book_id": "salerno_exploring_family_murders",
+      "source_file": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "metadata_basis": "source_explicit_prose",
+      "metadata_confidence": "high",
+      "source_metadata_note": "The event chart is for the shooting that took place at approximately 9:40 p.m. on May 4, 2001, in Studio City, California.",
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2001-05-04T21:40:00",
+        "location": "Studio City, California",
+        "timezone": "America/Los_Angeles",
+        "house_system_code": "R"
+      },
+      "expected_primary_axes": [
+        "domestic_partner_involvement",
+        "violence_homicide"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup",
+        "authority_or_public_case"
+      ],
+      "contradictory_axes": [
+        "accident_or_disaster",
+        "child_victim"
+      ],
+      "comparison_status": "pending_route_replay"
+    },
+    {
+      "id": "marvin_gaye",
+      "title": "Marvin Gaye: Death by Father",
+      "source_book_id": "salerno_exploring_family_murders",
+      "source_file": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "metadata_basis": "source_explicit_prose",
+      "metadata_confidence": "high",
+      "source_metadata_note": "The police were called to the Los Angeles suburb of West Adams at 11:38 a.m. on April 1, 1984, and the author explicitly reads this as a family-conflict murder chart.",
+      "query": {
+        "mode": "manual",
+        "datetime_local": "1984-04-01T11:38:00",
+        "location": "West Adams, Los Angeles, California",
+        "timezone": "America/Los_Angeles",
+        "house_system_code": "R"
+      },
+      "expected_primary_axes": [
+        "family_involvement",
+        "violence_homicide",
+        "authority_or_public_case"
+      ],
+      "contradictory_axes": [
+        "accident_or_disaster",
+        "abduction_missing_person"
+      ],
+      "comparison_status": "pending_route_replay"
+    },
+    {
+      "id": "alice_crimmins",
+      "title": "Alice Crimmins: Guilty by Lifestyle?",
+      "source_book_id": "salerno_exploring_family_murders",
+      "source_file": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "metadata_basis": "source_explicit_prose",
+      "metadata_confidence": "high",
+      "source_metadata_note": "Alice telephoned her husband to report the children missing at 10:00 a.m. on July 14, 1965, in Kew Gardens, Queens, and the author explicitly used the documented phone-call time for the chart.",
+      "query": {
+        "mode": "manual",
+        "datetime_local": "1965-07-14T10:00:00",
+        "location": "Kew Gardens, Queens, New York",
+        "timezone": "America/New_York",
+        "house_system_code": "R"
+      },
+      "expected_primary_axes": [
+        "family_involvement",
+        "child_victim",
+        "violence_homicide"
+      ],
+      "expected_secondary_axes": [
+        "abduction_missing_person",
+        "authority_or_public_case"
+      ],
+      "contradictory_axes": [
+        "accident_or_disaster"
+      ],
+      "comparison_status": "pending_route_replay"
+    },
+    {
+      "id": "air_france_447",
+      "title": "Air France Flight #447",
+      "source_book_id": "salerno_forensics_by_the_stars",
+      "source_file": "Forensics by the Stars Astrology Investigates (B. D. Salerno) (Z-Library).txt",
+      "metadata_basis": "source_explicit_prose",
+      "metadata_confidence": "high",
+      "source_metadata_note": "The flight left Rio de Janeiro, Brazil, on the night of May 31, 2009, and the author explicitly used the time of take-off, 7:03 PM BZT, for the event horoscope.",
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2009-05-31T19:03:00",
+        "location": "Rio de Janeiro, Brazil",
+        "timezone": "America/Sao_Paulo",
+        "house_system_code": "R"
+      },
+      "expected_primary_axes": [
+        "accident_or_disaster",
+        "water_disappearance_or_drowning"
+      ],
+      "expected_secondary_axes": [
+        "authority_or_public_case"
+      ],
+      "contradictory_axes": [
+        "domestic_partner_involvement",
+        "family_involvement",
+        "child_victim",
+        "abduction_missing_person",
+        "violence_homicide"
+      ],
+      "comparison_status": "pending_route_replay"
+    },
+    {
+      "id": "costa_concordia",
+      "title": "Sinking of the Costa Concordia",
+      "source_book_id": "salerno_forensics_by_the_stars",
+      "source_file": "Forensics by the Stars Astrology Investigates (B. D. Salerno) (Z-Library).txt",
+      "metadata_basis": "source_explicit_prose",
+      "metadata_confidence": "high",
+      "source_metadata_note": "The Costa Concordia set sail at 7:30 PM from Civitavecchia on January 13, 2012, and the chapter treats the launch chart as the primary event chart for the disaster.",
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2012-01-13T19:30:00",
+        "location": "Civitavecchia, Italy",
+        "timezone": "Europe/Rome",
+        "house_system_code": "R"
+      },
+      "expected_primary_axes": [
+        "accident_or_disaster",
+        "water_disappearance_or_drowning"
+      ],
+      "expected_secondary_axes": [
+        "authority_or_public_case"
+      ],
+      "contradictory_axes": [
+        "domestic_partner_involvement",
+        "family_involvement",
+        "child_victim",
+        "abduction_missing_person",
+        "violence_homicide"
+      ],
+      "comparison_status": "pending_route_replay"
+    }
+  ]
+}

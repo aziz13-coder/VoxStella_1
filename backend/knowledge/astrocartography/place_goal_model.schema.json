@@ -1,0 +1,503 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://voxstella.local/schemas/astrocartography/place-goal-model.schema.json",
+  "title": "Astrocartography Place Goal Model",
+  "description": "Schema for explainable Vox Stella astrocartography place-finder goal profiles.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "label",
+    "version",
+    "status",
+    "summary",
+    "score_components"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$"
+    },
+    "label": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "active",
+        "deprecated"
+      ]
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string"
+    },
+    "evaluation_strategy": {
+      "type": "string",
+      "enum": [
+        "accident_pressure",
+        "benefic_minus_malefic",
+        "malefic_minus_benefic"
+      ]
+    },
+    "transit_strategy": {
+      "type": "string",
+      "enum": [
+        "overlay",
+        "ignore"
+      ]
+    },
+    "goal_family": {
+      "type": "string",
+      "enum": [
+        "education",
+        "love",
+        "work",
+        "money",
+        "career",
+        "home",
+        "partners",
+        "personal",
+        "friends",
+        "beliefs",
+        "sex",
+        "sex_intimacy",
+        "communication",
+        "travel",
+        "conflict",
+        "protection",
+        "gambling",
+        "risk",
+        "custom"
+      ]
+    },
+    "legacy_refs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/legacyRef"
+      },
+      "default": []
+    },
+    "ui": {
+      "$ref": "#/$defs/uiHints"
+    },
+    "score_components": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/lineWeight"
+          },
+          {
+            "$ref": "#/$defs/crossingWeight"
+          },
+          {
+            "$ref": "#/$defs/relocationWeight"
+          },
+          {
+            "$ref": "#/$defs/modifierWeight"
+          },
+          {
+            "$ref": "#/$defs/constraintWeight"
+          }
+        ]
+      }
+    },
+    "normalization": {
+      "$ref": "#/$defs/normalization"
+    },
+    "explanations": {
+      "$ref": "#/$defs/explanations"
+    }
+  },
+  "$defs": {
+    "legacyRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_app",
+        "source_file",
+        "kind"
+      ],
+      "properties": {
+        "source_app": {
+          "type": "string"
+        },
+        "source_file": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "pls",
+            "hyp",
+            "doc",
+            "manual"
+          ]
+        },
+        "header_ru": {
+          "type": "string"
+        },
+        "event_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "category_token": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      }
+    },
+    "planet": {
+      "type": "string",
+      "enum": [
+        "Sun",
+        "Moon",
+        "Mercury",
+        "Venus",
+        "Mars",
+        "Jupiter",
+        "Saturn",
+        "Uranus",
+        "Neptune",
+        "Pluto",
+        "North Node",
+        "Chiron"
+      ]
+    },
+    "angle": {
+      "type": "string",
+      "enum": [
+        "ASC",
+        "DSC",
+        "MC",
+        "IC"
+      ]
+    },
+    "distanceBand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_km"
+      ],
+      "properties": {
+        "max_km": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "falloff": {
+          "type": "string",
+          "enum": [
+            "flat",
+            "linear",
+            "inverse",
+            "custom"
+          ],
+          "default": "linear"
+        }
+      }
+    },
+    "lineWeight": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "planet",
+        "angles",
+        "weight"
+      ],
+      "properties": {
+        "kind": {
+          "const": "line"
+        },
+        "planet": {
+          "$ref": "#/$defs/planet"
+        },
+        "angles": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/angle"
+          }
+        },
+        "distance": {
+          "$ref": "#/$defs/distanceBand"
+        },
+        "weight": {
+          "type": "number"
+        },
+        "polarity": {
+          "type": "string",
+          "enum": [
+            "support",
+            "caution",
+            "neutral"
+          ]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "rationale": {
+          "type": "string"
+        }
+      }
+    },
+    "crossingWeight": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "pair",
+        "weight"
+      ],
+      "properties": {
+        "kind": {
+          "const": "crossing"
+        },
+        "pair": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/$defs/planet"
+          }
+        },
+        "distance": {
+          "$ref": "#/$defs/distanceBand"
+        },
+        "weight": {
+          "type": "number"
+        },
+        "polarity": {
+          "type": "string",
+          "enum": [
+            "support",
+            "caution",
+            "neutral"
+          ]
+        },
+        "rationale": {
+          "type": "string"
+        }
+      }
+    },
+    "relocationWeight": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "weight"
+      ],
+      "properties": {
+        "kind": {
+          "const": "relocation"
+        },
+        "houses": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 12
+          },
+          "default": []
+        },
+        "planets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/planet"
+          },
+          "default": []
+        },
+        "angles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/angle"
+          },
+          "default": []
+        },
+        "weight": {
+          "type": "number"
+        },
+        "rationale": {
+          "type": "string"
+        }
+      }
+    },
+    "modifierWeight": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "metric",
+        "weight"
+      ],
+      "properties": {
+        "kind": {
+          "const": "modifier"
+        },
+        "metric": {
+          "type": "string",
+          "enum": [
+            "benefic_balance",
+            "malefic_pressure",
+            "stability",
+            "visibility",
+            "domesticity",
+            "partnership",
+            "mobility",
+            "uncertainty",
+            "community",
+            "beliefs",
+            "chemistry",
+            "career_status",
+            "home_base",
+            "personal_growth",
+            "body_presence",
+            "communication",
+            "conflict_pressure",
+            "travel_joy",
+            "restoration",
+            "speculation",
+            "speculation_drag",
+            "health_risk",
+            "custom"
+          ]
+        },
+        "weight": {
+          "type": "number"
+        },
+        "rationale": {
+          "type": "string"
+        }
+      }
+    },
+    "constraintWeight": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "metric",
+        "operator",
+        "threshold",
+        "rationale"
+      ],
+      "properties": {
+        "kind": {
+          "const": "constraint"
+        },
+        "metric": {
+          "type": "string"
+        },
+        "operator": {
+          "type": "string",
+          "enum": [
+            "gt",
+            "gte",
+            "lt",
+            "lte"
+          ]
+        },
+        "threshold": {
+          "type": "number"
+        },
+        "multiplier": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "add": {
+          "type": "number"
+        },
+        "cap_score": {
+          "type": "number"
+        },
+        "polarity": {
+          "type": "string",
+          "enum": [
+            "support",
+            "caution",
+            "neutral"
+          ]
+        },
+        "rationale": {
+          "type": "string"
+        }
+      }
+    },
+    "normalization": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "method": {
+          "type": "string",
+          "enum": [
+            "none",
+            "zscore",
+            "minmax",
+            "bounded_linear"
+          ],
+          "default": "bounded_linear"
+        },
+        "min_score": {
+          "type": "number"
+        },
+        "max_score": {
+          "type": "number"
+        }
+      }
+    },
+    "uiHints": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "color_token": {
+          "type": "string"
+        },
+        "icon": {
+          "type": "string"
+        },
+        "recommended_order": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "explanations": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "positive_summary": {
+          "type": "string"
+        },
+        "caution_summary": {
+          "type": "string"
+        },
+        "top_factor_template": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

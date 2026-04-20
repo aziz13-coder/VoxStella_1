@@ -1,0 +1,21 @@
+{
+  "id": "conservatism",
+  "name": "Conservatism (fixed reserve)",
+  "domain": "character_style",
+  "description": "Reserved, conservative, holding power associated with Fixed quality and succeedent houses.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Fixed = reserved, conservative; succeedent houses"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.35, "weight": 12 },
+      { "kind": "house_emphasis", "houses": [2,5,8,11], "min_total": 3, "weight": 6 }
+    ],
+    "dampeners": [
+      { "kind": "modality", "modality": "Cardinal", "min_share": 0.40, "weight": -6 }
+    ],
+    "escalators": []
+  }
+}
+

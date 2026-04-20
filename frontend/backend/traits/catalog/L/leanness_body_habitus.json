@@ -1,0 +1,23 @@
+{
+  "id": "leanness_body_habitus",
+  "name": "Leanness (body habitus)",
+  "domain": "constitution",
+  "description": "Tendency to thinness with Saturnine/Virgo influence and Air; countered by Jupiter/Venus abundance and heavy Earth/Water.",
+  "confidence": "medium",
+  "polarity": "neutral",
+  "sources": ["Carter: Saturn dryness; elemental constitutions; benefic plenitude"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": 8 },
+      { "kind": "sign_emphasis", "sign": "Virgo", "min": 1.5, "weight": 6 },
+      { "kind": "element", "element": "Air", "min_share": 0.35, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": -6 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": -4 },
+      { "kind": "element", "element": "Earth", "min_share": 0.35, "weight": -4 },
+      { "kind": "element", "element": "Water", "min_share": 0.35, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

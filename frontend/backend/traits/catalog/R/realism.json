@@ -1,0 +1,22 @@
+{
+  "id": "realism",
+  "name": "Realism",
+  "domain": "orientation",
+  "description": "Concrete, practical focus on what can be supplied and organized with Earth triplicity and 2nd/6th/10th emphasis; Mercury/Saturn support; heavy Neptune/Fire speculation reduce.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Earth concrete reality; supply/utilization; organization"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "element", "element": "Earth", "min_share": 0.35, "weight": 10 },
+      { "kind": "house_emphasis", "houses": [2,6,10], "min_total": 2, "weight": 6 },
+      { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": 4 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Neptune", "afflicted": true, "weight": -8 },
+      { "kind": "element", "element": "Fire", "min_share": 0.40, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

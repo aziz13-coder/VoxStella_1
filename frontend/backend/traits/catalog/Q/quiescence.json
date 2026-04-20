@@ -1,0 +1,19 @@
+{
+  "id": "quiescence",
+  "name": "Quiescence (resting/stability)",
+  "domain": "behavioral_state",
+  "description": "Inactivity and conservation of energy/position with Fixed quality prominence; Cardinal surges overcome stillness.",
+  "confidence": "high",
+  "polarity": "neutral",
+  "sources": ["Carter: ‘not move’ (fixed) vs ‘move’ (cardinal)"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.45, "weight": 10 },
+      { "kind": "house_emphasis", "houses": [2,5,8,11], "min_total": 2, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "modality", "modality": "Cardinal", "min_share": 0.35, "weight": -8 }
+    ],
+    "escalators": [] }
+}
+

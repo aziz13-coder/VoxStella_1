@@ -1,0 +1,14 @@
+{
+  "id": "jocularity",
+  "name": "Jocularity (joking/wit)",
+  "domain": "affect_communication",
+  "description": "Light, playful humour with Mercury–Jupiter accord and Air/Fire buoyancy; heaviness or cruelty when Saturn presses or Mercury is afflicted.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter: Mercury–Jupiter harmony; Air/Fire temperament"],
+  "logic": { "base": 0,
+    "boosts": [ { "kind": "aspect", "pair": ["Mercury","Jupiter"], "type": "soft", "max_orb": 6, "weight": 10 }, { "kind": "element", "element": "Air", "min_share": 0.35, "weight": 6 }, { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": 4 }, { "kind": "house_emphasis", "houses": [3,5,9], "min_total": 2, "weight": 6 } ],
+    "dampeners": [ { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -6 }, { "kind": "planet_status", "planet": "Mercury", "afflicted": true, "weight": -6 } ],
+    "escalators": [] }
+}
+

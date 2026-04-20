@@ -1,0 +1,120 @@
+{
+  "version": 1,
+  "notes": [
+    "Deterministic work-outcome sample dataset for the synastry benchmark runner.",
+    "These cases use embedded chart_data so tests can cover the durability track without raw chart casting."
+  ],
+  "people": [
+    {
+      "person_id": "anchor_a",
+      "kind": "chart_data",
+      "label": "Anchor A",
+      "sex": "F",
+      "profile_hint": "feminine",
+      "chart_data": {
+        "ascendant": 0.0,
+        "midheaven": 270.0,
+        "houses": [0.0, 30.0, 60.0, 90.0, 120.0, 150.0, 180.0, 210.0, 240.0, 270.0, 300.0, 330.0],
+        "planets": [
+          {"planet": "Sun", "longitude": 10.0, "sign": "Aries", "house": 1},
+          {"planet": "Moon", "longitude": 102.0, "sign": "Cancer", "house": 4},
+          {"planet": "Mercury", "longitude": 70.0, "sign": "Gemini", "house": 3},
+          {"planet": "Venus", "longitude": 14.0, "sign": "Aries", "house": 1},
+          {"planet": "Mars", "longitude": 130.0, "sign": "Leo", "house": 5},
+          {"planet": "Jupiter", "longitude": 252.0, "sign": "Sagittarius", "house": 9},
+          {"planet": "Saturn", "longitude": 311.0, "sign": "Aquarius", "house": 11},
+          {"planet": "Uranus", "longitude": 132.0, "sign": "Leo", "house": 5},
+          {"planet": "North Node", "longitude": 188.0, "sign": "Libra", "house": 7}
+        ]
+      }
+    },
+    {
+      "person_id": "candidate_d",
+      "kind": "chart_data",
+      "label": "Candidate D",
+      "sex": "M",
+      "profile_hint": "masculine",
+      "chart_data": {
+        "ascendant": 270.0,
+        "midheaven": 180.0,
+        "houses": [270.0, 300.0, 330.0, 0.0, 30.0, 60.0, 90.0, 120.0, 150.0, 180.0, 210.0, 240.0],
+        "planets": [
+          {"planet": "Sun", "longitude": 280.0, "sign": "Capricorn", "house": 1},
+          {"planet": "Moon", "longitude": 10.0, "sign": "Aries", "house": 4},
+          {"planet": "Mercury", "longitude": 280.0, "sign": "Capricorn", "house": 1},
+          {"planet": "Venus", "longitude": 100.0, "sign": "Cancer", "house": 7},
+          {"planet": "Mars", "longitude": 100.0, "sign": "Cancer", "house": 7},
+          {"planet": "Jupiter", "longitude": 190.0, "sign": "Libra", "house": 10},
+          {"planet": "Saturn", "longitude": 190.0, "sign": "Libra", "house": 10},
+          {"planet": "Uranus", "longitude": 190.0, "sign": "Libra", "house": 10},
+          {"planet": "North Node", "longitude": 100.0, "sign": "Cancer", "house": 7}
+        ]
+      }
+    },
+    {
+      "person_id": "candidate_e",
+      "kind": "chart_data",
+      "label": "Candidate E",
+      "sex": "M",
+      "profile_hint": "masculine",
+      "chart_data": {
+        "ascendant": 45.0,
+        "midheaven": 315.0,
+        "houses": [45.0, 75.0, 105.0, 135.0, 165.0, 195.0, 225.0, 255.0, 285.0, 315.0, 345.0, 15.0],
+        "planets": [
+          {"planet": "Sun", "longitude": 15.0, "sign": "Aries", "house": 12},
+          {"planet": "Moon", "longitude": 45.0, "sign": "Taurus", "house": 1},
+          {"planet": "Mercury", "longitude": 75.0, "sign": "Gemini", "house": 2},
+          {"planet": "Venus", "longitude": 15.0, "sign": "Aries", "house": 12},
+          {"planet": "Mars", "longitude": 135.0, "sign": "Leo", "house": 4},
+          {"planet": "Jupiter", "longitude": 255.0, "sign": "Sagittarius", "house": 8},
+          {"planet": "Saturn", "longitude": 315.0, "sign": "Aquarius", "house": 10},
+          {"planet": "Uranus", "longitude": 137.0, "sign": "Leo", "house": 4},
+          {"planet": "North Node", "longitude": 195.0, "sign": "Libra", "house": 6}
+        ]
+      }
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "work_anchor_a_candidate_e_durable",
+      "mode": "work",
+      "anchor_person_id": "anchor_a",
+      "true_partner_id": "candidate_e",
+      "candidate_ids": ["candidate_d", "candidate_e"],
+      "relationship_type": "business",
+      "outcome_label": "durable_success",
+      "end_state_label": "enduring_success"
+    },
+    {
+      "case_id": "work_candidate_e_anchor_a_durable",
+      "mode": "work",
+      "anchor_person_id": "candidate_e",
+      "true_partner_id": "anchor_a",
+      "candidate_ids": ["anchor_a", "candidate_d"],
+      "relationship_type": "business",
+      "outcome_label": "durable_success",
+      "end_state_label": "enduring_success"
+    },
+    {
+      "case_id": "work_anchor_a_candidate_d_breakdown",
+      "mode": "work",
+      "anchor_person_id": "anchor_a",
+      "true_partner_id": "candidate_d",
+      "candidate_ids": ["candidate_d", "candidate_e"],
+      "relationship_type": "business",
+      "outcome_label": "productive_then_breakdown",
+      "end_state_label": "split"
+    },
+    {
+      "case_id": "work_candidate_d_anchor_a_breakdown",
+      "mode": "work",
+      "anchor_person_id": "candidate_d",
+      "true_partner_id": "anchor_a",
+      "candidate_ids": ["anchor_a", "candidate_e"],
+      "relationship_type": "business",
+      "outcome_label": "productive_then_breakdown",
+      "end_state_label": "split"
+    }
+  ]
+}

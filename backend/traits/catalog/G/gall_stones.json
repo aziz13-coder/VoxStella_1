@@ -1,0 +1,18 @@
+{
+  "id": "gall_stones",
+  "name": "Gall‑stones (cholelithiasis) predisposition",
+  "domain": "disease_hepatobiliary",
+  "description": "Biliary tendency modeled by Jupiter afflicting the Lights; Sag/Pisces bias as supportive indicator (to be validated).",
+  "confidence": "low",
+  "polarity": "negative",
+  "sources": ["Carter: biliousness extended to gall‑stones"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "aspect", "pair": ["Jupiter","Sun"], "type": "hard", "max_orb": 6, "weight": 10 },
+      { "kind": "aspect", "pair": ["Jupiter","Moon"], "type": "hard", "max_orb": 6, "weight": 10 },
+      { "kind": "sign_group_emphasis", "group": ["Sagittarius","Pisces"], "min": 2.0, "weight": 4 }
+    ],
+    "dampeners": [],
+    "escalators": [] }
+}
+

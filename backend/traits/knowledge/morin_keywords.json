@@ -1,0 +1,106 @@
+{
+  "source_basis": {
+    "primary": [
+      "Astrologia Gallica Book 22 compact house list (repo summary: ASTROCLOCK_TRANSITS_MORIN_SOURCE_SUMMARY_2026-03-28.md)",
+      "Astrologia Gallica Book 24 transit logic: a transiting planet acts by its own nature, radical determination, and current celestial state"
+    ],
+    "notes": "Operational non-scoring keyword map for the Trait Profile feature. House keywords are kept tightly Morin-facing. Planet and sect keywords are compact classical/Morin-facing tags used for enrichment, not for scoring."
+  },
+  "houses": {
+    "1": {
+      "label": "First House",
+      "keywords_primary": ["life", "temperament", "health"],
+      "keywords_secondary": ["moral nature", "mental qualities"]
+    },
+    "2": {
+      "label": "Second House",
+      "keywords_primary": ["wealth", "goods", "income"],
+      "keywords_secondary": ["estate", "resources"]
+    },
+    "3": {
+      "label": "Third House",
+      "keywords_primary": ["siblings", "relations", "messages"],
+      "keywords_secondary": ["local movement", "communications"]
+    },
+    "4": {
+      "label": "Fourth House",
+      "keywords_primary": ["parents", "home", "inheritance"],
+      "keywords_secondary": ["roots", "land"]
+    },
+    "5": {
+      "label": "Fifth House",
+      "keywords_primary": ["children", "pleasure", "fertility"],
+      "keywords_secondary": ["amusements", "creativity"]
+    },
+    "6": {
+      "label": "Sixth House",
+      "keywords_primary": ["service", "subordinates", "illness"],
+      "keywords_secondary": ["labor", "domestic animals"]
+    },
+    "7": {
+      "label": "Seventh House",
+      "keywords_primary": ["marriage", "contracts", "open enemies"],
+      "keywords_secondary": ["lawsuits", "alliances"]
+    },
+    "8": {
+      "label": "Eighth House",
+      "keywords_primary": ["death", "mortality", "fear"],
+      "keywords_secondary": ["loss", "crisis"]
+    },
+    "9": {
+      "label": "Ninth House",
+      "keywords_primary": ["religion", "journeys", "doctrine"],
+      "keywords_secondary": ["study", "pilgrimage"]
+    },
+    "10": {
+      "label": "Tenth House",
+      "keywords_primary": ["action", "profession", "dignity"],
+      "keywords_secondary": ["fame", "office"]
+    },
+    "11": {
+      "label": "Eleventh House",
+      "keywords_primary": ["friends", "allies", "hopes"],
+      "keywords_secondary": ["support", "patrons"]
+    },
+    "12": {
+      "label": "Twelfth House",
+      "keywords_primary": ["sickness", "imprisonment", "secret enemies"],
+      "keywords_secondary": ["exile", "hardships"]
+    }
+  },
+  "planets": {
+    "Sun": {
+      "keywords_primary": ["vitality", "authority", "honors"],
+      "keywords_secondary": ["leadership", "purpose"]
+    },
+    "Moon": {
+      "keywords_primary": ["body", "fluctuation", "common needs"],
+      "keywords_secondary": ["habit", "changeability"]
+    },
+    "Mercury": {
+      "keywords_primary": ["speech", "learning", "trade"],
+      "keywords_secondary": ["craft", "calculation"]
+    },
+    "Venus": {
+      "keywords_primary": ["affection", "pleasure", "concord"],
+      "keywords_secondary": ["grace", "sociability"]
+    },
+    "Mars": {
+      "keywords_primary": ["conflict", "heat", "boldness"],
+      "keywords_secondary": ["injury", "strife"]
+    },
+    "Jupiter": {
+      "keywords_primary": ["justice", "increase", "honor"],
+      "keywords_secondary": ["faith", "beneficence"]
+    },
+    "Saturn": {
+      "keywords_primary": ["delay", "privation", "hardship"],
+      "keywords_secondary": ["endurance", "severity"]
+    }
+  },
+  "sect": {
+    "benefic_of_sect": ["support", "moderation", "constructive growth"],
+    "malefic_of_sect": ["severity", "hard lessons", "discipline"],
+    "malefic_out_of_sect": ["delay", "privation", "harsher effects"]
+  }
+}

@@ -1,0 +1,1001 @@
+{
+  "version": "2026-04-02",
+  "sources": [
+    {
+      "key": "davison",
+      "title": "Synastry: Understanding Human Relations Through Astrology",
+      "role": "Core doctrine, relationship promise, interplanetary cross-aspects, house interchanges, and nodal significance"
+    },
+    {
+      "key": "arroyo",
+      "title": "Person-to-Person Astrology",
+      "role": "Relational temperament, elemental exchange, rising-sign dynamics, attraction language, and orb discipline"
+    },
+    {
+      "key": "march_mcevers",
+      "title": "The Only Way to Learn About Relationships, Vol. 5: Synastry Techniques",
+      "role": "Operational chart comparison, lacks, empty-house filling, affinities, overlays, and practical synastry technique"
+    }
+  ],
+  "categories": {
+    "overall": {
+      "name": "Overall Compatibility",
+      "polarity": "positive",
+      "description": "Doctrine-led blend of support, challenge, attachment, and compensation factors.",
+      "scale": 100.0
+    },
+    "resonance": {
+      "name": "Emotional Resonance",
+      "polarity": "positive",
+      "description": "Felt emotional understanding, instinctive rapport, and responsive fit.",
+      "scale": 30.0
+    },
+    "communication": {
+      "name": "Communication",
+      "polarity": "positive",
+      "description": "Mental exchange, conversational flow, and interpretive understanding.",
+      "scale": 30.0
+    },
+    "attraction": {
+      "name": "Attraction / Chemistry",
+      "polarity": "positive",
+      "description": "Magnetism, erotic draw, fascination, and romantic charge.",
+      "scale": 34.0
+    },
+    "compatibility": {
+      "name": "Compatibility / Ease",
+      "polarity": "positive",
+      "description": "Day-to-day fit, shared values, practical goodwill, and affection style.",
+      "scale": 30.0
+    },
+    "attachment": {
+      "name": "Attachment / Longevity",
+      "polarity": "positive",
+      "description": "Binding power, durability, loyalty, and long-form staying force.",
+      "scale": 30.0
+    },
+    "growth": {
+      "name": "Growth / Purpose",
+      "polarity": "positive",
+      "description": "Developmental value, compensation, widened perspective, and meaningful lessons.",
+      "scale": 60.0
+    },
+    "friction": {
+      "name": "Friction / Conflict",
+      "polarity": "negative",
+      "description": "Argument, volatility, mismatch, and overt tension between the charts.",
+      "scale": 28.0
+    },
+    "burden": {
+      "name": "Burden / Weight",
+      "polarity": "negative",
+      "description": "Heaviness, obligation, inhibition, karmic strain, or one-sided pressure.",
+      "scale": 24.0
+    }
+  },
+  "overall_model": {
+    "compatibility_dimensions": ["resonance", "communication", "compatibility"],
+    "binding_dimensions": ["attraction", "attachment"],
+    "growth_dimensions": ["growth"],
+    "challenge_dimensions": ["friction", "burden"],
+    "binding_bonus_cap": 10.0,
+    "headline_model": "category_weighted_v3_sigmoid",
+    "headline_category_weights": {
+      "compatibility": 0.26,
+      "communication": 1.2,
+      "attachment": 0.12,
+      "attraction": 0.18,
+      "friction": -0.06,
+      "burden": -0.4
+    },
+    "headline_normalization": {
+      "method": "sigmoid",
+      "center": 40.0,
+      "scale": 18.0
+    },
+    "weights": {
+      "compatibility": 0.3,
+      "binding": 0.22,
+      "growth": 0.12,
+      "support_balance": 0.26,
+      "challenge": 0.18
+    }
+  },
+  "category_adjustments": {
+    "compatibility_conflict_gate": {
+      "target_category": "compatibility",
+      "source_key": "arroyo",
+      "source_anchor": "The Preponderance of the Same Message or Theme Symbolized",
+      "summary": "Compatibility should reflect lived ease, not just significance, compensation, or binding force when hard themes dominate.",
+      "direct_ease_rule_family_ids": [
+        "moon_moon_soft",
+        "venus_venus_soft",
+        "benefic_support_pairs"
+      ],
+      "conflict_rule_family_ids": [
+        "moon_moon_hard",
+        "moon_moon_quincunx",
+        "sun_moon_stress",
+        "mercury_mercury_hard",
+        "mercury_luminary_hard",
+        "saturn_hard_bond",
+        "mars_saturn_hard",
+        "node_personal_hard",
+        "overlay_saturn_major",
+        "overlay_mars_major",
+        "directional_overlay_imbalance",
+        "sun_neptune_hard",
+        "moon_neptune_hard",
+        "moon_pluto_hard",
+        "sun_pluto_power",
+        "venus_pluto_power"
+      ],
+      "high_conflict_hit_threshold": 4,
+      "medium_conflict_hit_threshold": 3,
+      "max_display_score_without_direct_ease": 52.0,
+      "max_display_score_with_thin_direct_ease": 68.0
+    },
+    "burden_saturn_context_relief": {
+      "target_category": "burden",
+      "source_key": "davison",
+      "source_anchor": "Chapter 6 - Saturn aspects",
+      "summary": "Saturn can bind and test without making the relationship uniformly oppressive when corroborating strain is limited.",
+      "saturn_rule_family_ids": [
+        "saturn_soft_bond",
+        "saturn_hard_bond",
+        "overlay_saturn_major"
+      ],
+      "non_saturn_heaviness_rule_family_ids": [
+        "directional_overlay_imbalance",
+        "mars_saturn_hard",
+        "sun_neptune_hard",
+        "moon_neptune_hard",
+        "moon_pluto_hard",
+        "sun_pluto_power",
+        "venus_pluto_power"
+      ],
+      "direct_ease_rule_family_ids": [
+        "moon_moon_soft",
+        "venus_venus_soft",
+        "benefic_support_pairs"
+      ],
+      "direct_ease_threshold": 2,
+      "max_non_saturn_heaviness_hits": 2,
+      "max_display_score": 52.0
+    },
+    "burden_oppressive_cluster_floor": {
+      "target_category": "burden",
+      "source_key": "arroyo",
+      "source_anchor": "The Preponderance of the Same Message or Theme Symbolized",
+      "summary": "When hard Saturn repeats the same message alongside emotional strain and obstruction, burden should be treated as oppressive rather than merely serious.",
+      "hard_saturn_rule_family_ids": [
+        "saturn_hard_bond",
+        "overlay_saturn_major"
+      ],
+      "emotional_strain_rule_family_ids": [
+        "moon_moon_hard",
+        "moon_moon_quincunx",
+        "sun_moon_stress",
+        "moon_neptune_hard",
+        "moon_pluto_hard"
+      ],
+      "obstructive_rule_family_ids": [
+        "mars_saturn_hard",
+        "overlay_mars_major",
+        "directional_overlay_imbalance"
+      ],
+      "hard_saturn_hit_threshold": 2,
+      "emotional_strain_threshold": 1,
+      "obstructive_threshold": 1,
+      "minimum_display_score": 78.0
+    },
+    "attraction_supportive_polarity_floor": {
+      "target_category": "attraction",
+      "source_key": "davison",
+      "source_anchor": "Pages 5, 59, and 74 - Sun/Moon and Venus/Mars combinations",
+      "summary": "When luminary complementarity and Venus-Mars polarity repeat the same message, attraction should not display as merely moderate.",
+      "luminary_rule_family_ids": [
+        "sun_moon_soft",
+        "sun_moon_polar"
+      ],
+      "venus_mars_rule_family_ids": [
+        "venus_mars_attraction"
+      ],
+      "minimum_display_score": 70.0
+    },
+    "attraction_stress_cluster_floor": {
+      "target_category": "attraction",
+      "source_key": "arroyo",
+      "source_anchor": "Chapter 8 - Mars and Venus",
+      "summary": "Stress between Venus-Mars and the luminaries can still be highly magnetic when the same chemistry message repeats under strong friction.",
+      "luminary_rule_family_ids": [
+        "sun_moon_stress"
+      ],
+      "chemistry_rule_family_ids": [
+        "venus_mars_square",
+        "mars_mars_hard"
+      ],
+      "minimum_display_score": 55.0,
+      "minimum_friction_display_score": 70.0
+    },
+    "attachment_enduring_binding_cluster_floor": {
+      "target_category": "attachment",
+      "source_key": "davison",
+      "source_anchor": "Chapter 6 - Dignity relations, Saturn aspects, Nodes, and Chapter 7 - Rulers of the seventh houses",
+      "summary": "When mutual willingness, repeated Saturn-binding testimony, and nodal or partnership confirmation recur together, attachment should not display as merely weak even if the bond is difficult or unconventional.",
+      "reception_rule_family_ids": [
+        "mutual_reception_support"
+      ],
+      "saturn_rule_family_ids": [
+        "saturn_soft_bond",
+        "saturn_hard_bond",
+        "overlay_saturn_major"
+      ],
+      "bond_confirmation_rule_family_ids": [
+        "node_personal_soft",
+        "partnership_ruler_soft"
+      ],
+      "saturn_hit_threshold": 2,
+      "bond_confirmation_threshold": 1,
+      "minimum_display_score": 70.0
+    }
+  },
+  "rule_families": [
+    {
+      "id": "moon_moon_soft",
+      "kind": "aspect_pair",
+      "points": ["Moon", "Moon"],
+      "aspects": ["Conjunction", "Trine", "Sextile"],
+      "scores": { "resonance": 12.0, "compatibility": 2.0 },
+      "bucket": "supportive",
+      "source_key": "davison",
+      "source_anchor": "Chapter 6 - Moon/Moon",
+      "summary": "Moon-to-Moon harmony strengthens emotional familiarity and shared feeling-tone."
+    },
+    {
+      "id": "moon_moon_hard",
+      "kind": "aspect_pair",
+      "points": ["Moon", "Moon"],
+      "aspects": ["Square", "Opposition"],
+      "scores": { "friction": 7.0, "burden": 2.0 },
+      "bucket": "challenging",
+      "source_key": "davison",
+      "source_anchor": "Chapter 6 - Moon/Moon",
+      "summary": "Moon-to-Moon tension raises emotional mismatch and reactive habit patterns."
+    },
+    {
+      "id": "moon_moon_quincunx",
+      "kind": "aspect_pair",
+      "points": ["Moon", "Moon"],
+      "aspects": ["Quincunx"],
+      "scores": { "growth": 3.0, "burden": 3.0 },
+      "bucket": "mixed",
+      "source_key": "davison",
+      "source_anchor": "Chapter 6 - Moon/Moon",
+      "summary": "Moon quincunx can indicate a basic lack of unity in feeling, but one that teaches adjustment."
+    },
+    {
+      "id": "sun_moon_soft",
+      "kind": "aspect_pair",
+      "points": ["Sun", "Moon"],
+      "aspects": ["Conjunction", "Trine", "Sextile"],
+      "scores": { "resonance": 10.0, "attachment": 4.0 },
+      "bucket": "supportive",
+      "source_key": "davison",
+      "source_anchor": "Chapter 6 - Sun/Moon",
+      "summary": "Sun-Moon harmony supports complementarity, recognition, and a classic bond."
+    },
+    {
+      "id": "sun_moon_polar",
+      "kind": "aspect_pair",
+      "points": ["Sun", "Moon"],
+      "aspects": ["Opposition"],
+      "scores": { "attraction": 5.0, "attachment": 3.0, "friction": 3.0 },
+      "bucket": "mixed",
+      "source_key": "davison",
+      "source_anchor": "Chapter 6 - Sun/Moon",
+      "summary": "Sun-Moon opposition can bind through polarity but rarely without exchange and tension."
+    },
+    {
+      "id": "sun_moon_stress",
+      "kind": "aspect_pair",
+      "points": ["Sun", "Moon"],
+      "aspects": ["Square", "Quincunx"],
+      "scores": { "attraction": 2.0, "friction": 6.0, "growth": 2.0, "burden": 2.0 },
+      "bucket": "mixed",
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 9 - The Moon",
+      "summary": "Sun-Moon stress can still draw two people together, but through conflict, authority issues, and adaptation."
+    },
+    {
+      "id": "mercury_mercury_soft",
+      "kind": "aspect_pair",
+      "points": ["Mercury", "Mercury"],
+      "aspects": ["Conjunction", "Trine", "Sextile"],
+      "scores": { "communication": 12.0, "compatibility": 2.0 },
+      "bucket": "supportive",
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 9 - Mercury",
+      "summary": "Mercury-to-Mercury harmony supports shared language, timing, and mental coordination."
+    },
+    {
+      "id": "mercury_mercury_hard",
+      "kind": "aspect_pair",
+      "points": ["Mercury", "Mercury"],
+      "aspects": ["Square", "Opposition"],
+      "scores": { "friction": 7.0, "communication": 2.0 },
+      "bucket": "mixed",
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 9 - Mercury",
+      "summary": "Hard Mercury contacts challenge communication but are better than indifference or silence."
+    },
+    {
+      "id": "mercury_mercury_quincunx",
+      "kind": "aspect_pair",
+      "points": ["Mercury", "Mercury"],
+      "aspects": ["Quincunx"],
+      "scores": { "growth": 3.0, "friction": 2.0 },
+      "bucket": "mixed",
+      "source_key": "davison",
+      "source_anchor": "Chapter 7 - Minor aspects in synastry",
+      "summary": "Mercury quincunx asks for adjustment in style, assumptions, and phrasing."
+    },
+    {
+      "id": "mercury_luminary_soft",
+      "kind": "aspect_pairs_any",
+      "pairs": [["Mercury", "Moon"], ["Mercury", "Sun"]],
+      "aspects": ["Conjunction", "Trine", "Sextile"],
+      "scores": { "communication": 8.0, "compatibility": 2.0 },
+      "bucket": "supportive",
+      "source_key": "arroyo",
+      "source_anchor": "Chapter 17 - The Aspects",
+      "summary": "Soft Mercury-luminary links help thought, expression, and feeling work together."
+    },
+    {
+      "id": "mercury_luminary_hard",
+      "kind": "aspect_pairs_any",
+      "pairs": [["Mercury", "Moon"], ["Mercury", "Sun"]],
+      "aspects": ["Square", "Opposition", "Quincunx"],
+      "scores": { "friction": 5.0, "growth": 2.0 },
+      "bucket": "mixed",
+      "source_key": "arroyo",
+      "source_anchor": "Chapter 17 - The Aspects",
+      "summary": "Hard Mercury-luminary contacts strain timing and tone, but can force clearer understanding."
+    },
+    {
+      "id": "venus_mars_attraction",
+      "kind": "aspect_pair",
+      "points": ["Venus", "Mars"],
+      "aspects": ["Conjunction", "Trine", "Sextile", "Opposition"],
+      "scores": { "attraction": 14.0, "attachment": 2.0 },
+      "bucket": "supportive",
+      "source_key": "arroyo",
+      "source_anchor": "Chapter 8 - Mars and Venus",
+      "summary": "Venus-Mars contact is one of the primary attraction and chemistry indicators."
+    },
+    {
+      "id": "venus_mars_square",
+      "kind": "aspect_pair",
+      "points": ["Venus", "Mars"],
+      "aspects": ["Square", "Quincunx"],
+      "scores": { "attraction": 6.0, "friction": 5.0, "growth": 2.0 },
+      "bucket": "mixed",
+      "source_key": "arroyo",
+      "source_anchor": "Chapter 8 - Mars and Venus",
+      "summary": "Venus-Mars stress is often magnetic, but it carries irritation and adaptation pressure."
+    },
+    {
+      "id": "venus_venus_soft",
+      "kind": "aspect_pair",
+      "points": ["Venus", "Venus"],
+      "aspects": ["Conjunction", "Trine", "Sextile"],
+      "scores": { "compatibility": 7.0, "attraction": 3.0 },
+      "bucket": "supportive",
+      "source_key": "davison",
+      "source_anchor": "Chapter 6 - Venus/Venus",
+      "summary": "Venus-Venus harmony improves affection style, taste, and social ease."
+    },
+    {
+      "id": "venus_venus_hard",
+      "kind": "aspect_pair",
+      "points": ["Venus", "Venus"],
+      "aspects": ["Square", "Opposition"],
+      "scores": { "friction": 4.0, "growth": 2.0 },
+      "bucket": "mixed",
+      "source_key": "davison",
+      "source_anchor": "Chapter 6 - Venus/Venus",
+      "summary": "Venus-Venus strain often shows differences in taste, pacing, or value expression."
+    },
+    {
+      "id": "mars_mars_hard",
+      "kind": "aspect_pair",
+      "points": ["Mars", "Mars"],
+      "aspects": ["Conjunction", "Square", "Opposition"],
+      "scores": { "friction": 7.0, "attraction": 2.0 },
+      "bucket": "mixed",
+      "source_key": "davison",
+      "source_anchor": "Chapter 6 - Mars/Mars",
+      "summary": "Mars-Mars clashes can be exciting, but they easily escalate competition and conflict."
+    },
+    {
+      "id": "benefic_support_pairs",
+      "kind": "aspect_pairs_any",
+      "pairs": [["Sun", "Venus"], ["Moon", "Venus"], ["Sun", "Jupiter"], ["Moon", "Jupiter"], ["Venus", "Jupiter"]],
+      "aspects": ["Conjunction", "Trine", "Sextile"],
+      "scores": { "compatibility": 5.0, "growth": 2.0 },
+      "bucket": "supportive",
+      "source_key": "arroyo",
+      "source_anchor": "Chapter 17 - The Aspects",
+      "summary": "Soft benefic pairings improve goodwill, warmth, and mutual generosity."
+    },
+    {
+      "id": "saturn_soft_bond",
+      "kind": "aspect_contains",
+      "required_points": ["Saturn"],
+      "other_points": ["Sun", "Moon", "Venus", "Mars", "Ascendant", "Descendant"],
+      "aspects": ["Conjunction", "Trine", "Sextile"],
+      "scores": { "attachment": 7.0, "burden": 0.75 },
+      "bucket": "mixed",
+      "source_key": "davison",
+      "source_anchor": "Chapter 6 - Saturn aspects",
+      "summary": "Constructive Saturn contact can bind and stabilize, but it rarely feels light."
+    },
+    {
+      "id": "saturn_hard_bond",
+      "kind": "aspect_contains",
+      "required_points": ["Saturn"],
+      "other_points": ["Sun", "Moon", "Venus", "Mars", "Ascendant", "Descendant"],
+      "aspects": ["Square", "Opposition", "Quincunx"],
+      "scores": { "attachment": 1.5, "burden": 4.5, "friction": 3.0 },
+      "bucket": "mixed",
+      "source_key": "davison",
+      "source_anchor": "Chapter 6 - Saturn aspects",
+      "summary": "Hard Saturn contact can hold a relationship together through weight, duty, or delay."
+    },
+    {
+      "id": "mars_saturn_hard",
+      "kind": "aspect_pair",
+      "points": ["Mars", "Saturn"],
+      "aspects": ["Conjunction", "Square", "Opposition"],
+      "scores": { "friction": 8.0, "burden": 3.0 },
+      "bucket": "challenging",
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 9 - Interaspects",
+      "summary": "Mars-Saturn stress is a strong obstruction and resentment indicator."
+    },
+    {
+      "id": "ascendant_personal_soft",
+      "kind": "aspect_contains",
+      "required_points": ["Ascendant"],
+      "other_points": ["Sun", "Moon", "Venus", "Mars", "Mercury"],
+      "aspects": ["Conjunction", "Trine", "Sextile"],
+      "scores": { "resonance": 5.0, "compatibility": 2.0 },
+      "bucket": "supportive",
+      "source_key": "arroyo",
+      "source_anchor": "Chapter 6 - Rising Sign",
+      "summary": "Soft Ascendant contact helps the bond land in lived style and immediate perception."
+    },
+    {
+      "id": "ascendant_personal_hard",
+      "kind": "aspect_contains",
+      "required_points": ["Ascendant"],
+      "other_points": ["Sun", "Moon", "Venus", "Mars", "Mercury"],
+      "aspects": ["Square", "Opposition", "Quincunx"],
+      "scores": { "friction": 4.0, "growth": 1.0 },
+      "bucket": "mixed",
+      "source_key": "arroyo",
+      "source_anchor": "Chapter 6 - Rising Sign",
+      "summary": "Hard Ascendant contact increases style mismatch, but it also forces clearer adaptation."
+    },
+    {
+      "id": "element_sun_sun",
+      "kind": "element_pair",
+      "points": ["Sun", "Sun"],
+      "same_scores": { "compatibility": 3.0 },
+      "compatible_scores": { "compatibility": 2.5 },
+      "tense_scores": { "friction": 2.5 },
+      "source_key": "davison",
+      "source_anchor": "Chapter 5 - Triplicities",
+      "summary": "Elemental fit between Suns supports similar style and life-expression."
+    },
+    {
+      "id": "element_moon_moon",
+      "kind": "element_pair",
+      "points": ["Moon", "Moon"],
+      "same_scores": { "resonance": 4.0 },
+      "compatible_scores": { "resonance": 3.0 },
+      "tense_scores": { "friction": 3.0 },
+      "source_key": "arroyo",
+      "source_anchor": "Chapter 7 - The Moon",
+      "summary": "Elemental fit between Moons strongly affects emotional compatibility."
+    },
+    {
+      "id": "element_venus_mars",
+      "kind": "element_pair",
+      "points": ["Venus", "Mars"],
+      "same_scores": { "attraction": 3.0 },
+      "compatible_scores": { "attraction": 2.5 },
+      "tense_scores": { "friction": 2.5 },
+      "source_key": "arroyo",
+      "source_anchor": "Chapter 8 - Venus and Mars in the Elements",
+      "summary": "Elemental fit between Venus and Mars modifies attraction style and pace."
+    },
+    {
+      "id": "element_mercury_mercury",
+      "kind": "element_pair",
+      "points": ["Mercury", "Mercury"],
+      "same_scores": { "communication": 3.0 },
+      "compatible_scores": { "communication": 2.5 },
+      "tense_scores": { "friction": 2.0 },
+      "source_key": "arroyo",
+      "source_anchor": "Chapter 6 - Compatibility on the Elements' Energy Level",
+      "summary": "Elemental agreement between Mercuries improves mental tone and exchange."
+    },
+    {
+      "id": "element_asc_asc",
+      "kind": "element_pair",
+      "points": ["Ascendant", "Ascendant"],
+      "same_scores": { "compatibility": 2.0 },
+      "compatible_scores": { "compatibility": 1.5 },
+      "tense_scores": { "friction": 1.5 },
+      "source_key": "arroyo",
+      "source_anchor": "Chapter 6 - The Four Elements and the Rising Sign",
+      "summary": "Ascending-sign element fit shapes daily style and visible ease."
+    },
+    {
+      "id": "sun_uranus_dynamic",
+      "kind": "aspect_contains",
+      "required_points": ["Uranus"],
+      "other_points": ["Sun", "Moon", "Venus", "Mars"],
+      "aspects": ["Conjunction", "Trine", "Sextile", "Opposition"],
+      "scores": { "attraction": 4.0, "growth": 3.0, "friction": 2.0 },
+      "bucket": "mixed",
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 11 - Other Key Factors",
+      "summary": "Uranian contacts can electrify attraction and keep the bond awake, though not always settled."
+    },
+    {
+      "id": "sun_uranus_hard",
+      "kind": "aspect_contains",
+      "required_points": ["Uranus"],
+      "other_points": ["Sun", "Moon", "Venus", "Mars"],
+      "aspects": ["Square", "Quincunx"],
+      "scores": { "attraction": 3.0, "friction": 4.0, "growth": 2.0 },
+      "bucket": "mixed",
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 11 - Other Key Factors",
+      "summary": "Hard Uranian contact can be exciting but destabilizing."
+    },
+    {
+      "id": "sun_neptune_soft",
+      "kind": "aspect_pair",
+      "points": ["Sun", "Neptune"],
+      "aspects": ["Conjunction", "Trine", "Sextile"],
+      "scores": { "attraction": 3.0, "growth": 4.0, "compatibility": 1.0 },
+      "bucket": "supportive",
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 9 - The Sun",
+      "summary": "Sun-Neptune harmony can feel subtle, idealistic, and seductive."
+    },
+    {
+      "id": "sun_neptune_hard",
+      "kind": "aspect_pair",
+      "points": ["Sun", "Neptune"],
+      "aspects": ["Square", "Opposition", "Quincunx"],
+      "scores": { "growth": 2.0, "burden": 4.0, "friction": 2.0 },
+      "bucket": "mixed",
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 9 - The Sun",
+      "summary": "Hard Sun-Neptune contact can idealize, blur, or disappoint if boundaries stay weak."
+    },
+    {
+      "id": "sun_pluto_intense",
+      "kind": "aspect_pair",
+      "points": ["Sun", "Pluto"],
+      "aspects": ["Conjunction", "Trine", "Sextile"],
+      "scores": { "attraction": 3.0, "attachment": 3.0, "growth": 2.0 },
+      "bucket": "supportive",
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 9 - The Sun",
+      "summary": "Sun-Pluto contact brings depth and transformative intensity."
+    },
+    {
+      "id": "sun_pluto_power",
+      "kind": "aspect_pair",
+      "points": ["Sun", "Pluto"],
+      "aspects": ["Square", "Opposition", "Quincunx"],
+      "scores": { "attraction": 2.0, "burden": 4.0, "friction": 4.0 },
+      "bucket": "mixed",
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 9 - The Sun",
+      "summary": "Hard Sun-Pluto contact often carries power struggle, control, or compulsion."
+    },
+    {
+      "id": "moon_neptune_soft",
+      "kind": "aspect_pair",
+      "points": ["Moon", "Neptune"],
+      "aspects": ["Conjunction", "Trine", "Sextile"],
+      "scores": { "resonance": 4.0, "growth": 3.0 },
+      "bucket": "supportive",
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 9 - The Moon",
+      "summary": "Moon-Neptune harmony can feel emotionally spiritual, imaginative, or unusually tender."
+    },
+    {
+      "id": "moon_neptune_hard",
+      "kind": "aspect_pair",
+      "points": ["Moon", "Neptune"],
+      "aspects": ["Square", "Opposition", "Quincunx"],
+      "scores": { "resonance": 1.0, "burden": 4.0, "growth": 2.0 },
+      "bucket": "mixed",
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 9 - The Moon",
+      "summary": "Moon-Neptune stress can feel romantic or psychic, but it easily clouds the emotional field."
+    },
+    {
+      "id": "moon_pluto_hard",
+      "kind": "aspect_pair",
+      "points": ["Moon", "Pluto"],
+      "aspects": ["Conjunction", "Square", "Opposition", "Quincunx"],
+      "scores": { "attachment": 2.0, "burden": 5.0, "friction": 3.0 },
+      "bucket": "mixed",
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 9 - The Moon",
+      "summary": "Moon-Pluto contact intensifies feeling and can become difficult to handle if already sensitive."
+    },
+    {
+      "id": "mercury_uranus_soft",
+      "kind": "aspect_pair",
+      "points": ["Mercury", "Uranus"],
+      "aspects": ["Conjunction", "Trine", "Sextile"],
+      "scores": { "communication": 5.0, "growth": 3.0 },
+      "bucket": "supportive",
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 9 - Mercury",
+      "summary": "Mercury-Uranus contact awakens the intellect and helps prevent boredom."
+    },
+    {
+      "id": "mercury_uranus_hard",
+      "kind": "aspect_pair",
+      "points": ["Mercury", "Uranus"],
+      "aspects": ["Square", "Opposition", "Quincunx"],
+      "scores": { "communication": 2.0, "friction": 4.0, "growth": 2.0 },
+      "bucket": "mixed",
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 9 - Mercury",
+      "summary": "Mercury-Uranus stress can stimulate the mind while increasing nervous or erratic exchange."
+    },
+    {
+      "id": "venus_pluto_intense",
+      "kind": "aspect_pair",
+      "points": ["Venus", "Pluto"],
+      "aspects": ["Conjunction", "Trine", "Sextile", "Opposition"],
+      "scores": { "attraction": 5.0, "attachment": 3.0, "burden": 1.0 },
+      "bucket": "mixed",
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 9 - Venus",
+      "summary": "Venus-Pluto can indicate intense love, transformation, and a powerful draw."
+    },
+    {
+      "id": "venus_pluto_power",
+      "kind": "aspect_pair",
+      "points": ["Venus", "Pluto"],
+      "aspects": ["Square", "Quincunx"],
+      "scores": { "attraction": 3.0, "burden": 4.0, "friction": 3.0 },
+      "bucket": "mixed",
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 9 - Venus",
+      "summary": "Hard Venus-Pluto contact often intensifies jealousy, possessiveness, or emotional control issues."
+    },
+    {
+      "id": "node_personal_soft",
+      "kind": "aspect_contains",
+      "required_points": ["North Node"],
+      "other_points": ["Sun", "Moon", "Mercury", "Venus", "Mars", "Ascendant", "Descendant"],
+      "aspects": ["Conjunction", "Trine", "Sextile", "Opposition"],
+      "scores": { "attachment": 2.0, "growth": 4.0 },
+      "bucket": "supportive",
+      "source_key": "davison",
+      "source_anchor": "Chapter on Nodes in relationship work",
+      "summary": "Nodal contact can feel meaningful and developmentally charged in human relationships."
+    },
+    {
+      "id": "node_personal_hard",
+      "kind": "aspect_contains",
+      "required_points": ["North Node"],
+      "other_points": ["Sun", "Moon", "Mercury", "Venus", "Mars", "Ascendant", "Descendant"],
+      "aspects": ["Square", "Quincunx"],
+      "scores": { "growth": 3.0, "burden": 1.5, "friction": 2.0 },
+      "bucket": "mixed",
+      "source_key": "davison",
+      "source_anchor": "Chapter on Nodes in relationship work",
+      "summary": "Nodal friction can still be meaningful, but it often feels like unfinished work or service."
+    },
+    {
+      "id": "partnership_ruler_soft",
+      "kind": "partnership_ruler_aspect",
+      "aspects": ["Conjunction", "Trine", "Sextile"],
+      "scores": { "compatibility": 4.0, "attachment": 3.0 },
+      "bucket": "supportive",
+      "source_key": "davison",
+      "source_anchor": "Chapter 7 - Rulers of the seventh houses",
+      "summary": "A favorable aspect between the rulers of the seventh houses is a useful harmony marker."
+    },
+    {
+      "id": "partnership_ruler_hard",
+      "kind": "partnership_ruler_aspect",
+      "aspects": ["Square", "Opposition", "Quincunx"],
+      "scores": { "growth": 2.0, "friction": 3.0, "burden": 2.0 },
+      "bucket": "mixed",
+      "source_key": "davison",
+      "source_anchor": "Chapter 7 - Rulers of the seventh houses",
+      "summary": "Seventh-ruler stress often makes relationship needs harder to reconcile."
+    },
+    {
+      "id": "overlay_sun_major",
+      "kind": "house_overlay",
+      "houses": [1, 5, 7, 8],
+      "points": ["Sun"],
+      "scores": { "attraction": 3.0, "compatibility": 2.0, "attachment": 1.0 },
+      "bucket": "supportive",
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 8 - The Sun",
+      "summary": "The Sun in the partner's angular, romantic, or intimate houses often creates recognition and attraction."
+    },
+    {
+      "id": "overlay_moon_major",
+      "kind": "house_overlay",
+      "houses": [1, 4, 5, 7],
+      "points": ["Moon"],
+      "scores": { "resonance": 3.0, "attachment": 2.0 },
+      "bucket": "supportive",
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 8 - The Moon",
+      "summary": "The Moon in key houses emphasizes care, instinctive attunement, and the home-feeling of a bond."
+    },
+    {
+      "id": "overlay_mercury_major",
+      "kind": "house_overlay",
+      "houses": [3, 4, 8, 9],
+      "points": ["Mercury"],
+      "scores": { "communication": 4.0, "growth": 1.0 },
+      "bucket": "supportive",
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 8 - Mercury",
+      "summary": "Mercury in these houses improves the ability to discuss daily, family, intimate, and philosophical issues."
+    },
+    {
+      "id": "overlay_venus_major",
+      "kind": "house_overlay",
+      "houses": [5, 6, 7, 10, 11],
+      "points": ["Venus"],
+      "scores": { "attraction": 4.0, "compatibility": 2.0 },
+      "bucket": "supportive",
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 8 - Venus",
+      "summary": "Venus overlays often soften daily life and support love, harmony, or social ease."
+    },
+    {
+      "id": "overlay_mars_major",
+      "kind": "house_overlay",
+      "houses": [1, 3, 5, 7, 8, 9],
+      "points": ["Mars"],
+      "scores": { "attraction": 3.0, "friction": 2.0 },
+      "bucket": "mixed",
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 8 - Mars",
+      "summary": "Mars overlays can heighten desire, pursuit, and stimulation, but they also sharpen the contact."
+    },
+    {
+      "id": "overlay_jupiter_major",
+      "kind": "house_overlay",
+      "houses": [1, 5, 7, 10],
+      "points": ["Jupiter"],
+      "scores": { "compatibility": 2.0, "growth": 3.0 },
+      "bucket": "supportive",
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 8 - Jupiter",
+      "summary": "Jupiter overlays tend to reinforce approval, support, and mutual development."
+    },
+    {
+      "id": "overlay_saturn_major",
+      "kind": "house_overlay",
+      "houses": [1, 2, 7, 8, 9, 12],
+      "points": ["Saturn"],
+      "scores": { "attachment": 2.5, "burden": 1.5, "friction": 1.0 },
+      "bucket": "mixed",
+      "source_key": "davison",
+      "source_anchor": "Part Two - House Interchanges - Saturn overlays",
+      "summary": "Saturn in important houses can steady a bond or heavily test it, often both."
+    },
+    {
+      "id": "overlay_outer_major",
+      "kind": "house_overlay",
+      "houses": [1, 5, 7, 8, 12],
+      "points": ["Uranus", "Neptune", "Pluto", "North Node", "South Node", "Chiron"],
+      "scores": { "growth": 2.0, "attraction": 1.0, "burden": 1.0 },
+      "bucket": "mixed",
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 8 - Uranus, Neptune, Pluto",
+      "summary": "Outer, nodal, and healing overlays can feel fated, strange, transformative, or educational."
+    },
+    {
+      "id": "mutual_reception_support",
+      "kind": "reception",
+      "mode": "mutual",
+      "per_hit_scores": { "compatibility": 1.0, "attachment": 4.0 },
+      "max_total_scores": { "compatibility": 3.0, "attachment": 9.0 },
+      "bucket": "supportive",
+      "source_key": "davison",
+      "source_anchor": "Chapter 6 - Dignity relations",
+      "summary": "Mutual reception adds willingness to sustain and carry the bond."
+    },
+    {
+      "id": "unilateral_reception_support",
+      "kind": "reception",
+      "mode": "unilateral",
+      "per_hit_scores": { "compatibility": 0.5, "growth": 1.0, "attachment": 0.5 },
+      "max_total_scores": { "compatibility": 1.5, "growth": 4.0, "attachment": 2.0 },
+      "bucket": "supportive",
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 11 - Other Key Factors",
+      "summary": "One-way reception adds partial support and cooperation, but not equal exchange."
+    },
+    {
+      "id": "element_lack_fill",
+      "kind": "element_lack_fill",
+      "scores": { "growth": 3.0, "compatibility": 0.75 },
+      "strong_threshold": 3,
+      "strong_scores": { "growth": 4.0, "compatibility": 1.0, "attraction": 0.5 },
+      "overload_threshold": 5,
+      "overload_scores": { "burden": 1.5, "friction": 1.0 },
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 8 - The Importance of Lacks",
+      "summary": "A partner often supplies an element missing in the natal chart, though overcompensation can become difficult."
+    },
+    {
+      "id": "modality_lack_fill",
+      "kind": "modality_lack_fill",
+      "scores": { "growth": 3.0, "compatibility": 0.5 },
+      "strong_threshold": 3,
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 8 - The Importance of Lacks",
+      "summary": "Missing modalities are often supplied through relationship, expanding the natal pattern."
+    },
+    {
+      "id": "empty_house_fill_light",
+      "kind": "empty_house_fill",
+      "points": ["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter"],
+      "scores": { "growth": 2.5, "compatibility": 0.5 },
+      "bucket": "supportive",
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 8 - Filling Another's Empty Houses",
+      "summary": "A partner's planets can provide a borrowed outlet for otherwise empty life areas."
+    },
+    {
+      "id": "empty_house_fill_heavy",
+      "kind": "empty_house_fill",
+      "points": ["Saturn", "Pluto", "Uranus", "Neptune", "North Node", "South Node", "Chiron"],
+      "scores": { "growth": 1.5, "burden": 0.75 },
+      "bucket": "mixed",
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 8 - Filling Another's Empty Houses",
+      "summary": "Heavy or fateful planets can activate empty houses through responsibility, transformation, or odd pressure."
+    },
+    {
+      "id": "natal_activation_moon_soft",
+      "kind": "natal_activation",
+      "points": ["Moon"],
+      "aspects": ["Conjunction", "Trine", "Sextile", "Opposition"],
+      "scores": { "resonance": 3.0, "growth": 3.0 },
+      "bucket": "supportive",
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 8 - The Importance of Lacks",
+      "summary": "An otherwise unaspected Moon can wake up through relationship and become more conscious."
+    },
+    {
+      "id": "natal_activation_moon_hard",
+      "kind": "natal_activation",
+      "points": ["Moon"],
+      "aspects": ["Square", "Quincunx"],
+      "scores": { "growth": 3.0, "burden": 2.5 },
+      "bucket": "mixed",
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 8 - The Importance of Lacks",
+      "summary": "Hard contact to an unaspected Moon can force emotional development, but not always gently."
+    },
+    {
+      "id": "natal_activation_mercury_soft",
+      "kind": "natal_activation",
+      "points": ["Mercury"],
+      "aspects": ["Conjunction", "Trine", "Sextile", "Opposition"],
+      "scores": { "communication": 3.0, "growth": 2.0 },
+      "bucket": "supportive",
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 8 - The Importance of Lacks",
+      "summary": "An unaspected Mercury often becomes more articulate through the partner's contact."
+    },
+    {
+      "id": "natal_activation_mercury_hard",
+      "kind": "natal_activation",
+      "points": ["Mercury"],
+      "aspects": ["Square", "Quincunx"],
+      "scores": { "growth": 2.0, "friction": 2.0 },
+      "bucket": "mixed",
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 8 - The Importance of Lacks",
+      "summary": "Stress to an unaspected Mercury can improve insight, but it also sharpens disagreement."
+    },
+    {
+      "id": "natal_activation_sun_soft",
+      "kind": "natal_activation",
+      "points": ["Sun"],
+      "aspects": ["Conjunction", "Trine", "Sextile", "Opposition"],
+      "scores": { "growth": 3.0, "attachment": 2.0 },
+      "bucket": "supportive",
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 8 - The Importance of Lacks",
+      "summary": "Relationship can activate a natal Sun that otherwise lacks clear contact in the birth figure."
+    },
+    {
+      "id": "natal_activation_sun_hard",
+      "kind": "natal_activation",
+      "points": ["Sun"],
+      "aspects": ["Square", "Quincunx"],
+      "scores": { "growth": 2.0, "friction": 2.0, "burden": 1.0 },
+      "bucket": "mixed",
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 8 - The Importance of Lacks",
+      "summary": "Stress to a natal lack can still help self-definition, though it does so through challenge."
+    },
+    {
+      "id": "natal_activation_venus_mars",
+      "kind": "natal_activation",
+      "points": ["Venus", "Mars"],
+      "aspects": ["Conjunction", "Trine", "Sextile", "Opposition", "Square", "Quincunx"],
+      "scores": { "attraction": 3.0, "growth": 2.0, "friction": 1.0 },
+      "bucket": "mixed",
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 8 - The Importance of Lacks",
+      "summary": "When relationship activates an otherwise unlinked Venus or Mars, desire and style become more conscious."
+    },
+    {
+      "id": "hemisphere_balance_vertical",
+      "kind": "hemisphere_balance",
+      "axis": "vertical",
+      "threshold": 7,
+      "scores": { "compatibility": 1.0, "growth": 2.0 },
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 8 - Hemisphere Emphasis",
+      "summary": "Above-horizon and below-horizon partners can balance each other rather than duplicate each other."
+    },
+    {
+      "id": "hemisphere_balance_horizontal",
+      "kind": "hemisphere_balance",
+      "axis": "horizontal",
+      "threshold": 7,
+      "scores": { "compatibility": 0.75, "growth": 1.5 },
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 8 - Hemisphere Emphasis",
+      "summary": "Eastern and western hemisphere emphasis can balance action with response."
+    },
+    {
+      "id": "sign_house_affinity",
+      "kind": "sign_house_affinity",
+      "scores": { "compatibility": 1.0, "attachment": 2.0 },
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 8 - Affinities",
+      "summary": "Sign-house affinity often reflects an innate sense of understanding and long-term accord."
+    },
+    {
+      "id": "directional_overlay_imbalance",
+      "kind": "directional_overlay_imbalance",
+      "houses": [5, 7, 8],
+      "threshold": 2,
+      "scores": { "burden": 2.0, "friction": 1.5 },
+      "source_key": "march_mcevers",
+      "source_anchor": "Lesson 8 - The Importance of Lacks",
+      "summary": "One-sided activation can make a bond feel uneven, especially around romance and intimacy houses."
+    }
+  ]
+}

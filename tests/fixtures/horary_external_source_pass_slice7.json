@@ -1,0 +1,82 @@
+[
+  {
+    "id": "legal_case_astrologyweekly_source_pass",
+    "question": "Will I win the case?",
+    "source_url": "https://astrologyweekly.com/threads/will-i-win-the-case.62291/",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "legal outcome disputed in thread",
+    "source_expected_category": "lawsuit",
+    "source_expected_houses": [
+      1,
+      7,
+      10,
+      4
+    ],
+    "source_expected_focus": "The Astrology Weekly discussion states the classic court-case frame directly: the querent is the 1st, the opposing party the 7th, the judge the 10th, and the end of the matter the 4th. Lawyers and reserves may add the 2nd and 8th, but the core legal axis is 1/7/10/4.",
+    "current_engine_category": "lawsuit",
+    "current_engine_houses": [
+      1,
+      7,
+      10,
+      4
+    ],
+    "current_engine_quesited_house": 7,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Current router now keeps the full court-adjudication axis in view for ordinary legal outcome questions."
+  },
+  {
+    "id": "ex_employer_legal_battle_astrologyweekly_source_pass",
+    "question": "Will I win the legal battle against my ex-employer?",
+    "source_url": "https://astrologyweekly.com/threads/will-i-win-the-legal-battle-against-my-ex-employer.83797/latest",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "thread leans yes",
+    "source_expected_category": "lawsuit",
+    "source_expected_houses": [
+      1,
+      7,
+      10,
+      4
+    ],
+    "source_expected_focus": "The thread explicitly weighs the opponent, the judge, and the outcome of the matter, and later commenters discuss the legal side, witnesses, and lawyer as supporting houses. Even though the opponent is an ex-employer, the question is still a court-battle chart first.",
+    "current_engine_category": "lawsuit",
+    "current_engine_houses": [
+      1,
+      7,
+      10,
+      4
+    ],
+    "current_engine_quesited_house": 7,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Current router now keeps ex-employer legal fights on the court-adjudication axis instead of collapsing them into money."
+  },
+  {
+    "id": "inheritance_rights_court_battle_astrologyweekly_source_pass",
+    "question": "Will I win the court battle for my inheritance rights?",
+    "source_url": "https://astrologyweekly.com/threads/will-i-win-the-court-battle-for-my-inheritance-rights.146199/",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "inheritance dispute / legal adjudication",
+    "source_expected_category": "lawsuit",
+    "source_expected_houses": [
+      1,
+      7,
+      10,
+      4,
+      8
+    ],
+    "source_expected_focus": "This is an inheritance dispute, so the 8th-house subject matter matters, but the chart is still explicitly framed as a court battle against another party over legal entitlement. The legal axis of opponent, judge, and outcome should stay visible instead of being replaced by inheritance houses alone.",
+    "current_engine_category": "lawsuit",
+    "current_engine_houses": [
+      1,
+      7,
+      10,
+      4,
+      8
+    ],
+    "current_engine_quesited_house": 7,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Current router now keeps inheritance-rights disputes on the legal axis while adding the 8th-house estate as subject matter."
+  }
+]

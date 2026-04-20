@@ -1,0 +1,22 @@
+{
+  "id": "kingship_leadership_display",
+  "name": "Kingship / Leadership (display)",
+  "domain": "role_expression",
+  "description": "Leadership display with strong Leo/Sun and 5th/10th emphasis; Saturnine structure stabilizes; Sun affliction risks vanity.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Leo warmth/leadership vs vanity under affliction; 10th office"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Leo", "min": 1.5, "weight": 8 },
+      { "kind": "planet_status", "planet": "Sun", "strong": true, "weight": 8 },
+      { "kind": "house_emphasis", "houses": [5,10], "min_total": 1, "weight": 6 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Sun", "afflicted": true, "weight": -8 },
+      { "kind": "planet_status", "planet": "Saturn", "afflicted": true, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

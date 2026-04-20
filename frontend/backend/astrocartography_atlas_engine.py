@@ -1,0 +1,678 @@
+from __future__ import annotations
+
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
+
+from astrocartography_city_catalog import (
+    DEFAULT_ATLAS_RESOLUTION,
+    get_country_catalog_meta,
+    get_atlas_resolution_settings,
+    search_city_catalog,
+)
+from astrocartography_goal_engine import (
+    evaluate_goal_model,
+    extract_relocation_features,
+    summarize_relocation_features,
+)
+from astrocartography_goal_models import get_goal_model
+from astrocartography_service import (
+    DEFAULT_ANGLES,
+    DEFAULT_BODIES,
+    EXTENDED_READING_RADIUS_KM,
+    PRIMARY_READING_RADIUS_KM,
+    build_location_reading,
+    crossing_candidates_for_point,
+)
+from horary_engine.services.geolocation import search_live_location_candidates
+
+
+DEFAULT_ATLAS_LIMIT = 8
+DEFAULT_RELOCATION_LIMIT = 18
+MIN_ATLAS_RAW_SCORE = 0.25
+DEFAULT_SHORTLIST_STRATEGY = "line_first"
+RELOCATION_PREPASS_SHORTLIST_STRATEGY = "relocation_prepass"
+MAX_RELOCATION_PREPASS_LIMIT = 480
+
+
+def _emit_progress(
+    progress_callback: Optional[Callable[[Dict[str, Any]], None]],
+    *,
+    stage: str,
+    percent: float,
+    message: str,
+    done: Optional[int] = None,
+    total: Optional[int] = None,
+    **extra: Any,
+) -> None:
+    if progress_callback is None:
+        return
+    payload: Dict[str, Any] = {
+        "stage": str(stage or "working"),
+        "percent": max(0.0, min(1.0, float(percent))),
+        "message": str(message or "Working"),
+    }
+    if done is not None:
+        payload["done"] = int(done)
+    if total is not None:
+        payload["total"] = int(total)
+    if extra:
+        payload.update(extra)
+    progress_callback(payload)
+
+
+def _check_should_continue(should_continue: Optional[Callable[[], None]]) -> None:
+    if should_continue is None:
+        return
+    should_continue()
+
+
+def _empty_relocation_features() -> Dict[str, Any]:
+    return {
+        "planet_houses": {},
+        "planet_angles": {},
+        "house_occupancy": {},
+        "metrics": {},
+    }
+
+
+def _normalize_target_text(value: Any) -> str:
+    if isinstance(value, str):
+        text = value.strip()
+    elif isinstance(value, dict):
+        text = ""
+        for key in ("query", "label", "name", "display_name", "address"):
+            candidate = value.get(key)
+            if isinstance(candidate, str) and candidate.strip():
+                text = candidate.strip()
+                break
+    else:
+        text = ""
+
+    if not text:
+        return ""
+    if text == "[object Object]":
+        return ""
+    if text.startswith("[object Object],"):
+        return text.replace("[object Object],", "", 1).strip()
+    return text
+
+
+def _merge_atlas_candidates(
+    catalog_candidates: Sequence[Dict[str, Any]],
+    live_candidates: Sequence[Dict[str, Any]],
+    *,
+    continent_code: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    country_meta = get_country_catalog_meta()
+    continent_norm = str(continent_code or "").strip().upper()
+    merged: List[Dict[str, Any]] = []
+    seen = set()
+
+    def _dedupe_key(city: Dict[str, Any]) -> tuple:
+        return (
+            str(city.get("ascii_name") or city.get("name") or city.get("label") or "").strip().lower(),
+            str(city.get("country_code") or "").strip().upper(),
+            round(float(city.get("latitude") or 0.0), 3),
+            round(float(city.get("longitude") or 0.0), 3),
+        )
+
+    for city in list(catalog_candidates) + list(live_candidates):
+        item = dict(city)
+        country_code = str(item.get("country_code") or "").strip().upper()
+        meta = country_meta.get(country_code, {})
+        if not item.get("country_name") and meta.get("country_name"):
+            item["country_name"] = meta.get("country_name")
+        if not item.get("continent_code") and meta.get("continent_code"):
+            item["continent_code"] = meta.get("continent_code")
+            item["continent_name"] = meta.get("continent_name")
+        if continent_norm and str(item.get("continent_code") or "").upper() != continent_norm:
+            continue
+        key = _dedupe_key(item)
+        if key in seen:
+            continue
+        seen.add(key)
+        merged.append(item)
+    return merged
+
+
+def derive_goal_search_filters(
+    goal_id: str,
+    *,
+    selected_bodies: Optional[Iterable[str]] = None,
+    selected_angles: Optional[Iterable[str]] = None,
+) -> Tuple[List[str], List[str]]:
+    filter_meta = describe_goal_search_filters(
+        goal_id,
+        selected_bodies=selected_bodies,
+        selected_angles=selected_angles,
+    )
+    return filter_meta["bodies"], filter_meta["angles"]
+
+
+def describe_goal_search_filters(
+    goal_id: str,
+    *,
+    selected_bodies: Optional[Iterable[str]] = None,
+    selected_angles: Optional[Iterable[str]] = None,
+) -> Dict[str, Any]:
+    model = get_goal_model(goal_id)
+    supported_bodies = set(DEFAULT_BODIES)
+    supported_angles = set(DEFAULT_ANGLES)
+    atlas_filters = model.get("atlas_search_filters") if isinstance(model.get("atlas_search_filters"), dict) else {}
+
+    goal_bodies: set[str] = {
+        name
+        for name in (
+            str(body or "").strip()
+            for body in (atlas_filters.get("bodies") or [])
+        )
+        if name in supported_bodies
+    }
+    goal_angles: set[str] = {
+        name
+        for name in (
+            str(angle or "").strip().upper()
+            for angle in (atlas_filters.get("angles") or [])
+        )
+        if name in supported_angles
+    }
+
+    bodies_from_components = not goal_bodies
+    angles_from_components = not goal_angles
+
+    for component in model.get("score_components") or []:
+        kind = str(component.get("kind") or "")
+        if kind == "line":
+            planet = str(component.get("planet") or "").strip()
+            if bodies_from_components and planet in supported_bodies:
+                goal_bodies.add(planet)
+            for angle in component.get("angles") or []:
+                name = str(angle or "").strip().upper()
+                if angles_from_components and name in supported_angles:
+                    goal_angles.add(name)
+        elif kind == "crossing":
+            for planet in component.get("pair") or []:
+                name = str(planet or "").strip()
+                if bodies_from_components and name in supported_bodies:
+                    goal_bodies.add(name)
+
+    body_filter = [str(body).strip() for body in (selected_bodies or []) if str(body).strip()]
+    angle_filter = [str(angle).strip().upper() for angle in (selected_angles or []) if str(angle).strip()]
+    has_signature = bool(goal_bodies and goal_angles)
+
+    if body_filter:
+        goal_bodies = goal_bodies.intersection(body_filter)
+
+    if angle_filter:
+        goal_angles = goal_angles.intersection(angle_filter)
+
+    return {
+        "bodies": sorted(goal_bodies),
+        "angles": sorted(goal_angles),
+        "goal_has_signature": has_signature,
+        "excluded_by_filters": bool(has_signature and (not goal_bodies or not goal_angles)),
+    }
+
+
+def _score_candidate(
+    city: Dict[str, Any],
+    *,
+    goal_id: str,
+    natal_lines: Sequence[Dict[str, Any]],
+    transit_lines: Optional[Sequence[Dict[str, Any]]] = None,
+    relocation_features: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    latitude = float(city.get("latitude") or 0.0)
+    longitude = float(city.get("longitude") or 0.0)
+
+    natal_reading = build_location_reading(
+        natal_lines,
+        latitude,
+        longitude,
+        primary_radius_km=PRIMARY_READING_RADIUS_KM,
+        extended_radius_km=EXTENDED_READING_RADIUS_KM,
+    )
+    natal_crossings = crossing_candidates_for_point(
+        natal_lines,
+        latitude,
+        longitude,
+        nearest_rows=natal_reading.get("nearest_lines") or [],
+        max_distance_km=EXTENDED_READING_RADIUS_KM,
+    )
+
+    transit_reading = None
+    transit_crossings = None
+    if transit_lines:
+        transit_reading = build_location_reading(
+            transit_lines,
+            latitude,
+            longitude,
+            primary_radius_km=PRIMARY_READING_RADIUS_KM,
+            extended_radius_km=EXTENDED_READING_RADIUS_KM,
+        )
+        transit_crossings = crossing_candidates_for_point(
+            transit_lines,
+            latitude,
+            longitude,
+            nearest_rows=transit_reading.get("nearest_lines") or [],
+            max_distance_km=EXTENDED_READING_RADIUS_KM,
+        )
+
+    goal_eval = evaluate_goal_model(
+        goal_id,
+        natal_rows=natal_reading.get("nearest_lines") or [],
+        natal_crossings=natal_crossings,
+        relocation=relocation_features or _empty_relocation_features(),
+        transit_rows=(transit_reading.get("nearest_lines") or []) if transit_reading else None,
+        transit_crossings=transit_crossings,
+    )
+
+    result: Dict[str, Any] = {
+        "target": {
+            "label": _normalize_target_text(city.get("label")) or _normalize_target_text(city.get("query")),
+            "query": _normalize_target_text(city.get("query")) or _normalize_target_text(city.get("label")),
+            "latitude": latitude,
+            "longitude": longitude,
+        },
+        "atlas_city": {
+            "country_code": city.get("country_code"),
+            "country_name": city.get("country_name"),
+            "admin1_code": city.get("admin1_code"),
+            "population": int(city.get("population") or 0),
+            "timezone": city.get("timezone"),
+            "feature_code": city.get("feature_code"),
+        },
+        "natal": {
+            "reading": natal_reading,
+            "crossings": natal_crossings,
+        },
+        "location_score": goal_eval,
+    }
+    if transit_reading:
+        result["transit"] = {
+            "reading": transit_reading,
+            "crossings": transit_crossings,
+        }
+    if relocation_features is not None:
+        result["relocation"] = {"summary": summarize_relocation_features(relocation_features)}
+    return result
+
+
+def _passes_signal_floor(item: Dict[str, Any], *, min_raw_score: float = MIN_ATLAS_RAW_SCORE) -> bool:
+    score_payload = item.get("location_score") or {}
+    raw_score = float(score_payload.get("raw_score") or 0.0)
+    if raw_score >= float(min_raw_score):
+        return True
+    return any(float(entry.get("score") or 0.0) > 0.0 for entry in (score_payload.get("top_supports") or []))
+
+
+def build_location_score_sort_key(
+    location_score: Dict[str, Any],
+    *,
+    label: Any = "",
+    population: Any = 0,
+) -> tuple[float, float, int, str]:
+    return (
+        -float(location_score.get("raw_score") or 0.0),
+        -float(location_score.get("score") or 0.0),
+        -int(population or 0),
+        str(label or ""),
+    )
+
+
+def _scored_candidate_sort_key(item: Dict[str, Any]) -> tuple[float, float, int, str]:
+    return build_location_score_sort_key(
+        item.get("location_score") or {},
+        label=((item.get("target") or {}).get("label") or ""),
+        population=((item.get("atlas_city") or {}).get("population") or 0),
+    )
+
+
+def _build_scored_candidate_ranking(rows: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    ranking: List[Dict[str, Any]] = []
+    for index, item in enumerate(rows, start=1):
+        target = item.get("target") or {}
+        location_score = item.get("location_score") or {}
+        atlas_city = item.get("atlas_city") or {}
+        ranking.append(
+            {
+                "rank": index,
+                "label": target.get("label"),
+                "query": target.get("query"),
+                "score": location_score.get("score"),
+                "raw_score": location_score.get("raw_score"),
+                "population": atlas_city.get("population"),
+                "country_name": atlas_city.get("country_name"),
+                "lead_line": (((item.get("natal") or {}).get("reading") or {}).get("lead_line") or {}).get("label"),
+                "top_supports": (location_score.get("top_supports") or [])[:2],
+                "top_cautions": (location_score.get("top_cautions") or [])[:2],
+            }
+        )
+    return ranking
+
+
+def resolve_goal_shortlist_plan(
+    goal_id: str,
+    *,
+    relocation_limit: int,
+    candidate_count: int,
+) -> Dict[str, Any]:
+    model = get_goal_model(goal_id)
+    strategy = str(model.get("atlas_shortlist_strategy") or DEFAULT_SHORTLIST_STRATEGY).strip().lower()
+    if strategy not in {DEFAULT_SHORTLIST_STRATEGY, RELOCATION_PREPASS_SHORTLIST_STRATEGY}:
+        strategy = DEFAULT_SHORTLIST_STRATEGY
+
+    prepass_limit = max(1, int(relocation_limit))
+    if strategy == RELOCATION_PREPASS_SHORTLIST_STRATEGY:
+        configured_limit = int(model.get("atlas_relocation_prepass_limit") or 0)
+        if configured_limit <= 0:
+            configured_limit = max(int(relocation_limit) * 6, 96)
+        prepass_limit = min(
+            int(candidate_count),
+            max(int(relocation_limit), min(configured_limit, MAX_RELOCATION_PREPASS_LIMIT)),
+        )
+
+    return {
+        "strategy": strategy,
+        "prepass_limit": max(0, int(prepass_limit)),
+    }
+
+
+def _candidate_payload_from_scored_item(item: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        **(item.get("target") or {}),
+        **(item.get("atlas_city") or {}),
+    }
+
+
+def rank_candidate_pool_for_goal(
+    *,
+    goal_id: str,
+    candidates: Sequence[Dict[str, Any]],
+    natal_lines: Sequence[Dict[str, Any]],
+    transit_lines: Optional[Sequence[Dict[str, Any]]] = None,
+    limit: int = DEFAULT_ATLAS_LIMIT,
+    relocation_limit: Optional[int] = None,
+    limit_cap: Optional[int] = 20,
+    relocation_limit_cap: Optional[int] = 30,
+    relocation_bundle_resolver: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
+    progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
+    should_continue: Optional[Callable[[], None]] = None,
+    include_debug_ranking: bool = False,
+) -> Dict[str, Any]:
+    limit = max(1, int(limit or DEFAULT_ATLAS_LIMIT))
+    if limit_cap is not None:
+        limit = min(limit, int(limit_cap))
+    relocation_limit = max(limit, int(relocation_limit or DEFAULT_RELOCATION_LIMIT))
+    if relocation_limit_cap is not None:
+        relocation_limit = min(relocation_limit, int(relocation_limit_cap))
+    initial_total = len(candidates)
+    shortlist_plan = resolve_goal_shortlist_plan(
+        goal_id,
+        relocation_limit=relocation_limit,
+        candidate_count=initial_total,
+    )
+
+    initial_results: List[Dict[str, Any]] = []
+    if initial_total == 0:
+        _emit_progress(
+            progress_callback,
+            stage="score_candidates",
+            percent=0.65,
+            message="No atlas candidates matched the current search",
+            done=0,
+            total=0,
+            candidate_count=0,
+        )
+    else:
+        initial_step = max(1, initial_total // 24)
+        for index, city in enumerate(candidates, start=1):
+            _check_should_continue(should_continue)
+            initial_results.append(
+                _score_candidate(city, goal_id=goal_id, natal_lines=natal_lines, transit_lines=transit_lines)
+            )
+            if index == initial_total or index % initial_step == 0:
+                progress = 0.16 + (0.49 * (index / initial_total))
+                _emit_progress(
+                    progress_callback,
+                    stage="score_candidates",
+                    percent=progress,
+                    message="Scoring atlas candidates",
+                    done=index,
+                    total=initial_total,
+                    candidate_count=initial_total,
+                )
+    initial_results.sort(key=_scored_candidate_sort_key)
+
+    prepass_candidates = initial_results[: shortlist_plan["prepass_limit"]]
+    relocation_prepass_results: List[Dict[str, Any]] = []
+    final_results_source: List[Dict[str, Any]] = []
+
+    if (
+        shortlist_plan["strategy"] == RELOCATION_PREPASS_SHORTLIST_STRATEGY
+        and relocation_bundle_resolver is not None
+        and prepass_candidates
+    ):
+        _emit_progress(
+            progress_callback,
+            stage="relocation_prepass",
+            percent=0.7,
+            message="Running relocation-aware prepass before the final shortlist",
+            done=0,
+            total=len(prepass_candidates),
+            prepass_count=len(prepass_candidates),
+            candidate_count=initial_total,
+        )
+        prepass_total = len(prepass_candidates)
+        prepass_step = max(1, prepass_total // 16)
+        for index, item in enumerate(prepass_candidates, start=1):
+            _check_should_continue(should_continue)
+            city = _candidate_payload_from_scored_item(item)
+            bundle = relocation_bundle_resolver(item)
+            relocation_features = extract_relocation_features((bundle or {}).get("chart_data") or {})
+            relocation_prepass_results.append(
+                _score_candidate(
+                    city,
+                    goal_id=goal_id,
+                    natal_lines=natal_lines,
+                    transit_lines=transit_lines,
+                    relocation_features=relocation_features,
+                )
+            )
+            if index == prepass_total or index % prepass_step == 0:
+                progress = 0.7 + (0.25 * (index / prepass_total))
+                _emit_progress(
+                    progress_callback,
+                    stage="relocation_prepass",
+                    percent=progress,
+                    message="Scoring relocated charts for the expanded prepass",
+                    done=index,
+                    total=prepass_total,
+                    prepass_count=prepass_total,
+                )
+        relocation_prepass_results.sort(key=_scored_candidate_sort_key)
+        shortlisted = relocation_prepass_results[:relocation_limit]
+        final_results_source = relocation_prepass_results
+    else:
+        shortlisted = prepass_candidates[:relocation_limit]
+        _emit_progress(
+            progress_callback,
+            stage="shortlist",
+            percent=0.7,
+            message="Shortlisting strongest cities for relocation scoring",
+            done=len(shortlisted),
+            total=len(initial_results),
+            shortlisted_count=len(shortlisted),
+            candidate_count=initial_total,
+        )
+        shortlist_total = len(shortlisted)
+        shortlist_step = max(1, shortlist_total // 16) if shortlist_total else 1
+        for index, item in enumerate(shortlisted, start=1):
+            _check_should_continue(should_continue)
+            city = _candidate_payload_from_scored_item(item)
+            relocation_features = None
+            if relocation_bundle_resolver is not None:
+                bundle = relocation_bundle_resolver(item)
+                relocation_features = extract_relocation_features((bundle or {}).get("chart_data") or {})
+            final_results_source.append(
+                _score_candidate(
+                    city,
+                    goal_id=goal_id,
+                    natal_lines=natal_lines,
+                    transit_lines=transit_lines,
+                    relocation_features=relocation_features,
+                )
+            )
+            if shortlist_total and (index == shortlist_total or index % shortlist_step == 0):
+                progress = 0.7 + (0.25 * (index / shortlist_total))
+                _emit_progress(
+                    progress_callback,
+                    stage="relocation_scoring",
+                    percent=progress,
+                    message="Scoring relocated charts for shortlisted cities",
+                    done=index,
+                    total=shortlist_total,
+                    shortlisted_count=shortlist_total,
+                )
+        final_results_source.sort(key=_scored_candidate_sort_key)
+
+    _check_should_continue(should_continue)
+    viable_results = [item for item in final_results_source if _passes_signal_floor(item)]
+    final_results = viable_results[:limit]
+
+    _check_should_continue(should_continue)
+    _emit_progress(
+        progress_callback,
+        stage="finalizing",
+        percent=0.98,
+        message="Finalizing ranked city list",
+        done=len(final_results),
+        total=len(viable_results),
+        viable_count=len(viable_results),
+    )
+
+    ranking = _build_scored_candidate_ranking(final_results)
+
+    _emit_progress(
+        progress_callback,
+        stage="ready",
+        percent=1.0,
+        message="Atlas search complete",
+        done=len(final_results),
+        total=len(final_results),
+        viable_count=len(viable_results),
+    )
+
+    result: Dict[str, Any] = {
+        "candidate_count": len(candidates),
+        "shortlist_strategy": shortlist_plan["strategy"],
+        "relocation_prepass_count": len(prepass_candidates),
+        "shortlisted_count": len(shortlisted),
+        "viable_count": len(viable_results),
+        "signal_floor_raw_score": MIN_ATLAS_RAW_SCORE,
+        "results": final_results,
+        "ranking": ranking,
+    }
+    if include_debug_ranking:
+        result["debug"] = {
+            "initial_ranking": _build_scored_candidate_ranking(initial_results),
+            "relocation_prepass_ranking": _build_scored_candidate_ranking(relocation_prepass_results),
+            "final_scored_ranking": _build_scored_candidate_ranking(final_results_source),
+            "prepass_labels": [str((item.get("target") or {}).get("label") or "") for item in prepass_candidates],
+            "shortlisted_labels": [str((item.get("target") or {}).get("label") or "") for item in shortlisted],
+        }
+    return result
+
+
+def rank_atlas_cities_for_goal(
+    *,
+    goal_id: str,
+    natal_lines: Sequence[Dict[str, Any]],
+    transit_lines: Optional[Sequence[Dict[str, Any]]] = None,
+    query: Optional[str] = None,
+    country_code: Optional[str] = None,
+    continent_code: Optional[str] = None,
+    resolution: Optional[str] = None,
+    limit: int = DEFAULT_ATLAS_LIMIT,
+    relocation_limit: Optional[int] = None,
+    relocation_bundle_resolver: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
+    progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
+    should_continue: Optional[Callable[[], None]] = None,
+) -> Dict[str, Any]:
+    resolution_settings = get_atlas_resolution_settings(resolution)
+    resolution_id = str(resolution_settings.get("id") or DEFAULT_ATLAS_RESOLUTION)
+    augment_live_query = bool(resolution_settings.get("augment_live_query")) and bool(query)
+    live_limit = max(1, min(int(resolution_settings.get("live_limit") or 6), 10))
+    limit = max(1, min(int(limit or DEFAULT_ATLAS_LIMIT), 20))
+    relocation_limit = max(
+        limit,
+        min(int(relocation_limit or resolution_settings.get("relocation_limit") or DEFAULT_RELOCATION_LIMIT), 30),
+    )
+
+    _check_should_continue(should_continue)
+    _emit_progress(
+        progress_callback,
+        stage="collect_candidates",
+        percent=0.02,
+        message="Collecting atlas candidates",
+    )
+
+    catalog_candidates = search_city_catalog(
+        query=query,
+        country_code=country_code,
+        continent_code=continent_code,
+        resolution=resolution_id,
+    )
+    _check_should_continue(should_continue)
+    _emit_progress(
+        progress_callback,
+        stage="collect_candidates",
+        percent=0.08 if augment_live_query else 0.12,
+        message="Catalog candidates collected",
+        done=len(catalog_candidates),
+        total=len(catalog_candidates),
+        catalog_candidate_count=len(catalog_candidates),
+    )
+    _check_should_continue(should_continue)
+    live_candidates = search_live_location_candidates(query or "", limit=live_limit) if augment_live_query else []
+    _check_should_continue(should_continue)
+    candidates = _merge_atlas_candidates(
+        catalog_candidates,
+        live_candidates,
+        continent_code=continent_code,
+    )
+    _emit_progress(
+        progress_callback,
+        stage="collect_candidates",
+        percent=0.16,
+        message="Candidate pool ready",
+        done=len(candidates),
+        total=len(candidates),
+        catalog_candidate_count=len(catalog_candidates),
+        live_candidate_count=len(live_candidates),
+        candidate_count=len(candidates),
+    )
+    ranking_result = rank_candidate_pool_for_goal(
+        goal_id=goal_id,
+        candidates=candidates,
+        natal_lines=natal_lines,
+        transit_lines=transit_lines,
+        limit=limit,
+        relocation_limit=relocation_limit,
+        relocation_bundle_resolver=relocation_bundle_resolver,
+        progress_callback=progress_callback,
+        should_continue=should_continue,
+    )
+
+    return {
+        "query": {
+            "text": query or "",
+            "country_code": (country_code or "").upper(),
+            "continent_code": (continent_code or "").upper(),
+            "resolution": resolution_id,
+        },
+        "resolution": resolution_settings,
+        "catalog_candidate_count": len(catalog_candidates),
+        "live_candidate_count": len(live_candidates),
+        "used_live_augmentation": bool(live_candidates),
+        **ranking_result,
+    }

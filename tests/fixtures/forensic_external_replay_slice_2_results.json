@@ -1,0 +1,33 @@
+[
+  {
+    "id": "mlk_assassination",
+    "status_code": 200,
+    "success": true,
+    "comparison": {
+      "status": "aligned",
+      "matched_axes": [
+        "violence_homicide",
+        "authority_or_public_case"
+      ],
+      "missed_axes": [],
+      "contradicted_axes": []
+    },
+    "categories": {
+      "Associates": 1,
+      "Deception": 2,
+      "Degree Signatures": 1,
+      "Houses": 1,
+      "Public": 1,
+      "Stressors": 1,
+      "Violence": 1
+    },
+    "top_finding_titles": [
+      "Life/death overlap points to violence or homicide",
+      "1st ruler also rules the 8th",
+      "Malefic contrary to sect (angular)",
+      "Friend or close associate axis is active",
+      "Public or authority axis is foregrounded",
+      "Mercury in a mute sign"
+    ]
+  }
+]

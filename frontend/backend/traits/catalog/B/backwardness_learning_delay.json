@@ -1,0 +1,26 @@
+{
+  "id": "learning_delay",
+  "name": "Learning delay",
+  "domain": "development",
+  "description": "Developmental delays signaled by afflicted Mercury with Saturn strength or 3rd-house affliction.",
+  "confidence": "high",
+  "polarity": "negative",
+  "sources": ["Carter"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "planet_status", "planet": "Mercury", "afflicted": true, "weight": 16 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": 10 },
+      { "kind": "house_afflicted", "houses": [3], "any": true, "weight": 10 },
+      { "kind": "planet_in_sign", "planet": "Mercury", "sign": "Sagittarius", "weight": 4 },
+      { "kind": "planet_in_sign", "planet": "Mercury", "sign": "Pisces", "weight": 4 },
+      { "kind": "solar", "condition": "combustion", "planet": "Mercury", "phase": "applying", "scale_by_distance": true, "weight": 12 },
+      { "kind": "solar", "condition": "under the beams", "planet": "Mercury", "phase": "applying", "min_dist": 8.5, "max_dist": 17.0, "scale_by_distance": true, "weight": 8 }
+    ],
+    "dampeners": [
+      { "kind": "solar", "condition": "combustion", "planet": "Mercury", "phase": "separating", "weight": -4 },
+      { "kind": "solar", "condition": "under the beams", "planet": "Mercury", "phase": "separating", "weight": -3 }
+    ],
+    "escalators": []
+  }
+}

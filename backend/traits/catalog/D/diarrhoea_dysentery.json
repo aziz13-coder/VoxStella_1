@@ -1,0 +1,20 @@
+{
+  "id": "diarrhoea_dysentery",
+  "name": "Diarrhoea / dysentery",
+  "domain": "disease_digestive_acute",
+  "description": "Acute digestive upset linked to Virgo/6th patterns and Mercury/Mars stress; to refine with D specifics.",
+  "confidence": "low",
+  "polarity": "negative",
+  "sources": ["Carter: Diarrhoea/Dysentery"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "house_emphasis", "houses": [6], "min_total": 1, "weight": 6 },
+      { "kind": "sign_emphasis", "sign": "Virgo", "min": 1.5, "weight": 6 },
+      { "kind": "aspect", "pair": ["Mercury","Mars"], "type": "hard", "max_orb": 6, "weight": 6 }
+    ],
+    "dampeners": [],
+    "escalators": []
+  }
+}
+

@@ -1,0 +1,20 @@
+{
+  "id": "endurance",
+  "name": "Endurance",
+  "domain": "virtue_resilience",
+  "description": "Power to suffer and be strong associated with Scorpio/fixed emphasis.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Scorpio endurance"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Scorpio", "min": 1.5, "weight": 10 },
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.35, "weight": 8 },
+      { "kind": "house_emphasis", "houses": [8], "min_total": 1, "weight": 6 }
+    ],
+    "dampeners": [],
+    "escalators": []
+  }
+}
+

@@ -1,0 +1,274 @@
+{
+  "generated_at": "2026-03-25T00:00:00+00:00",
+  "purpose": "User-supplied external forensic case candidates reviewed after the local-source slice 6 baseline",
+  "sources": [
+    {
+      "id": "youtube_delphi_kirsty_4sYIAveyP3E",
+      "kind": "external_video",
+      "title": "LIBBY AND ABBY ASTROLOGY DELPHI -THE ORIGINAL VIDEO #astrologyreadings  #astro #zodiac #astrology",
+      "url": "https://www.youtube.com/watch?v=4sYIAveyP3E",
+      "publish_date": "2017-07-26T02:00:17-07:00",
+      "metadata_strength": "weak",
+      "notes": "The description frames the February 13, 2017 Delphi murders of Liberty German and Abigail Williams and mentions map/chart analysis, but it does not provide a defensible murder-time chart anchor."
+    },
+    {
+      "id": "youtube_idaho_kirsty_ZweUodiwmDY",
+      "kind": "external_video",
+      "title": "THE IDAHO MURDERS - ASTROLOGICAL DEEP DIVE #astrology #astro #youtube #news",
+      "url": "https://www.youtube.com/watch?v=ZweUodiwmDY",
+      "publish_date": "2022-11-21T10:46:00-08:00",
+      "metadata_strength": "medium",
+      "notes": "The description gives candidate timestamps of 1:45 AM, 2:52 AM, 3:45 AM, and 11:58 AM on November 13, 2022 for the Idaho 4 case, which was enough for exploratory route probes. The stronger executable anchor came from the official probable cause affidavit."
+    },
+    {
+      "id": "idaho_probable_cause_affidavit",
+      "kind": "official_court_document",
+      "title": "Bryan Kohberger arrest affidavit in Idaho murders",
+      "url": "https://s3.documentcloud.org/documents/23564652/idaho-murders-court-document-unsealed.pdf",
+      "metadata_strength": "high",
+      "notes": "The affidavit says investigators believe the homicides occurred between 4:00 AM and 4:25 AM on November 13, 2022 and specifically notes distorted audio, a loud thud, and dog barking at approximately 4:17 AM."
+    }
+  ],
+  "cases": [
+    {
+      "id": "libby_abby_delphi",
+      "title": "Liberty German and Abigail Williams (Delphi murders)",
+      "source_id": "youtube_delphi_kirsty_4sYIAveyP3E",
+      "expected_primary_axes": [
+        "violence_homicide",
+        "child_victim"
+      ],
+      "expected_secondary_axes": [
+        "abduction_missing_person",
+        "authority_or_public_case"
+      ],
+      "contradictory_axes": [
+        "domestic_partner_involvement",
+        "family_involvement"
+      ],
+      "execution_tier": "tier_3_manual_review",
+      "current_status": "manual_review_only",
+      "chart_capture_status": "external_anchor_still_not_defensible",
+      "metadata_basis": "external_video_description_plus_trial_reported_phone_stop_anchor",
+      "metadata_confidence": "low",
+      "not_replay_ready_reason": "The stronger 2:32:39 PM phone-stop anchor still leaves the live route emitting domestic, family, and associate direction. That is not replay-safe against the current corpus standard.",
+      "recommended_next_step": "Recover a defensible murder-time anchor or stronger transcript-grade source support before considering promotion into a future external replay slice.",
+      "tested_anchors": [
+        {
+          "id": "delphi_2017_02_13_1413",
+          "basis": "bridge video or public clue-time anchor",
+          "query": {
+            "mode": "manual",
+            "datetime": "2017-02-13T14:13:00",
+            "location": "Delphi, Indiana",
+            "timezone": "America/Indiana/Indianapolis",
+            "house_system_code": "R"
+          },
+          "status_code": 200,
+          "success": true,
+          "categories": {
+            "Associates": 1,
+            "Children": 1,
+            "Deception": 1,
+            "Degree Signatures": 1,
+            "Domestic": 1,
+            "Family": 3,
+            "Houses": 1,
+            "Public": 2,
+            "Stressors": 1,
+            "Violence": 2
+          },
+          "finding_titles": [
+            "Malefic contrary to sect (angular)",
+            "Any planet anaretic",
+            "Moon under death pressure",
+            "Hidden victim with angular violence markers",
+            "Partner axis is active in a domestic matter",
+            "Family axis activated by Moon and domestic houses",
+            "Child and family signatures overlap",
+            "Friend or close associate axis is active"
+          ]
+        },
+        {
+          "id": "delphi_2017_02_13_1432_39",
+          "basis": "trial-reported phone-stop anchor",
+          "query": {
+            "mode": "manual",
+            "datetime": "2017-02-13T14:32:39",
+            "location": "Delphi, Indiana",
+            "timezone": "America/Indiana/Indianapolis",
+            "house_system_code": "R"
+          },
+          "status_code": 200,
+          "success": true,
+          "categories": {
+            "Associates": 1,
+            "Deception": 1,
+            "Degree Signatures": 1,
+            "Domestic": 1,
+            "Family": 3,
+            "Houses": 1,
+            "Public": 1,
+            "Stressors": 1,
+            "Violence": 2
+          },
+          "finding_titles": [
+            "Malefic contrary to sect (angular)",
+            "Any planet anaretic",
+            "Moon under death pressure",
+            "Hidden victim with angular violence markers",
+            "Partner axis is active in a domestic matter",
+            "Family axis activated by Moon and domestic houses",
+            "Friend or close associate axis is active",
+            "Family homicide pressure concentrates on parental/public houses"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "idaho_four_murders",
+      "title": "The Idaho 4 murders",
+      "source_id": "idaho_probable_cause_affidavit",
+      "expected_primary_axes": [
+        "violence_homicide"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup",
+        "authority_or_public_case"
+      ],
+      "contradictory_axes": [
+        "family_involvement",
+        "child_victim",
+        "accident_or_disaster"
+      ],
+      "execution_tier": "tier_3_manual_review",
+      "current_status": "promoted_to_external_replay_slice_1",
+      "chart_capture_status": "external_official_anchor_recovered",
+      "metadata_basis": "external_video_description_lists_candidate_times_plus_official_affidavit_window",
+      "metadata_confidence": "medium",
+      "not_replay_ready_reason": "Initial review found family and child false positives across the tested anchors. After a narrow rule fix that removed Moon-in-Cancer and 4th-ruler-in-own-4th false positives, the official 4:17 AM anchor became replay-safe and was promoted to external replay slice 1.",
+      "recommended_next_step": "Keep the official 4:17 AM affidavit anchor as the executable case and leave the weaker 1:45 AM, 2:52 AM, and 11:58 AM anchors in exploratory status unless stronger source support is needed later.",
+      "tested_anchors": [
+        {
+          "id": "idaho_2022_11_13_0145",
+          "basis": "last seen on CCTV timestamp from video description",
+          "query": {
+            "mode": "manual",
+            "datetime": "2022-11-13T01:45:00",
+            "location": "Moscow, Idaho",
+            "timezone": "America/Los_Angeles",
+            "house_system_code": "R"
+          },
+          "status_code": 200,
+          "success": true,
+          "categories": {
+            "Children": 1,
+            "Deception": 5,
+            "Family": 3,
+            "Public": 1,
+            "Truth": 1
+          },
+          "finding_titles": [
+            "Family axis activated by Moon and domestic houses",
+            "Child and family signatures overlap",
+            "Family homicide pressure concentrates on parental/public houses",
+            "Mercury combust the Sun",
+            "Jupiter-Mercury easy aspect (clarity)",
+            "Home and family axis under pressure",
+            "Public or celebrity case axis is strongly saturated",
+            "Mercury in a mute sign"
+          ]
+        },
+        {
+          "id": "idaho_2022_11_13_0252",
+          "basis": "last phone call timestamp from video description",
+          "query": {
+            "mode": "manual",
+            "datetime": "2022-11-13T02:52:00",
+            "location": "Moscow, Idaho",
+            "timezone": "America/Los_Angeles",
+            "house_system_code": "R"
+          },
+          "status_code": 200,
+          "success": true,
+          "categories": {
+            "Children": 1,
+            "Deception": 5,
+            "Family": 1,
+            "Truth": 1
+          },
+          "finding_titles": [
+            "Family axis activated by Moon and domestic houses",
+            "Child and family signatures overlap",
+            "Mercury combust the Sun",
+            "Jupiter-Mercury easy aspect (clarity)",
+            "Mercury in a mute sign",
+            "Mute signs on angles",
+            "Mute signs on 3rd/9th",
+            "North Node in the 8th house"
+          ]
+        },
+        {
+          "id": "idaho_2022_11_13_0417",
+          "basis": "official affidavit supporting event inside the 4:00 AM to 4:25 AM homicide window",
+          "query": {
+            "mode": "manual",
+            "datetime": "2022-11-13T04:17:00",
+            "location": "Moscow, Idaho",
+            "timezone": "America/Los_Angeles",
+            "house_system_code": "R"
+          },
+          "status_code": 200,
+          "success": true,
+          "categories": {
+            "Deception": 4,
+            "Houses": 1,
+            "Stressors": 1,
+            "Truth": 1,
+            "Violence": 1
+          },
+          "finding_titles": [
+            "Life/death overlap points to violence or homicide",
+            "1st ruler also rules the 8th",
+            "Malefic contrary to sect (angular)",
+            "Mercury combust the Sun",
+            "Venus in detriment with Saturn influence",
+            "Jupiter-Mercury easy aspect (clarity)",
+            "Mercury in a mute sign",
+            "Mute signs on angles"
+          ]
+        },
+        {
+          "id": "idaho_2022_11_13_1158",
+          "basis": "911 call timestamp from video description",
+          "query": {
+            "mode": "manual",
+            "datetime": "2022-11-13T11:58:00",
+            "location": "Moscow, Idaho",
+            "timezone": "America/Los_Angeles",
+            "house_system_code": "R"
+          },
+          "status_code": 200,
+          "success": true,
+          "categories": {
+            "Children": 1,
+            "Deception": 5,
+            "Disaster": 1,
+            "Family": 1,
+            "Truth": 1
+          },
+          "finding_titles": [
+            "Travel accident or disaster pattern is active",
+            "Family axis activated by Moon and domestic houses",
+            "Child and family signatures overlap",
+            "Mercury combust the Sun",
+            "Venus in detriment with Saturn influence",
+            "Jupiter-Mercury easy aspect (clarity)",
+            "Mercury in a mute sign",
+            "Mute signs on angles"
+          ]
+        }
+      ]
+    }
+  ]
+}

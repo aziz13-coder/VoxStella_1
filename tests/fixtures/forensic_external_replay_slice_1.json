@@ -1,0 +1,36 @@
+{
+  "generated_at": "2026-03-25T00:00:00+00:00",
+  "purpose": "First external-source replay slice promoted after the local-source slice 6 baseline",
+  "cases": [
+    {
+      "id": "idaho_four_murders",
+      "title": "The Idaho 4 murders",
+      "source_kind": "external_official_plus_external_video",
+      "source_title": "Official probable cause affidavit plus user-supplied Idaho murders forensic astrology video",
+      "source_url": "https://s3.documentcloud.org/documents/23564652/idaho-murders-court-document-unsealed.pdf",
+      "metadata_basis": "official_affidavit_event_window_plus_specific_4_17_audio_anchor",
+      "metadata_confidence": "medium",
+      "source_metadata_note": "The affidavit says investigators believe the homicides occurred between 4:00 AM and 4:25 AM on November 13, 2022 and specifically records distorted audio, a loud thud, and dog barking at approximately 4:17 AM near the victim bedroom. That gives a stronger event anchor than the earlier exploratory timestamps.",
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2022-11-13T04:17:00",
+        "location": "Moscow, Idaho",
+        "timezone": "America/Los_Angeles",
+        "house_system_code": "R"
+      },
+      "expected_primary_axes": [
+        "violence_homicide"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup",
+        "authority_or_public_case"
+      ],
+      "contradictory_axes": [
+        "family_involvement",
+        "child_victim",
+        "accident_or_disaster"
+      ],
+      "comparison_status": "pending_route_replay"
+    }
+  ]
+}

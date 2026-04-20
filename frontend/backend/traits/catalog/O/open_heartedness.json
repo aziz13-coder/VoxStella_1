@@ -1,0 +1,22 @@
+{
+  "id": "open_heartedness",
+  "name": "Open‑heartedness",
+  "domain": "virtue",
+  "description": "Generous, warm, humanitarian spirit with dignified Sun/Leo and strong Aquarius/11th emphasis; fixed resentments and Sun affliction reduce.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Leo warmth of heart; Aquarius love of mankind"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_group_emphasis", "group": ["Leo","Aquarius"], "min": 2.0, "weight": 8 },
+      { "kind": "planet_status", "planet": "Sun", "strong": true, "weight": 8 },
+      { "kind": "house_emphasis", "houses": [5,11], "min_total": 2, "weight": 6 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Sun", "afflicted": true, "weight": -8 },
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.45, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

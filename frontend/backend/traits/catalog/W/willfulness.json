@@ -1,0 +1,23 @@
+{
+  "id": "willfulness",
+  "name": "Willfulness",
+  "domain": "shadow_of_will",
+  "description": "Headstrong insistence and refusal to accommodate with Fixed dominance heated by Aries/Mars; Libra/Venus and mutable flexibility mitigate.",
+  "confidence": "high",
+  "polarity": "negative",
+  "sources": ["Carter: Fixed under affliction (tyrannical/stubborn); Aries extreme self‑assertion"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.40, "weight": 10 },
+      { "kind": "sign_emphasis", "sign": "Aries", "min": 1.5, "weight": 4 },
+      { "kind": "planet_status", "planet": "Mars", "strong": true, "weight": 4 },
+      { "kind": "house_emphasis", "houses": [2,5,8,11], "min_total": 2, "weight": 2 }
+    ],
+    "dampeners": [
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": -6 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": -4 },
+      { "kind": "modality", "modality": "Mutable", "min_share": 0.35, "weight": -6 }
+    ],
+    "escalators": [] }
+}
+

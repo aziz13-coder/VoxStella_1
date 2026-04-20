@@ -1,0 +1,291 @@
+{
+  "generated_at": "2026-04-06T00:00:00+00:00",
+  "purpose": "Season-level forensic probe set for the current Netflix Homicide franchise season listing. This excludes 9/11/2001 by user request and keeps only the four case-driven episodes.",
+  "season_context": {
+    "series": "Homicide",
+    "season_label_used_by_user": "S3",
+    "official_listing_note": "Netflix Tudum currently describes these episodes under Homicide: New York Season 2, while the franchise landing page shows Homicide as a 3-season series.",
+    "excluded_episode": "9/11/2001",
+    "exclusion_reason": "Excluded by user instruction and because it is a mass-casualty terror/disaster event rather than a single-case homicide probe."
+  },
+  "sources": [
+    {
+      "id": "netflix_tudum_homicide_new_york_season_2",
+      "kind": "official_series_listing",
+      "title": "Homicide New York Season 2: Trailer and True Story of Each Case",
+      "url": "https://www.netflix.com/tudum/articles/homicide-new-york-season-2-release-date-news",
+      "metadata_strength": "high",
+      "notes": "Official Netflix Tudum article listing the five episode titles and summarizing each case."
+    },
+    {
+      "id": "abc7_joey_comunale_timeline",
+      "kind": "reported_history",
+      "title": "Case of missing man from Connecticut leads to arrest of socialite James Rackover",
+      "url": "https://abc7ny.com/joey-comunale-james-rackover-lawrence-dilon-socialite/1617730/",
+      "metadata_strength": "high",
+      "notes": "Broad public timeline for Joey Comunale's disappearance, the Manhattan apartment, and the later body discovery."
+    },
+    {
+      "id": "cbs_joey_comunale_concealment",
+      "kind": "reported_history",
+      "title": "Suspect in Joey Comunale murder case posted clues about crime on social media",
+      "url": "https://www.cbsnews.com/news/joey-comunale-murder-james-rackover-instagram-facebook-clues/",
+      "metadata_strength": "high",
+      "notes": "Documents concealment and taunting behavior after the homicide."
+    },
+    {
+      "id": "people_v_kimes_2006",
+      "kind": "court_record",
+      "title": "People v. Kimes (2006 NY Slip Op 09134)",
+      "url": "https://www.nycourts.gov/reporter/3dseries/2006/2006_09134.htm",
+      "metadata_strength": "high",
+      "notes": "States Martha Rivera last saw Irene Silverman at 11:45 a.m. on July 5, 1998 and realized she was missing at 4:45 p.m."
+    },
+    {
+      "id": "cbs_sylvie_cachay_48_hours",
+      "kind": "reported_history",
+      "title": "Was designer Sylvie Cachay's death at Soho House an accident or murder?",
+      "url": "https://www.cbsnews.com/news/48-hours-was-sylvie-cachays-death-at-soho-house-an-accident-or-murder/",
+      "metadata_strength": "high",
+      "notes": "Places the water-leak complaint at 2:11 a.m. and Nicholas Brooks leaving at 2:18 a.m."
+    },
+    {
+      "id": "gothamist_sylvie_cachay_timeline",
+      "kind": "reported_history",
+      "title": "Boyfriend Questioned In Fashion Designer's Soho House Death",
+      "url": "https://gothamist.com/news/boyfriend-questioned-in-fashion-designers-soho-house-death",
+      "metadata_strength": "high",
+      "notes": "Reports that Cachay was found around 3 a.m. at Soho House."
+    },
+    {
+      "id": "yahoo_when_they_see_us_timeline",
+      "kind": "reported_history",
+      "title": "Netflix's 'When They See Us' Tells the Story of the Central Park Five. Here's a Timeline of the Real Events.",
+      "url": "https://www.yahoo.com/entertainment/netflix-see-us-tells-story-113000400.html",
+      "metadata_strength": "medium",
+      "notes": "Places the Lourdes Gonzalez home invasion on June 14, 1989 at her 97th Street apartment."
+    },
+    {
+      "id": "cinemaholic_lourdes_gonzalez",
+      "kind": "series_recap",
+      "title": "Lourdes Gonzalez Murder: How Did She Die? Who Killed Her?",
+      "url": "https://thecinemaholic.com/lourdes-gonzalez/",
+      "metadata_strength": "medium",
+      "notes": "Adds the 'in the evening' framing for the June 14, 1989 home invasion, but it remains a lower-confidence timing source than the court-linked sources used for Silverman and Cachay."
+    }
+  ],
+  "cases": [
+    {
+      "id": "joey_comunale_party_monster",
+      "episode_number": 1,
+      "episode_title": "Party Monster",
+      "expected_primary_axes": [
+        "violence_homicide",
+        "friend_or_close_associate"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup"
+      ],
+      "contradictory_axes": [
+        "accident_or_disaster",
+        "family_involvement",
+        "child_victim"
+      ],
+      "current_status": "partial_alignment_best_anchor",
+      "hard_outcomes": {
+        "date_local": "2016-11-13",
+        "location": "420 East 58th Street / Sutton Place area, Manhattan, New York, USA",
+        "outcome": "homicide with later body transport and concealment in New Jersey",
+        "known_scene_markers": [
+          "fatal apartment assault after an after-party",
+          "known-person social setting",
+          "later body transport and concealment"
+        ]
+      },
+      "engine_vs_reality_summary": "The strongest anchors now surface associates, violence, and concealment together, which is materially closer to the real case. The pattern still softens at later nearby anchors, so Joey remains exploratory rather than replay-grade.",
+      "tested_anchors": [
+        {
+          "id": "joey_2016_11_13_0650",
+          "basis": "departure-window proxy from public timeline reporting",
+          "query": {
+            "mode": "manual",
+            "datetime": "2016-11-13T06:50:00",
+            "location": "420 East 58th Street, Manhattan, New York, USA",
+            "timezone": "America/New_York",
+            "house_system_code": "R"
+          },
+          "required_categories": [
+            "Associates",
+            "Violence"
+          ],
+          "forbidden_categories": [
+            "Disaster"
+          ]
+        },
+        {
+          "id": "joey_2016_11_13_0700",
+          "basis": "immediate post-departure apartment window probe",
+          "query": {
+            "mode": "manual",
+            "datetime": "2016-11-13T07:00:00",
+            "location": "420 East 58th Street, Manhattan, New York, USA",
+            "timezone": "America/New_York",
+            "house_system_code": "R"
+          },
+          "required_categories": [
+            "Associates",
+            "Violence"
+          ],
+          "forbidden_categories": [
+            "Disaster"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "irene_silverman_mother_knows_best",
+      "episode_number": 2,
+      "episode_title": "Mother Knows Best",
+      "expected_primary_axes": [
+        "abduction_missing_person",
+        "violence_homicide"
+      ],
+      "expected_secondary_axes": [
+        "friend_or_close_associate",
+        "deception_coverup"
+      ],
+      "contradictory_axes": [
+        "accident_or_disaster",
+        "child_victim"
+      ],
+      "current_status": "aligned_best_anchor",
+      "hard_outcomes": {
+        "date_local": "1998-07-05",
+        "location": "20 East 65th Street, Manhattan, New York, USA",
+        "outcome": "abduction / presumed homicide with no body recovered",
+        "known_scene_markers": [
+          "disappearance from townhouse",
+          "tenant / acquaintance suspicion",
+          "financial motive and concealment"
+        ]
+      },
+      "engine_vs_reality_summary": "The best disappearance-window anchor surfaces abduction, violence, and associate structure together. The read is not a pure concealed-custody chart, but it is directionally consistent with a disappearance that became a murder prosecution built on circumstantial evidence.",
+      "tested_anchors": [
+        {
+          "id": "irene_1998_07_05_1630",
+          "basis": "seizure-window proxy inside the court-supported span between last sighting at 11:45 a.m. and missing status by 4:45 p.m.",
+          "query": {
+            "mode": "manual",
+            "datetime": "1998-07-05T16:30:00",
+            "location": "20 East 65th Street, Manhattan, New York, USA",
+            "timezone": "America/New_York",
+            "house_system_code": "R"
+          },
+          "required_categories": [
+            "Abduction",
+            "Associates",
+            "Violence"
+          ],
+          "forbidden_categories": [
+            "Disaster"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sylvie_cachay_soho_horror",
+      "episode_number": 3,
+      "episode_title": "Soho Horror",
+      "expected_primary_axes": [
+        "violence_homicide",
+        "domestic_partner_involvement"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup"
+      ],
+      "contradictory_axes": [
+        "accident_or_disaster",
+        "child_victim"
+      ],
+      "current_status": "aligned_best_anchor",
+      "hard_outcomes": {
+        "date_local": "2010-12-09",
+        "location": "Soho House, Manhattan, New York, USA",
+        "outcome": "partner homicide in hotel room",
+        "known_scene_markers": [
+          "intimate-partner violence",
+          "hotel room assault",
+          "initial accidental-drowning ambiguity"
+        ]
+      },
+      "engine_vs_reality_summary": "The strongest hotel-window anchors surface violence and domestic-partner testimony cleanly. There is still some public / hotel noise around the scene, but the core homicide-plus-partner pattern is present.",
+      "tested_anchors": [
+        {
+          "id": "sylvie_2010_12_09_0200",
+          "basis": "just-after-2 a.m. hotel leak complaint window before Brooks leaves at 2:18 a.m.",
+          "query": {
+            "mode": "manual",
+            "datetime": "2010-12-09T02:00:00",
+            "location": "Soho House, Manhattan, New York, USA",
+            "timezone": "America/New_York",
+            "house_system_code": "R"
+          },
+          "required_categories": [
+            "Domestic",
+            "Violence"
+          ],
+          "forbidden_categories": [
+            "Disaster"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "lourdes_gonzalez_your_eyes_or_your_life",
+      "episode_number": 4,
+      "episode_title": "Your Eyes or Your Life",
+      "expected_primary_axes": [
+        "violence_homicide"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup"
+      ],
+      "contradictory_axes": [
+        "accident_or_disaster",
+        "domestic_partner_involvement"
+      ],
+      "current_status": "aligned_best_anchor",
+      "hard_outcomes": {
+        "date_local": "1989-06-14",
+        "location": "East 97th Street, Manhattan, New York, USA",
+        "outcome": "home-invasion rape and homicide",
+        "known_scene_markers": [
+          "stranger home invasion",
+          "children in another room",
+          "adult female homicide victim"
+        ]
+      },
+      "engine_vs_reality_summary": "The strongest evening anchor now surfaces a cleaner stranger-at-home violence pattern rather than spouse or associate drift. The read remains directional rather than replay-grade certainty, but it now matches the published home-invasion structure materially better than the earlier domestic misclassification.",
+      "tested_anchors": [
+        {
+          "id": "lourdes_1989_06_14_1900",
+          "basis": "evening home-invasion proxy from the lower-confidence public recap window",
+          "query": {
+            "mode": "manual",
+            "datetime": "1989-06-14T19:00:00",
+            "location": "East 97th Street, Manhattan, New York, USA",
+            "timezone": "America/New_York",
+            "house_system_code": "R"
+          },
+          "required_categories": [
+            "Violence"
+          ],
+          "forbidden_categories": [
+            "Domestic",
+            "Disaster"
+          ]
+        }
+      ]
+    }
+  ]
+}

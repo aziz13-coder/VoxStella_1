@@ -1,0 +1,74 @@
+[
+  {
+    "id": "friend_money_back_astrologyweekly_source_pass",
+    "question": "Will I get back my money from my friend?",
+    "source_url": "https://astrologyweekly.com/threads/will-%C4%B1-get-back-my-money.147133/latest",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "repayment / recovery of lent money from a friend",
+    "source_expected_category": "money",
+    "source_expected_houses": [
+      1,
+      11,
+      2
+    ],
+    "source_expected_focus": "The thread explicitly treats the friend as the 11th house and the querent's money as the 2nd house. The matter is repayment of lent money, not generic communication with a friend.",
+    "current_engine_category": "money",
+    "current_engine_houses": [
+      1,
+      11,
+      2
+    ],
+    "current_engine_quesited_house": 2,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Aligned after repayment doctrine pass keeps the friend as counterparty while preserving the querent's money as the thing to be recovered."
+  },
+  {
+    "id": "college_refund_astrologyweekly_source_pass",
+    "question": "Will I get a refund from the college?",
+    "source_url": "https://astrologyweekly.com/threads/will-i-get-a-refund-from-the-college.82824/post-607685",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "refund from an educational institution",
+    "source_expected_category": "money",
+    "source_expected_houses": [
+      1,
+      9,
+      10
+    ],
+    "source_expected_focus": "The doctrinal discussion on the thread states that if the college is the 9th, then the college's 2nd house, or the money to be returned, is the radical 10th. This is a refund/reimbursement chart, not startup funding.",
+    "current_engine_category": "money",
+    "current_engine_houses": [
+      1,
+      9,
+      10
+    ],
+    "current_engine_quesited_house": 10,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Aligned after institutional refund doctrine keeps the college on the 9th and the college's money on the turned 2nd."
+  },
+  {
+    "id": "tax_refund_astrologyweekly_source_pass",
+    "question": "When will I receive my tax refund?",
+    "source_url": "https://astrologyweekly.com/threads/when-will-i-receive-my-tax-refund.151254/",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "tax refund timing",
+    "source_expected_category": "money",
+    "source_expected_houses": [
+      1,
+      10,
+      11
+    ],
+    "source_expected_focus": "Refund from the state points to government on the 10th and the state's money on the 11th. This is a reimbursement/timing chart about money coming back from an institution, not venture funding.",
+    "current_engine_category": "money",
+    "current_engine_houses": [
+      1,
+      10,
+      11
+    ],
+    "current_engine_quesited_house": 11,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Aligned after government refund doctrine keeps the state on the 10th and its money on the turned 2nd."
+  }
+]

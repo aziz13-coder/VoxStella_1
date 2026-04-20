@@ -1,0 +1,21 @@
+{
+  "id": "leo_sign_strength_exuberance",
+  "name": "Leo (sign): strength of soul & exuberance",
+  "domain": "sign_psychology",
+  "description": "Warmth, exuberance, strength of soul with Leo/Sun; when ill‑disposed (Sun afflicted), can turn to vanity/show.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Leo — strength of soul/exuberance; vanity under affliction"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Leo", "min": 1.5, "weight": 10 },
+      { "kind": "planet_status", "planet": "Sun", "strong": true, "weight": 8 },
+      { "kind": "house_emphasis", "houses": [5,10], "min_total": 1, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Sun", "afflicted": true, "weight": -8 },
+      { "kind": "planet_status", "planet": "Saturn", "afflicted": true, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

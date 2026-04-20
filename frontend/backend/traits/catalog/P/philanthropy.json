@@ -1,0 +1,22 @@
+{
+  "id": "philanthropy",
+  "name": "Philanthropy",
+  "domain": "social_orientation",
+  "description": "Love of mankind/animals/nature with Aquarius/11th emphasis and benefic support; distinguishes general humanitarian orientation from organized (effective) philanthropy.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Aquarius love of mankind; 11th friends/allies"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Aquarius", "min": 1.5, "weight": 10 },
+      { "kind": "house_emphasis", "houses": [11], "min_total": 1, "weight": 6 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": 4 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "sign_emphasis", "sign": "Leo", "min": 1.5, "weight": -4 },
+      { "kind": "planet_status", "planet": "Saturn", "afflicted": true, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

@@ -1,0 +1,24 @@
+{
+  "id": "unfaithfulness",
+  "name": "Unfaithfulness (relationship risk)",
+  "domain": "relationship_risk",
+  "description": "Instability or breach of ties when airy harmony is damaged: Venus afflicted and Air/Libra–Aquarius contexts show strain; benefics and airy balance restore content and peace.",
+  "confidence": "medium",
+  "polarity": "negative",
+  "sources": ["Carter: Afflictions to Libra/Venus/Air cause quarrels/disharmony; broken marriage‑ties"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "planet_status", "planet": "Venus", "afflicted": true, "weight": 10 },
+      { "kind": "aspect", "pair": ["Saturn","Venus"], "type": "hard", "max_orb": 6, "weight": 6 },
+      { "kind": "aspect", "pair": ["Mars","Venus"], "type": "hard", "max_orb": 6, "weight": 6 },
+      { "kind": "element", "element": "Air", "min_share": 0.35, "weight": 3 },
+      { "kind": "house_emphasis", "houses": [7,11], "min_total": 1, "weight": 3 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": -8 },
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": -4 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

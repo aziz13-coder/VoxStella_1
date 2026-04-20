@@ -1,0 +1,14 @@
+{
+  "id": "intolerance",
+  "name": "Intolerance",
+  "domain": "temperament_shadow",
+  "description": "Rigid intolerance with fixed rigidity and harsh Saturn/Jupiter; lack of Air/Libra balance.",
+  "confidence": "medium",
+  "polarity": "negative",
+  "sources": ["Carter: Intolerance; fixed rigidity; Saturn/Jupiter harsh"],
+  "logic": { "base": 0,
+    "boosts": [ { "kind": "modality", "modality": "Fixed", "min_share": 0.40, "weight": 10 }, { "kind": "planet_status", "planet": "Saturn", "afflicted": true, "weight": 8 }, { "kind": "planet_status", "planet": "Jupiter", "afflicted": true, "weight": 6 } ],
+    "dampeners": [ { "kind": "element", "element": "Air", "min_share": 0.35, "weight": -6 }, { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": -6 } ],
+    "escalators": [] }
+}
+

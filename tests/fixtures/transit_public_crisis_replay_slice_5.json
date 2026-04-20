@@ -1,0 +1,56 @@
+[
+  {
+    "id": "george_w_bush_iraq_address",
+    "display_name": "George W. Bush Iraq address",
+    "event_label": "Address announcing military operations in Iraq",
+    "natal_datetime": "1946-07-06T07:26:00",
+    "natal_location": "New Haven, Connecticut",
+    "natal_timezone": "America/New_York",
+    "latitude": 41.3082138,
+    "longitude": -72.9250518,
+    "resolved_location": "New Haven, South Central Connecticut Planning Region, Connecticut, United States",
+    "event_datetime": "2003-03-19T22:16:00-05:00",
+    "control_datetime": "2003-03-12T22:16:00-05:00",
+    "house_system_code": "R",
+    "time_basis": "official_oval_office_address_timestamp",
+    "time_confidence": "high",
+    "expected_crisis_hit_descriptions": [
+      "Mars Quincunx Mercury"
+    ],
+    "expected_crisis_keywords": [
+      "accident_major"
+    ],
+    "minimum_hit_delta": 35.0,
+    "sources": {
+      "natal": "https://www.astro.com/astro-databank/Bush%2C_George_W.",
+      "event": "https://georgewbush-whitehouse.archives.gov/news/releases/2003/03/20030319-17.html"
+    }
+  },
+  {
+    "id": "shinzo_abe_assassination",
+    "display_name": "Shinzo Abe assassination",
+    "event_label": "Shot while campaigning in Nara",
+    "natal_datetime": "1954-09-21T12:00:00",
+    "natal_location": "Tokyo, Japan",
+    "natal_timezone": "Asia/Tokyo",
+    "latitude": 35.6768601,
+    "longitude": 139.7638947,
+    "resolved_location": "東京都, 日本",
+    "event_datetime": "2022-07-08T11:30:00+09:00",
+    "control_datetime": "2022-07-01T11:30:00+09:00",
+    "house_system_code": "R",
+    "time_basis": "news_reported_campaign_speech_shooting_time",
+    "time_confidence": "medium",
+    "expected_crisis_hit_descriptions": [
+      "Jupiter Quincunx Mercury (contra-antiscia)"
+    ],
+    "expected_crisis_keywords": [
+      "accident_major"
+    ],
+    "minimum_hit_delta": 10.0,
+    "sources": {
+      "natal": "https://www.astro.com/astro-databank/Abe%2C_Shinzo",
+      "event": "https://www.asahi.com/ajw/articles/14664249"
+    }
+  }
+]

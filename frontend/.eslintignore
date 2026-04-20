@@ -1,0 +1,4 @@
+backend/**
+dist/**
+dist-electron/**
+node_modules/**

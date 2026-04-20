@@ -1,0 +1,91 @@
+[
+  {
+    "id": "sam_sheppard",
+    "status_code": 200,
+    "success": true,
+    "comparison": {
+      "status": "aligned",
+      "matched_axes": [
+        "violence_homicide",
+        "friend_or_close_associate"
+      ],
+      "missed_axes": [],
+      "contradicted_axes": []
+    },
+    "categories": {
+      "Associates": 1,
+      "Deception": 5,
+      "Degree Signatures": 2,
+      "Family": 2,
+      "Stressors": 1,
+      "Water": 1,
+      "Witness": 1
+    },
+    "top_finding_titles": [
+      "Malefic contrary to sect (angular)",
+      "Any planet anaretic",
+      "Water or drowning signatures are foregrounded",
+      "Witness or accomplice signatures are active",
+      "Friend or close associate axis is active"
+    ]
+  },
+  {
+    "id": "diane_downs",
+    "status_code": 200,
+    "success": true,
+    "comparison": {
+      "status": "aligned",
+      "matched_axes": [
+        "family_involvement",
+        "child_victim",
+        "violence_homicide"
+      ],
+      "missed_axes": [],
+      "contradicted_axes": []
+    },
+    "categories": {
+      "Children": 2,
+      "Deception": 2,
+      "Degree Signatures": 1,
+      "Family": 2,
+      "Public": 1,
+      "Stressors": 1,
+      "Violence": 3
+    },
+    "top_finding_titles": [
+      "Life/death overlap points to violence or homicide",
+      "Child house under violence pressure",
+      "Malefic contrary to sect (angular)",
+      "Any planet anaretic",
+      "Moon under death pressure"
+    ]
+  },
+  {
+    "id": "marilyn_monroe_murder",
+    "status_code": 200,
+    "success": true,
+    "comparison": {
+      "status": "aligned",
+      "matched_axes": [
+        "violence_homicide",
+        "deception_coverup"
+      ],
+      "missed_axes": [],
+      "contradicted_axes": []
+    },
+    "categories": {
+      "Children": 1,
+      "Deception": 2,
+      "Family": 1,
+      "Houses": 1,
+      "Violence": 1
+    },
+    "top_finding_titles": [
+      "Life/death overlap points to violence or homicide",
+      "Child house under violence pressure",
+      "1st ruler also rules the 8th",
+      "Family and child significators cluster together",
+      "Mercury combust the Sun"
+    ]
+  }
+]

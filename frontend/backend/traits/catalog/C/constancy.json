@@ -1,0 +1,20 @@
+{
+  "id": "constancy",
+  "name": "Constancy (steadfastness)",
+  "domain": "virtue_steadfastness",
+  "description": "Steadfast constancy associated with the Fixed quality and determination.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Fixed determination; virtue/steadfastness"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.35, "weight": 14 }
+    ],
+    "dampeners": [
+      { "kind": "modality", "modality": "Mutable", "min_share": 0.40, "weight": -6 },
+      { "kind": "modality", "modality": "Cardinal", "min_share": 0.40, "weight": -4 }
+    ],
+    "escalators": []
+  }
+}

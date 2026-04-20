@@ -1,0 +1,21 @@
+{
+  "id": "nimbleness_adaptability",
+  "name": "Nimbleness (adaptable thinking)",
+  "domain": "cognitive_style",
+  "description": "Quick, adaptable thinking with dignified Mercury and Air support; Saturn heaviness or fixed over‑dominance blunts agility.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Mercury the convertible planet; Air comparison/adjustment"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": 10 },
+      { "kind": "element", "element": "Air", "min_share": 0.35, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [3], "min_total": 1, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -6 },
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.40, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

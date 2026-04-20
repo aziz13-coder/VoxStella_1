@@ -1,0 +1,24 @@
+{
+  "id": "weak_will",
+  "name": "Weak will",
+  "domain": "will_shadow",
+  "description": "Difficulty in decision/force of character with dominant Mutable under affliction, Mercury/Jupiter stress, and Neptune diffusion; fixed/Saturn anchors and strong Sun/Mars reduce.",
+  "confidence": "high",
+  "polarity": "negative",
+  "sources": ["Carter: Common (mutable) under affliction — lack decision/force; Mercury fog"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "modality", "modality": "Mutable", "min_share": 0.40, "weight": 8 },
+      { "kind": "aspect", "pair": ["Mercury","Neptune"], "type": "hard", "max_orb": 6, "weight": 8 },
+      { "kind": "planet_status", "planet": "Jupiter", "afflicted": true, "weight": 4 },
+      { "kind": "house_emphasis", "houses": [3,6,9,12], "min_total": 2, "weight": 2 }
+    ],
+    "dampeners": [
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.40, "weight": -6 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -6 },
+      { "kind": "planet_status", "planet": "Sun", "strong": true, "weight": -4 },
+      { "kind": "planet_status", "planet": "Mars", "strong": true, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

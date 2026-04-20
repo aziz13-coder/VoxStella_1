@@ -1,0 +1,14 @@
+{
+  "id": "intelligence_general",
+  "name": "Intelligence (general)",
+  "domain": "cognition",
+  "description": "General intelligence with Mercury and Air triplicity; Gemini/Virgo supports.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter: Mercury; Air; Gemini/Virgo"],
+  "logic": { "base": 0,
+    "boosts": [ { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": 10 }, { "kind": "element", "element": "Air", "min_share": 0.35, "weight": 8 }, { "kind": "sign_group_emphasis", "group": ["Gemini","Virgo"], "min": 2.0, "weight": 6 } ],
+    "dampeners": [ { "kind": "aspect", "pair": ["Mercury","Neptune"], "type": "hard", "max_orb": 6, "weight": -8 } ],
+    "escalators": [] }
+}
+

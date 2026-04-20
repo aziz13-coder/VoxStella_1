@@ -1,0 +1,180 @@
+{
+  "generated_at": "2026-04-03T13:16:04+03:00",
+  "purpose": "Replay results for the third replay-ready synastry historical validation slice.",
+  "case_count": 2,
+  "status_counts": {
+    "aligned": 2
+  },
+  "matched_dimension_counts": {
+    "attraction": 1,
+    "friction": 1,
+    "burden": 2,
+    "attachment": 1,
+    "growth": 1
+  },
+  "missed_primary_dimension_counts": {},
+  "missed_secondary_dimension_counts": {},
+  "results": [
+    {
+      "case_id": "frank_sinatra_ava_gardner",
+      "title": "Frank Sinatra and Ava Gardner",
+      "status": "aligned",
+      "comparison": {
+        "status": "aligned",
+        "matched_dimensions": [
+          "attraction",
+          "friction",
+          "burden"
+        ],
+        "missed_primary_dimensions": [],
+        "missed_secondary_dimensions": [],
+        "dimension_results": {
+          "attraction": {
+            "dimension": "attraction",
+            "priority": "primary",
+            "expected_band_range": [
+              4,
+              5
+            ],
+            "observed_score": 100.0,
+            "observed_band": 5,
+            "within_range": true
+          },
+          "friction": {
+            "dimension": "friction",
+            "priority": "primary",
+            "expected_band_range": [
+              4,
+              5
+            ],
+            "observed_score": 88.0,
+            "observed_band": 5,
+            "within_range": true
+          },
+          "burden": {
+            "dimension": "burden",
+            "priority": "secondary",
+            "expected_band_range": [
+              3,
+              5
+            ],
+            "observed_score": 56.0,
+            "observed_band": 3,
+            "within_range": true
+          }
+        }
+      },
+      "category_scores": {
+        "overall": 60,
+        "resonance": 49,
+        "communication": 13,
+        "attraction": 100,
+        "compatibility": 68,
+        "attachment": 100,
+        "growth": 96,
+        "friction": 88,
+        "burden": 56
+      },
+      "summary_lines": [
+        "Strongest support: Mutual reception.",
+        "Main pressure: Sun Square Moon.",
+        "Mutual reception adds extra binding force beneath the visible contacts."
+      ],
+      "top_supportive_titles": [
+        "Mutual reception",
+        "Venus Sextile Mars",
+        "Unilateral reception",
+        "Venus Sextile Jupiter",
+        "Sun Sextile Saturn"
+      ],
+      "top_challenging_titles": [
+        "Sun Square Moon",
+        "Mars Square Venus",
+        "Mercury Square Moon",
+        "Saturn in partner's House 12",
+        "Saturn in partner's House 12"
+      ]
+    },
+    {
+      "case_id": "sartre_beauvoir",
+      "title": "Jean-Paul Sartre and Simone de Beauvoir",
+      "status": "aligned",
+      "comparison": {
+        "status": "aligned",
+        "matched_dimensions": [
+          "attachment",
+          "growth",
+          "burden"
+        ],
+        "missed_primary_dimensions": [],
+        "missed_secondary_dimensions": [],
+        "dimension_results": {
+          "attachment": {
+            "dimension": "attachment",
+            "priority": "primary",
+            "expected_band_range": [
+              4,
+              5
+            ],
+            "observed_score": 70.0,
+            "observed_band": 4,
+            "within_range": true
+          },
+          "growth": {
+            "dimension": "growth",
+            "priority": "primary",
+            "expected_band_range": [
+              4,
+              5
+            ],
+            "observed_score": 90.0,
+            "observed_band": 5,
+            "within_range": true
+          },
+          "burden": {
+            "dimension": "burden",
+            "priority": "secondary",
+            "expected_band_range": [
+              2,
+              4
+            ],
+            "observed_score": 66.0,
+            "observed_band": 3,
+            "within_range": true
+          }
+        }
+      },
+      "category_scores": {
+        "overall": 39,
+        "resonance": 9,
+        "communication": 0,
+        "attraction": 90,
+        "compatibility": 54,
+        "attachment": 70,
+        "growth": 90,
+        "friction": 100,
+        "burden": 66
+      },
+      "summary_lines": [
+        "Strongest support: Unilateral reception.",
+        "Main compensation factor: Natal lack activated.",
+        "Main pressure: Sun Square Moon.",
+        "Mutual reception adds extra binding force beneath the visible contacts."
+      ],
+      "top_supportive_titles": [
+        "Unilateral reception",
+        "Sun in partner's House 8",
+        "Venus in partner's House 6",
+        "Mutual reception",
+        "Venus Sextile North Node"
+      ],
+      "top_challenging_titles": [
+        "Sun Square Moon",
+        "Saturn Square Ascendant",
+        "Saturn Square Descendant",
+        "Venus Square Venus",
+        "Ascendant Quincunx North Node"
+      ]
+    }
+  ]
+}

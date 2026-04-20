@@ -1,0 +1,30 @@
+[
+  {
+    "id": "charles_whitman",
+    "status_code": 200,
+    "success": true,
+    "comparison": {
+      "status": "aligned",
+      "matched_axes": [
+        "family_involvement",
+        "violence_homicide"
+      ],
+      "missed_axes": [],
+      "contradicted_axes": []
+    },
+    "categories": {
+      "Deception": 3,
+      "Degree Signatures": 1,
+      "Family": 1,
+      "Witness": 1
+    },
+    "top_finding_titles": [
+      "Family homicide cluster is active",
+      "Any planet anaretic",
+      "Witness or accomplice signatures are active",
+      "Mercury retrograde",
+      "Mercury combust the Sun",
+      "Mute signs on angles"
+    ]
+  }
+]

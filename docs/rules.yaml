@@ -1,0 +1,43 @@
+features:
+  reception_pair_kind:
+    description: Type of reception between primary significators
+    values:
+      - none
+      - mutual_rulership
+      - mutual_exaltation
+      - mutual_term
+      - mutual_face
+      - mixed_reception
+      - unilateral
+  reception_strength_pair:
+    description: Numeric strength of the reception between significators
+    type: integer
+  house_ruler_reception:
+    description: One significator rules the house of the other
+    type: boolean
+  S1_stations_before_perfection:
+    description: Significator 1 stations before perfecting the aspect (refranation)
+    type: boolean
+  S2_stations_before_perfection:
+    description: Significator 2 stations before perfecting the aspect (refranation)
+    type: boolean
+
+rules:
+  - id: R015
+    condition: reception_pair_kind == 'unilateral'
+    effect: apply_weight(reception_strength_pair, priority=30)
+  - id: R016
+    condition: reception_pair_kind in ['mutual_rulership', 'mutual_exaltation', 'mutual_term', 'mutual_face']
+    effect: apply_weight(reception_strength_pair, priority=90)
+  - id: R017
+    condition: reception_pair_kind == 'mixed_reception'
+    effect: apply_weight(reception_strength_pair, priority=60)
+  - id: R018
+    condition: house_ruler_reception
+    effect: apply_weight(1, priority=40)
+  - id: R019
+    condition: S1_stations_before_perfection
+    effect: apply_weight(-5, priority=80)
+  - id: R020
+    condition: S2_stations_before_perfection
+    effect: apply_weight(-5, priority=80)

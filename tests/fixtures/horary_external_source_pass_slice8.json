@@ -1,0 +1,68 @@
+[
+  {
+    "id": "sister_marriage_astrologyweekly_source_pass",
+    "question": "Will my sister get married this year?",
+    "source_url": "https://astrologyweekly.com/threads/will-my-sister-get-married-this-year.84140/",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "relationship/marriage outcome for sister",
+    "source_expected_category": "marriage",
+    "source_expected_houses": [
+      3,
+      9
+    ],
+    "source_expected_focus": "The thread explicitly distinguishes agency: if the querent herself asks, the sister should be judged from the 3rd. Once the sister is the subject, her marriage belongs to the turned 7th from the 3rd, or radical 9th.",
+    "current_engine_category": "marriage",
+    "current_engine_houses": [
+      3,
+      9
+    ],
+    "current_engine_quesited_house": 9,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Aligned after turned-relative marriage doctrine pass keeps the sister as subject and turns to her marriage house."
+  },
+  {
+    "id": "daughter_boyfriend_happiness_astrologyweekly_source_pass",
+    "question": "Will my daughter be happy with her boyfriend?",
+    "source_url": "https://astrologyweekly.com/threads/horary-methods-discussion-your-comments-and-questions.149844/post-1277171",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "relationship / happiness between daughter and boyfriend",
+    "source_expected_category": "relationship",
+    "source_expected_houses": [
+      5,
+      11
+    ],
+    "source_expected_focus": "The doctrinal discussion states the turning explicitly: the daughter is the 5th and her boyfriend is the turned 7th from the 5th, or radical 11th. This is a turned relationship question, not a querent-centered romance chart.",
+    "current_engine_category": "relationship",
+    "current_engine_houses": [
+      5,
+      11
+    ],
+    "current_engine_quesited_house": 11,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Aligned after turned-relative relationship doctrine keeps the daughter as subject and her boyfriend on the turned 7th."
+  },
+  {
+    "id": "dad_whereabouts_health_skyscript_source_pass",
+    "question": "Where is my Dad? Is he ok?",
+    "source_url": "https://skyscript.co.uk/forums/viewtopic.php?t=1302",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "father whereabouts and welfare",
+    "source_expected_category": "health",
+    "source_expected_houses": [
+      4,
+      9
+    ],
+    "source_expected_focus": "The Skyscript post explicitly treats the father as the operative subject and then turns to his health house to judge whether he is well. This is a person-whereabouts and welfare chart, not a lost-object chart.",
+    "current_engine_category": "health",
+    "current_engine_houses": [
+      4,
+      9
+    ],
+    "current_engine_quesited_house": 9,
+    "current_engine_intent": "SAFETY",
+    "source_alignment": true,
+    "alignment_note": "Aligned after person-whereabouts doctrine keeps the father as subject and turns to his welfare house instead of treating him like a possession."
+  }
+]

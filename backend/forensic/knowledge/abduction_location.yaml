@@ -1,0 +1,200 @@
+﻿signs:
+  Aries: ["front/entrances", "metal/tools", "workshops/garages", "sports/gyms"]
+  Taurus: ["cash/banks", "jewelry", "food/kitchens", "gardens/fields"]
+  Gemini: ["intersections", "local roads/side streets", "buses/couriers", "signage/documents"]
+  Cancer: ["home/residence", "kitchens/containers", "wells/near water"]
+  Leo: ["stage/theater", "playgrounds/parks", "gold/luxury", "celebrity/spotlight places", "children/entertainment"]
+  Virgo: ["workplaces/offices", "clerical/records", "pharmacies/clinics", "small rooms/storage", "cleaning/laundry"]
+  Libra: ["courts/law", "partnership venues", "beauty/fashion", "diplomatic/embassy-like sites"]
+  Scorpio: ["basements/cellars", "sewers/drains", "cemetery/mortuaries", "sex venues", "trash/dumps"]
+  Sagittarius: ["highways/bridges", "universities/college", "foreign/international", "religious buildings"]
+  Capricorn: ["government/offices", "stone/old buildings", "tops/rooftops", "boundaries/walls", "cold/dry places"]
+  Aquarius: ["tech/labs/servers", "airfields/towers", "power lines/grids", "clubs/groups"]
+  Pisces: ["hotels/hostels", "waterfronts", "hospitals/asylums", "drugs/alcohol", "lost/missing/confusing places"]
+
+houses:
+  '1': ["victim immediate surroundings", "threshold/front area", "what is directly around the victim"]
+  '2': ["personal-effects trail", "wallet/jewelry/cash", "items carried or left nearby"]
+  '3': ["vehicle/transit", "local roads", "yard/outside a domain", "rental property/short-term lodgings"]
+  '4': ["home/property boundary", "front door", "residential base"]
+  '5': ["bars/clubs", "recreation/parks", "children/parties", "romance/entertainment venues"]
+  '6': ["work/service places", "coworkers", "clinics/pharmacies/pets"]
+  '7': ["others/opponent/perpetrator", "the visitor or person at the door", "partners/ex-partners"]
+  '8': ["death/insurance trail", "shared property/resources", "other people's assets"]
+  '9': ["long distance/travel", "universities/college", "religion/church", "publishing/press"]
+  '10': ["public places/out in the open", "authorities/government", "visible/high places"]
+  '11': ["friends/groups/clubs", "community events", "large gatherings"]
+  '12': ["hidden/enclosed", "hospitals/prisons", "secret enemies/eavesdropping/surveillance"]
+
+combo_rules_examples:
+  - if: { house: 3, sign: Sagittarius }
+    then: ["near a highway/bridge", "farther from last-seen point", "college/university corridor", "foreign-themed signage or street names"]
+    why: "3rd = transit/roads; Sagittarius = highway/college/foreign."
+  - if: { house: 12, sign: "Scorpio or Aquarius" }
+    then: ["hidden area or secret room", "listening/eavesdropping tech nearby", "fast/early encounter if Aquarius/Uranus is prominent"]
+    why: "12th = hidden/enemies; Scorpio = secrets; Aquarius/Uranus = fast/early."
+  - if: { house: 5, sign: "Leo or Libra" }
+    then: ["bar/club, entertainment venue", "fashion/beauty/crowd appeal settings"]
+    why: "5th = bars/entertainment; Leo = stage/spotlight; Libra = social/beauty."
+  - if: { house: 4, sign: Cancer }
+    then: ["at the residence or just inside the front door", "domestic or family-linked items present"]
+    why: "4th = home; Cancer = domestic setting."
+  - if: { house: 9, sign: Libra }
+    then: ["university/law campus", "street name may reference law or justice themes"]
+    why: "9th = higher ed/long distance; Libra = law/justice; onomastic clues sometimes show."
+
+field_map_howto: |
+  How to read this: start with the house that most clearly owns the target (ASC/1st for the victim or object itself, 4th for premises/doors, 3rd/9th for routes, 6th/12th for institutions/confinement). Then let the sign and key planets modify distance and access difficulty.
+
+tiers:
+  A:
+    title: "Tier A - Immediate vicinity / on-premises (easy access)"
+    bullets:
+      - "ASC / 1st emphasis -> immediate vicinity of the subject/crime scene"
+      - "4th house / IC and its ruler -> inside property boundary; front/primary door"
+  B:
+    title: "Tier B - Local / adjacent (low-moderate access)"
+    bullets:
+      - "2nd, 5th, 11th (succedent) -> adjacent rooms/units; locker/personal storage"
+      - "3rd house -> local routes and short hops; streets, vehicles, neighborhood movements"
+  C:
+    title: "Tier C - Transit corridors / extended search (moderate-hard access)"
+    bullets:
+      - "9th house -> long roads, interchanges, outdoor/open terrain"
+      - "Sagittarius/Jupiter tie -> farther from last-seen; highway/campus"
+  D:
+    title: "Tier D - Institutional / concealed (hard access)"
+    bullets:
+      - "6th house -> workplaces, clinics, hospitals; controlled-access job sites/medical"
+      - "12th house -> hidden/secluded, confinement/surveillance; covert tech/eavesdropping"
+
+distance_modifiers:
+  Sagittarius_or_9th: ["farther/highway", "campus/university", "jurisdiction/distance"]
+  Pisces_or_Neptune: ["hotels/waterfronts", "lost/missing/ambiguous", "distance by confusion"]
+  Scorpio_or_12th: ["secrecy/hidden enemies", "access-controlled areas"]
+
+# Location & Distance System (extended)
+distance_house:
+  angular: ["1", "4", "7", "10"]
+  succedent: ["2", "5", "8", "11"]
+  cadent: ["3", "6", "9", "12"]
+  meaning:
+    angular: "close/visible vicinity; immediate to moderate distance"
+    succedent: "medium distance; several miles/regional"
+    cadent: "far distance; movement/transit or remote/institutional"
+
+distance_planetary:
+  close: ["Moon", "Venus"]
+  medium: ["Mercury"]
+  far: ["Jupiter"]
+  notes:
+    Mercury_angular: "local area"
+    Mercury_succedent: "regional distance"
+    Mars_aspects: "speed/haste of movement"
+    Sagittarius_or_9th: "foreign/long distance/highways"
+
+degree_distance:
+  exact: [0]
+  aries: [1, 13, 25]
+  taurus: [2, 14, 26]
+  gemini: [3, 15, 27]
+  sagittarius: [9, 21]
+  pisces: [12, 24]
+  meaning:
+    aries: "immediate/first/fast"
+    taurus: "nearby/enclosed/earthbound"
+    gemini: "local/neighborhood/walking distance"
+    sagittarius: "far/foreign/long distance"
+    pisces: "water/hidden/unclear distance"
+
+direction_house:
+  '1': East
+  '2': East-Northeast
+  '3': Northeast
+  '4': North
+  '5': Northwest
+  '6': West-Northwest
+  '7': West
+  '8': West-Southwest
+  '9': Southwest
+  '10': South
+  '11': Southeast
+  '12': East-Southeast
+
+direction_sign:
+  Aries: East
+  Taurus: East-Southeast
+  Gemini: Northeast
+  Cancer: North
+  Leo: East
+  Virgo: Southwest
+  Libra: West
+  Scorpio: Southwest
+  Sagittarius: Southwest
+  Capricorn: South
+  Aquarius: West
+  Pisces: North
+
+terrain_signs:
+  Fire:
+    Aries: ["hills/high ground", "new developments", "workshops"]
+    Leo: ["parks/entertainment", "sunny open areas", "stages"]
+    Sagittarius: ["open fields", "highways", "foreign locations"]
+  Earth:
+    Taurus: ["farmland/gardens", "courtyards", "enclosed spaces"]
+    Virgo: ["work areas", "hospitals/service", "labs/clinics"]
+    Capricorn: ["mountains", "government buildings", "cold areas"]
+  Air:
+    Gemini: ["streets/neighborhoods", "communication hubs"]
+    Libra: ["social venues", "courts/legal"]
+    Aquarius: ["high places", "airports", "unusual spots"]
+  Water:
+    Cancer: ["near homes", "water/domestic areas"]
+    Scorpio: ["basements", "swamps", "secret places"]
+    Pisces: ["waterfronts", "hospitals", "hidden areas"]
+
+env_planets:
+  Sun: ["open/bright", "public spaces"]
+  Moon: ["homes/domestic", "near water"]
+  Mercury: ["transport/commercial", "documents/signage"]
+  Venus: ["beautiful/comfortable", "art venues"]
+  Mars: ["industrial", "construction", "red buildings"]
+  Jupiter: ["large open", "religious/institutions", "schools"]
+  Saturn: ["cold/restricted", "old buildings"]
+  Uranus: ["unusual/high-tech", "airports/towers"]
+  Neptune: ["water/hospitals", "confused places"]
+  Pluto: ["underground/waste", "transformation sites"]
+
+vehicle_mercury:
+  Jupiter: "large vehicle/SUV"
+  Saturn: "old/grey/black vehicle"
+  Mars: "fast car/motorcycle"
+  Venus: "luxury vehicle"
+
+current_location:
+  Fire: "outdoors/elevated/sunny"
+  Earth: "indoors/enclosed/practical"
+  Air: "high places/vehicles/transport"
+  Water: "near water/basements/hidden"
+
+combo_matches:
+  - "Sagittarius + 9th -> by a highway/large road, campus, or foreign venue; likely farther from LKP"
+  - "Pisces/Neptune + 12th -> hotel/waterside/marina/hospital wing; concealed/controlled access"
+  - "Gemini/Mercury + 3rd -> vehicle/local street/delivery route; easy access via neighborhood grid"
+  - "Mercury in 12th (+Saturn) -> eavesdropping/old computer; keys/badges needed"
+  - "Mars + 3rd (or ruling ASC) -> car/engine/garage; on-prem or curbside"
+  - "2nd emphasis + Virgo/Mercury -> records/photos; personal effects/storage; adjacent room/locker"
+  - "10th <-> perp ruler -> perp dwelling/authority building; their controlled place"
+  - "Mars with Neptune (especially across 1st/7th or 5th) -> abduction vector; boats/fog-of-war complicate access"
+  - "Planets near ASC + crowd -> on-site with many people; start inside before radiating outward"
+  - "Libra/Venus + 9th -> law-themed street names near big roads; use for map narrowing"
+  - "6th + Pisces/Virgo -> clinic/lab/service corridor; staff entrances/schedules"
+  - "Scorpio + 12th -> locked rooms/storage/surveillance; plan keys/codes"
+  - "ASC/IC heavy + home markers -> same building/lot; front door/threshold first sweep"
+  - "Sagittarius/Jupiter on angle (female victim) -> partner figures; triage partner routine locales"
+
+practical_use:
+  - "Pick the house that owns the target (ASC/4th/3rd/9th/6th/12th)."
+  - "Overlay the sign to push distance: Sagittarius -> farther/highway; Pisces -> hotel/water; Scorpio -> hidden."
+  - "Add planet tells (Mars = cars/engines; Mercury = comms/electronics; Jupiter = bigger/farther)."
+  - "Run a Tier A -> D sweep to conserve search time."

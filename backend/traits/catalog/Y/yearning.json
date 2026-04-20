@@ -1,0 +1,25 @@
+{
+  "id": "yearning",
+  "name": "Yearning (longing/romantic or spiritual)",
+  "domain": "affective_motive",
+  "description": "Deep longing for connection or the ineffable; romantic or spiritual pull.",
+  "confidence": "medium",
+  "polarity": "neutral",
+  "sources": [
+    "Carter: Pisces/12th imaginative inwardness; Water resignation/abnegation"
+  ],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Pisces", "min": 1.5, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [12], "min_total": 1, "weight": 3 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": 4 },
+      { "kind": "planet_status", "planet": "Neptune", "strong": true, "weight": 4 },
+      { "kind": "planet_status", "planet": "Moon", "strong": true, "weight": 3 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -5 },
+      { "kind": "element", "element": "Earth", "min_share": 0.35, "weight": -3 }
+    ],
+    "escalators": [] }
+}
+

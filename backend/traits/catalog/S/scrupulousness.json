@@ -1,0 +1,22 @@
+{
+  "id": "scrupulousness",
+  "name": "Scrupulousness",
+  "domain": "ethical_style",
+  "description": "Careful adherence to method and duty; exacting standards with Virgo/Saturn and strong Mercury; 6th/10th emphasis supports.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Virgo patient/careful/discerning; Saturn duty"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Virgo", "min": 1.5, "weight": 8 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": 6 },
+      { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": 8 },
+      { "kind": "house_emphasis", "houses": [6,10], "min_total": 1, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": -3 },
+      { "kind": "aspect", "pair": ["Mercury","Neptune"], "type": "hard", "max_orb": 6, "weight": -6 }
+    ],
+    "escalators": [] }
+}
+

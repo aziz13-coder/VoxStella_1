@@ -1,0 +1,200 @@
+{
+  "generated_at": "2026-03-23T00:00:00+00:00",
+  "purpose": "Second replay-ready forensic case slice to test whether slice-1 directional rules generalize to fresh cases",
+  "cases": [
+    {
+      "id": "andrea_yates",
+      "title": "Andrea Yates: Closer to God?",
+      "source_book_id": "salerno_exploring_family_murders",
+      "source_file": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "metadata_basis": "source_explicit_prose",
+      "metadata_confidence": "high",
+      "source_metadata_note": "The drownings began at approximately 9:00 a.m. on June 20, 2001, and Andrea then telephoned her husband just before 10:00 a.m.; the murders occurred in her suburban Houston home.",
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2001-06-20T09:00:00",
+        "location": "Houston, Texas",
+        "timezone": "America/Chicago",
+        "house_system_code": "R"
+      },
+      "expected_primary_axes": [
+        "family_involvement",
+        "child_victim",
+        "violence_homicide"
+      ],
+      "expected_secondary_axes": [
+        "water_disappearance_or_drowning"
+      ],
+      "comparison_status": "pending_route_replay"
+    },
+    {
+      "id": "darlie_routier",
+      "title": "Darlie Routier: The Greater Part of Them",
+      "source_book_id": "salerno_exploring_family_murders",
+      "source_file": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "metadata_basis": "source_explicit_prose",
+      "metadata_confidence": "high",
+      "source_metadata_note": "The telephone call was placed at 2:31 a.m. on June 6, 1996, from Rowlett, Texas.",
+      "query": {
+        "mode": "manual",
+        "datetime_local": "1996-06-06T02:31:00",
+        "location": "Rowlett, Texas",
+        "timezone": "America/Chicago",
+        "house_system_code": "R"
+      },
+      "expected_primary_axes": [
+        "family_involvement",
+        "child_victim",
+        "violence_homicide"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup"
+      ],
+      "comparison_status": "pending_route_replay"
+    },
+    {
+      "id": "lizzie_borden",
+      "title": "Lizzie Borden Took an Ax",
+      "source_book_id": "salerno_exploring_family_murders",
+      "source_file": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "metadata_basis": "source_ocr_chart",
+      "metadata_confidence": "medium",
+      "source_metadata_note": "The event chart OCR at the end of the section reads as the Lizzie Borden killings chart for 11:00 AM EST in Fall River, Massachusetts, on August 4, 1892.",
+      "query": {
+        "mode": "manual",
+        "datetime_local": "1892-08-04T11:00:00",
+        "location": "Fall River, Massachusetts",
+        "timezone": "America/New_York",
+        "house_system_code": "R"
+      },
+      "expected_primary_axes": [
+        "family_involvement",
+        "violence_homicide"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup"
+      ],
+      "comparison_status": "pending_route_replay"
+    },
+    {
+      "id": "menendez_brothers",
+      "title": "The Menendez Brothers: Implacable Hatred",
+      "source_book_id": "salerno_exploring_family_murders",
+      "source_file": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "metadata_basis": "source_explicit_prose",
+      "metadata_confidence": "high",
+      "source_metadata_note": "Lyle telephoned the police at 11:47 p.m. and the chart was cast for 11:47 p.m. on August 20, 1989; the murders took place in the family mansion in Beverly Hills.",
+      "query": {
+        "mode": "manual",
+        "datetime_local": "1989-08-20T23:47:00",
+        "location": "Beverly Hills, California",
+        "timezone": "America/Los_Angeles",
+        "house_system_code": "R"
+      },
+      "expected_primary_axes": [
+        "family_involvement",
+        "violence_homicide",
+        "accomplice_or_witness"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup"
+      ],
+      "comparison_status": "pending_route_replay"
+    },
+    {
+      "id": "john_list",
+      "title": "John List: The Bogeyman of Westfield",
+      "source_book_id": "salerno_exploring_family_murders",
+      "source_file": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "metadata_basis": "source_explicit_prose",
+      "metadata_confidence": "high",
+      "source_metadata_note": "The event chart is for November 9, 1971, at 9:00 a.m., the time when the killings commenced in Westfield, New Jersey.",
+      "query": {
+        "mode": "manual",
+        "datetime_local": "1971-11-09T09:00:00",
+        "location": "Westfield, New Jersey",
+        "timezone": "America/New_York",
+        "house_system_code": "R"
+      },
+      "expected_primary_axes": [
+        "family_involvement",
+        "violence_homicide",
+        "deception_coverup"
+      ],
+      "comparison_status": "pending_route_replay"
+    },
+    {
+      "id": "amityville_defeo",
+      "title": "Butch DeFeo and the Amityville Murders: From High Hopes to Horror",
+      "source_book_id": "salerno_exploring_family_murders",
+      "source_file": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "metadata_basis": "source_explicit_prose",
+      "metadata_confidence": "high",
+      "source_metadata_note": "The event chart of the crime was cast for 6:30 p.m. on November 13, 1974, the time Butch announced to bar patrons that someone had shot his parents; the murders were the Amityville family killings on Long Island.",
+      "query": {
+        "mode": "manual",
+        "datetime_local": "1974-11-13T18:30:00",
+        "location": "Amityville, New York",
+        "timezone": "America/New_York",
+        "house_system_code": "R"
+      },
+      "expected_primary_axes": [
+        "family_involvement",
+        "violence_homicide"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup"
+      ],
+      "comparison_status": "pending_route_replay"
+    },
+    {
+      "id": "bob_crane",
+      "title": "Bob Crane: Was His Best Friend Guilty?",
+      "source_book_id": "salerno_exploring_family_murders",
+      "source_file": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "metadata_basis": "source_explicit_prose",
+      "metadata_confidence": "high",
+      "source_metadata_note": "The forensic chart was cast for 2:00 p.m. on June 29, 1978, in Scottsdale, Arizona.",
+      "query": {
+        "mode": "manual",
+        "datetime_local": "1978-06-29T14:00:00",
+        "location": "Scottsdale, Arizona",
+        "timezone": "America/Phoenix",
+        "house_system_code": "R"
+      },
+      "expected_primary_axes": [
+        "friend_or_close_associate",
+        "violence_homicide"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup",
+        "authority_or_public_case"
+      ],
+      "comparison_status": "pending_route_replay"
+    },
+    {
+      "id": "gianni_versace",
+      "title": "Did Gianni Versace Know His Killer?",
+      "source_book_id": "salerno_exploring_family_murders",
+      "source_file": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "metadata_basis": "source_explicit_prose",
+      "metadata_confidence": "high",
+      "source_metadata_note": "The shooting took place at 8:44 a.m. on July 15, 1997, outside Versace's South Beach mansion in Florida.",
+      "query": {
+        "mode": "manual",
+        "datetime_local": "1997-07-15T08:44:00",
+        "location": "Miami Beach, Florida",
+        "timezone": "America/New_York",
+        "house_system_code": "R"
+      },
+      "expected_primary_axes": [
+        "violence_homicide",
+        "authority_or_public_case"
+      ],
+      "expected_secondary_axes": [
+        "friend_or_close_associate"
+      ],
+      "comparison_status": "pending_route_replay"
+    }
+  ]
+}

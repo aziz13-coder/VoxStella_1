@@ -1,0 +1,22 @@
+{
+  "id": "kindness_to_animals",
+  "name": "Kindness to animals",
+  "domain": "prosocial",
+  "description": "Concern for animals/nature via Aquarius universalism and Pisces compassion; benefics support; harsh Saturn/Uranus cools empathy.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Aquarius love of mankind/animals; Pisces empathy"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_group_emphasis", "group": ["Aquarius","Pisces"], "min": 2.0, "weight": 8 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 6 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [11], "min_total": 1, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Saturn", "afflicted": true, "weight": -6 },
+      { "kind": "planet_status", "planet": "Uranus", "afflicted": true, "weight": -6 }
+    ],
+    "escalators": [] }
+}
+

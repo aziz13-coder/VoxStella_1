@@ -1,0 +1,25 @@
+{
+  "id": "magnanimity",
+  "name": "Magnanimity",
+  "domain": "virtue",
+  "description": "Noble, generous spirit; warmth of heart and largesse when Leo/Sun are healthy.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Leo", "min": 1.5, "weight": 12 },
+      { "kind": "planet_status", "planet": "Sun", "strong": true, "weight": 12 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 8 },
+      { "kind": "planet_in_sign", "planet": "Sun", "sign": "Leo", "weight": 6 },
+      { "kind": "planet_in_sign", "planet": "Jupiter", "sign": "Sagittarius", "weight": 4 },
+      { "kind": "angle_aspect", "planet": "Sun", "type": "soft", "angle": "ASC", "max_orb": 6, "weight": 4 },
+      { "kind": "angle_aspect", "planet": "Sun", "type": "soft", "angle": "MC", "max_orb": 6, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Saturn", "afflicted": true, "weight": -10 }
+    ],
+    "escalators": []
+  }
+}

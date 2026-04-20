@@ -1,0 +1,24 @@
+{
+  "id": "contentment",
+  "name": "Contentment / inner peace",
+  "domain": "affect",
+  "description": "Peace-seeking contentment via benefic influences, especially to Libra/Venus.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: benefics to Libra/Venus incline to contentment"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": 8 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": 10 },
+      { "kind": "angle_aspect", "planet": "Venus", "type": "soft", "angle": "ASC", "max_orb": 6, "weight": 6 },
+      { "kind": "angle_aspect", "planet": "Venus", "type": "soft", "angle": "MC", "max_orb": 6, "weight": 4 },
+      { "kind": "planet_in_sign", "planet": "Venus", "sign": "Libra", "weight": 6 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Venus", "afflicted": true, "weight": -10 }
+    ],
+    "escalators": []
+  }
+}
+

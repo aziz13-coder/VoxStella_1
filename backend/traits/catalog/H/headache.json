@@ -1,0 +1,24 @@
+{
+  "id": "headache",
+  "name": "Headache (cephalgia)",
+  "domain": "disease_cephalgia",
+  "description": "Head pain and neuralgic tendencies linked to Aries/1st emphasis and Mars–Mercury–Moon stress.",
+  "confidence": "medium",
+  "polarity": "negative",
+  "sources": ["Carter — Encyclopaedia of Psychological Astrology, H: Headache."],
+  "engine_rule": "If Mars is in Aries or afflicts Mercury/Moon/ASC by hard aspect and 1st/6th are activated, raise headache risk score.",
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "angle_aspect", "planet": "Mars", "type": "hard", "angle": "ASC", "max_orb": 6, "weight": 8 },
+      { "kind": "aspect", "pair": ["Mars","Moon"], "type": "hard", "max_orb": 6, "weight": 6 },
+      { "kind": "aspect", "pair": ["Mars","Mercury"], "type": "hard", "max_orb": 6, "weight": 6 },
+      { "kind": "sign_emphasis", "sign": "Aries", "min": 1.5, "weight": 4 },
+      { "kind": "house_emphasis", "houses": [1,6], "min_total": 2, "weight": 6 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "afflicted": false, "weight": -6 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "afflicted": false, "weight": -6 },
+      { "kind": "aspect", "pair": ["Moon","Venus"], "type": "soft", "max_orb": 6, "weight": -4 }
+    ],
+    "escalators": [] }
+}

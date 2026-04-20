@@ -1,0 +1,88 @@
+{
+  "generated_at": "2026-03-25T00:00:00+00:00",
+  "purpose": "Fourth replay-ready forensic case slice focused on the remaining source-defensible public cases and spouse-false-positive suppression",
+  "cases": [
+    {
+      "id": "sam_sheppard",
+      "title": "The Sam Sheppard Case",
+      "source_book_id": "salerno_exploring_family_murders",
+      "source_file": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "metadata_basis": "source_explicit_prose",
+      "metadata_confidence": "high",
+      "source_metadata_note": "The book explicitly states, \"Let's first take a look at the forensic chart for the time Marilyn was last seen, 12:30 a.m. on July 4,1954, in Cleveland, Ohio,\" and argues that the chart does not support spousal murder.",
+      "query": {
+        "mode": "manual",
+        "datetime_local": "1954-07-04T00:30:00",
+        "location": "Cleveland, Ohio",
+        "timezone": "America/New_York",
+        "house_system_code": "R"
+      },
+      "expected_primary_axes": [
+        "violence_homicide",
+        "friend_or_close_associate"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup"
+      ],
+      "contradictory_axes": [
+        "domestic_partner_involvement"
+      ],
+      "comparison_status": "pending_route_replay"
+    },
+    {
+      "id": "diane_downs",
+      "title": "Diane Downs: Murder by Mother",
+      "source_book_id": "salerno_exploring_family_murders",
+      "source_file": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders (B. D. Salerno) (Z-Library).txt",
+      "metadata_basis": "source_explicit_prose",
+      "metadata_confidence": "medium",
+      "source_metadata_note": "The local text explicitly gives the 911 call time as 10:40 p.m. on May 19,1983, but only identifies the event location at state level as Oregon, so the replay uses the state-level geocode.",
+      "query": {
+        "mode": "manual",
+        "datetime_local": "1983-05-19T22:40:00",
+        "location": "Oregon",
+        "timezone": "America/Los_Angeles",
+        "house_system_code": "R"
+      },
+      "expected_primary_axes": [
+        "family_involvement",
+        "child_victim",
+        "violence_homicide"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup"
+      ],
+      "contradictory_axes": [
+        "accident_or_disaster"
+      ],
+      "comparison_status": "pending_route_replay"
+    },
+    {
+      "id": "marilyn_monroe_murder",
+      "title": "The Murder of Marilyn Monroe",
+      "source_book_id": "salerno_forensics_by_the_stars",
+      "source_file": "Forensics by the Stars Astrology Investigates (B. D. Salerno) (Z-Library).txt",
+      "metadata_basis": "source_explicit_prose_plus_case_context",
+      "metadata_confidence": "medium",
+      "source_metadata_note": "The book states that Marilyn passed away around 10:30 PM on August 4, 1962 at Marilyn's home; the replay uses Los Angeles, California as the case-context location anchor for that death-time chart.",
+      "query": {
+        "mode": "manual",
+        "datetime_local": "1962-08-04T22:30:00",
+        "location": "Los Angeles, California",
+        "timezone": "America/Los_Angeles",
+        "house_system_code": "R"
+      },
+      "expected_primary_axes": [
+        "violence_homicide",
+        "deception_coverup"
+      ],
+      "expected_secondary_axes": [
+        "authority_or_public_case"
+      ],
+      "contradictory_axes": [
+        "accident_or_disaster"
+      ],
+      "comparison_status": "pending_route_replay"
+    }
+  ]
+}

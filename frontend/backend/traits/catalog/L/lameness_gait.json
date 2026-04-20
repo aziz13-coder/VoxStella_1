@@ -1,0 +1,14 @@
+{
+  "id": "lameness_gait",
+  "name": "Lameness (gait)",
+  "domain": "physique_injury",
+  "description": "Placeholder for Carter’s specific indications for lameness; likely Saturn/Mars with bone/joint signatures and 1st/6th involvement.",
+  "confidence": "low",
+  "polarity": "negative",
+  "sources": ["Carter: Lameness (to extract)"],
+  "logic": { "base": 0,
+    "boosts": [],
+    "dampeners": [],
+    "escalators": [] }
+}
+

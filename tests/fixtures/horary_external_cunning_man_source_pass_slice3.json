@@ -1,0 +1,116 @@
+[
+  {
+    "id": "scottish_independence_2022_source_pass",
+    "question": "Will the Scottish Government hold another independence referendum in 2022?",
+    "source_url": "https://cunning-man.co.uk/scottish-independence-2022/",
+    "source_kind": "cunning_man_source_pass",
+    "article_expected_verdict": "NO",
+    "source_expected_category": "general",
+    "source_expected_houses": [
+      1,
+      9
+    ],
+    "source_expected_focus": "The article treats Scotland as a different country for the purpose of the referendum question, making Scotland Lord 9 against the radical 1st.",
+    "current_engine_category": "general",
+    "current_engine_houses": [
+      1,
+      9
+    ],
+    "current_engine_quesited_house": 9,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Current router now treats the referendum as a foreign-state constitutional question with the 9th as the operative side."
+  },
+  {
+    "id": "boris_vote_no_confidence_source_pass",
+    "question": "Will Boris Johnson survive the vote of no confidence?",
+    "source_url": "https://cunning-man.co.uk/boris-johnson-and-the-vote-of-no-confidence/",
+    "source_kind": "cunning_man_source_pass",
+    "article_expected_verdict": "YES",
+    "source_expected_category": "career",
+    "source_expected_houses": [
+      10,
+      7
+    ],
+    "source_expected_focus": "The article explicitly judges Boris Johnson as the Prime Minister or king, using Lord 10 for the office-holder and Venus for opponents.",
+    "current_engine_category": "career",
+    "current_engine_houses": [
+      10,
+      7
+    ],
+    "current_engine_quesited_house": 7,
+    "current_engine_intent": "SAFETY",
+    "source_alignment": true,
+    "alignment_note": "Current router now keeps office-holder confidence questions on the public-office axis instead of misreading 'survive' as literal death-edge wording."
+  },
+  {
+    "id": "where_is_my_watch_source_pass",
+    "question": "Where is my lost watch?",
+    "source_url": "https://cunning-man.co.uk/where-is-my-watch/",
+    "source_kind": "cunning_man_source_pass",
+    "article_expected_verdict": "recoverable/location",
+    "source_expected_category": "lost_object",
+    "source_expected_houses": [
+      1,
+      2
+    ],
+    "source_expected_focus": "The article treats the watch as a lost possession, starting from Lord 2 with location/condition witnesses layered on top.",
+    "current_engine_category": "lost_object",
+    "current_engine_houses": [
+      1,
+      2
+    ],
+    "current_engine_quesited_house": 2,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Current router already handles this as a standard lost-object discovery question."
+  },
+  {
+    "id": "ukraine_invasion_timing_source_pass",
+    "question": "Will Russia invade Ukraine, and when?",
+    "source_url": "https://cunning-man.co.uk/ukraine-invasion-timing/",
+    "source_kind": "cunning_man_source_pass",
+    "article_expected_verdict": "YES",
+    "source_expected_category": "general",
+    "source_expected_houses": [
+      9,
+      11
+    ],
+    "source_expected_focus": "The article treats Russia as Lord 9, a foreign nation, and describes Ukraine through Russia's turned 3rd rather than a generic 1st/7th opposition frame.",
+    "current_engine_category": "general",
+    "current_engine_houses": [
+      9,
+      11
+    ],
+    "current_engine_quesited_house": 11,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Current router now recognizes foreign-state military action and routes the neighboring target through the turned 3rd from the 9th."
+  },
+  {
+    "id": "thyroid_medicine_source_pass",
+    "question": "Is my thyroid medicine helping or harming me?",
+    "source_url": "https://cunning-man.co.uk/is-my-thyroid-medicine-helping-or-harming-me/",
+    "source_kind": "cunning_man_source_pass",
+    "article_expected_verdict": "harmful/worsening",
+    "source_expected_category": "health",
+    "source_expected_houses": [
+      1,
+      6,
+      7,
+      10
+    ],
+    "source_expected_focus": "The article treats this as a medical horary using Lord 1 for the querent, a disease significator, Lord 7 for the doctor, and Lord 10 for the treatment or medicine.",
+    "current_engine_category": "health",
+    "current_engine_houses": [
+      1,
+      6,
+      7,
+      10
+    ],
+    "current_engine_quesited_house": 10,
+    "current_engine_intent": "SAFETY",
+    "source_alignment": true,
+    "alignment_note": "Current router now recognizes treatment questions as a medical family with querent, illness, doctor, and treatment houses in view."
+  }
+]

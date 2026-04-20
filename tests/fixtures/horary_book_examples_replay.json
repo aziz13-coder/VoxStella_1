@@ -1,0 +1,1640 @@
+[
+  {
+    "id": "will_i_get_a_good_yearly_review_of_my_work",
+    "source": "horary_examples_book",
+    "title": "Will I Get a Good Yearly Review of My Work?",
+    "section": "Money & Jobs",
+    "author": "Leah Cuperman",
+    "epub_chapter": "text/part0000_split_015.html",
+    "question": "Will I Get a Good Yearly Review of My Work?",
+    "local_dt": "2012-02-07T18:37:00",
+    "timezone": "Asia/Jerusalem",
+    "location_name": "Herzliya, Israel",
+    "coordinates": {
+      "lat": 32.1624,
+      "lon": 34.8447
+    },
+    "header_asc_degree": 5,
+    "header_asc_sign": "Virgo",
+    "book_expected_category": "career",
+    "book_expected_question_family": "occurrence",
+    "book_expected_primary_houses": [
+      1,
+      10
+    ],
+    "book_expected_secondary_houses": [],
+    "book_expected_significators_summary": [
+      "Querent: Mercury and Moon",
+      "Boss/reviewer: 10th house"
+    ],
+    "book_expected_verdict": "YES",
+    "book_expected_reasoning_summary": [
+      "Mercury is cazimi, a very strong testimony of advancement",
+      "The chart can be judged directly from the querent being raised by the Sun"
+    ],
+    "engine_expected_category": "career",
+    "engine_expected_verdict": "YES",
+    "engine_expected_perfection_type": "direct",
+    "engine_expected_houses": [
+      1,
+      10
+    ],
+    "engine_expected_significator_houses": {
+      "querent_house": 1,
+      "quesited_house": 10
+    },
+    "engine_expected_reasoning_contains": [
+      "Cazimi planets significantly strengthen the judgment"
+    ],
+    "source_alignment": true,
+    "mismatch_notes": [],
+    "phase5_priority": "low"
+  },
+  {
+    "id": "will_my_tenant_send_full_payment",
+    "source": "horary_examples_book",
+    "title": "Will My Tenant Send Full Payment?",
+    "section": "Money & Jobs",
+    "author": "Kathryn Silvestre",
+    "epub_chapter": "text/part0000_split_016.html",
+    "question": "Will My Tenant Send Full Payment?",
+    "local_dt": "2012-08-12T14:11:00",
+    "timezone": "America/Chicago",
+    "location_name": "Wauwatosa, WI",
+    "coordinates": {
+      "lat": 43.0495,
+      "lon": -88.0076
+    },
+    "header_asc_degree": 24,
+    "header_asc_sign": "Scorpio",
+    "book_expected_category": "money",
+    "book_expected_question_family": "occurrence",
+    "book_expected_primary_houses": [
+      1,
+      7,
+      8
+    ],
+    "book_expected_secondary_houses": [
+      2
+    ],
+    "book_expected_significators_summary": [
+      "Querent: Mars and Moon",
+      "Tenant: Venus",
+      "Tenant's money: Mercury",
+      "Querent's bank account: Jupiter"
+    ],
+    "book_expected_verdict": "NO",
+    "book_expected_reasoning_summary": [
+      "Tenant's money is too weak to cover the full amount",
+      "The Mercury-Jupiter perfection is too late for the one-week deadline"
+    ],
+    "engine_expected_category": "money",
+    "engine_expected_verdict": "NO",
+    "engine_expected_perfection_type": "denial_secondary_balance",
+    "engine_expected_houses": [
+      1,
+      7,
+      8
+    ],
+    "engine_expected_significator_houses": {
+      "querent_house": 1,
+      "quesited_house": 8
+    },
+    "engine_expected_reasoning_contains": [
+      "Querent: Mars (ruler of 1), Quesited: Mercury (ruler of 8)",
+      "No direct perfection found between Mars and Mercury"
+    ],
+    "source_alignment": true,
+    "mismatch_notes": [],
+    "phase5_priority": "low"
+  },
+  {
+    "id": "will_i_get_the_job_at_uw",
+    "source": "horary_examples_book",
+    "title": "Will I Get the Job at UW?",
+    "section": "Money & Jobs",
+    "author": "Molly Morrissey",
+    "epub_chapter": "text/part0000_split_017.html",
+    "question": "Will I Get the Job at UW?",
+    "local_dt": "2009-08-04T17:49:00",
+    "timezone": "America/Los_Angeles",
+    "location_name": "Redmond, WA",
+    "coordinates": {
+      "lat": 47.674,
+      "lon": -122.1215
+    },
+    "header_asc_degree": 25,
+    "header_asc_sign": "Sagittarius",
+    "book_expected_category": "career",
+    "book_expected_question_family": "occurrence",
+    "book_expected_primary_houses": [
+      1,
+      10
+    ],
+    "book_expected_secondary_houses": [
+      7
+    ],
+    "book_expected_significators_summary": [
+      "Querent: Jupiter and Moon",
+      "Job: Venus",
+      "Competition: Mercury"
+    ],
+    "book_expected_verdict": "NO",
+    "book_expected_reasoning_summary": [
+      "The competitor reaches the job before the querent does",
+      "Lord 10 sits in the 7th, showing the position is with the other candidate"
+    ],
+    "engine_expected_category": "career",
+    "engine_expected_verdict": "NO",
+    "engine_expected_perfection_type": "denial_secondary_balance",
+    "engine_expected_houses": [
+      1,
+      10
+    ],
+    "engine_expected_significator_houses": {
+      "querent_house": 1,
+      "quesited_house": 10
+    },
+    "engine_expected_reasoning_contains": [
+      "Querent: Jupiter (ruler of 1), Quesited: Venus (ruler of 10)",
+      "No direct perfection found between Jupiter and Venus"
+    ],
+    "source_alignment": true,
+    "mismatch_notes": [],
+    "phase5_priority": "low"
+  },
+  {
+    "id": "will_i_profit_from_this_bet",
+    "source": "horary_examples_book",
+    "title": "Will I Profit from This Bet?",
+    "section": "Money & Jobs",
+    "author": "Marcos Monteiro",
+    "epub_chapter": "text/part0000_split_018.html",
+    "question": "Will I Profit from This Bet?",
+    "local_dt": "2014-01-20T15:05:00",
+    "timezone": "America/Sao_Paulo",
+    "location_name": "Barra Velha/SC, Brazil",
+    "coordinates": {
+      "lat": -26.6376,
+      "lon": -48.684
+    },
+    "header_asc_degree": 20,
+    "header_asc_sign": "Taurus",
+    "book_expected_category": "money",
+    "book_expected_question_family": "occurrence",
+    "book_expected_primary_houses": [
+      1,
+      2,
+      8
+    ],
+    "book_expected_secondary_houses": [
+      7
+    ],
+    "book_expected_significators_summary": [
+      "Querent: Venus and Moon",
+      "Querent's money: Mercury",
+      "Winnings from the bookmaker: Jupiter",
+      "Betting site: 7th house"
+    ],
+    "book_expected_verdict": "NO",
+    "book_expected_reasoning_summary": [
+      "The Moon is void and does not bring the matter to perfection",
+      "There is no connection between the winnings and the querent or her money"
+    ],
+    "engine_expected_category": "money",
+    "engine_expected_verdict": "NO",
+    "engine_expected_perfection_type": "denial_secondary_balance",
+    "engine_expected_houses": [
+      1,
+      2,
+      8
+    ],
+    "engine_expected_significator_houses": {
+      "querent_house": 1,
+      "quesited_house": 8
+    },
+    "engine_expected_reasoning_contains": [
+      "Querent: Venus (ruler of 1), Quesited: Jupiter (ruler of 8)",
+      "No direct perfection found between Venus and Jupiter"
+    ],
+    "source_alignment": true,
+    "mismatch_notes": [],
+    "phase5_priority": "low"
+  },
+  {
+    "id": "should_i_start_this_business",
+    "source": "horary_examples_book",
+    "title": "Should I Start This Business?",
+    "section": "Money & Jobs",
+    "author": "Leah Cuperman",
+    "epub_chapter": "text/part0000_split_020.html",
+    "question": "Should I Start This Business?",
+    "local_dt": "2009-12-12T18:26:00",
+    "timezone": "Asia/Jerusalem",
+    "location_name": "Herzliya, Israel",
+    "coordinates": {
+      "lat": 32.1624,
+      "lon": 34.8447
+    },
+    "header_asc_degree": 16,
+    "header_asc_sign": "Cancer",
+    "book_expected_category": "career",
+    "book_expected_question_family": "advisability",
+    "book_expected_primary_houses": [
+      1,
+      10
+    ],
+    "book_expected_secondary_houses": [
+      11,
+      7
+    ],
+    "book_expected_significators_summary": [
+      "Querent: Moon",
+      "Business: Mars",
+      "Business profit: Venus",
+      "Clients: Saturn"
+    ],
+    "book_expected_verdict": "NO",
+    "book_expected_reasoning_summary": [
+      "The business is weak and its profit is combust",
+      "Potential clients have money but are not interested in the product"
+    ],
+    "engine_expected_category": "career",
+    "engine_expected_verdict": "NO",
+    "engine_expected_perfection_type": "direct_penalized",
+    "engine_expected_houses": [
+      1,
+      10
+    ],
+    "engine_expected_significator_houses": {
+      "querent_house": 1,
+      "quesited_house": 10
+    },
+    "engine_expected_reasoning_contains": [
+      "Querent: Moon (ruler of 1), Quesited: Mars (ruler of 10)",
+      "Moon in Via Combusta"
+    ],
+    "source_alignment": true,
+    "mismatch_notes": [],
+    "phase5_priority": "low"
+  },
+  {
+    "id": "will_investing_in_this_business_prove_profitable_for_me",
+    "source": "horary_examples_book",
+    "title": "Will Investing in This Business Prove Profitable for Me?",
+    "section": "Money & Jobs",
+    "author": "Leah Cuperman",
+    "epub_chapter": "text/part0000_split_022.html",
+    "question": "Will Investing in This Business Prove Profitable for Me?",
+    "local_dt": "2014-12-28T19:04:00",
+    "timezone": "Asia/Jerusalem",
+    "location_name": "Herzliya, Israel",
+    "coordinates": {
+      "lat": 32.1624,
+      "lon": 34.8447
+    },
+    "header_asc_degree": 7,
+    "header_asc_sign": "Leo",
+    "book_expected_category": "money",
+    "book_expected_question_family": "occurrence",
+    "book_expected_primary_houses": [
+      1,
+      10,
+      11
+    ],
+    "book_expected_secondary_houses": [
+      7
+    ],
+    "book_expected_significators_summary": [
+      "Querent: Sun and Moon",
+      "Partner: Saturn",
+      "Business: Venus",
+      "Business profit: Mercury"
+    ],
+    "book_expected_verdict": "NO",
+    "book_expected_reasoning_summary": [
+      "The profit is weak and ruled by the partner to its detriment",
+      "The partner harms both the business and the profits"
+    ],
+    "engine_expected_category": "money",
+    "engine_expected_verdict": "NO",
+    "engine_expected_perfection_type": "denial_secondary_balance",
+    "engine_expected_houses": [
+      1,
+      10,
+      11
+    ],
+    "engine_expected_significator_houses": {
+      "querent_house": 1,
+      "quesited_house": 11
+    },
+    "engine_expected_reasoning_contains": [
+      "Querent: Sun (ruler of 1), Quesited: Mercury (ruler of 11)",
+      "No direct perfection found between Sun and Mercury"
+    ],
+    "source_alignment": true,
+    "mismatch_notes": [],
+    "phase5_priority": "low"
+  },
+  {
+    "id": "will_the_bank_foreclose",
+    "source": "horary_examples_book",
+    "title": "Will the Bank Foreclose?",
+    "section": "Housing",
+    "author": "Leah Cuperman",
+    "epub_chapter": "text/part0000_split_025.html",
+    "question": "Will the Bank Foreclose?",
+    "local_dt": "2012-07-02T04:41:00",
+    "timezone": "Asia/Jerusalem",
+    "location_name": "Herzliya, Israel",
+    "coordinates": {
+      "lat": 32.1624,
+      "lon": 34.8447
+    },
+    "header_asc_degree": 26,
+    "header_asc_sign": "Gemini",
+    "book_expected_category": "money",
+    "book_expected_question_family": "occurrence",
+    "book_expected_primary_houses": [
+      1,
+      7
+    ],
+    "book_expected_secondary_houses": [
+      4
+    ],
+    "book_expected_significators_summary": [
+      "Querent and house: Mercury",
+      "Bank: Jupiter"
+    ],
+    "book_expected_verdict": "NO",
+    "book_expected_reasoning_summary": [
+      "Mutual reception between Mercury and Jupiter shows an agreement",
+      "Mercury's fixity shows the querent stays in the house"
+    ],
+    "engine_expected_category": "money",
+    "engine_expected_verdict": "NO",
+    "engine_expected_perfection_type": "bank_counterparty_settlement",
+    "engine_expected_houses": [
+      1,
+      7
+    ],
+    "engine_expected_significator_houses": {
+      "querent_house": 1,
+      "quesited_house": 7
+    },
+    "engine_expected_reasoning_contains": [
+      "Querent: Mercury (ruler of 1), Quesited: Jupiter (ruler of 7)",
+      "Indirect perfection with strong reception is read as settlement/contact, not hostile seizure"
+    ],
+    "source_alignment": true,
+    "mismatch_notes": [],
+    "phase5_priority": "low"
+  },
+  {
+    "id": "should_i_move_to_my_friends_house",
+    "source": "horary_examples_book",
+    "title": "Should I Move to My Friend’s House?",
+    "section": "Housing",
+    "author": "Fotini Christodoulou",
+    "epub_chapter": "text/part0000_split_026.html",
+    "question": "Should I Move to My Friend's House?",
+    "local_dt": "2012-01-08T16:44:00",
+    "timezone": "Europe/Athens",
+    "location_name": "Thessaloniki, Greece",
+    "coordinates": {
+      "lat": 40.6401,
+      "lon": 22.9444
+    },
+    "header_asc_degree": 11,
+    "header_asc_sign": "Cancer",
+    "book_expected_category": "property",
+    "book_expected_question_family": "advisability",
+    "book_expected_primary_houses": [
+      1,
+      11
+    ],
+    "book_expected_secondary_houses": [],
+    "book_expected_significators_summary": [
+      "Querent: Moon",
+      "Friend's house: 11th house, ruled by Mars"
+    ],
+    "book_expected_verdict": "YES",
+    "book_expected_reasoning_summary": [
+      "The querent dislikes it at first, but moving the significator into the friend's house shows improvement and eventual comfort"
+    ],
+    "engine_expected_category": "property",
+    "engine_expected_verdict": "YES",
+    "engine_expected_perfection_type": "direct_penalized",
+    "engine_expected_houses": [
+      1,
+      11
+    ],
+    "engine_expected_significator_houses": {
+      "querent_house": 1,
+      "quesited_house": 11
+    },
+    "engine_expected_reasoning_contains": [
+      "Querent: Moon (ruler of 1), Quesited: Mars (ruler of 11)"
+    ],
+    "source_alignment": true,
+    "mismatch_notes": [],
+    "phase5_priority": "low"
+  },
+  {
+    "id": "should_i_buy_this_flat",
+    "source": "horary_examples_book",
+    "title": "Should I Buy This Flat?",
+    "section": "Housing",
+    "author": "Leah Cuperman",
+    "epub_chapter": "text/part0000_split_028.html",
+    "question": "Should I Buy This Flat?",
+    "local_dt": "2011-03-31T10:31:00",
+    "timezone": "Asia/Jerusalem",
+    "location_name": "Herzliya, Israel",
+    "coordinates": {
+      "lat": 32.1624,
+      "lon": 34.8447
+    },
+    "header_asc_degree": 6,
+    "header_asc_sign": "Cancer",
+    "book_expected_category": "property",
+    "book_expected_question_family": "advisability",
+    "book_expected_primary_houses": [
+      1,
+      4,
+      10
+    ],
+    "book_expected_secondary_houses": [],
+    "book_expected_significators_summary": [
+      "Querent: Moon",
+      "Property condition: Mercury as 4th ruler",
+      "Price: Jupiter as 10th ruler"
+    ],
+    "book_expected_verdict": "NO",
+    "book_expected_reasoning_summary": [
+      "The property itself is badly debilitated",
+      "The price testimony is also very poor"
+    ],
+    "engine_expected_category": "property",
+    "engine_expected_verdict": "NO",
+    "engine_expected_perfection_type": "property_quality_sufficiency",
+    "engine_expected_houses": [
+      1,
+      4,
+      10
+    ],
+    "engine_expected_significator_houses": {
+      "querent_house": 1,
+      "quesited_house": 4
+    },
+    "engine_expected_reasoning_contains": [
+      "Querent: Moon (ruler of 1), Quesited: Mercury (ruler of 4)",
+      "Property family: advisability/profit"
+    ],
+    "source_alignment": true,
+    "mismatch_notes": [],
+    "phase5_priority": "low"
+  },
+  {
+    "id": "will_we_rent_the_house",
+    "source": "horary_examples_book",
+    "title": "Will We Rent the House?",
+    "section": "Housing",
+    "author": "Molly Morrissey",
+    "epub_chapter": "text/part0000_split_029.html",
+    "question": "Will We Rent the House?",
+    "local_dt": "2011-06-22T21:18:00",
+    "timezone": "America/Los_Angeles",
+    "location_name": "Seattle, WA",
+    "coordinates": {
+      "lat": 47.6062,
+      "lon": -122.3321
+    },
+    "header_asc_degree": 4,
+    "header_asc_sign": "Capricorn",
+    "book_expected_category": "property",
+    "book_expected_question_family": "occurrence",
+    "book_expected_primary_houses": [
+      1,
+      7,
+      4
+    ],
+    "book_expected_secondary_houses": [],
+    "book_expected_significators_summary": [
+      "Querent: Saturn",
+      "Current owner: Moon",
+      "Property: Venus",
+      "New owners: Mercury by occupation and antiscion testimony"
+    ],
+    "book_expected_verdict": "YES",
+    "book_expected_reasoning_summary": [
+      "The sale is already effectively done, allowing the rental to proceed"
+    ],
+    "engine_expected_category": "property",
+    "engine_expected_verdict": "NO",
+    "engine_expected_perfection_type": "none",
+    "engine_expected_houses": [
+      1,
+      7,
+      4
+    ],
+    "engine_expected_significator_houses": {
+      "querent_house": 1,
+      "quesited_house": 4
+    },
+    "engine_expected_reasoning_contains": [
+      "Querent: Saturn (ruler of 1), Quesited: Venus (ruler of 4)",
+      "no direct perfection found between Saturn and Venus"
+    ],
+    "source_alignment": false,
+    "mismatch_notes": [
+      "Routing is now aligned to querent, current holder, and property, but the engine still lacks the sale-already-done/new-owner state logic the book uses to reach a positive outcome.",
+      "This remains a manual-review case rather than a safe rule-change target."
+    ],
+    "phase5_priority": "high"
+  },
+  {
+    "id": "will_the_relationship_last",
+    "source": "horary_examples_book",
+    "title": "Will the Relationship Last?",
+    "section": "Relationship",
+    "author": "Fotini Christodoulou",
+    "epub_chapter": "text/part0000_split_030.html",
+    "question": "Will the Relationship Last?",
+    "local_dt": "2014-06-22T13:12:00",
+    "timezone": "Europe/Athens",
+    "location_name": "Thessaloniki, Greece",
+    "coordinates": {
+      "lat": 40.6401,
+      "lon": 22.9444
+    },
+    "header_asc_degree": 27,
+    "header_asc_sign": "Virgo",
+    "book_expected_category": "relationship",
+    "book_expected_question_family": "occurrence",
+    "book_expected_primary_houses": [
+      1,
+      7
+    ],
+    "book_expected_secondary_houses": [],
+    "book_expected_significators_summary": [
+      "Querent: Mercury, Moon, Venus",
+      "Partner: Jupiter and Sun",
+      "Relationship: Part of Marriage disposed by the Moon"
+    ],
+    "book_expected_verdict": "YES",
+    "book_expected_reasoning_summary": [
+      "The Part of Marriage is strong in Cancer and disposed by a dignified Moon in Taurus",
+      "Both of the boyfriend's significators value the relationship, but he communicates poorly",
+      "The relationship can and will last if the querent wants it to"
+    ],
+    "engine_expected_category": "relationship",
+    "engine_expected_verdict": "YES",
+    "engine_expected_perfection_type": "relationship_durability_balance",
+    "engine_expected_houses": [
+      1,
+      7
+    ],
+    "engine_expected_significator_houses": {
+      "querent_house": 1,
+      "quesited_house": 7
+    },
+    "engine_expected_reasoning_contains": [
+      "Querent: Mercury (ruler of 1), Quesited: Jupiter (ruler of 7)",
+      "Relationship family: durability/continuance"
+    ],
+    "source_alignment": true,
+    "mismatch_notes": [],
+    "phase5_priority": "resolved"
+  },
+  {
+    "id": "any_chance_of_a_romance_with_x",
+    "source": "horary_examples_book",
+    "title": "Any Chance of a Romance with X?",
+    "section": "Relationship",
+    "author": "Kathryn Silvestre",
+    "epub_chapter": "text/part0000_split_032.html",
+    "question": "Any Chance of a Romance with X?",
+    "local_dt": "2014-02-14T19:03:00",
+    "timezone": "America/Chicago",
+    "location_name": "Highland Park, IL",
+    "coordinates": {
+      "lat": 42.1817,
+      "lon": -87.8003
+    },
+    "header_asc_degree": 16,
+    "header_asc_sign": "Virgo",
+    "book_expected_category": "relationship",
+    "book_expected_question_family": "occurrence",
+    "book_expected_primary_houses": [
+      1,
+      7
+    ],
+    "book_expected_secondary_houses": [],
+    "book_expected_significators_summary": [
+      "Querent: Mercury, Moon, Venus",
+      "Love interest: Jupiter and Sun"
+    ],
+    "book_expected_verdict": "YES",
+    "book_expected_reasoning_summary": [
+      "Mercury and the Sun perfect their conjunction, so a relationship does begin",
+      "The relationship is brief and harmful because the quesited is self-absorbed and damaging to the querent"
+    ],
+    "engine_expected_category": "relationship",
+    "engine_expected_verdict": "YES",
+    "engine_expected_perfection_type": "direct_penalized",
+    "engine_expected_houses": [
+      1,
+      7
+    ],
+    "engine_expected_significator_houses": {
+      "querent_house": 1,
+      "quesited_house": 7
+    },
+    "engine_expected_reasoning_contains": [
+      "Querent: Mercury (ruler of 1), Quesited: Jupiter (ruler of 7)",
+      "Perfection: Applying major aspect present"
+    ],
+    "source_alignment": true,
+    "mismatch_notes": [],
+    "phase5_priority": "medium"
+  },
+  {
+    "id": "is_there_any_hope_for_us_getting_back_together_should_i_wait_for_her",
+    "source": "horary_examples_book",
+    "title": "Is There Any Hope for Us Getting Back Together? Should I Wait for Her?",
+    "section": "Relationship",
+    "author": "Fotini Christodoulou",
+    "epub_chapter": "text/part0000_split_033.html",
+    "question": "Is There Any Hope for Us Getting Back Together? Should I Wait for Her?",
+    "local_dt": "2014-12-16T14:53:00",
+    "timezone": "Europe/Athens",
+    "location_name": "Thessaloniki, Greece",
+    "coordinates": {
+      "lat": 40.6401,
+      "lon": 22.9444
+    },
+    "header_asc_degree": 19,
+    "header_asc_sign": "Taurus",
+    "book_expected_category": "relationship",
+    "book_expected_question_family": "advisability",
+    "book_expected_primary_houses": [
+      1,
+      7
+    ],
+    "book_expected_secondary_houses": [],
+    "book_expected_significators_summary": [
+      "Querent: Venus, Moon, Sun",
+      "Woman asked after: Mars",
+      "Current boyfriend: Saturn"
+    ],
+    "book_expected_verdict": "NO",
+    "book_expected_reasoning_summary": [
+      "The querent idolizes the woman and harms himself emotionally by doing so",
+      "Her significator is more committed to Saturn than to the querent, so the relationship is not a good idea"
+    ],
+    "engine_expected_category": "relationship",
+    "engine_expected_verdict": "NO",
+    "engine_expected_perfection_type": "none",
+    "engine_expected_houses": [
+      1,
+      7
+    ],
+    "engine_expected_significator_houses": {
+      "querent_house": 1,
+      "quesited_house": 7
+    },
+    "engine_expected_reasoning_contains": [
+      "Querent: Venus (ruler of 1), Quesited: Mars (ruler of 7)",
+      "Mutual reception between Venus and Mars: mixed_reception"
+    ],
+    "source_alignment": true,
+    "mismatch_notes": [],
+    "phase5_priority": "medium"
+  },
+  {
+    "id": "will_i_find_a_new_relationship_and_when",
+    "source": "horary_examples_book",
+    "title": "Will I Find a New Relationship and When?",
+    "section": "Relationship",
+    "author": "Fotini Christodoulou",
+    "epub_chapter": "text/part0000_split_035.html",
+    "question": "Will I Find a New Relationship and When?",
+    "local_dt": "2011-12-14T17:51:00",
+    "timezone": "Europe/Athens",
+    "location_name": "Thessaloniki, Greece",
+    "coordinates": {
+      "lat": 40.6401,
+      "lon": 22.9444
+    },
+    "header_asc_degree": 4,
+    "header_asc_sign": "Cancer",
+    "book_expected_category": "relationship",
+    "book_expected_question_family": "occurrence",
+    "book_expected_primary_houses": [
+      1,
+      7
+    ],
+    "book_expected_secondary_houses": [],
+    "book_expected_significators_summary": [
+      "Querent: Moon and Venus",
+      "Future boyfriend: Saturn and Sun"
+    ],
+    "book_expected_verdict": "YES",
+    "book_expected_reasoning_summary": [
+      "Venus and Saturn are in strong mutual reception and Venus applies to square Saturn",
+      "The relationship forms in a little under five months"
+    ],
+    "engine_expected_category": "relationship",
+    "engine_expected_verdict": "YES",
+    "engine_expected_perfection_type": "direct",
+    "engine_expected_houses": [
+      1,
+      7
+    ],
+    "engine_expected_significator_houses": {
+      "querent_house": 1,
+      "quesited_house": 7
+    },
+    "engine_expected_reasoning_contains": [
+      "Querent: Moon (ruler of 1), Quesited: Saturn (ruler of 7)",
+      "Perfection: Applying major aspect present"
+    ],
+    "source_alignment": true,
+    "mismatch_notes": [],
+    "phase5_priority": "resolved"
+  },
+  {
+    "id": "will_i_conceive",
+    "source": "horary_examples_book",
+    "title": "Will I Conceive?",
+    "section": "Pregnancy & Children",
+    "author": "Molly Morrissey",
+    "epub_chapter": "text/part0000_split_036.html",
+    "question": "Will I Conceive?",
+    "local_dt": "2014-01-14T18:43:00",
+    "timezone": "America/Los_Angeles",
+    "location_name": "San Diego, CA",
+    "coordinates": {
+      "lat": 32.7157,
+      "lon": -117.1611
+    },
+    "header_asc_degree": 16,
+    "header_asc_sign": "Leo",
+    "book_expected_category": "pregnancy",
+    "book_expected_question_family": "occurrence",
+    "book_expected_primary_houses": [
+      1,
+      5
+    ],
+    "book_expected_secondary_houses": [
+      7
+    ],
+    "book_expected_significators_summary": [
+      "Querent: Sun and Moon",
+      "Baby: Jupiter",
+      "Husband: 7th house"
+    ],
+    "book_expected_verdict": "YES",
+    "book_expected_reasoning_summary": [
+      "The Moon immediately applies to conjunct Lord 5 Jupiter",
+      "Moon and Jupiter are both strong in fertile Cancer, so conception happens soon"
+    ],
+    "engine_expected_category": "pregnancy",
+    "engine_expected_verdict": "YES",
+    "engine_expected_perfection_type": "pregnancy_sufficiency",
+    "engine_expected_houses": [
+      1,
+      5
+    ],
+    "engine_expected_significator_houses": {
+      "querent_house": 1,
+      "quesited_house": 5
+    },
+    "engine_expected_reasoning_contains": [
+      "Pregnancy family: conception",
+      "Moon next applies by Conjunction to child significator Jupiter"
+    ],
+    "source_alignment": true,
+    "mismatch_notes": [],
+    "phase5_priority": "resolved"
+  },
+  {
+    "id": "will_they_put_the_baby_up_for_adoption",
+    "source": "horary_examples_book",
+    "title": "Will They Put the Baby Up for Adoption?",
+    "section": "Pregnancy & Children",
+    "author": "Kathryn Silvestre",
+    "epub_chapter": "text/part0000_split_038.html",
+    "question": "Will They Put the Baby Up for Adoption?",
+    "local_dt": "2005-05-03T20:09:00",
+    "timezone": "America/Indiana/Indianapolis",
+    "location_name": "Selma, IN",
+    "coordinates": {
+      "lat": 40.1917,
+      "lon": -85.273
+    },
+    "header_asc_degree": 20,
+    "header_asc_sign": "Scorpio",
+    "book_expected_category": "children",
+    "book_expected_question_family": "occurrence",
+    "book_expected_primary_houses": [
+      1,
+      7,
+      11
+    ],
+    "book_expected_secondary_houses": [],
+    "book_expected_significators_summary": [
+      "Querent: Mars",
+      "The parents: 7th house",
+      "Their child: Venus as ruler of the 11th"
+    ],
+    "book_expected_verdict": "NO",
+    "book_expected_reasoning_summary": [
+      "The chart shows the child in the parents' house, strong in Taurus, so they keep the baby"
+    ],
+    "engine_expected_category": "children",
+    "engine_expected_verdict": "NO",
+    "engine_expected_perfection_type": "children_adoption_balance",
+    "engine_expected_houses": [
+      1,
+      7,
+      11
+    ],
+    "engine_expected_significator_houses": {
+      "querent_house": 1,
+      "subject_house": 7,
+      "quesited_house": 11
+    },
+    "engine_expected_reasoning_contains": [
+      "Querent: Mars (ruler of 1), Quesited: Venus (ruler of 11)",
+      "The child's significator is placed in the parents' house"
+    ],
+    "source_alignment": true,
+    "mismatch_notes": [],
+    "phase5_priority": "resolved"
+  },
+  {
+    "id": "am_i_pregnant",
+    "source": "horary_examples_book",
+    "title": "Am I Pregnant?",
+    "section": "Pregnancy & Children",
+    "author": "John Frawley",
+    "epub_chapter": "text/part0000_split_039.html",
+    "question": "Am I Pregnant?",
+    "local_dt": "2010-06-08T12:01:00",
+    "timezone": "Europe/Warsaw",
+    "location_name": "Poznan, Poland",
+    "coordinates": {
+      "lat": 52.4064,
+      "lon": 16.9252
+    },
+    "header_asc_degree": 11,
+    "header_asc_sign": "Virgo",
+    "book_expected_category": "pregnancy",
+    "book_expected_question_family": "status_diagnosis",
+    "book_expected_primary_houses": [
+      1,
+      5
+    ],
+    "book_expected_secondary_houses": [],
+    "book_expected_significators_summary": [
+      "Querent: Mercury",
+      "Baby: Saturn",
+      "Moon only if it forces itself into judgment"
+    ],
+    "book_expected_verdict": "NO",
+    "book_expected_reasoning_summary": [
+      "Saturn in the 1st could suggest the baby inside the mother, but the applying Mercury-Saturn aspect shows a future connection, not a present pregnancy",
+      "This is a present-state question, so the answer is no"
+    ],
+    "engine_expected_category": "pregnancy",
+    "engine_expected_verdict": "NO",
+    "engine_expected_perfection_type": "pregnancy_status_balance",
+    "engine_expected_houses": [
+      1,
+      5
+    ],
+    "engine_expected_significator_houses": {
+      "querent_house": 1,
+      "quesited_house": 5
+    },
+    "engine_expected_reasoning_contains": [
+      "Pregnancy family: present-state diagnosis",
+      "Applying Trine between Mercury and Saturn shows connection forming later"
+    ],
+    "source_alignment": true,
+    "mismatch_notes": [],
+    "phase5_priority": "resolved"
+  },
+  {
+    "id": "any_chance_of_having_my_own_child",
+    "source": "horary_examples_book",
+    "title": "Any Chance of Having My Own Child?",
+    "section": "Pregnancy & Children",
+    "author": "Kathryn Silvestre",
+    "epub_chapter": "text/part0000_split_042.html",
+    "question": "Any Chance of Having My Own Child?",
+    "local_dt": "2004-11-10T16:02:00",
+    "timezone": "America/Indiana/Indianapolis",
+    "location_name": "Selma, IN",
+    "coordinates": {
+      "lat": 40.1917,
+      "lon": -85.273
+    },
+    "header_asc_degree": 17,
+    "header_asc_sign": "Aries",
+    "book_expected_category": "children",
+    "book_expected_question_family": "occurrence",
+    "book_expected_primary_houses": [
+      1,
+      5
+    ],
+    "book_expected_secondary_houses": [
+      11
+    ],
+    "book_expected_significators_summary": [
+      "Querent: Mars",
+      "Potential child: Moon",
+      "Donor egg / someone else's child-potential: Saturn as 11th from the 7th"
+    ],
+    "book_expected_verdict": "NO",
+    "book_expected_reasoning_summary": [
+      "The Moon's square to Saturn prohibits the later conjunction with Mars, so the querent does not have her own biological child",
+      "The donor-egg subquestion is separate and more complicated"
+    ],
+    "engine_expected_category": "children",
+    "engine_expected_verdict": "NO",
+    "engine_expected_perfection_type": "frustration",
+    "engine_expected_houses": [
+      1,
+      5
+    ],
+    "engine_expected_significator_houses": {
+      "querent_house": 1,
+      "quesited_house": 5
+    },
+    "engine_expected_reasoning_contains": [
+      "Querent: Mars (ruler of 1), Quesited: Moon (ruler of 5)",
+      "L5 Moon applies square to Saturn (preempts perfection)"
+    ],
+    "source_alignment": true,
+    "mismatch_notes": [],
+    "phase5_priority": "resolved"
+  },
+  {
+    "id": "will_dad_die_soon_if_so_when",
+    "source": "horary_examples_book",
+    "title": "Will Dad Die Soon? If So, When?",
+    "section": "Health",
+    "author": "Molly Morrissey",
+    "epub_chapter": "text/part0000_split_046.html",
+    "question": "Will Dad Die Soon? If So, When?",
+    "local_dt": "2012-07-08T22:25:00",
+    "timezone": "America/Denver",
+    "location_name": "Placitas, NM",
+    "coordinates": {
+      "lat": 35.3061,
+      "lon": -106.4248
+    },
+    "header_asc_degree": 25,
+    "header_asc_sign": "Aquarius",
+    "book_expected_category": "death",
+    "book_expected_question_family": "occurrence",
+    "book_expected_primary_houses": [
+      4,
+      11
+    ],
+    "book_expected_secondary_houses": [
+      8
+    ],
+    "book_expected_significators_summary": [
+      "Father: Mercury as ruler of the 4th",
+      "Father's death: Jupiter as turned 8th from the 4th",
+      "Radical 8th Venus is also considered as background death testimony"
+    ],
+    "book_expected_verdict": "NO",
+    "book_expected_reasoning_summary": [
+      "Mercury stations before death can carry the matter through, so the father's death is prohibited",
+      "The book treats the stalled motion as showing that he is not going anywhere yet"
+    ],
+    "engine_expected_category": "death",
+    "engine_expected_verdict": "NO",
+    "engine_expected_perfection_type": "none",
+    "engine_expected_houses": [
+      4,
+      11
+    ],
+    "engine_expected_significator_houses": {
+      "querent_house": 4,
+      "subject_house": 4,
+      "quesited_house": 11,
+      "death_house": 11
+    },
+    "engine_expected_reasoning_contains": [
+      "Querent: Mercury (ruler of 4), Quesited: Jupiter (ruler of 11)",
+      "No perfection found - strict evaluation for event likelihood"
+    ],
+    "source_alignment": true,
+    "mismatch_notes": [],
+    "phase5_priority": "low"
+  },
+  {
+    "id": "will_mums_tumor_stop_growing",
+    "source": "horary_examples_book",
+    "title": "Will Mum\u2019s Tumor Stop Growing?",
+    "section": "Health",
+    "author": "Fotini Christodoulou",
+    "epub_chapter": "text/part0000_split_047.html",
+    "question": "Will Mum's Tumor Stop Growing?",
+    "local_dt": "2013-05-07T12:34:00",
+    "timezone": "Europe/Athens",
+    "location_name": "Thessaloniki, Greece",
+    "coordinates": {
+      "lat": 40.6401,
+      "lon": 22.9444
+    },
+    "header_asc_degree": 14,
+    "header_asc_sign": "Leo",
+    "book_expected_category": "health",
+    "book_expected_question_family": "occurrence",
+    "book_expected_primary_houses": [
+      10,
+      3
+    ],
+    "book_expected_secondary_houses": [
+      10
+    ],
+    "book_expected_significators_summary": [
+      "Mother: Venus as ruler of the 10th",
+      "Her illness and development: turned 6th from the 10th",
+      "The head is judged from the mother's turned 1st because the tumor is in the head"
+    ],
+    "book_expected_verdict": "YES",
+    "book_expected_reasoning_summary": [
+      "The book judges the tumor as stabilizing rather than worsening dangerously",
+      "This is a turned-house medical-development question, not a generic yes-no 1st/7th event chart"
+    ],
+    "engine_expected_category": "health",
+    "engine_expected_verdict": "YES",
+    "engine_expected_perfection_type": "direct",
+    "engine_expected_houses": [
+      10,
+      3
+    ],
+    "engine_expected_significator_houses": {
+      "querent_house": 10,
+      "subject_house": 10,
+      "quesited_house": 3
+    },
+    "engine_expected_reasoning_contains": [
+      "Unity of purpose - same planetary energy governs both querent and matter",
+      "Evaluating quality - 'Is it favorable?' (condition-centered)"
+    ],
+    "source_alignment": true,
+    "mismatch_notes": [],
+    "phase5_priority": "resolved"
+  },
+  {
+    "id": "will_i_die_soon",
+    "source": "horary_examples_book",
+    "title": "Will I Die Soon?",
+    "section": "Health",
+    "author": "John Frawley",
+    "epub_chapter": "text/part0000_split_048.html",
+    "question": "Will I Die Soon?",
+    "local_dt": "2000-08-14T18:25:00",
+    "timezone": "Europe/London",
+    "location_name": "London, England",
+    "coordinates": {
+      "lat": 51.5074,
+      "lon": -0.1278
+    },
+    "header_asc_degree": 11,
+    "header_asc_sign": "Capricorn",
+    "book_expected_category": "death",
+    "book_expected_question_family": "occurrence",
+    "book_expected_primary_houses": [
+      1,
+      8
+    ],
+    "book_expected_secondary_houses": [],
+    "book_expected_significators_summary": [
+      "Querent: Saturn as ruler of the 1st",
+      "Death: Sun as ruler of the 8th",
+      "The Moon is not used as cosignificator because death itself is in question"
+    ],
+    "book_expected_verdict": "NO",
+    "book_expected_reasoning_summary": [
+      "The book denies imminent death and does not let the Moon act as a reckless cosignificator of the querent",
+      "Death has to be shown clearly enough on its own terms, not assumed"
+    ],
+    "engine_expected_category": "death",
+    "engine_expected_verdict": "NO",
+    "engine_expected_perfection_type": "blocked",
+    "engine_expected_houses": [
+      1,
+      8
+    ],
+    "engine_expected_significator_houses": {
+      "querent_house": 1,
+      "quesited_house": 8
+    },
+    "engine_expected_reasoning_contains": [
+      "Querent: Saturn (ruler of 1), Quesited: Sun (ruler of 8)",
+      "Moon aspects Sun before significator perfection"
+    ],
+    "source_alignment": true,
+    "mismatch_notes": [],
+    "phase5_priority": "low"
+  },
+  {
+    "id": "is_it_multiple_sclerosis",
+    "source": "horary_examples_book",
+    "title": "Is It Multiple Sclerosis?",
+    "section": "Health",
+    "author": "John Frawley",
+    "epub_chapter": "text/part0000_split_050.html",
+    "question": "Is It Multiple Sclerosis?",
+    "local_dt": "2011-02-18T10:40:00",
+    "timezone": "Europe/Warsaw",
+    "location_name": "Warsaw, Poland",
+    "coordinates": {
+      "lat": 52.2297,
+      "lon": 21.0122
+    },
+    "header_asc_degree": 18,
+    "header_asc_sign": "Gemini",
+    "book_expected_category": "health",
+    "book_expected_question_family": "status_diagnosis",
+    "book_expected_primary_houses": [
+      1,
+      6
+    ],
+    "book_expected_secondary_houses": [],
+    "book_expected_significators_summary": [
+      "Querent: Mercury as ruler of the 1st",
+      "Illness: 6th-house disease testimony, not a generic 7th-house quesited",
+      "The chart asks for diagnosis, not future occurrence"
+    ],
+    "book_expected_verdict": "NO",
+    "book_expected_reasoning_summary": [
+      "The book does not confirm multiple sclerosis and points away from that diagnosis",
+      "This is a present-state medical question that later proved to be a different problem"
+    ],
+    "engine_expected_category": "health",
+    "engine_expected_verdict": "NO",
+    "engine_expected_perfection_type": "health_diagnosis_balance",
+    "engine_expected_houses": [
+      1,
+      6
+    ],
+    "engine_expected_significator_houses": {
+      "querent_house": 1,
+      "subject_house": 1,
+      "quesited_house": 6
+    },
+    "engine_expected_reasoning_contains": [
+      "Querent: Mercury (ruler of 1), Quesited: Venus (ruler of 6)",
+      "Health family: present-state diagnosis"
+    ],
+    "source_alignment": true,
+    "mismatch_notes": [],
+    "phase5_priority": "resolved"
+  },
+  {
+    "id": "will_my_dog_get_better_will_it_survive",
+    "source": "horary_examples_book",
+    "title": "Will My Dog Get Better? Will It Survive?",
+    "section": "Health",
+    "author": "Fotini Christodoulou",
+    "epub_chapter": "text/part0000_split_051.html",
+    "question": "Will My Dog Get Better? Will It Survive?",
+    "local_dt": "2014-09-24T15:34:00",
+    "timezone": "Europe/Athens",
+    "location_name": "Thessaloniki, Greece",
+    "coordinates": {
+      "lat": 40.6401,
+      "lon": 22.9444
+    },
+    "header_asc_degree": 12,
+    "header_asc_sign": "Capricorn",
+    "book_expected_category": "pet",
+    "book_expected_question_family": "occurrence",
+    "book_expected_primary_houses": [
+      1,
+      6
+    ],
+    "book_expected_secondary_houses": [
+      8
+    ],
+    "book_expected_significators_summary": [
+      "Querent: Saturn",
+      "Dog: Mercury as ruler of the 6th",
+      "Illness is judged from the dog's condition and the disease testimony"
+    ],
+    "book_expected_verdict": "YES",
+    "book_expected_reasoning_summary": [
+      "The book judges the treatment as appropriate and the dog as surviving the crisis",
+      "Recovery is limited but affirmative, with improvement indicated in a short time frame"
+    ],
+    "engine_expected_category": "pet",
+    "engine_expected_verdict": "YES",
+    "engine_expected_perfection_type": "pet_recovery_balance",
+    "engine_expected_houses": [
+      1,
+      6
+    ],
+    "engine_expected_significator_houses": {
+      "querent_house": 1,
+      "quesited_house": 6
+    },
+    "engine_expected_reasoning_contains": [
+      "Querent: Saturn (ruler of 1), Quesited: Mercury (ruler of 6)",
+      "Pet family: recovery/survival",
+      "Pet safety testimony totals +11"
+    ],
+    "source_alignment": true,
+    "mismatch_notes": [],
+    "phase5_priority": "resolved"
+  },
+  {
+    "id": "will_grandfather_survive_this_time",
+    "source": "horary_examples_book",
+    "title": "Will Grandfather Survive This Time?",
+    "section": "Health",
+    "author": "Fotini Christodoulou",
+    "epub_chapter": "text/part0000_split_053.html",
+    "question": "Will Grandfather Survive This Time?",
+    "local_dt": "2012-01-17T18:58:00",
+    "timezone": "Europe/Athens",
+    "location_name": "Thessaloniki, Greece",
+    "coordinates": {
+      "lat": 40.6401,
+      "lon": 22.9444
+    },
+    "header_asc_degree": 15,
+    "header_asc_sign": "Leo",
+    "book_expected_category": "death",
+    "book_expected_question_family": "occurrence",
+    "book_expected_primary_houses": [
+      1,
+      8
+    ],
+    "book_expected_secondary_houses": [
+      10
+    ],
+    "book_expected_significators_summary": [
+      "Grandfather on the mother's side returns to the radical 1st house",
+      "Death is judged from the radical 8th from that derived position",
+      "The chart is about survival in a death crisis, not ordinary parent testimony"
+    ],
+    "book_expected_verdict": "YES",
+    "book_expected_reasoning_summary": [
+      "The book reads this as a straight survival question and denies death this time",
+      "The relative is derived correctly through the mother before judgment proceeds to survival"
+    ],
+    "engine_expected_category": "death",
+    "engine_expected_verdict": "YES",
+    "engine_expected_perfection_type": "translation",
+    "engine_expected_houses": [
+      4,
+      11
+    ],
+    "engine_expected_significator_houses": {
+      "querent_house": 4,
+      "subject_house": 4,
+      "quesited_house": 11,
+      "death_house": 11
+    },
+    "engine_expected_reasoning_contains": [
+      "Translation by Moon",
+      "Moon next Sextiles Mars"
+    ],
+    "source_alignment": false,
+    "mismatch_notes": [
+      "Current engine now reaches the correct death category and YES verdict, but it still derives the grandfather through 4/11 rather than the book's maternal-grandfather route back to 1/8",
+      "This remaining mismatch is about derived-house context carried in the chapter discussion, not a simple yes/no polarity bug"
+    ],
+    "phase5_priority": "medium"
+  },
+  {
+    "id": "where_is_my_atm_card",
+    "source": "horary_examples_book",
+    "title": "Where Is My ATM Card?",
+    "section": "Lost & Found",
+    "author": "Leah Cuperman",
+    "epub_chapter": "text/part0000_split_054.html",
+    "question": "Where Is My ATM Card?",
+    "local_dt": "2010-10-03T17:57:00",
+    "timezone": "Asia/Jerusalem",
+    "location_name": "Herzliya, Israel",
+    "coordinates": {
+      "lat": 32.1624,
+      "lon": 34.8447
+    },
+    "header_asc_degree": 24,
+    "header_asc_sign": "Aries",
+    "book_expected_category": "lost_object",
+    "book_expected_question_family": "discovery",
+    "book_expected_primary_houses": [
+      1,
+      2
+    ],
+    "book_expected_secondary_houses": [],
+    "book_expected_significators_summary": [
+      "Querent: Mars",
+      "Card: Mercury as ruler of the 2nd and natural ruler of cards/documents"
+    ],
+    "book_expected_verdict": "YES",
+    "book_expected_reasoning_summary": [
+      "The card is found rather than permanently lost",
+      "Mercury in a Venus sign and airy placement points to clothes and a high place in the house"
+    ],
+    "engine_expected_category": "lost_object",
+    "engine_expected_verdict": "YES",
+    "engine_expected_perfection_type": "lost_object_discovery_balance",
+    "engine_expected_houses": [
+      1,
+      2
+    ],
+    "engine_expected_significator_houses": {
+      "querent_house": 1,
+      "quesited_house": 2
+    },
+    "engine_expected_reasoning_contains": [
+      "Lost-object family: discovery is judged by recoverability and condition, not by generic event likelihood alone",
+      "The document significator is weakened but not destroyed, so misplacement is more likely than permanent loss"
+    ],
+    "source_alignment": true,
+    "mismatch_notes": [],
+    "phase5_priority": "high"
+  },
+  {
+    "id": "where_is_my_scarf",
+    "source": "horary_examples_book",
+    "title": "Where Is My Scarf?",
+    "section": "Lost & Found",
+    "author": "Molly Morrissey",
+    "epub_chapter": "text/part0000_split_055.html",
+    "question": "Where Is My Scarf?",
+    "local_dt": "2008-11-21T13:26:00",
+    "timezone": "America/Los_Angeles",
+    "location_name": "Redmond, WA",
+    "coordinates": {
+      "lat": 47.674,
+      "lon": -122.1215
+    },
+    "header_asc_degree": 10,
+    "header_asc_sign": "Pisces",
+    "book_expected_category": "lost_object",
+    "book_expected_question_family": "discovery",
+    "book_expected_primary_houses": [
+      1,
+      2
+    ],
+    "book_expected_secondary_houses": [
+      11
+    ],
+    "book_expected_significators_summary": [
+      "Querent: Jupiter",
+      "Scarf: Venus as ruler of the 2nd and the better descriptive significator"
+    ],
+    "book_expected_verdict": "YES",
+    "book_expected_reasoning_summary": [
+      "The scarf is with a friend",
+      "Venus in the 11th directs the querent to the friend's place"
+    ],
+    "engine_expected_category": "lost_object",
+    "engine_expected_verdict": "YES",
+    "engine_expected_perfection_type": "direct",
+    "engine_expected_houses": [
+      1,
+      2
+    ],
+    "engine_expected_significator_houses": {
+      "querent_house": 1,
+      "quesited_house": 2
+    },
+    "engine_expected_reasoning_contains": [
+      "Querent: Jupiter (ruler of 1), Quesited: Venus (ruler of 2)",
+      "Reception: One-way"
+    ],
+    "source_alignment": true,
+    "mismatch_notes": [],
+    "phase5_priority": "medium"
+  },
+  {
+    "id": "wheres_my_passport",
+    "source": "horary_examples_book",
+    "title": "Where’s My Passport?",
+    "section": "Lost & Found",
+    "author": "John Frawley",
+    "epub_chapter": "text/part0000_split_057.html",
+    "question": "Where's My Passport?",
+    "local_dt": "2003-01-24T10:46:00",
+    "timezone": "Europe/London",
+    "location_name": "London, England",
+    "coordinates": {
+      "lat": 51.5074,
+      "lon": -0.1278
+    },
+    "header_asc_degree": 3,
+    "header_asc_sign": "Taurus",
+    "book_expected_category": "lost_object",
+    "book_expected_question_family": "discovery_timing",
+    "book_expected_primary_houses": [
+      1,
+      2
+    ],
+    "book_expected_secondary_houses": [
+      10
+    ],
+    "book_expected_significators_summary": [
+      "Querent: Venus",
+      "Passport: Mercury as document and ruler of the 2nd"
+    ],
+    "book_expected_verdict": "YES",
+    "book_expected_reasoning_summary": [
+      "The passport is found in time for the trip",
+      "Mercury in the 10th shows an official or elevated place"
+    ],
+    "engine_expected_category": "lost_object",
+    "engine_expected_verdict": "YES",
+    "engine_expected_perfection_type": "lost_object_discovery_balance",
+    "engine_expected_houses": [
+      1,
+      2
+    ],
+    "engine_expected_significator_houses": {
+      "querent_house": 1,
+      "quesited_house": 2
+    },
+    "engine_expected_reasoning_contains": [
+      "Lost-object family: discovery is judged by recoverability and condition, not by generic event likelihood alone",
+      "The document significator is weakened but not destroyed, so misplacement is more likely than permanent loss"
+    ],
+    "source_alignment": true,
+    "mismatch_notes": [],
+    "phase5_priority": "high"
+  },
+  {
+    "id": "will_barrett_win",
+    "source": "horary_examples_book",
+    "title": "Will Barrett Win?",
+    "section": "Contests",
+    "author": "Kathryn Silvestre",
+    "epub_chapter": "text/part0000_split_007.html",
+    "question": "Will Barrett Win?",
+    "local_dt": "2012-06-01T22:15:00",
+    "timezone": "America/Chicago",
+    "location_name": "Wauwatosa, WI",
+    "coordinates": {
+      "lat": 43.0495,
+      "lon": -88.0076
+    },
+    "header_asc_degree": 7,
+    "header_asc_sign": "Capricorn",
+    "book_expected_category": "career",
+    "book_expected_question_family": "contest_public_office",
+    "book_expected_primary_houses": [
+      1,
+      10
+    ],
+    "book_expected_secondary_houses": [],
+    "book_expected_significators_summary": [
+      "Querent's candidate: 1st house",
+      "Incumbent governor as king: 10th house"
+    ],
+    "book_expected_verdict": "NO",
+    "book_expected_reasoning_summary": [
+      "Election contest is judged against the incumbent in the 10th",
+      "Barrett does not take the office"
+    ],
+    "engine_expected_category": "general",
+    "engine_expected_verdict": "NO",
+    "engine_expected_perfection_type": "denial_secondary_balance",
+    "engine_expected_houses": [
+      1,
+      7
+    ],
+    "engine_expected_significator_houses": {
+      "querent_house": 1,
+      "quesited_house": 7
+    },
+    "engine_expected_reasoning_contains": [
+      "Querent: Saturn (ruler of 1), Quesited: Moon (ruler of 7)",
+      "Moon in Via Combusta"
+    ],
+    "source_alignment": false,
+    "mismatch_notes": [
+      "The current engine gets the NO outcome but collapses the election into a generic 1/7 event chart",
+      "The book treats this as a public-office contest with the incumbent on the 10th"
+    ],
+    "phase5_priority": "high"
+  },
+  {
+    "id": "will_romney_win_the_us_presidency",
+    "source": "horary_examples_book",
+    "title": "Will Romney Win the US Presidency?",
+    "section": "Contests",
+    "author": "Kathryn Silvestre",
+    "epub_chapter": "text/part0000_split_010.html",
+    "question": "Will Romney Win the US Presidency?",
+    "local_dt": "2012-10-21T09:02:00",
+    "timezone": "America/Chicago",
+    "location_name": "Wauwatosa, WI",
+    "coordinates": {
+      "lat": 43.0495,
+      "lon": -88.0076
+    },
+    "header_asc_degree": 18,
+    "header_asc_sign": "Scorpio",
+    "book_expected_category": "career",
+    "book_expected_question_family": "contest_public_office",
+    "book_expected_primary_houses": [
+      1,
+      10
+    ],
+    "book_expected_secondary_houses": [],
+    "book_expected_significators_summary": [
+      "Querent's candidate: 1st house",
+      "Incumbent president: 10th house"
+    ],
+    "book_expected_verdict": "NO",
+    "book_expected_reasoning_summary": [
+      "The election is judged as an incumbent-versus-challenger contest",
+      "Romney does not win the presidency"
+    ],
+    "engine_expected_category": "career",
+    "engine_expected_verdict": "NO",
+    "engine_expected_perfection_type": "competition_public_office_balance",
+    "engine_expected_houses": [
+      1,
+      10
+    ],
+    "engine_expected_significator_houses": {
+      "querent_house": 1,
+      "quesited_house": 10
+    },
+    "engine_expected_reasoning_contains": [
+      "Public-office family: the candidate is judged against the office or incumbent in the 10th",
+      "The office/incumbent significator is angular, strengthening the holder of the office"
+    ],
+    "source_alignment": true,
+    "mismatch_notes": [],
+    "phase5_priority": "high"
+  },
+  {
+    "id": "will_the_champion_retain_his_belt",
+    "source": "horary_examples_book",
+    "title": "Will the Champion Retain His Belt?",
+    "section": "Contests",
+    "author": "Marcos Monteiro",
+    "epub_chapter": "text/part0000_split_008.html",
+    "question": "Will the Champion Retain His Belt?",
+    "local_dt": "2015-07-13T11:11:00",
+    "timezone": "America/Sao_Paulo",
+    "location_name": "Barra Velha/SC, Brazil",
+    "coordinates": {
+      "lat": -26.6376,
+      "lon": -48.684
+    },
+    "header_asc_degree": 7,
+    "header_asc_sign": "Libra",
+    "book_expected_category": "general",
+    "book_expected_question_family": "contest_champion_vs_challenger",
+    "book_expected_primary_houses": [
+      10,
+      4
+    ],
+    "book_expected_secondary_houses": [],
+    "book_expected_significators_summary": [
+      "Champion/king: 10th house",
+      "Challenger: 4th house"
+    ],
+    "book_expected_verdict": "YES",
+    "book_expected_reasoning_summary": [
+      "The champion is judged as the reigning holder of the title",
+      "The title is retained"
+    ],
+    "engine_expected_category": "general",
+    "engine_expected_verdict": "YES",
+    "engine_expected_perfection_type": "competition_champion_balance",
+    "engine_expected_houses": [
+      10,
+      4
+    ],
+    "engine_expected_significator_houses": {
+      "querent_house": 10,
+      "quesited_house": 4
+    },
+    "engine_expected_reasoning_contains": [
+      "Champion-defense family: the reigning holder of the title is judged as the king in the 10th, with the challenger in the 4th",
+      "The reigning holder of the title receives the kingly/incumbent advantage"
+    ],
+    "source_alignment": true,
+    "mismatch_notes": [],
+    "phase5_priority": "high"
+  }
+]

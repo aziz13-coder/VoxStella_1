@@ -1,0 +1,363 @@
+{
+  "generated_at": "2026-04-03T12:30:00+03:00",
+  "purpose": "Starter labeled corpus for synastry historical validation against known relationship outcomes",
+  "dimension_scale": {
+    "type": "band_0_to_5",
+    "labels": [
+      "very_low",
+      "low",
+      "mixed_low",
+      "moderate",
+      "high",
+      "very_high"
+    ]
+  },
+  "dimensions": [
+    "resonance",
+    "communication",
+    "attraction",
+    "compatibility",
+    "attachment",
+    "growth",
+    "friction",
+    "burden"
+  ],
+  "status_vocabulary": [
+    "aligned",
+    "partially_aligned",
+    "misaligned",
+    "manual_review",
+    "not_runnable_yet"
+  ],
+  "sources": [
+    {
+      "id": "davison_synastry",
+      "kind": "doctrine",
+      "title": "Synastry: Understanding Human Relations Through Astrology",
+      "author": "Ronald C. Davison",
+      "source_file": "C:\\Users\\sabaa\\Downloads\\codexhorary\\horary_knowledge\\synastry_knowledge_base\\guides\\davison_understanding_human_relations.md",
+      "use": "core synastry doctrine and bond structure"
+    },
+    {
+      "id": "arroyo_person_to_person",
+      "kind": "doctrine",
+      "title": "Person-to-Person Astrology",
+      "author": "Stephen Arroyo",
+      "source_file": "C:\\Users\\sabaa\\Downloads\\codexhorary\\horary_knowledge\\synastry_knowledge_base\\guides\\arroyo_person_to_person.md",
+      "use": "relational temperament, chemistry, emotional fit, and communication language"
+    },
+    {
+      "id": "march_mcevers_synastry",
+      "kind": "doctrine",
+      "title": "The Only Way to Learn About Relationships, Vol. 5: Synastry Techniques",
+      "author": "Marion D. March and Joan McEvers",
+      "source_file": "C:\\Users\\sabaa\\Downloads\\codexhorary\\horary_knowledge\\synastry_knowledge_base\\guides\\march_mcevers_synastry_techniques.md",
+      "use": "operational chart comparison, lacks, affinities, and overlays"
+    }
+  ],
+  "cases": [
+    {
+      "id": "paul_newman_joanne_woodward",
+      "title": "Paul Newman and Joanne Woodward",
+      "partner_a": "Paul Newman",
+      "partner_b": "Joanne Woodward",
+      "relationship_type": "marriage",
+      "public_outcome_summary": "Widely regarded as a durable long-term bond with high loyalty and staying power.",
+      "birth_data_confidence": "AA",
+      "source_basis": "public_biographical_consensus",
+      "execution_tier": "tier_1_directional_seed",
+      "chart_capture_status": "captured_replay_slice_1",
+      "comparison_status": "partially_aligned",
+      "replay_fixture": "C:\\Users\\sabaa\\Downloads\\codexhorary\\tests\\fixtures\\synastry_historical_replay_slice_1.json",
+      "source_references": [
+        "https://www.astro.com/astro-databank/Newman,_Paul",
+        "https://www.astro.com/astro-databank/Woodward,_Joanne"
+      ],
+      "expected_dimensions": {
+        "attachment": { "min_band": 4, "max_band": 5, "priority": "primary" },
+        "compatibility": { "min_band": 3, "max_band": 5, "priority": "primary" },
+        "burden": { "min_band": 0, "max_band": 2, "priority": "secondary" }
+      },
+      "notes": "Replay slice 1 is now aligned after the source-backed burden moderation pass."
+    },
+    {
+      "id": "johnny_cash_june_carter",
+      "title": "Johnny Cash and June Carter",
+      "partner_a": "Johnny Cash",
+      "partner_b": "June Carter",
+      "relationship_type": "marriage",
+      "public_outcome_summary": "Strong devotion and enduring attachment with visible growth and support themes.",
+      "birth_data_confidence": "needs_capture",
+      "source_basis": "public_biographical_consensus",
+      "execution_tier": "tier_1_directional_seed",
+      "chart_capture_status": "needs_chart_capture",
+      "comparison_status": "not_runnable_yet",
+      "expected_dimensions": {
+        "attachment": { "min_band": 4, "max_band": 5, "priority": "primary" },
+        "growth": { "min_band": 3, "max_band": 5, "priority": "primary" },
+        "resonance": { "min_band": 3, "max_band": 5, "priority": "secondary" }
+      },
+      "notes": "Starter devotion and mutual-support case."
+    },
+    {
+      "id": "elizabeth_taylor_richard_burton",
+      "title": "Elizabeth Taylor and Richard Burton",
+      "partner_a": "Elizabeth Taylor",
+      "partner_b": "Richard Burton",
+      "relationship_type": "marriage",
+      "public_outcome_summary": "Very strong attraction and attachment, but also conflict, volatility, and repeated instability.",
+      "birth_data_confidence": "AA/DD",
+      "source_basis": "public_biographical_consensus_with_timed_astrology_sources",
+      "execution_tier": "tier_2_replay_ready",
+      "chart_capture_status": "captured_replay_slice_2",
+      "comparison_status": "aligned",
+      "replay_fixture": "C:\\Users\\sabaa\\Downloads\\codexhorary\\tests\\fixtures\\synastry_historical_replay_slice_2.json",
+      "source_references": [
+        "https://www.astro.com/astro-databank/Taylor,_Elizabeth",
+        "https://www.astro.com/astro-databank/Burton,_Richard_(1925)"
+      ],
+      "expected_dimensions": {
+        "attraction": { "min_band": 4, "max_band": 5, "priority": "primary" },
+        "friction": { "min_band": 4, "max_band": 5, "priority": "primary" },
+        "attachment": { "min_band": 3, "max_band": 5, "priority": "secondary" }
+      },
+      "notes": "Replay slice 2 is now aligned: attraction joins friction and attachment once the governed attraction-family audit gives direct weight to polarity-plus-chemistry patterns."
+    },
+    {
+      "id": "frida_kahlo_diego_rivera",
+      "title": "Frida Kahlo and Diego Rivera",
+      "partner_a": "Frida Kahlo",
+      "partner_b": "Diego Rivera",
+      "relationship_type": "marriage",
+      "public_outcome_summary": "A creatively important and deeply impactful bond marked by growth, attraction, strain, and burden.",
+      "birth_data_confidence": "AA/DD",
+      "source_basis": "public_biographical_consensus_with_timed_astrology_sources",
+      "execution_tier": "tier_2_replay_ready",
+      "chart_capture_status": "captured_replay_slice_2",
+      "comparison_status": "partially_aligned",
+      "replay_fixture": "C:\\Users\\sabaa\\Downloads\\codexhorary\\tests\\fixtures\\synastry_historical_replay_slice_2.json",
+      "source_references": [
+        "https://www.astro.com/astro-databank/Kahlo,_Frida",
+        "https://www.astro.com/astro-databank/Rivera,_Diego"
+      ],
+      "expected_dimensions": {
+        "growth": { "min_band": 4, "max_band": 5, "priority": "primary" },
+        "burden": { "min_band": 3, "max_band": 5, "priority": "primary" },
+        "attraction": { "min_band": 3, "max_band": 5, "priority": "secondary" }
+      },
+      "notes": "Replay slice 2 is partially aligned: growth lands correctly, but burden and attraction come in lower than the relationship's public intensity and strain would suggest."
+    },
+    {
+      "id": "charles_diana",
+      "title": "Charles and Diana",
+      "partner_a": "Charles",
+      "partner_b": "Diana",
+      "relationship_type": "marriage",
+      "public_outcome_summary": "Publicly visible relationship with major strain, mismatch, and burden rather than easy compatibility.",
+      "birth_data_confidence": "A",
+      "source_basis": "public_biographical_consensus",
+      "execution_tier": "tier_1_directional_seed",
+      "chart_capture_status": "captured_replay_slice_1",
+      "comparison_status": "aligned",
+      "replay_fixture": "C:\\Users\\sabaa\\Downloads\\codexhorary\\tests\\fixtures\\synastry_historical_replay_slice_1.json",
+      "source_references": [
+        "https://www.astro.com/astro-databank/Charles_III,_King_of_the_United_Kingdom",
+        "https://www.astro.com/astro-databank/Diana,_Princess_of_Wales"
+      ],
+      "expected_dimensions": {
+        "burden": { "min_band": 4, "max_band": 5, "priority": "primary" },
+        "friction": { "min_band": 3, "max_band": 5, "priority": "primary" },
+        "compatibility": { "min_band": 0, "max_band": 2, "priority": "secondary" }
+      },
+      "notes": "Replay slice 1 is now aligned after the compatibility cap and oppressive-burden cluster tuning pass."
+    },
+    {
+      "id": "barack_michelle_obama",
+      "title": "Barack Obama and Michelle Obama",
+      "partner_a": "Barack Obama",
+      "partner_b": "Michelle Obama",
+      "relationship_type": "marriage",
+      "public_outcome_summary": "Publicly viewed as a strong long-term bond with communication, compatibility, and visible mutual support.",
+      "birth_data_confidence": "needs_capture",
+      "source_basis": "public_biographical_consensus",
+      "execution_tier": "tier_1_directional_seed",
+      "chart_capture_status": "needs_chart_capture",
+      "comparison_status": "not_runnable_yet",
+      "expected_dimensions": {
+        "communication": { "min_band": 3, "max_band": 5, "priority": "primary" },
+        "compatibility": { "min_band": 3, "max_band": 5, "priority": "primary" },
+        "attachment": { "min_band": 3, "max_band": 5, "priority": "secondary" }
+      },
+      "notes": "Starter communication and public-support case."
+    },
+    {
+      "id": "sid_nancy",
+      "title": "Sid Vicious and Nancy Spungen",
+      "partner_a": "Sid Vicious",
+      "partner_b": "Nancy Spungen",
+      "relationship_type": "romantic_relationship",
+      "public_outcome_summary": "A highly intense bond associated with volatility, burden, and destructive pressure.",
+      "birth_data_confidence": "A/B",
+      "source_basis": "public_biographical_consensus_with_timed_astrology_sources",
+      "execution_tier": "tier_2_replay_ready",
+      "chart_capture_status": "captured_replay_slice_2",
+      "comparison_status": "aligned",
+      "replay_fixture": "C:\\Users\\sabaa\\Downloads\\codexhorary\\tests\\fixtures\\synastry_historical_replay_slice_2.json",
+      "source_references": [
+        "https://www.astro.com/astro-databank/Vicious,_Sid",
+        "https://www.astro.com/astro-databank/Spungen,_Nancy"
+      ],
+      "expected_dimensions": {
+        "friction": { "min_band": 4, "max_band": 5, "priority": "primary" },
+        "burden": { "min_band": 4, "max_band": 5, "priority": "primary" },
+        "attraction": { "min_band": 3, "max_band": 5, "priority": "secondary" }
+      },
+      "notes": "Replay slice 2 is now aligned: friction and burden still dominate, but attraction now lands in range once stressed luminary chemistry is allowed to stay magnetic under high friction."
+    },
+    {
+      "id": "frank_sinatra_ava_gardner",
+      "title": "Frank Sinatra and Ava Gardner",
+      "partner_a": "Frank Sinatra",
+      "partner_b": "Ava Gardner",
+      "relationship_type": "marriage",
+      "public_outcome_summary": "An iconic high-chemistry marriage marked by glamour, volatility, and repeated instability rather than calm ease.",
+      "birth_data_confidence": "A/AA",
+      "source_basis": "public_biographical_consensus_with_timed_astrology_sources",
+      "execution_tier": "tier_2_replay_ready",
+      "chart_capture_status": "captured_replay_slice_3",
+      "comparison_status": "aligned",
+      "replay_fixture": "C:\\Users\\sabaa\\Downloads\\codexhorary\\tests\\fixtures\\synastry_historical_replay_slice_3.json",
+      "source_references": [
+        "https://www.astro.com/astro-databank/Sinatra,_Frank",
+        "https://www.astro.com/astro-databank/Gardner,_Ava"
+      ],
+      "expected_dimensions": {
+        "attraction": { "min_band": 4, "max_band": 5, "priority": "primary" },
+        "friction": { "min_band": 4, "max_band": 5, "priority": "primary" },
+        "burden": { "min_band": 3, "max_band": 5, "priority": "secondary" }
+      },
+      "notes": "Replay slice 3 is aligned: the attraction-family audit generalizes cleanly to this better-timed glamour-and-volatility marriage without needing either attraction floor."
+    },
+    {
+      "id": "sartre_beauvoir",
+      "title": "Jean-Paul Sartre and Simone de Beauvoir",
+      "partner_a": "Jean-Paul Sartre",
+      "partner_b": "Simone de Beauvoir",
+      "relationship_type": "lifelong_companionship",
+      "public_outcome_summary": "A lifelong intellectually fused bond with unusual commitment, growth, and complexity rather than conventional romance or simplicity.",
+      "birth_data_confidence": "AA/AA",
+      "source_basis": "public_biographical_consensus_with_timed_astrology_sources",
+      "execution_tier": "tier_2_replay_ready",
+      "chart_capture_status": "captured_replay_slice_3",
+      "comparison_status": "aligned",
+      "replay_fixture": "C:\\Users\\sabaa\\Downloads\\codexhorary\\tests\\fixtures\\synastry_historical_replay_slice_3.json",
+      "source_references": [
+        "https://www.astro.com/astro-databank/Sartre,_Jean-Paul",
+        "https://www.astro.com/astro-databank/Beauvoir,_Simone_de"
+      ],
+      "expected_dimensions": {
+        "attachment": { "min_band": 4, "max_band": 5, "priority": "primary" },
+        "growth": { "min_band": 4, "max_band": 5, "priority": "primary" },
+        "burden": { "min_band": 2, "max_band": 4, "priority": "secondary" }
+      },
+      "notes": "Replay slice 3 is now aligned after the governed attachment-cluster floor recognizes repeated binding testimony from mutual reception, Saturn commitment, and nodal or partnership confirmation in an unconventional lifelong bond."
+    },
+    {
+      "id": "john_lennon_yoko_ono",
+      "title": "John Lennon and Yoko Ono",
+      "partner_a": "John Lennon",
+      "partner_b": "Yoko Ono",
+      "relationship_type": "marriage",
+      "public_outcome_summary": "Relationship widely framed as transformative and highly influential, with major growth and strong bond themes.",
+      "birth_data_confidence": "needs_capture",
+      "source_basis": "public_biographical_consensus",
+      "execution_tier": "tier_1_directional_seed",
+      "chart_capture_status": "needs_chart_capture",
+      "comparison_status": "not_runnable_yet",
+      "expected_dimensions": {
+        "growth": { "min_band": 4, "max_band": 5, "priority": "primary" },
+        "attachment": { "min_band": 3, "max_band": 5, "priority": "primary" },
+        "burden": { "min_band": 1, "max_band": 3, "priority": "secondary" }
+      },
+      "notes": "Starter transformational-bond case."
+    },
+    {
+      "id": "justin_bieber_selena_gomez",
+      "title": "Justin Bieber and Selena Gomez",
+      "partner_a": "Justin Bieber",
+      "partner_b": "Selena Gomez",
+      "relationship_type": "romantic_relationship",
+      "public_outcome_summary": "Very high public-interest relationship associated with attraction, volatility, repetition, and emotional strain.",
+      "birth_data_confidence": "B",
+      "source_basis": "public_high_interest_pair_with_mixed_timed_data",
+      "execution_tier": "tier_3_manual_review",
+      "chart_capture_status": "content_only_until_explicit_capture",
+      "comparison_status": "manual_review",
+      "usage_lane": "blog_content_only",
+      "calibration_eligible": false,
+      "content_eligible": true,
+      "source_references": [
+        "https://www.astro.com/astro-databank/Bieber,_Justin",
+        "https://www.astro.com/astro-databank/Gomez,_Selena"
+      ],
+      "expected_dimensions": {
+        "attraction": { "min_band": 4, "max_band": 5, "priority": "primary" },
+        "friction": { "min_band": 3, "max_band": 5, "priority": "primary" },
+        "attachment": { "min_band": 2, "max_band": 5, "priority": "secondary" }
+      },
+      "validation_recommendation": "blog_demo_only",
+      "what_to_trust": [
+        "Planet-to-planet themes and broad sign-level chemistry are usable for public-facing comparison.",
+        "The pair is suitable for blog, demo, and pop-culture case-study content."
+      ],
+      "what_not_to_trust": [
+        "House overlays and angle-sensitive statements should be treated cautiously because the pair-level timed data is mixed.",
+        "This pair should not be used for calibration-grade tuning or replay-corpus decisions."
+      ],
+      "data_quality_notes": [
+        "Justin Bieber has usable public timed data, but weaker than A/AA-quality cases.",
+        "Selena Gomez has stronger public timed data and is the more reliable chart in the pair."
+      ],
+      "notes": "Recommended as a high-search-interest content pair for blog posts and demos, not as a calibration or replay-corpus case."
+    },
+    {
+      "id": "justin_bieber_hailey_bieber",
+      "title": "Justin Bieber and Hailey Bieber",
+      "partner_a": "Justin Bieber",
+      "partner_b": "Hailey Bieber",
+      "relationship_type": "marriage",
+      "public_outcome_summary": "Very high public-interest marriage often discussed in pop culture, compatibility, and relationship-astrology searches.",
+      "birth_data_confidence": "C",
+      "source_basis": "public_high_interest_pair_with_weak_timed_data",
+      "execution_tier": "tier_3_manual_review",
+      "chart_capture_status": "blog_demo_only_until_better_timed_data",
+      "comparison_status": "manual_review",
+      "usage_lane": "blog_content_only",
+      "calibration_eligible": false,
+      "content_eligible": true,
+      "source_references": [
+        "https://www.astro.com/astro-databank/Bieber,_Justin",
+        "https://www.astro.com/astro-databank/Bieber,_Hailey"
+      ],
+      "expected_dimensions": {
+        "attachment": { "min_band": 3, "max_band": 5, "priority": "primary" },
+        "compatibility": { "min_band": 2, "max_band": 5, "priority": "secondary" },
+        "growth": { "min_band": 2, "max_band": 5, "priority": "secondary" }
+      },
+      "validation_recommendation": "blog_demo_only",
+      "what_to_trust": [
+        "Broad sign, planetary, and narrative comparison can be used for general audience content.",
+        "The pair is suitable for blog traffic experiments and illustrative synastry explainers."
+      ],
+      "what_not_to_trust": [
+        "Do not use this pair for weight tuning, rule calibration, or house-heavy interpretation.",
+        "Angle-based and overlay-based claims are too weak to treat as validation evidence."
+      ],
+      "data_quality_notes": [
+        "Justin Bieber's public timed data is usable but not calibration-grade.",
+        "Hailey Bieber's public timed data is weak enough that the pair should be treated as blog/demo-only for now."
+      ],
+      "notes": "Good for SEO-facing examples and public-interest content, but not a responsible calibration or replay case with the current timed-source quality."
+    }
+  ]
+}

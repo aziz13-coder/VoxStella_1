@@ -1,0 +1,19 @@
+{
+  "id": "bandy_legs_predisposition",
+  "name": "Bandy legs predisposition",
+  "domain": "physique",
+  "description": "Noted predisposition when Jupiter is in Scorpio and its sign relation squares Aquarius.",
+  "confidence": "low",
+  "polarity": "negative",
+  "sources": ["Carter (B: Bandy legs)"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "planet_in_sign", "planet": "Jupiter", "sign": "Scorpio", "weight": 10 },
+      { "kind": "planet_sign_relation", "planet": "Jupiter", "relation": "square", "sign": "Aquarius", "weight": 10 }
+    ],
+    "dampeners": [],
+    "escalators": []
+  }
+}
+

@@ -1,0 +1,473 @@
+{
+  "generated_at": "2026-04-03T00:00:00+00:00",
+  "purpose": "Draft external forensic replay candidates derived from Netflix's Chaos: The Manson Murders and stabilized against historical reporting rather than documentary speculation",
+  "sources": [
+    {
+      "id": "netflix_chaos_manson_murders",
+      "kind": "streaming_title",
+      "title": "Chaos: The Manson Murders",
+      "url": "https://www.netflix.com/title/81482892",
+      "metadata_strength": "context_only",
+      "notes": "Netflix describes the film as an exploration of the seven August 1969 murders and related conspiracy theories. It is useful for case discovery, but not sufficient as replay truth."
+    },
+    {
+      "id": "time_chaos_manson_murders",
+      "kind": "reported_analysis",
+      "title": "What We Still Don't Know About the Manson Murders",
+      "url": "https://time.com/7265884/chaos-manson-murders-netflix/",
+      "publish_date": "2025-03-07",
+      "metadata_strength": "medium",
+      "notes": "Useful for confirming that the documentary primarily re-litigates the Tate-LaBianca murders while also interviewing Bobby Beausoleil about Gary Hinman."
+    },
+    {
+      "id": "time_making_manson_true_story",
+      "kind": "reported_analysis",
+      "title": "The True Story Behind 'Making Manson' Docuseries",
+      "url": "https://time.com/7177324/making-manson-docuseries-true-story/",
+      "metadata_strength": "medium",
+      "notes": "Provides stable summary detail for the Hinman lead-up, captivity, blood writing, and the copycat framing theory around Tate and LaBianca."
+    },
+    {
+      "id": "britannica_tate_labianca_murders",
+      "kind": "reference_history",
+      "title": "Charles Manson - Tate-LaBianca Murders",
+      "url": "https://www.britannica.com/biography/Charles-Manson/Tate-LaBianca-murders",
+      "metadata_strength": "high",
+      "notes": "Useful stable reference for the Tate, LaBianca, Hinman, and Shea victim clusters and their sequence."
+    },
+    {
+      "id": "latimes_remembering_manson_victims",
+      "kind": "reported_history",
+      "title": "Remembering the victims of the Manson murders",
+      "url": "https://www.latimes.com/california/story/2019-07-26/remembering-the-victims-of-the-manson-murders",
+      "publish_date": "2019-07-26",
+      "metadata_strength": "high",
+      "notes": "Useful for concise victim, location, and scene summaries without depending on the documentary's interpretive frame."
+    },
+    {
+      "id": "ap_key_players_victims_manson",
+      "kind": "reported_history",
+      "title": "The Manson 'family': A look at key players and victims in the cult leader's killings",
+      "url": "https://abc17news.com/news/ap-national-news/2023/07/12/the-manson-family-a-look-at-key-players-and-victims-in-the-cult-leaders-killings/",
+      "publish_date": "2023-07-12",
+      "metadata_strength": "high",
+      "notes": "Useful for compact victim and offender summaries and for keeping Hinman and Shea distinguished from the two-night Tate-LaBianca sequence."
+    },
+    {
+      "id": "tate_progress_report_pdf",
+      "kind": "investigation_report",
+      "title": "Tate first homicide investigation progress report",
+      "url": "https://marinahabe.com/wp-content/uploads/tate-first-homicide-investigation-progress-report.pdf",
+      "metadata_strength": "high",
+      "notes": "The report records witness sound windows at 00:30-01:00, 01:00-01:30, and a later 04:00-04:11 shot-report sequence on August 9, 1969."
+    },
+    {
+      "id": "cielodrive_grand_jury_1969_12_08_pm",
+      "kind": "grand_jury_transcript",
+      "title": "Tate-LaBianca Grand Jury Transcript - December 8, 1969 PM session",
+      "url": "https://www.cielodrive.com/tate-labianca-grand-jury-12-08-69-pm.php",
+      "metadata_strength": "high",
+      "notes": "The transcript places the LaBiancas near home at about 1:00 AM on August 10 and confirms they were already dead by roughly 10:30 AM when Frank Struthers arrived."
+    }
+  ],
+  "cases": [
+    {
+      "id": "tate_cielo_drive_murders",
+      "title": "Sharon Tate / Cielo Drive murders",
+      "source_id": "britannica_tate_labianca_murders",
+      "documentary_context_source_id": "netflix_chaos_manson_murders",
+      "expected_primary_axes": [
+        "violence_homicide"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup",
+        "authority_or_public_case"
+      ],
+      "contradictory_axes": [
+        "domestic_partner_involvement",
+        "family_involvement",
+        "accident_or_disaster",
+        "child_victim"
+      ],
+      "execution_tier": "tier_3_manual_review",
+      "current_status": "manual_review_only",
+      "chart_capture_status": "external_anchor_needs_casefile_time_window",
+      "metadata_basis": "Netflix confirms this is one of the central August 1969 murders covered by the film; Britannica, LA Times, and AP provide stable victim and scene facts; the Tate progress report supplies witness sound windows for exploratory anchor probes.",
+      "metadata_confidence": "medium",
+      "hard_outcomes": {
+        "date_local": "1969-08-09",
+        "location": "10050 Cielo Drive, Los Angeles, California",
+        "victims": [
+          "Sharon Tate",
+          "Jay Sebring",
+          "Wojciech Frykowski",
+          "Abigail Folger",
+          "Steven Parent"
+        ],
+        "known_scene_markers": [
+          "multiple offenders",
+          "blood writing on the door",
+          "high-public-profile victim cluster"
+        ]
+      },
+      "soft_interpretations": [
+        "copycat framing linked to Bobby Beausoleil's arrest",
+        "revenge for Terry Melcher or music-industry grievance",
+        "Helter Skelter motive",
+        "mind-control or intelligence-adjacency theories"
+      ],
+      "not_replay_ready_reason": "The date, place, victims, and staging are stable, but the sourced witness windows still span multiple candidate times. Exploratory route probes across those windows remained misaligned, repeatedly overfiring family and child axes on a non-family multi-offender homicide scene.",
+      "recommended_next_step": "Recover dispatch, coroner, or police reporting that narrows the active killing window enough for a defensible manual chart replay before promoting this case into an executable external slice. Engine-side review should then target the recurring family and child false positives before any promotion attempt.",
+      "tested_anchors": [
+        {
+          "id": "tate_1969_08_09_0030",
+          "basis": "Tate progress report witness shots between 00:30 and 01:00",
+          "query": {
+            "mode": "manual",
+            "datetime": "1969-08-09T00:30:00",
+            "location": "10050 Cielo Drive, Los Angeles, California",
+            "timezone": "America/Los_Angeles",
+            "house_system_code": "R"
+          },
+          "status_code": 200,
+          "success": true,
+          "comparison_status": "misaligned",
+          "categories": {
+            "Children": 1,
+            "Deception": 2,
+            "Family": 2
+          },
+          "finding_titles": [
+            "Family axis activated by Moon and domestic houses",
+            "Child and family signatures overlap",
+            "Home and family axis under pressure",
+            "Mute signs on angles",
+            "Mute signs on 3rd/9th"
+          ]
+        },
+        {
+          "id": "tate_1969_08_09_0115",
+          "basis": "Tate progress report witness screams between 01:00 and 01:30",
+          "query": {
+            "mode": "manual",
+            "datetime": "1969-08-09T01:15:00",
+            "location": "10050 Cielo Drive, Los Angeles, California",
+            "timezone": "America/Los_Angeles",
+            "house_system_code": "R"
+          },
+          "status_code": 200,
+          "success": true,
+          "comparison_status": "misaligned",
+          "categories": {
+            "Children": 1,
+            "Deception": 1,
+            "Family": 1,
+            "Houses": 1
+          },
+          "finding_titles": [
+            "Family axis activated by Moon and domestic houses",
+            "Child and family signatures overlap",
+            "Malefic in the 6th house",
+            "Mute signs on 3rd/9th"
+          ]
+        },
+        {
+          "id": "tate_1969_08_09_0410",
+          "basis": "Tate progress report late witness radio/shot sequence around 04:10 to 04:11",
+          "query": {
+            "mode": "manual",
+            "datetime": "1969-08-09T04:10:00",
+            "location": "10050 Cielo Drive, Los Angeles, California",
+            "timezone": "America/Los_Angeles",
+            "house_system_code": "R"
+          },
+          "status_code": 200,
+          "success": true,
+          "comparison_status": "misaligned",
+          "categories": {
+            "Abduction": 1,
+            "Children": 1,
+            "Deception": 4,
+            "Family": 2,
+            "Houses": 1,
+            "Public": 1,
+            "Stressors": 1,
+            "Violence": 2,
+            "Water": 1,
+            "Witness": 1
+          },
+          "finding_titles": [
+            "Life/death overlap points to violence or homicide",
+            "Abduction or missing-person pattern is active",
+            "Malefic contrary to sect (angular)",
+            "Hidden victim with angular violence markers",
+            "Family axis activated by Moon and domestic houses",
+            "Child and family signatures overlap"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "labianca_murders",
+      "title": "Leno and Rosemary LaBianca murders",
+      "source_id": "britannica_tate_labianca_murders",
+      "documentary_context_source_id": "netflix_chaos_manson_murders",
+      "expected_primary_axes": [
+        "violence_homicide"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup"
+      ],
+      "contradictory_axes": [
+        "domestic_partner_involvement",
+        "family_involvement",
+        "child_victim",
+        "accident_or_disaster"
+      ],
+      "execution_tier": "tier_3_manual_review",
+      "current_status": "manual_review_only",
+      "chart_capture_status": "external_anchor_needs_casefile_time_window",
+      "metadata_basis": "Netflix confirms this is part of the seven-victim August 1969 cluster; Britannica, LA Times, and AP provide stable victim and scene summaries; the December 8, 1969 grand-jury transcript gives a broad but defensible overnight death window.",
+      "metadata_confidence": "medium",
+      "hard_outcomes": {
+        "date_local": "1969-08-10",
+        "location": "Los Feliz, Los Angeles, California",
+        "victims": [
+          "Leno LaBianca",
+          "Rosemary LaBianca"
+        ],
+        "known_scene_markers": [
+          "multiple offenders",
+          "blood writing on walls and refrigerator",
+          "linked follow-on event after the Cielo Drive murders"
+        ]
+      },
+      "soft_interpretations": [
+        "random target chosen to echo the Tate scene",
+        "copycat escalation to free or protect Bobby Beausoleil",
+        "Helter Skelter motive",
+        "broader organized conspiracy theories"
+      ],
+      "not_replay_ready_reason": "The event sequence is stable and one exploratory midpoint anchor aligned directionally, but the sourced homicide window still runs from about 01:00 to 10:30 on August 10. That is too broad to treat a midpoint chart as replay truth.",
+      "recommended_next_step": "Locate police or court material that narrows the home-entry and homicide interval before promoting this case into an executable replay slice. If a tighter window confirms the early-morning zone around the current 06:00 midpoint, this is the strongest promotion candidate of the three.",
+      "tested_anchors": [
+        {
+          "id": "labianca_1969_08_10_0200",
+          "basis": "Grand-jury transcript earliest defensible post-arrival anchor after about 01:00 home return",
+          "query": {
+            "mode": "manual",
+            "datetime": "1969-08-10T02:00:00",
+            "location": "3301 Waverly Drive, Los Angeles, California",
+            "timezone": "America/Los_Angeles",
+            "house_system_code": "R"
+          },
+          "status_code": 200,
+          "success": true,
+          "comparison_status": "misaligned",
+          "categories": {
+            "Deception": 1,
+            "Family": 1,
+            "Houses": 1
+          },
+          "finding_titles": [
+            "Family axis activated by Moon and domestic houses",
+            "Malefic in the 6th house",
+            "Mute signs on angles"
+          ]
+        },
+        {
+          "id": "labianca_1969_08_10_0600",
+          "basis": "Exploratory midpoint inside the grand-jury overnight death window between about 01:00 and 10:30",
+          "query": {
+            "mode": "manual",
+            "datetime": "1969-08-10T06:00:00",
+            "location": "3301 Waverly Drive, Los Angeles, California",
+            "timezone": "America/Los_Angeles",
+            "house_system_code": "R"
+          },
+          "status_code": 200,
+          "success": true,
+          "comparison_status": "aligned",
+          "categories": {
+            "Associates": 1,
+            "Deception": 3,
+            "Public": 1,
+            "Stressors": 1,
+            "Violence": 1,
+            "Water": 1
+          },
+          "finding_titles": [
+            "Malefic contrary to sect (angular)",
+            "Hidden victim with angular violence markers",
+            "Water or drowning signatures are foregrounded",
+            "Friend or close associate axis is active",
+            "Sun/Moon in 12th house",
+            "Public or authority axis is foregrounded"
+          ]
+        },
+        {
+          "id": "labianca_1969_08_10_0800",
+          "basis": "Late-window exploratory anchor before the approximately 10:30 discovery threshold",
+          "query": {
+            "mode": "manual",
+            "datetime": "1969-08-10T08:00:00",
+            "location": "3301 Waverly Drive, Los Angeles, California",
+            "timezone": "America/Los_Angeles",
+            "house_system_code": "R"
+          },
+          "status_code": 200,
+          "success": true,
+          "comparison_status": "misaligned",
+          "categories": {
+            "Abduction": 1,
+            "Deception": 5,
+            "Houses": 1,
+            "Public": 1,
+            "Stressors": 1,
+            "Violence": 2
+          },
+          "finding_titles": [
+            "Life/death overlap points to violence or homicide",
+            "Abduction or missing-person pattern is active",
+            "Malefic contrary to sect (angular)",
+            "Hidden victim with angular violence markers",
+            "Strong 12th house emphasis",
+            "Mercury in the 12th house"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "gary_hinman_murder",
+      "title": "Gary Hinman murder",
+      "source_id": "time_making_manson_true_story",
+      "documentary_context_source_id": "time_chaos_manson_murders",
+      "expected_primary_axes": [
+        "violence_homicide"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup",
+        "friend_or_close_associate"
+      ],
+      "contradictory_axes": [
+        "domestic_partner_involvement",
+        "family_involvement",
+        "child_victim",
+        "accident_or_disaster",
+        "authority_or_public_case"
+      ],
+      "execution_tier": "tier_3_manual_review",
+      "current_status": "manual_review_only",
+      "chart_capture_status": "external_anchor_needs_captivity_window",
+      "metadata_basis": "TIME confirms the documentary interviews Bobby Beausoleil about Hinman as a precursor event; Britannica, LA Times, and AP stabilize the victim, blood-writing, and arrest facts.",
+      "metadata_confidence": "medium",
+      "hard_outcomes": {
+        "date_local": "1969-07-27",
+        "location": "Old Topanga Canyon Road, Los Angeles County, California",
+        "victims": [
+          "Gary Hinman"
+        ],
+        "known_scene_markers": [
+          "known-associate victim",
+          "multi-day captivity before fatal stabbing",
+          "blood writing intended to misdirect investigators"
+        ]
+      },
+      "soft_interpretations": [
+        "money dispute",
+        "drug deal retaliation",
+        "prelude to later copycat killings",
+        "motive inflation by later case narratives"
+      ],
+      "not_replay_ready_reason": "This is still the cleanest conceptual logic test in the cluster, but the recovered sources support a date and captivity narrative more than a tight event-time anchor. Exploratory probes across the murder date were unstable, alternating between missed homicide, public-case contamination, and even a disaster false positive.",
+      "recommended_next_step": "Recover case-file or trial-grade material that narrows the final assault window inside the captivity period before promoting this case into replay execution. Without that, the engine comparison is too sensitive to arbitrary intra-day anchor choice.",
+      "tested_anchors": [
+        {
+          "id": "hinman_1969_07_27_0000",
+          "basis": "Exploratory start-of-date anchor only; no case-file-grade time support",
+          "query": {
+            "mode": "manual",
+            "datetime": "1969-07-27T00:00:00",
+            "location": "964 Old Topanga Canyon Road, Topanga, California",
+            "timezone": "America/Los_Angeles",
+            "house_system_code": "R"
+          },
+          "status_code": 200,
+          "success": true,
+          "comparison_status": "misaligned",
+          "categories": {
+            "Deception": 2,
+            "Disaster": 1,
+            "Stressors": 1
+          },
+          "finding_titles": [
+            "Waterborne accident or disaster signatures are foregrounded",
+            "Malefic contrary to sect (angular)",
+            "Mercury combust the Sun",
+            "Mute signs on angles"
+          ]
+        },
+        {
+          "id": "hinman_1969_07_27_0600",
+          "basis": "Exploratory morning anchor inside the murder date only; no narrower source support",
+          "query": {
+            "mode": "manual",
+            "datetime": "1969-07-27T06:00:00",
+            "location": "964 Old Topanga Canyon Road, Topanga, California",
+            "timezone": "America/Los_Angeles",
+            "house_system_code": "R"
+          },
+          "status_code": 200,
+          "success": true,
+          "comparison_status": "misaligned",
+          "categories": {
+            "Associates": 1,
+            "Deception": 2,
+            "Public": 1,
+            "Stressors": 1
+          },
+          "finding_titles": [
+            "Malefic contrary to sect (angular)",
+            "Friend or close associate axis is active",
+            "Mercury combust the Sun",
+            "Public or celebrity case axis is strongly saturated",
+            "Mute signs on 3rd/9th"
+          ]
+        },
+        {
+          "id": "hinman_1969_07_27_1200",
+          "basis": "Exploratory midday anchor inside the murder date only; no narrower source support",
+          "query": {
+            "mode": "manual",
+            "datetime": "1969-07-27T12:00:00",
+            "location": "964 Old Topanga Canyon Road, Topanga, California",
+            "timezone": "America/Los_Angeles",
+            "house_system_code": "R"
+          },
+          "status_code": 200,
+          "success": true,
+          "comparison_status": "misaligned",
+          "categories": {
+            "Deception": 2,
+            "Houses": 1,
+            "Public": 1,
+            "Violence": 1
+          },
+          "finding_titles": [
+            "Life/death overlap points to violence or homicide",
+            "1st ruler also rules the 8th",
+            "Mercury combust the Sun",
+            "Public or authority axis is foregrounded",
+            "Mute signs on angles"
+          ]
+        }
+      ]
+    }
+  ],
+  "deferred_cases": [
+    {
+      "id": "donald_shorty_shea_murder",
+      "reason_deferred": "Useful later for concealment and rural disposal testing, but weaker source precision and weaker timing anchors make it a poor first replay candidate compared with Tate, LaBianca, and Hinman."
+    }
+  ]
+}

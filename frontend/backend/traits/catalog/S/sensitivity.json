@@ -1,0 +1,21 @@
+{
+  "id": "sensitivity",
+  "name": "Sensitivity",
+  "domain": "affective_style",
+  "description": "Quick emotional responsiveness and receptivity with Water/Moon strength and 4th/12th emphasis; heavy Fire display or Saturn dryness reduces.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Water & Moon — imaginative sensitivity; inward reserve"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "element", "element": "Water", "min_share": 0.35, "weight": 10 },
+      { "kind": "planet_status", "planet": "Moon", "strong": true, "weight": 8 },
+      { "kind": "house_emphasis", "houses": [4,12], "min_total": 1, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": -6 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

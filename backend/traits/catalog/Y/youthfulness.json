@@ -1,0 +1,26 @@
+{
+  "id": "youthfulness",
+  "name": "Youthfulness (playful, lively spirit)",
+  "domain": "energy_tone",
+  "description": "Playful, lively spirit and readiness for enjoyment and learning.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": [
+    "Carter: Fire exuberance; Leo warmth of heart; Gemini quick observation"
+  ],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Leo", "min": 1.5, "weight": 6 },
+      { "kind": "planet_status", "planet": "Sun", "strong": true, "weight": 6 },
+      { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": 4 },
+      { "kind": "sign_emphasis", "sign": "Gemini", "min": 1.5, "weight": 3 },
+      { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": 3 },
+      { "kind": "house_emphasis", "houses": [5,3], "min_total": 1, "weight": 3 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -5 },
+      { "kind": "element", "element": "Water", "min_share": 0.40, "weight": -3 }
+    ],
+    "escalators": [] }
+}
+

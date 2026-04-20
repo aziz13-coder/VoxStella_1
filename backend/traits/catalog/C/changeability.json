@@ -1,0 +1,18 @@
+{
+  "id": "changeability",
+  "name": "Changeability",
+  "domain": "tempo_decision_style",
+  "description": "Changeable nature of Mutable signs; flexible but variable.",
+  "confidence": "high",
+  "polarity": "neutral",
+  "sources": ["Carter: Mutable changeability"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "modality", "modality": "Mutable", "min_share": 0.35, "weight": 12 }
+    ],
+    "dampeners": [],
+    "escalators": []
+  }
+}
+

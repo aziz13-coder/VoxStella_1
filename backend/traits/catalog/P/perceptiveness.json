@@ -1,0 +1,23 @@
+{
+  "id": "perceptiveness",
+  "name": "Perceptiveness",
+  "domain": "cognitive_style",
+  "description": "Quick noticing of facts and signals with Gemini/Air and Mercury; 3rd-house perception; fixed/Saturn heaviness or Mercury–Neptune fog reduce acuity.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Air/Gemini awareness of isolated facts; matter‑of‑factness"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Gemini", "min": 1.5, "weight": 8 },
+      { "kind": "element", "element": "Air", "min_share": 0.35, "weight": 6 },
+      { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": 8 },
+      { "kind": "house_emphasis", "houses": [3], "min_total": 1, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.40, "weight": -4 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -4 },
+      { "kind": "aspect", "pair": ["Mercury","Neptune"], "type": "hard", "max_orb": 6, "weight": -6 }
+    ],
+    "escalators": [] }
+}
+

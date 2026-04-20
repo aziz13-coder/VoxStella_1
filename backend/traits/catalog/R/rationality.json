@@ -1,0 +1,23 @@
+{
+  "id": "rationality",
+  "name": "Rationality",
+  "domain": "cognitive_style",
+  "description": "Impartial weighing of facts, comparison and adjustment with strong Air and Mercury; Saturn provides structure; Neptune fog and excess Water/Fire reduce clarity.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Air to be understood; Libra comparison; Gemini facts"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "element", "element": "Air", "min_share": 0.35, "weight": 8 },
+      { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": 10 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": 4 },
+      { "kind": "house_emphasis", "houses": [3,7,11], "min_total": 2, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "aspect", "pair": ["Mercury","Neptune"], "type": "hard", "max_orb": 6, "weight": -8 },
+      { "kind": "element", "element": "Water", "min_share": 0.40, "weight": -4 },
+      { "kind": "element", "element": "Fire", "min_share": 0.40, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

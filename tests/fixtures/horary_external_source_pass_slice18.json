@@ -1,0 +1,76 @@
+[
+  {
+    "id": "house_inheritance_astrologyweekly_source_pass",
+    "question": "Will I get the house inheritance?",
+    "source_url": "https://astrologyweekly.com/threads/will-i-get-the-house-inheritance.141513/",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "house or estate property inheritance",
+    "source_expected_category": "property",
+    "source_expected_houses": [
+      1,
+      4,
+      8
+    ],
+    "source_expected_focus": "The source discussion keeps the house itself visible as a property or estate matter rather than treating the whole question as abstract inheritance money only. The 4th house should stay operative alongside the estate axis.",
+    "current_engine_category": "property",
+    "current_engine_houses": [
+      1,
+      4,
+      8
+    ],
+    "current_engine_quesited_house": 4,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Aligned after the shared inheritance doctrine keeps the 4th-house property axis visible alongside the 8th-house estate transfer."
+  },
+  {
+    "id": "mother_inheritance_astrologyweekly_source_pass",
+    "question": "Will my mother receive her inheritance?",
+    "source_url": "https://astrologyweekly.com/threads/inheritance-horary.107174/",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "mother receives her inheritance money",
+    "source_expected_category": "death",
+    "source_expected_houses": [
+      10,
+      5
+    ],
+    "source_expected_focus": "The source explicitly treats the mother as the 10th house and her inheritance as her turned 8th, which lands on the radical 5th.",
+    "current_engine_category": "death",
+    "current_engine_houses": [
+      10,
+      5
+    ],
+    "current_engine_quesited_house": 5,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Aligned under the shared inheritance doctrine, which preserves the turned-person inheritance axis for the mother."
+  },
+  {
+    "id": "inheritance_rights_litigation_astrologyweekly_source_pass",
+    "question": "Will I win the court battle for my inheritance rights?",
+    "source_url": "https://astrologyweekly.com/threads/will-i-win-the-court-battle-for-my-inheritance-rights.146199/",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "inheritance-rights court dispute",
+    "source_expected_category": "lawsuit",
+    "source_expected_houses": [
+      1,
+      7,
+      10,
+      4,
+      8
+    ],
+    "source_expected_focus": "An inheritance-rights dispute remains a court-adjudication chart first, with opponent, judge, and outcome houses visible while the estate stays in the 8th as subject matter.",
+    "current_engine_category": "lawsuit",
+    "current_engine_houses": [
+      1,
+      7,
+      10,
+      4,
+      8
+    ],
+    "current_engine_quesited_house": 7,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Inheritance litigation still stays on the full court axis, with the 8th retained as subject matter."
+  }
+]

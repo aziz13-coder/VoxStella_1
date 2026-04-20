@@ -1,0 +1,18 @@
+{
+  "id": "gambling_tendency",
+  "name": "Gambling tendency",
+  "domain": "impulse_risk",
+  "description": "Speculative risk via Jupiter/Fire and 5th house, especially with weak Saturn restraint.",
+  "confidence": "medium",
+  "polarity": "negative",
+  "sources": ["Carter: Jupiter/Fire; 5th speculation; Saturn restraint"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 8 },
+      { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [5], "min_total": 1, "weight": 8 }
+    ],
+    "dampeners": [ { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -8 } ],
+    "escalators": [] }
+}
+

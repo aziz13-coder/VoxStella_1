@@ -1,0 +1,21 @@
+{
+  "id": "generosity",
+  "name": "Generosity",
+  "domain": "ethic_prosocial",
+  "description": "Generosity via Jupiter (esp. Pisces), Sun warmth, and Libra/Venus fairness.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter: Jupiter/Pisces; Sun; Venus/Libra"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 10 },
+      { "kind": "planet_in_sign", "planet": "Jupiter", "sign": "Pisces", "weight": 6 },
+      { "kind": "planet_status", "planet": "Sun", "strong": true, "weight": 6 },
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": 6 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": 6 },
+      { "kind": "planet_area", "planet": "Jupiter", "areas": ["wealth", "friends"], "mode": "max", "min": 0.6, "weight": 8 },
+      { "kind": "sect", "role": "benefic_of_sect", "planet": "Jupiter", "weight": 3 }
+    ],
+    "dampeners": [ { "kind": "planet_status", "planet": "Saturn", "afflicted": true, "weight": -6 } ],
+    "escalators": [] }
+}

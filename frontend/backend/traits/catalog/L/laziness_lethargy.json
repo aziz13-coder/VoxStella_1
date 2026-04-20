@@ -1,0 +1,25 @@
+{
+  "id": "laziness_lethargy",
+  "name": "Laziness / Lethargy",
+  "domain": "work_habit",
+  "description": "Comfort‑seeking inertia with ill‑disposed fixity and low drive; Earth/Saturn signatures restore diligence.",
+  "confidence": "medium",
+  "polarity": "negative",
+  "sources": ["Carter: Fixed modality indolence under affliction"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.40, "weight": 8 },
+      { "kind": "planet_status", "planet": "Mars", "afflicted": true, "weight": 6 },
+      { "kind": "planet_status", "planet": "Neptune", "afflicted": true, "weight": 4 },
+      { "kind": "house_emphasis", "houses": [2,5], "min_total": 2, "weight": 4 },
+      { "kind": "planet_status", "planet": "Venus", "afflicted": true, "weight": 2 },
+      { "kind": "planet_status", "planet": "Jupiter", "afflicted": true, "weight": 2 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -6 },
+      { "kind": "sign_group_emphasis", "group": ["Virgo","Capricorn"], "min": 2.0, "weight": -6 },
+      { "kind": "element", "element": "Earth", "min_share": 0.35, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

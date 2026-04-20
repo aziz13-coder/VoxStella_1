@@ -1,0 +1,14 @@
+{
+  "id": "goitre_thyroid",
+  "name": "Goitre (thyroid/neck)",
+  "domain": "disease_endocrine",
+  "description": "Neck region signal via degrees ~16° Taurus/Scorpio; placeholder until Carter’s exact indicators are extracted.",
+  "confidence": "low",
+  "polarity": "negative",
+  "sources": ["Carter: neck degree cue"],
+  "logic": { "base": 0,
+    "boosts": [ { "kind": "degree_hit", "labels": ["16 Taurus","16 Scorpio"], "min_hits": 1, "multiplier": 1.0, "weight": 6 } ],
+    "dampeners": [],
+    "escalators": [] }
+}
+

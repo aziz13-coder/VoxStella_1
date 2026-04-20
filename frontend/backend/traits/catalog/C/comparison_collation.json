@@ -1,0 +1,20 @@
+{
+  "id": "comparison_collation",
+  "name": "Comparison / collation (Libra)",
+  "domain": "cognitive_style",
+  "description": "Power to compare facts, collate, choose, and adjust — weighing alternatives (Libra/Venus).",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Libra = comparison/collation/adjustment"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": 10 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": 10 },
+      { "kind": "angle_aspect", "planet": "Venus", "type": "soft", "angle": "ASC", "max_orb": 6, "weight": 6 }
+    ],
+    "dampeners": [],
+    "escalators": []
+  }
+}
+

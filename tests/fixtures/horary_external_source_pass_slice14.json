@@ -1,0 +1,80 @@
+[
+  {
+    "id": "win_back_custody_of_kids_source_pass",
+    "question": "Will I win back custody of my kids?",
+    "source_url": "https://astrologyweekly.com/threads/will-i-win-back-custody-of-my-kids.99552/",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "custody hearing / regain children",
+    "source_expected_category": "lawsuit",
+    "source_expected_houses": [
+      1,
+      7,
+      5,
+      10,
+      4
+    ],
+    "source_expected_focus": "The thread explicitly keeps the children on the 5th and the state or judge on the 10th, with the hearing outcome or return of the matter on the 4th.",
+    "current_engine_category": "lawsuit",
+    "current_engine_houses": [
+      1,
+      7,
+      5,
+      10,
+      4
+    ],
+    "current_engine_quesited_house": 5,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Aligned after the custody doctrine pass keeps the child, implicit opposing parent, judge, and family-court disposition together."
+  },
+  {
+    "id": "husband_get_custody_of_his_child_source_pass",
+    "question": "Will my husband get custody of his child?",
+    "source_url": "https://astrologyweekly.com/threads/will-my-husband-get-custody-of-his-child.135774/",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "turned child-custody question",
+    "source_expected_category": "children",
+    "source_expected_houses": [
+      7,
+      11
+    ],
+    "source_expected_focus": "The source response explicitly says to use the 7th for the husband and the turned 5th from him, or 11th, for his child.",
+    "current_engine_category": "children",
+    "current_engine_houses": [
+      7,
+      11
+    ],
+    "current_engine_quesited_house": 11,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Aligned after the custody doctrine pass keeps the husband as subject on the 7th and his child on the turned 5th, or radical 11th."
+  },
+  {
+    "id": "child_custody_again_source_pass",
+    "question": "Will he succeed in taking the children?",
+    "source_url": "https://astrologyweekly.com/threads/child-custody-again.34226/",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "custody threat / family-court action",
+    "source_expected_category": "lawsuit",
+    "source_expected_houses": [
+      1,
+      7,
+      5,
+      10,
+      4
+    ],
+    "source_expected_focus": "The thread explicitly discusses the ex husband, the children, and the judge, so the custody dispute should keep the opponent, child, and court axis together.",
+    "current_engine_category": "lawsuit",
+    "current_engine_houses": [
+      1,
+      7,
+      5,
+      10,
+      4
+    ],
+    "current_engine_quesited_house": 7,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Aligned after the custody doctrine pass keeps the opponent, child, judge, and family-court outcome in view."
+  }
+]

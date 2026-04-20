@@ -1,0 +1,25 @@
+{
+  "id": "extravagance",
+  "name": "Extravagance",
+  "domain": "financial_pleasure_tendency",
+  "description": "Tendency to exceed limits in spending/pleasure when Jupiter is dominant/afflicted; Venus in Fire + afflicted; strong Saturn/earth prudence mitigates.",
+  "confidence": "medium",
+  "polarity": "negative",
+  "sources": ["Carter: extravagance patterns"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 6 },
+      { "kind": "planet_status", "planet": "Jupiter", "afflicted": true, "weight": 8 },
+      { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": 6 },
+      { "kind": "planet_in_sign", "planet": "Venus", "sign": "Leo", "weight": 4 },
+      { "kind": "planet_in_sign", "planet": "Venus", "sign": "Sagittarius", "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -8 },
+      { "kind": "sign_group_emphasis", "group": ["Virgo","Capricorn"], "min": 2.0, "weight": -6 }
+    ],
+    "escalators": []
+  }
+}
+

@@ -1,0 +1,548 @@
+{
+  "version": "1.0",
+  "hierarchy": ["location", "rulership", "aspectual"],
+  "planets": {
+    "Sun": {"nature": "authority, vitality, prestige", "benefic": true},
+    "Moon": {"nature": "emotion, habit, body", "benefic": true},
+    "Mercury": {"nature": "communication, trade, intellect", "benefic": null},
+    "Venus": {"nature": "harmony, love, beauty", "benefic": true},
+    "Mars": {"nature": "conflict, aggression, heat", "benefic": false},
+    "Jupiter": {"nature": "expansion, abundance, growth", "benefic": true},
+    "Saturn": {"nature": "restriction, cold, fear", "benefic": false},
+    "North Node": {"nature": "increase, appetite, amplification", "benefic": null},
+    "South Node": {"nature": "drain, release, reduction", "benefic": null}
+  },
+  "houses": {
+    "1": {"domain": "self, body, character"},
+    "2": {"domain": "money, possessions, income"},
+    "3": {"domain": "siblings, messages, short travel"},
+    "4": {"domain": "home, roots, land, parents"},
+    "5": {"domain": "children, pleasure, creativity"},
+    "6": {"domain": "work, illness, service"},
+    "7": {"domain": "marriage, partnerships, open enemies"},
+    "8": {"domain": "crisis, debts, mortality"},
+    "9": {"domain": "belief, higher learning, journeys"},
+    "10": {"domain": "career, honors, reputation"},
+    "11": {"domain": "friends, hopes, benefactors"},
+    "12": {"domain": "illness, confinement, hidden enemies"}
+  },
+  "rulership_patterns": {
+    "1-1": "Self-referential identity; strong self-direction and vitality",
+    "1-2": "Identity tied to resources; self-worth through income",
+    "1-3": "Identity expressed through communications, siblings, short travel",
+    "1-4": "Self rooted in home and family; domestic focus",
+    "1-5": "Identity seeks pleasure, children, creativity",
+    "1-6": "Self bound to work and service; health emphasis",
+    "1-7": "Self shaped by partnerships; marriage defines identity",
+    "1-8": "Self/health bound up with crisis or mortality",
+    "1-9": "Identity through belief, study, or long journeys",
+    "1-10": "Identity fused with career and reputation",
+    "1-11": "Identity supported by friends, patrons, hopes",
+    "1-12": "Self oriented to seclusion, hidden matters, or retreat",
+
+    "2-1": "Resources serve the body and personal aims",
+    "2-2": "Self-sustaining finances; earnings from personal effort",
+    "2-3": "Income via communications, commerce, siblings, short trips",
+    "2-4": "Money through real estate, family, land, property",
+    "2-5": "Income through creativity, children, or pleasures",
+    "2-6": "Earnings from service, crafts, or employment",
+    "2-7": "Money through marriage, contracts, or litigation",
+    "2-8": "Finances tied to others' money, debts, or taxes",
+    "2-9": "Income via travel, law, religion, publishing, academia",
+    "2-10": "Income via career, honors, or public status",
+    "2-11": "Earnings aided by friends, networks, or patrons",
+    "2-12": "Hidden expenses; losses through seclusion or institutions",
+
+    "3-1": "Communication and learning shape the self",
+    "3-2": "Messages and trade directed to earnings; commercial writing",
+    "3-3": "Mind and routines self-reinforcing; siblings central",
+    "3-4": "Family news and documents; neighborhood roots",
+    "3-5": "Writing/communications about creativity, love, or children",
+    "3-6": "Workaday communications; health paperwork; commuting routines",
+    "3-7": "Contracts, negotiations, and messages with partners",
+    "3-8": "News/contracts over debts, taxes, inheritance; crisis talk",
+    "3-9": "Publishing, travel writing, legal or religious learning",
+    "3-10": "Public communications; career in media, teaching, or PR",
+    "3-11": "Networks, groups, social media and friends",
+    "3-12": "Private communications; secret studies; cloistered learning",
+
+    "4-1": "Home/family define identity; strong roots",
+    "4-2": "Family income; property wealth; resources from land",
+    "4-3": "Family communications; documents and kin; local roots",
+    "4-4": "Home-centered life; property matters self-consistent",
+    "4-5": "Domestic joys; children and creativity in the home",
+    "4-6": "Home office; family influences work and health",
+    "4-7": "Marriage shaped by family; domestic partnership",
+    "4-8": "Inheritance and property matters; ancestral assets",
+    "4-9": "Family abroad; distant homeland; education from ancestors",
+    "4-10": "Family and career bound; legacy and public role",
+    "4-11": "Friends in the home; family benefactors and patrons",
+    "4-12": "Seclusion in the home; hidden family or real-estate institutions",
+
+    "5-1": "Identity seeks joy and self-expression; romantic persona",
+    "5-2": "Profit through creative work or children",
+    "5-3": "Creative writing; messages about love/children; amusements",
+    "5-4": "Joy and children centered on home; domestic creativity",
+    "5-5": "Pleasures self-referential; love and arts central",
+    "5-6": "Pleasures tied to work; duties around children or craft",
+    "5-7": "Romance moves toward partnership or marriage",
+    "5-8": "Speculation and risks; love transforms; shared pleasures",
+    "5-9": "Creative study; love and children abroad or in academia",
+    "5-10": "Recognition for creative works; public romance/children",
+    "5-11": "Friends and patrons support creativity and children",
+    "5-12": "Hidden romances; private joys; children and institutions",
+
+    "6-1": "Health and service define the self; practical identity",
+    "6-2": "Income through service and employment",
+    "6-3": "Routines, paperwork, and commuting shape communications",
+    "6-4": "Home duties; family health; work from home",
+    "6-5": "Duties around children; craft as pleasure; pets",
+    "6-6": "Service self-perpetuating; health routines central",
+    "6-7": "Partners influence work/health; shared duties",
+    "6-8": "Work and debts; illness tied to crisis or taxes",
+    "6-9": "Employment in law, travel, academia; health from travel",
+    "6-10": "Service leads to recognition; vocation in duty",
+    "6-11": "Colleagues and friends support work; guilds",
+    "6-12": "Illness or hidden enemies affect work; hospitals",
+
+    "7-1": "Partners shape identity; public marriage",
+    "7-2": "Money through marriage, contracts, or litigation",
+    "7-3": "Partnership documents, negotiations, and communications",
+    "7-4": "Marriage centered on home or property",
+    "7-5": "Pleasure-based partnerships; children through marriage",
+    "7-6": "Shared duties; spouse affects work and health",
+    "7-7": "Partnership defines life; contractual focus",
+    "7-8": "Partners' resources; shared finances; legal crisis",
+    "7-9": "Foreign partners; legal unions; distant alliances",
+    "7-10": "Business partnerships; marriage affects career",
+    "7-11": "Partners among friends; social alliances and networks",
+    "7-12": "Secret unions; hidden enemies; separation or seclusion",
+
+    "8-1": "Personal transformation; self bound to crisis and change",
+    "8-2": "Others' money affects finances; loans, taxes, inheritances",
+    "8-3": "Talk of crisis; documents on debts and inheritances",
+    "8-4": "Family crisis or inheritance; property settlements",
+    "8-5": "Transformations through love affairs or children",
+    "8-6": "Health crises; service in taxes, debts, inheritances",
+    "8-7": "Shared resources in partnership; legal entanglements",
+    "8-8": "Transformation self-contained; deep focus on shared assets",
+    "8-9": "Crisis abroad; occult studies; distant inheritances",
+    "8-10": "Crisis transforms career; public scandal or reform",
+    "8-11": "Networks aid financial recovery; friends and patrons",
+    "8-12": "Hidden crisis; losses via institutions or confinement",
+
+    "9-1": "Identity through faith, law, travel, or higher study",
+    "9-2": "Income through travel, law, religion, publishing, academia",
+    "9-3": "Study/travel infuse communications and teaching",
+    "9-4": "Family abroad; heritage of belief; distant lands as home",
+    "9-5": "Love and children abroad; creative study; speculation",
+    "9-6": "Work in law/travel/academia; health from journeys",
+    "9-7": "Foreign partners or legal unions",
+    "9-8": "Philosophy of crisis; inheritances from afar",
+    "9-9": "Faith and long journeys central; vocation in higher truth",
+    "9-10": "Honors via law, religion, academia, or travel",
+    "9-11": "Friends/patrons in academia, religion, law",
+    "9-12": "Retreat in study; cloister; pilgrimages and seclusion",
+
+    "10-1": "Career defines the person; public image is identity",
+    "10-2": "Career drives income; earnings through honors/reputation",
+    "10-3": "Public communications; career in media, teaching, PR",
+    "10-4": "Profession tied to home/land/parent; real estate",
+    "10-5": "Fame via creative pursuits; children visible in public",
+    "10-6": "Service recognized; vocation built on duty and work",
+    "10-7": "Career via partnership; public marriage",
+    "10-8": "Public reforms; career transformed by crisis",
+    "10-9": "Vocation in higher learning, law, travel, religion",
+    "10-10": "Vocation self-defining; enduring honors and status",
+    "10-11": "Friends/patrons elevate career and reputation",
+    "10-12": "Profession brings misfortune, illness, prison, or exile",
+
+    "11-1": "Friends shape identity; hopes guide self-expression",
+    "11-2": "Friends/patrons benefit income; stipends",
+    "11-3": "Networks and communications; group messaging",
+    "11-4": "Friends in the home; family benefactors; foundations",
+    "11-5": "Group support for creativity and children",
+    "11-6": "Colleagues and associations impact work and health",
+    "11-7": "Alliances and social partnerships; peers as partners",
+    "11-8": "Group resources; fundraising; friends during crisis",
+    "11-9": "Allies in academia, law, religion; international networks",
+    "11-10": "Friends/patrons elevate career and reputation",
+    "11-11": "Stable friendships and enduring hopes",
+    "11-12": "Secret allies; patrons in institutions; quiet support",
+
+    "12-1": "Solitude or hidden matters shape identity",
+    "12-2": "Expenses and losses; resources tied to seclusion",
+    "12-3": "Private communications; secret documents; retreat to study",
+    "12-4": "Seclusion at home; hidden family; properties of institutions",
+    "12-5": "Hidden pleasures; private love; children and retreat",
+    "12-6": "Seclusion, illness, or enemies impact work",
+    "12-7": "Secret unions; hidden enemies in partnership",
+    "12-8": "Hidden losses; confinement-related debts or inheritances",
+    "12-9": "Monastic study; pilgrimage; faith in retreat",
+    "12-10": "Hidden service or institutions define the career",
+    "12-11": "Quiet benefactors; friends behind the scenes",
+    "12-12": "Retreat self-sustaining; life oriented to hidden matters"
+  },
+  "aspect_notes": {
+    "afflicting": ["Square", "Opposition", "Quincunx"],
+    "favorable": ["Trine", "Sextile"],
+    "conjunction_behavior": "Combines natures; malefic conjunctions tend adverse unless mitigated",
+    "phase_priority": "Applying stronger than separating",
+    "dexter_bias": "Dexter slightly stronger than sinister"
+  },
+  "aspect_strength_notes": {
+    "Square": "friction/obstruction",
+    "Opposition": "polarization",
+    "Trine": "flow/support",
+    "Sextile": "opportunity",
+    "Conjunction": "fusion of natures"
+  },
+  "dexter": { "phrase": "from the right (stronger)" },
+  "sinister": { "phrase": "from the left (softer)" },
+  "aspect_phase_phrases": {
+    "applying": "presses",
+    "separating": "recedes",
+    "partile": "precise"
+  },
+  "angularity_adverbs": { "angular": "openly", "succedent": "steadily", "cadent": "circumstantially" },
+  "element_adjectives": { "Fire": "fiery", "Earth": "material", "Air": "intellectual", "Water": "emotional" },
+  "modality_adjectives": { "Fixed": "persistent", "Cardinal": "initiating", "Mutable": "adapting" },
+  "orb_bands": { "partile_deg": 0.5, "tight_deg": 1.5, "wide_deg": 5.0 },
+  "sect_modifiers": {
+    "malefic_in_sect": "tempered by in-sect condition",
+    "malefic_out_of_sect": "harsher out of sect"
+  },
+  "solar_modifiers": {
+    "combust": "obscured by the Sun",
+    "under_beams": "muted under the beams",
+    "cazimi": "surgically precise (cazimi)"
+  },
+  "reception_phrases": {
+    "received_by_house_ruler": "received by the house ruler"
+  },
+  "governance_phrases": {
+    "by_ruler": "entering by governance (as house ruler)",
+    "by_dispositor": "entering via the ruler's dispositor"
+  },
+  "planet_effects": {
+    "Sun": { "harmonious": ["clarifies", "elevates"], "harsh": ["exposes", "burns"] },
+    "Moon": { "harmonious": ["nourishes", "stabilizes habits"], "harsh": ["fluctuates", "unsettles"] },
+    "Mercury": { "harmonious": ["coordinates", "informs"], "harsh": ["scatters", "complicates"] },
+    "Venus": { "harmonious": ["harmonizes", "attracts"], "harsh": ["softens", "appeases"] },
+    "Mars": { "harmonious": ["energizes", "cuts through"], "harsh": ["agitates", "inflames"] },
+    "Jupiter": { "harmonious": ["protects", "expands"], "harsh": ["overextends", "indulges"] },
+    "Saturn": { "harmonious": ["structures", "fortifies"], "harsh": ["constricts", "delays", "hardens"] },
+    "Uranus": { "harmonious": ["awakens", "liberates"], "harsh": ["shocks", "disrupts"] },
+    "Neptune": { "harmonious": ["inspires", "refines"], "harsh": ["confuses", "dissolves"] },
+    "Pluto": { "harmonious": ["purges", "empowers"], "harsh": ["compels", "intensifies"] },
+    "North Node": { "harmonious": ["amplifies", "draws in"], "harsh": ["overmagnifies", "overconsumes"] },
+    "South Node": { "harmonious": ["releases", "simplifies"], "harsh": ["drains", "depletes"] }
+  },
+  "location_examples": [
+    { "planet": "Sun", "house": 1, "positive": "Vitality and authority shape identity and body", "negative": "Ego prominence strains self and health" },
+    { "planet": "Moon", "house": 1, "positive": "Emotional attunement supports health and habit", "negative": "Mood volatility unsettles self" },
+    { "planet": "Mercury", "house": 1, "positive": "Mind and communication define persona", "negative": "Nervousness distracts self‑development" },
+    { "planet": "Venus", "house": 1, "positive": "Grace and harmony benefit appearance and spirit", "negative": "Indulgence or vanity undermines self‑care" },
+    { "planet": "Mars", "house": 1, "positive": "Drive and courage energize self", "negative": "Impulsiveness or conflict harms vitality" },
+    { "planet": "Jupiter", "house": 1, "positive": "Confidence and growth elevate character", "negative": "Excess or overreach distorts identity" },
+    { "planet": "Saturn", "house": 1, "positive": "Discipline structures character and stamina", "negative": "Fear or inhibition weakens vitality" },
+
+    { "planet": "Sun", "house": 2, "positive": "Visibility and authority attract resources", "negative": "Prideful spending drains means" },
+    { "planet": "Moon", "house": 2, "positive": "Responsive flows aid earnings and supply", "negative": "Fluctuating habits unsettle finances" },
+    { "planet": "Mercury", "house": 2, "positive": "Commerce and negotiation grow income", "negative": "Scattered deals and costs reduce profit" },
+    { "planet": "Venus", "house": 2, "positive": "Attraction and taste monetize assets", "negative": "Pleasure spending and luxury losses" },
+    { "planet": "Mars", "house": 2, "positive": "Enterprise and boldness produce gains", "negative": "Risk and conflicts cause losses" },
+    { "planet": "Jupiter", "house": 2, "positive": "Abundance and multiple revenue streams", "negative": "Overexpansion and wastefulness" },
+    { "planet": "Saturn", "house": 2, "positive": "Thrift and structure secure resources", "negative": "Blockage and fear around money" },
+
+    { "planet": "Sun", "house": 3, "positive": "Public voice and leadership in communications; confident siblings", "negative": "Pride in speech or messages causes friction" },
+    { "planet": "Moon", "house": 3, "positive": "Habitual learning and caring siblings; intuitive messaging", "negative": "Mood‑based talk, gossip, or unsettled short travel" },
+    { "planet": "Mercury", "house": 3, "positive": "Writing, study, trade, and messaging flourish", "negative": "Restlessness, rumor, or scattered communications" },
+    { "planet": "Venus", "house": 3, "positive": "Pleasant speech and social harmony among kin", "negative": "Trivial amusements or gossip dilute focus" },
+    { "planet": "Mars", "house": 3, "positive": "Assertive speech and decisive errands; debate skills", "negative": "Arguments, harsh words, or travel mishaps" },
+    { "planet": "Jupiter", "house": 3, "positive": "Teaching, publishing, and generous communications", "negative": "Overpromising words or impractical ideas" },
+    { "planet": "Saturn", "house": 3, "positive": "Serious study and disciplined messaging", "negative": "Blockages, fear of speaking, or rigid views" },
+
+    { "planet": "Sun", "house": 4, "positive": "Honor and leadership in family and property", "negative": "Pride conflicts disturb the home" },
+    { "planet": "Moon", "house": 4, "positive": "Nurture and habit strengthen roots", "negative": "Instability unsettles home and parent ties" },
+    { "planet": "Mercury", "house": 4, "positive": "Documents, trade, and planning aid property/home", "negative": "Overthinking or paperwork tangles domestic matters" },
+    { "planet": "Venus", "house": 4, "positive": "Harmony beautifies home and family bonds", "negative": "Comfort‑seeking delays duties at home" },
+    { "planet": "Mars", "house": 4, "positive": "Initiative advances property and household tasks", "negative": "Quarrels or heat disturb domestic peace" },
+    { "planet": "Jupiter", "house": 4, "positive": "Growth and prosperity in home/land/heritage", "negative": "Excess obligations or sprawling domestic costs" },
+    { "planet": "Saturn", "house": 4, "positive": "Structure and endurance secure foundations", "negative": "Coldness or burdens weigh on family matters" },
+
+    { "planet": "Sun", "house": 5, "positive": "Creative recognition and honor in pleasures/children", "negative": "Ego in love or indulgences causes trouble" },
+    { "planet": "Moon", "house": 5, "positive": "Nurture and sentiment in arts and children", "negative": "Fluctuating romance or variable amusements" },
+    { "planet": "Mercury", "house": 5, "positive": "Writing, craft, and playful wit in creativity", "negative": "Fickleness or trivial pursuits in love" },
+    { "planet": "Venus", "house": 5, "positive": "Love and arts prosper; pleasures favored", "negative": "Indulgence or vanity undermines outcomes" },
+    { "planet": "Mars", "house": 5, "positive": "Sport, daring, and bold creative action", "negative": "Risk taking and quarrels in love or play" },
+    { "planet": "Jupiter", "house": 5, "positive": "Abundant joy, generosity, and fertility", "negative": "Excess, speculation, or moral overreach" },
+    { "planet": "Saturn", "house": 5, "positive": "Serious creation and responsibility with children", "negative": "Coldness, inhibition, or lack of joy" },
+
+    { "planet": "Sun", "house": 6, "positive": "Authority clarifies work duties; vitality aids routine", "negative": "Overbearing demands or burnout at work" },
+    { "planet": "Moon", "house": 6, "positive": "Care rhythms and responsiveness aid service and health", "negative": "Fluctuations and habits aggravate ailments" },
+    { "planet": "Mercury", "house": 6, "positive": "Skill and craft improve work; analysis helps health", "negative": "Overanalysis or nervous strain at work" },
+    { "planet": "Venus", "house": 6, "positive": "Harmony in teams; pleasant routines support wellness", "negative": "Indulgence or ease undermines discipline" },
+    { "planet": "Mars", "house": 6, "positive": "Energy and action tackle tasks and repairs", "negative": "Inflammation or conflict in workplace" },
+    { "planet": "Jupiter", "house": 6, "positive": "Opportunities and mentors improve employment", "negative": "Overcommitment and scattered service" },
+    { "planet": "Saturn", "house": 6, "positive": "Discipline and method support health and duty", "negative": "Chronic burdens and rigid routines" },
+
+    { "planet": "Sun", "house": 7, "positive": "Visibility and honor in unions and contracts", "negative": "Pride clashes and dominance in partnership" },
+    { "planet": "Moon", "house": 7, "positive": "Care and responsiveness nourish partnership", "negative": "Moodiness and changeability in unions" },
+    { "planet": "Mercury", "house": 7, "positive": "Negotiation, messaging, and craft aid contracts", "negative": "Quibbling or duplicity strains partnership" },
+    { "planet": "Venus", "house": 7, "positive": "Love and accord enhance marriage and alliances", "negative": "Pleasure‑seeking or appeasement backfires" },
+    { "planet": "Mars", "house": 7, "positive": "Competitive spirit secures fair outcomes", "negative": "Quarrels, lawsuits, aggressive enemies" },
+    { "planet": "Jupiter", "house": 7, "positive": "Fortunate partners; generous contracts", "negative": "Promises overreach; conflicts of principle" },
+    { "planet": "Saturn", "house": 7, "positive": "Commitment, longevity, and sober contracts", "negative": "Coldness, delay, or legal obstruction" },
+
+    { "planet": "Sun", "house": 8, "positive": "Leadership in crisis; honor in inheritances", "negative": "Pride bound up with debts and losses" },
+    { "planet": "Moon", "house": 8, "positive": "Care through transitions; intuition in shared assets", "negative": "Anxiety and fluctuations around debts" },
+    { "planet": "Mercury", "house": 8, "positive": "Accounting and strategy manage taxes and inheritances", "negative": "Overthinking crisis; tangled documents" },
+    { "planet": "Venus", "house": 8, "positive": "Allies and favors ease shared finances", "negative": "Pleasure debts; attachment complicates losses" },
+    { "planet": "Mars", "house": 8, "positive": "Courage through trials; decisive crisis management", "negative": "Conflict escalates debts or losses" },
+    { "planet": "Jupiter", "house": 8, "positive": "Benefactors and protections in crisis/inheritance", "negative": "Speculative risks; moral/legal overreach" },
+    { "planet": "Saturn", "house": 8, "positive": "Endurance under pressure; responsible stewardship", "negative": "Fear, blockages, or chronic losses" },
+
+    { "planet": "Sun", "house": 9, "positive": "Honors via law, religion, travel, or higher learning", "negative": "Dogmatism or pride in doctrine/journeys" },
+    { "planet": "Moon", "house": 9, "positive": "Pilgrimage, intuition in belief, responsive travel", "negative": "Changeable beliefs or wavering plans" },
+    { "planet": "Mercury", "house": 9, "positive": "Study, languages, scholarship, and publishing", "negative": "Sophistry, quibbling, or academic distraction" },
+    { "planet": "Venus", "house": 9, "positive": "Art, diplomacy, and reconciliations abroad", "negative": "Pleasure travel distracts aims" },
+    { "planet": "Mars", "house": 9, "positive": "Crusading zeal and decisive travel", "negative": "Conflicts in law, religion, or abroad" },
+    { "planet": "Jupiter", "house": 9, "positive": "Wisdom, faith, teaching, and generous journeys", "negative": "Zealotry or legal overreach" },
+    { "planet": "Saturn", "house": 9, "positive": "Orthodoxy and rigorous doctrine; sober travel", "negative": "Pessimism, prohibitions, or blockages" },
+
+    { "planet": "Sun", "house": 10, "positive": "Honor and visibility elevate career and reputation", "negative": "Pride or autocracy harms public standing" },
+    { "planet": "Moon", "house": 10, "positive": "Responsiveness and popularity aid vocation", "negative": "Changeability unsettles professional standing" },
+    { "planet": "Mercury", "house": 10, "positive": "Skill, commerce, and speech advance career", "negative": "Quarrelsome words or scattered aims hurt status" },
+    { "planet": "Venus", "house": 10, "positive": "Harmony and aesthetics win honors and patrons", "negative": "Favoritism or indulgence harms reputation" },
+    { "planet": "Mars", "house": 10, "positive": "Ambition and action gain recognition", "negative": "Conflicts or rash moves damage career" },
+    { "planet": "Jupiter", "house": 10, "positive": "Growth, teaching, and justice bring honors", "negative": "Overconfidence or grandiosity invites fall" },
+    { "planet": "Saturn", "house": 10, "positive": "Authority, endurance, and structure build legacy", "negative": "Rigidity, fear, or scandal hinders office" },
+
+    { "planet": "Sun", "house": 11, "positive": "Patronage and leadership among friends and groups", "negative": "Ego or rivalry within networks" },
+    { "planet": "Moon", "house": 11, "positive": "Supportive friends; responsive allies and patrons", "negative": "Fluctuating alliances or shifting hopes" },
+    { "planet": "Mercury", "house": 11, "positive": "Networking, messaging, and social media skill", "negative": "Rumor, noise, or scattered priorities" },
+    { "planet": "Venus", "house": 11, "positive": "Friendship, favor, and benefactors; social harmony", "negative": "Favoritism or social indulgence" },
+    { "planet": "Mars", "house": 11, "positive": "Competitive teams and energetic alliances", "negative": "Quarrels with friends or group conflicts" },
+    { "planet": "Jupiter", "house": 11, "positive": "Strong benefactors, patrons, and generous networks", "negative": "Overexpansion or overpromising" },
+    { "planet": "Saturn", "house": 11, "positive": "Enduring friendships; sober, reliable allies", "negative": "Isolation, cliques, or calcified hopes" },
+
+    { "planet": "Sun", "house": 12, "positive": "Quiet leadership; dignity in retreat or institutions", "negative": "Hidden pride, isolation, or secret enmity" },
+    { "planet": "Moon", "house": 12, "positive": "Private care, reflection, and healing", "negative": "Anxieties, seclusion, shifting sorrows" },
+    { "planet": "Mercury", "house": 12, "positive": "Study in seclusion; research, archives, or counsel", "negative": "Rumination, worry, or hidden schemes" },
+    { "planet": "Venus", "house": 12, "positive": "Quiet charity; private affections and arts", "negative": "Secret pleasures or entanglements" },
+    { "planet": "Mars", "house": 12, "positive": "Courage under confinement; work behind the scenes", "negative": "Hidden enemies, injuries, or self‑undoing" },
+    { "planet": "Jupiter", "house": 12, "positive": "Protectors in seclusion; faith and retreat", "negative": "Waste or escape into isolation" },
+    { "planet": "Saturn", "house": 12, "positive": "Discipline in seclusion; dangers mitigated when supported", "negative": "Chronic illness, confinement, hidden enemies" },
+
+    { "planet": "North Node", "house": 1, "positive": "Expansive self‑development; appetite boosts vitality and presence", "negative": "Overreach or self‑focus strains health and balance" },
+    { "planet": "South Node", "house": 1, "positive": "Simplification of persona; letting go supports recovery", "negative": "Loss of drive or vitality; self‑doubt drains energy" },
+
+    { "planet": "North Node", "house": 2, "positive": "Resource growth and appetite for income streams", "negative": "Overspending and overconsumption risk financial leakage" },
+    { "planet": "South Node", "house": 2, "positive": "Decluttering of possessions; simplified budget", "negative": "Earnings drain or loss of assets" },
+
+    { "planet": "North Node", "house": 6, "positive": "Growth through service and skills; appetite for routines", "negative": "Overwork and somatic strain; amplification of ailments" },
+    { "planet": "South Node", "house": 6, "positive": "Release through service; reduction of toil aids health", "negative": "Drain through illness or over‑service; fatigue" },
+
+    { "planet": "North Node", "house": 7, "positive": "Alliances and partnership appetite bring growth", "negative": "Over‑dependence or entanglement in unions" },
+    { "planet": "South Node", "house": 7, "positive": "Release from binding partnerships; simplified contracts", "negative": "Dissolution or loss via agreements" },
+
+    { "planet": "North Node", "house": 10, "positive": "Amplified career opportunities; public appetite and reach", "negative": "Excess ambition; reputation risks from overreach" },
+    { "planet": "South Node", "house": 10, "positive": "Stepping back clarifies vocation; quiet service", "negative": "Career drain or loss of status" },
+
+    { "planet": "North Node", "house": 12, "positive": "Intense pull toward retreat/institutions; growth behind scenes", "negative": "Hidden excess, entanglement with institutions" },
+    { "planet": "South Node", "house": 12, "positive": "Detachment and retreat support healing", "negative": "Isolation and losses via institutions or withdrawal" },
+
+    { "planet": "North Node", "house": 3, "positive": "Amplified communications and learning; siblings and local networks grow", "negative": "Noise, scatter, and rumor; overcommitment to errands" },
+    { "planet": "South Node", "house": 3, "positive": "Focused study and simpler messaging; fewer distracting errands", "negative": "Disconnection from siblings or information drains" },
+
+    { "planet": "North Node", "house": 4, "positive": "Growth in home/family bonds; appetite for roots and property", "negative": "Overattachment or domestic excess burdens the household" },
+    { "planet": "South Node", "house": 4, "positive": "Release of household burdens; simplification at home", "negative": "Separation or loss related to home/family" },
+
+    { "planet": "North Node", "house": 5, "positive": "Increase in joy, romance, creativity, and fertility", "negative": "Indulgence or speculation in pleasures and love" },
+    { "planet": "South Node", "house": 5, "positive": "Simplified pleasures; inward, refined creativity", "negative": "Diminished romance or joy; creative drain" },
+
+    { "planet": "North Node", "house": 8, "positive": "Amplified shared resources and transformation; inheritance potential", "negative": "Growth of debts or entanglements; crisis magnified" },
+    { "planet": "South Node", "house": 8, "positive": "Letting go of debts/attachments; cathartic release", "negative": "Loss or depletion in shared finances" },
+
+    { "planet": "North Node", "house": 9, "positive": "Expansion in study, travel, and faith; appetite for higher learning", "negative": "Dogmatism or overreach in doctrine and journeys" },
+    { "planet": "South Node", "house": 9, "positive": "Simplified doctrine and travel; contemplative focus", "negative": "Loss of direction in belief; reduced opportunity to journey" },
+
+    { "planet": "North Node", "house": 11, "positive": "Network growth; benefactors and group momentum", "negative": "Overinvolvement in groups; scattered hopes" },
+    { "planet": "South Node", "house": 11, "positive": "Pruning networks; quality over quantity in allies", "negative": "Loss of friends or support; isolation risk" }
+  ],
+  "modifiers": {
+    "dignified_keywords": ["domicile", "exaltation", "triplicity"],
+    "debilitated_keywords": ["detriment", "fall"]
+  },
+  "rank_adverbs": { "dominant": "strongly", "secondary": "clearly", "tertiary": "slightly" },
+  "rank_tie_promote": { "threshold": 0.92 },
+  "angularity_notes": { "angular": "readily manifest", "succedent": "moderate, stable", "cadent": "circumstantial/latent" },
+  "modality_notes": { "Fixed": "lasting, persistent effects", "Cardinal": "initiating, changing conditions", "Mutable": "adapting, variable conditions" },
+  "natural_significators": {
+    "1": ["Sun", "Mars"], "2": ["Jupiter", "Venus"], "3": ["Mercury"], "4": ["Moon"], "5": ["Venus", "Jupiter"],
+    "6": ["Mercury", "Saturn"], "7": ["Venus"], "8": ["Mars"], "9": ["Jupiter"], "10": ["Sun", "Jupiter"], "11": ["Jupiter"], "12": ["Saturn"]
+  },
+  "analogy_hints": {
+    "2": { "support": ["Jupiter", "Venus"], "contrary": ["Saturn"] },
+    "3": { "support": ["Mercury"], "contrary": [] },
+    "4": { "support": ["Moon"], "contrary": ["Saturn"] },
+    "5": { "support": ["Venus", "Jupiter"], "contrary": ["Saturn"] },
+    "6": { "support": ["Mercury"], "contrary": ["Mars", "Saturn"] },
+    "7": { "support": ["Venus", "Jupiter"], "contrary": ["Mars", "Saturn"] },
+    "8": { "support": ["Mars"], "contrary": ["Venus"] },
+    "9": { "support": ["Jupiter"], "contrary": [] },
+    "10": { "support": ["Sun", "Jupiter"], "contrary": ["Saturn", "Mars"] },
+    "11": { "support": ["Jupiter"], "contrary": ["Saturn"] },
+    "12": { "support": ["Saturn"], "contrary": ["Venus"] }
+  },
+  "state_phrases": {
+    "dignity": {
+      "domicile": "operates cleanly and with confidence",
+      "exaltation": "lifted to prominence; generous effects",
+      "triplicity": "solid support; cooperative conditions",
+      "detriment": "out of place; contrarious expression",
+      "fall": "depressed condition; weakened effects"
+    },
+    "solar": {
+      "Cazimi": "clarified by the Sun; precise focus",
+      "Combustion": "burned and blinded; difficult to act",
+      "Under the Beams": "hidden and muted; subtle influence"
+    },
+    "motion": {
+      "retrograde": "returns/revises; delays and reworks",
+      "direct": "forward motion; straightforward results",
+      "fast": "enhanced activity; quick outcomes",
+      "slow": "deliberate pace; sustained effects"
+    }
+  },
+  "aspect_strength_notes": {
+    "Trine": "strongest benefic",
+    "Sextile": "moderate benefic",
+    "Opposition": "strongest malefic",
+    "Square": "moderate malefic",
+    "Quincunx": "weak malefic",
+    "Conjunction": "combines natures"
+  },
+  "aspect_orbs": {
+    "Conjunction": 8,
+    "Opposition": 10,
+    "Trine": 8,
+    "Square": 8,
+    "Sextile": 6,
+    "Quincunx": 4
+  },
+  "aspect_phase_phrases": {
+    "applying": "forming",
+    "separating": "waning",
+    "partile": "very strong"
+  },
+  "dexter": { "factor": 1.1, "phrase": "dexter (preceding) influence, slightly stronger" },
+  "sinister": { "factor": 0.9, "phrase": "sinister (following) influence" },
+  "phase_factors": { "applying": 1.15, "separating": 0.85 },
+  "orientation": {
+    "oriental": "rises before the Sun (oriental)",
+    "occidental": "sets after the Sun (occidental)"
+  },
+  "sect": { "diurnal": "diurnal sect", "nocturnal": "nocturnal sect" },
+  "mitigation_rules": {
+    "malefic_good_state": "malefic in good celestial state in an unfortunate house rescues or tempers rather than removes the evil"
+  },
+  "ruler_dependency": "A sign acts through and according to its ruler's nature and state.",
+  "dispositor_chain": {
+    "max_depth": 2,
+    "phrase": "Action of {house} routes through {ruler} and its dispositor {dispositor}."
+  },
+  "governance_weights": {
+    "rulership": 0.7,
+    "exaltation": 0.4,
+    "triplicity": 0.3,
+    "triplicity_participating": 0.15
+  },
+  "reception_phrases": {
+    "mutual_reception": "mutual reception supports cooperation",
+    "received_by_domicile": "received by domicile: aid and accommodation",
+    "without_reception": "without reception: harsher expression"
+  },
+  "priority_rules": {
+    "location_over_rulership": "Presence has primacy over rulership.",
+    "benefic_follows_malefic": "evil turns to good",
+    "malefic_follows_benefic": "good turns to difficulty"
+  },
+  "contradiction_phrases": {
+    "good_loc_bad_aspect": "Strong occupation but applying affliction to cusp → mixed.",
+    "benefic_supports": "Benefic trine/sextile to the cusp mitigates difficulties.",
+    "dignified_malefic_benefic_aspect": "Powerful malefic present; benefic aspect to cusp tempers severity.",
+    "benefic_occupant_malefic_affliction": "Benefic occupant, yet malefic affliction to cusp introduces strain."
+  },
+  "aspect_sign_modifiers": {
+    "Square": {
+      "Fire": "combustion/overreach",
+      "Earth": "blockage/material friction",
+      "Air": "ideational conflict",
+      "Water": "emotional churn"
+    },
+    "Trine": {
+      "Fire": "vitality/initiative",
+      "Earth": "stability/productivity",
+      "Air": "social/intellectual flow",
+      "Water": "healing/affinity"
+    },
+    "Opposition": {
+      "Fire": "polarized will",
+      "Earth": "material stalemate",
+      "Air": "ideological split",
+      "Water": "emotional polarization"
+    },
+    "Sextile": {
+      "Fire": "energizing opportunity",
+      "Earth": "practical opportunity",
+      "Air": "social opportunity",
+      "Water": "soothing opportunity"
+    },
+    "Conjunction": {
+      "Fire": "fusion of will",
+      "Earth": "fusion of pragmatism",
+      "Air": "fusion of ideas",
+      "Water": "fusion of feelings"
+    }
+  },
+  "ruler_dependency_guide": {
+    "sign_traits": {
+      "Aries": { "tone": ["initiating", "direct", "assertive"], "element": "Fire", "modality": "Cardinal" },
+      "Taurus": { "tone": ["stable", "deliberate", "possessive"], "element": "Earth", "modality": "Fixed" },
+      "Gemini": { "tone": ["mobile", "communicative", "adaptive"], "element": "Air", "modality": "Mutable" },
+      "Cancer": { "tone": ["protective", "habitual", "sensitive"], "element": "Water", "modality": "Cardinal" },
+      "Leo": { "tone": ["expressive", "proud", "visible"], "element": "Fire", "modality": "Fixed" },
+      "Virgo": { "tone": ["analytical", "service-oriented", "refining"], "element": "Earth", "modality": "Mutable" },
+      "Libra": { "tone": ["balancing", "diplomatic", "aesthetic"], "element": "Air", "modality": "Cardinal" },
+      "Scorpio": { "tone": ["intense", "probing", "resolute"], "element": "Water", "modality": "Fixed" },
+      "Sagittarius": { "tone": ["expansive", "principled", "questing"], "element": "Fire", "modality": "Mutable" },
+      "Capricorn": { "tone": ["structuring", "ambitious", "pragmatic"], "element": "Earth", "modality": "Cardinal" },
+      "Aquarius": { "tone": ["innovative", "social", "contrarian"], "element": "Air", "modality": "Fixed" },
+      "Pisces": { "tone": ["absorbing", "compassionate", "diffuse"], "element": "Water", "modality": "Mutable" }
+    },
+    "templates": {
+      "baseline": "With {sign} on House {house}, matters express a {tone} approach.",
+      "route": "They proceed via its ruler {ruler} in House {ruler_house} — {routing_label}.",
+      "dignified": "Because the ruler is dignified, the route is efficient and constructive.",
+      "debilitated": "Because the ruler is debilitated, expect friction or inefficiency along this route.",
+      "retrograde": "Retrograde ruler indicates delays, revisions, or returns.",
+      "combust": "Combust ruler acts with reduced visibility or capacity.",
+      "under_beams": "Under the beams mutes the ruler’s expression.",
+      "cazimi": "Cazimi ruler is exceptionally precise and empowered.",
+      "angular": "Angular ruler manifests readily.",
+      "cadent": "Cadent ruler acts circumstantially or indirectly.",
+      "succedent": "Succedent ruler is steady, slower-building."
+    },
+    "condition_effects": {
+      "strong": "strong",
+      "dignified": "dignified",
+      "afflicted": "afflicted"
+    },
+    "chain_template": "Further, the sign’s action is colored by the dispositor of {ruler} ({dispositor}).",
+    "notes": {
+      "principle": "The sign’s action depends on its ruler’s state and placement; route priority follows presence > governance > aspect."
+    }
+  }
+}

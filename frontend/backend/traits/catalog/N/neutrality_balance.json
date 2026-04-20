@@ -1,0 +1,23 @@
+{
+  "id": "neutrality_balance",
+  "name": "Neutrality (balance/mediation)",
+  "domain": "ethical_style",
+  "description": "Impartial comparison and adjustment with Libra/Venus strength and Air emphasis; Aries/Mars overdrive or fixed dogmatism undermine neutrality.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Libra comparison/adjustment; Venus mediative"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": 8 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": 8 },
+      { "kind": "element", "element": "Air", "min_share": 0.35, "weight": 4 },
+      { "kind": "house_emphasis", "houses": [7], "min_total": 1, "weight": 3 }
+    ],
+    "dampeners": [
+      { "kind": "sign_emphasis", "sign": "Aries", "min": 1.5, "weight": -6 },
+      { "kind": "planet_status", "planet": "Mars", "strong": true, "weight": -4 },
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.40, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

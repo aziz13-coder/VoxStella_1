@@ -1,0 +1,188 @@
+[
+  {
+    "id": "lindbergh_kidnapping",
+    "status_code": 200,
+    "success": true,
+    "comparison": {
+      "status": "aligned",
+      "matched_axes": [
+        "abduction_missing_person",
+        "child_victim",
+        "violence_homicide"
+      ],
+      "missed_axes": [],
+      "contradicted_axes": []
+    },
+    "categories": {
+      "Abduction": 1,
+      "Children": 1,
+      "Deception": 2,
+      "Degree Signatures": 2,
+      "Family": 1,
+      "Houses": 1,
+      "Public": 1,
+      "Violence": 1
+    },
+    "top_finding_titles": [
+      "Life/death overlap points to violence or homicide",
+      "Child house under violence pressure",
+      "Abduction or missing-person pattern is active",
+      "1st ruler also rules the 8th",
+      "Mercury combust the Sun"
+    ]
+  },
+  {
+    "id": "phil_hartman",
+    "status_code": 200,
+    "success": true,
+    "comparison": {
+      "status": "aligned",
+      "matched_axes": [
+        "violence_homicide",
+        "domestic_partner_involvement"
+      ],
+      "missed_axes": [],
+      "contradicted_axes": []
+    },
+    "categories": {
+      "Associates": 1,
+      "Children": 1,
+      "Deception": 2,
+      "Domestic": 2,
+      "Family": 2,
+      "Stressors": 1,
+      "Truth": 1,
+      "Violence": 2,
+      "Water": 1
+    },
+    "top_finding_titles": [
+      "Life/death overlap points to violence or homicide",
+      "Malefic contrary to sect (angular)",
+      "Hidden victim with angular violence markers",
+      "Partner axis is active in a domestic matter",
+      "Family axis activated by Moon and domestic houses"
+    ]
+  },
+  {
+    "id": "natalie_wood",
+    "status_code": 200,
+    "success": true,
+    "comparison": {
+      "status": "aligned",
+      "matched_axes": [
+        "water_disappearance_or_drowning",
+        "violence_homicide"
+      ],
+      "missed_axes": [],
+      "contradicted_axes": []
+    },
+    "categories": {
+      "Abduction": 1,
+      "Children": 1,
+      "Deception": 3,
+      "Degree Signatures": 1,
+      "Family": 1,
+      "Headwinds": 1,
+      "Violence": 1,
+      "Water": 1
+    },
+    "top_finding_titles": [
+      "Child house under violence pressure",
+      "Abduction or missing-person pattern is active",
+      "Moon under death pressure",
+      "Water or drowning signatures are foregrounded",
+      "Moon applying to malefic by hard aspect"
+    ]
+  },
+  {
+    "id": "scott_peterson",
+    "status_code": 200,
+    "success": true,
+    "comparison": {
+      "status": "aligned",
+      "matched_axes": [
+        "deception_coverup",
+        "domestic_partner_involvement",
+        "violence_homicide"
+      ],
+      "missed_axes": [],
+      "contradicted_axes": []
+    },
+    "categories": {
+      "Associates": 1,
+      "Children": 1,
+      "Deception": 1,
+      "Degree Signatures": 1,
+      "Domestic": 1,
+      "Family": 1
+    },
+    "top_finding_titles": [
+      "Child house under violence pressure",
+      "Partner axis is active in a domestic matter",
+      "Friend or close associate axis is active",
+      "Home and family axis under pressure",
+      "Mute signs on angles"
+    ]
+  },
+  {
+    "id": "jonbenet_ramsey",
+    "status_code": 200,
+    "success": true,
+    "comparison": {
+      "status": "aligned",
+      "matched_axes": [
+        "child_victim",
+        "family_involvement",
+        "violence_homicide"
+      ],
+      "missed_axes": [],
+      "contradicted_axes": []
+    },
+    "categories": {
+      "Children": 2,
+      "Deception": 1,
+      "Domestic": 1,
+      "Family": 1,
+      "Public": 1,
+      "Violence": 1,
+      "Water": 1
+    },
+    "top_finding_titles": [
+      "Child house under violence pressure",
+      "Moon under death pressure",
+      "Family axis activated by Moon and domestic houses",
+      "Child and family signatures overlap",
+      "Water or drowning signatures are foregrounded"
+    ]
+  },
+  {
+    "id": "susan_smith",
+    "status_code": 200,
+    "success": true,
+    "comparison": {
+      "status": "aligned",
+      "matched_axes": [
+        "family_involvement",
+        "child_victim",
+        "deception_coverup",
+        "violence_homicide"
+      ],
+      "missed_axes": [],
+      "contradicted_axes": []
+    },
+    "categories": {
+      "Children": 2,
+      "Deception": 2,
+      "Degree Signatures": 1,
+      "Family": 1,
+      "Stressors": 1
+    },
+    "top_finding_titles": [
+      "Child house under violence pressure",
+      "Malefic contrary to sect (angular)",
+      "Family axis activated by Moon and domestic houses",
+      "Child and family signatures overlap",
+      "Mercury retrograde"
+    ]
+  }
+]

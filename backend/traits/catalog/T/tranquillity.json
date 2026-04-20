@@ -1,0 +1,23 @@
+{
+  "id": "tranquillity",
+  "name": "Tranquillity",
+  "domain": "temperament",
+  "description": "Calm, contented state and peaceable disposition with Venus/Libra and steady Moon; 7th/4th emphasis; Mars heat and Venus/Libra afflictions disturb.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Benefic influences produce content and peace; Libra/Venus balance"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": 10 },
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": 6 },
+      { "kind": "planet_status", "planet": "Moon", "strong": true, "weight": 4 },
+      { "kind": "house_emphasis", "houses": [7,4], "min_total": 1, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Venus", "afflicted": true, "weight": -8 },
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": -4 },
+      { "kind": "planet_status", "planet": "Mars", "strong": true, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

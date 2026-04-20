@@ -1,0 +1,30 @@
+[
+  {
+    "id": "idaho_four_murders",
+    "status_code": 200,
+    "success": true,
+    "comparison": {
+      "status": "aligned",
+      "matched_axes": [
+        "violence_homicide"
+      ],
+      "missed_axes": [],
+      "contradicted_axes": []
+    },
+    "categories": {
+      "Deception": 4,
+      "Houses": 1,
+      "Stressors": 1,
+      "Truth": 1,
+      "Violence": 1
+    },
+    "top_finding_titles": [
+      "Life/death overlap points to violence or homicide",
+      "1st ruler also rules the 8th",
+      "Malefic contrary to sect (angular)",
+      "Mercury combust the Sun",
+      "Venus in detriment with Saturn influence",
+      "Jupiter\u2013Mercury easy aspect (clarity)"
+    ]
+  }
+]

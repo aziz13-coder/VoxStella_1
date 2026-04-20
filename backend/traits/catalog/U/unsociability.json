@@ -1,0 +1,25 @@
+{
+  "id": "unsociability",
+  "name": "Unsociability",
+  "domain": "social_style",
+  "description": "Withdrawal from social exchange and preference for secrecy or solitude with Saturn/Scorpio/Water‑Fixed emphasis and Libra/Venus afflictions; Air benefics restore sociability.",
+  "confidence": "medium",
+  "polarity": "negative",
+  "sources": ["Carter: Air/Libra sociability; Saturn/Scorpio reserve"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": 6 },
+      { "kind": "sign_emphasis", "sign": "Scorpio", "min": 1.5, "weight": 4 },
+      { "kind": "element", "element": "Water", "min_share": 0.35, "weight": 4 },
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.35, "weight": 3 },
+      { "kind": "house_emphasis", "houses": [12,8], "min_total": 1, "weight": 4 },
+      { "kind": "planet_status", "planet": "Venus", "afflicted": true, "weight": 6 }
+    ],
+    "dampeners": [
+      { "kind": "element", "element": "Air", "min_share": 0.35, "weight": -6 },
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": -6 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": -6 }
+    ],
+    "escalators": [] }
+}
+

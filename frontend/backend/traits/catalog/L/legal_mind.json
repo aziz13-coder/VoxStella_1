@@ -1,0 +1,23 @@
+{
+  "id": "legal_mind",
+  "name": "Legal mind",
+  "domain": "vocation_cognition",
+  "description": "Aptitude for weighing cases and applying principles via Libra/Venus balance with Jupiterian principle and Mercury–Saturn sobriety.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Libra adjustment; Jupiter morals; Saturn judgment"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": 6 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": 6 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 8 },
+      { "kind": "aspect", "pair": ["Mercury","Saturn"], "type": "soft", "max_orb": 6, "weight": 8 },
+      { "kind": "house_emphasis", "houses": [7,9,10], "min_total": 2, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Venus", "afflicted": true, "weight": -6 },
+      { "kind": "planet_status", "planet": "Jupiter", "afflicted": true, "weight": -6 }
+    ],
+    "escalators": [] }
+}
+

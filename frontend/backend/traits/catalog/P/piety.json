@@ -1,0 +1,23 @@
+{
+  "id": "piety",
+  "name": "Piety (devotional orientation)",
+  "domain": "religious_attitude",
+  "description": "Reverence and devotional orientation with Sagittarius/Jupiter and Pisces/Water support; 9th/12th houses emphasize faith and contemplation.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter: Sagittarius religion/philosophy; Pisces resignation/abnegation"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_group_emphasis", "group": ["Sagittarius","Pisces"], "min": 2.0, "weight": 8 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 8 },
+      { "kind": "house_emphasis", "houses": [9,12], "min_total": 1, "weight": 6 },
+      { "kind": "planet_status", "planet": "Moon", "strong": true, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Jupiter", "afflicted": true, "weight": -8 },
+      { "kind": "aspect", "pair": ["Mars","Jupiter"], "type": "hard", "max_orb": 6, "weight": -6 },
+      { "kind": "element", "element": "Earth", "min_share": 0.40, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

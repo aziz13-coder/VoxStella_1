@@ -1,0 +1,21 @@
+{
+  "id": "versatility",
+  "name": "Versatility",
+  "domain": "adaptability",
+  "description": "Flexible, quick to adjust and learn with strong Mutable quality and dignified Mercury; fixed rigidity or Mercury–Neptune fog reduce adaptability.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Common (mutable) flexible/adaptable; Mercury the convertible planet"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "modality", "modality": "Mutable", "min_share": 0.35, "weight": 10 },
+      { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": 8 },
+      { "kind": "house_emphasis", "houses": [3,6,9,12], "min_total": 2, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.40, "weight": -6 },
+      { "kind": "aspect", "pair": ["Mercury","Neptune"], "type": "hard", "max_orb": 6, "weight": -8 }
+    ],
+    "escalators": [] }
+}
+

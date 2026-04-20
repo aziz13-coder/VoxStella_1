@@ -1,0 +1,286 @@
+{
+  "source_app": "Almagest PathFinder",
+  "source_folder": "C:\\Users\\sabaa\\Desktop\\Almagest8ORIGNAL",
+  "captured_on": "2026-04-04",
+  "notes": [
+    "This file captures the legacy topic/profile matrix at a structural level.",
+    "It does not attempt to preserve the exact runtime semantics of every opaque legacy field.",
+    "The goal is to preserve topic categories and profile-family findings while migrating to an explicit Vox Stella schema.",
+    "The visible Optimal Place Finder dropdown appears to be driven by exactly four PLS presets.",
+    "Additional hidden model families exist in HYP format and appear to be authorable via Hyped.exe / the BlackBox Model Editor menu.",
+    "No direct plain-text filename binding between the visible PLS presets and the hidden HYP rule packs was recovered from the inspected files."
+  ],
+  "visible_place_finder_presets_count": 4,
+  "pls_profiles": [
+    {
+      "id": "education",
+      "label": "Education",
+      "legacy_file": "Educ.pls",
+      "legacy_header_ru_transliteration": "Obrazovanie",
+      "style": 1,
+      "event_count": 192,
+      "inferred_role": "stable place-finder preset",
+      "visible_early_weights": {
+        "1": 1.0,
+        "3": 4.0,
+        "9": 4.0
+      }
+    },
+    {
+      "id": "love",
+      "label": "Love",
+      "legacy_file": "Love.pls",
+      "legacy_header_ru_transliteration": "Lyubov",
+      "style": 1,
+      "event_count": 192,
+      "inferred_role": "stable place-finder preset",
+      "visible_early_weights": {
+        "1": 4.0,
+        "3": 2.0,
+        "4": 1.0,
+        "5": 5.0,
+        "7": 5.0,
+        "10": 1.0,
+        "11": 2.0
+      }
+    },
+    {
+      "id": "work",
+      "label": "Work",
+      "legacy_file": "WorkL.pls",
+      "legacy_header_ru_transliteration": "Rabota",
+      "style": 1,
+      "event_count": 210,
+      "inferred_role": "stable place-finder preset",
+      "visible_early_weights": {
+        "1": 1.0,
+        "2": 1.0,
+        "3": 3.0,
+        "6": 3.0,
+        "7": 5.0,
+        "8": 4.0,
+        "10": 5.0,
+        "11": 1.0
+      }
+    },
+    {
+      "id": "money_test",
+      "label": "Money (Test Model v0.1c)",
+      "legacy_file": "GMU 01c.PLS",
+      "legacy_header_ru_transliteration": "Dengi, Testovaya Model Ver.0.1c",
+      "style": 0,
+      "event_count": 35,
+      "inferred_role": "experimental money preset",
+      "notes": [
+        "Uses mixed P* and RS* fields.",
+        "Looks like a prototype or alternate scoring grammar rather than the stable STYLE=1 format."
+      ]
+    }
+  ],
+  "hyp_profiles": [
+    {
+      "id": "career",
+      "label": "Career",
+      "legacy_file": "CAREER.HYP",
+      "event_count": 80,
+      "family": "career_custom",
+      "category_token": null,
+      "weight_pattern": [
+        -0.5,
+        0.75,
+        0.6,
+        0.5,
+        0.25,
+        -0.75
+      ],
+      "notes": [
+        "Distinct from the generic domain template.",
+        "Looks softer and more nuanced than the other HYP categories."
+      ]
+    },
+    {
+      "id": "love",
+      "label": "Love",
+      "legacy_file": "LOVE.HYP",
+      "event_count": 80,
+      "family": "generic_domain_template",
+      "category_token": 29
+    },
+    {
+      "id": "work",
+      "label": "Work",
+      "legacy_file": "WORK.HYP",
+      "event_count": 80,
+      "family": "generic_domain_template",
+      "category_token": 30
+    },
+    {
+      "id": "money",
+      "label": "Money",
+      "legacy_file": "MONEY.HYP",
+      "event_count": 80,
+      "family": "generic_domain_template",
+      "category_token": 26
+    },
+    {
+      "id": "beliefs",
+      "label": "Beliefs",
+      "legacy_file": "BELIEFS.HYP",
+      "event_count": 80,
+      "family": "generic_domain_template",
+      "category_token": 33
+    },
+    {
+      "id": "personal",
+      "label": "Personal Growth",
+      "legacy_file": "PERSONAL.HYP",
+      "event_count": 80,
+      "family": "generic_domain_template",
+      "category_token": 25
+    },
+    {
+      "id": "partners",
+      "label": "Partners",
+      "legacy_file": "PARTNERS.HYP",
+      "event_count": 80,
+      "family": "generic_domain_template",
+      "category_token": 31
+    },
+    {
+      "id": "home",
+      "label": "Home",
+      "legacy_file": "HOME.HYP",
+      "event_count": 80,
+      "family": "generic_domain_template",
+      "category_token": 28
+    },
+    {
+      "id": "friends",
+      "label": "Friends",
+      "legacy_file": "FRIEND.HYP",
+      "event_count": 80,
+      "family": "generic_domain_template",
+      "category_token": 35
+    },
+    {
+      "id": "sex_intimacy",
+      "label": "Sex / Intimacy",
+      "legacy_file": "SEX.HYP",
+      "event_count": 80,
+      "family": "generic_domain_template",
+      "category_token": 32
+    },
+    {
+      "id": "communication",
+      "label": "Communication / Chatter",
+      "legacy_file": "CHATTER.HYP",
+      "event_count": 80,
+      "family": "generic_domain_template",
+      "category_token": 27
+    },
+    {
+      "id": "conflict",
+      "label": "Enemies / Conflict",
+      "legacy_file": "ENEMIES.HYP",
+      "event_count": 80,
+      "family": "generic_domain_template",
+      "category_token": 36
+    }
+  ],
+  "inferred_pairings": [
+    {
+      "preset_id": "education",
+      "preset_file": "Educ.pls",
+      "pairing_status": "no_direct_match",
+      "primary_hyp_candidate": null,
+      "secondary_hyp_candidates": [
+        {
+          "id": "beliefs",
+          "legacy_file": "BELIEFS.HYP",
+          "confidence": "low",
+          "reason": "Education semantics partially overlap belief, worldview, and meaning-oriented domains."
+        },
+        {
+          "id": "communication",
+          "legacy_file": "CHATTER.HYP",
+          "confidence": "low",
+          "reason": "Education semantics can also overlap communication, speech, and exchange-oriented domains."
+        }
+      ],
+      "evidence": [
+        "No EDUCATION.HYP file is present in the inspected folder.",
+        "No explicit textual binding from Educ.pls to a hidden HYP pack was recovered."
+      ]
+    },
+    {
+      "preset_id": "love",
+      "preset_file": "Love.pls",
+      "pairing_status": "direct_name_match",
+      "primary_hyp_candidate": {
+        "id": "love",
+        "legacy_file": "LOVE.HYP",
+        "confidence": "high",
+        "reason": "Visible preset and hidden rule pack share the same domain label."
+      },
+      "secondary_hyp_candidates": [
+        {
+          "id": "partners",
+          "legacy_file": "PARTNERS.HYP",
+          "confidence": "medium",
+          "reason": "Partnership is an adjacent relationship domain that may have acted as a secondary overlay."
+        },
+        {
+          "id": "sex_intimacy",
+          "legacy_file": "SEX.HYP",
+          "confidence": "low",
+          "reason": "Intimacy is related to love but appears narrower than the visible dropdown category."
+        }
+      ],
+      "evidence": [
+        "Love.pls is one of the four visible dropdown presets.",
+        "LOVE.HYP exists as a hidden domain rule pack with the same English label."
+      ]
+    },
+    {
+      "preset_id": "work",
+      "preset_file": "WorkL.pls",
+      "pairing_status": "direct_name_match",
+      "primary_hyp_candidate": {
+        "id": "work",
+        "legacy_file": "WORK.HYP",
+        "confidence": "high",
+        "reason": "Visible preset and hidden rule pack share the same domain label."
+      },
+      "secondary_hyp_candidates": [
+        {
+          "id": "career",
+          "legacy_file": "CAREER.HYP",
+          "confidence": "medium",
+          "reason": "Career looks like a related but softer-tuned vocational pack rather than the main work preset."
+        }
+      ],
+      "evidence": [
+        "WorkL.pls is one of the four visible dropdown presets.",
+        "WORK.HYP exists as a hidden domain rule pack with the same English label.",
+        "CAREER.HYP appears to be a distinct secondary vocational domain rather than a duplicate of WORK.HYP."
+      ]
+    },
+    {
+      "preset_id": "money_test",
+      "preset_file": "GMU 01c.PLS",
+      "pairing_status": "direct_name_match",
+      "primary_hyp_candidate": {
+        "id": "money",
+        "legacy_file": "MONEY.HYP",
+        "confidence": "high",
+        "reason": "The preset header identifies the domain as money and a same-domain hidden HYP pack exists."
+      },
+      "secondary_hyp_candidates": [],
+      "evidence": [
+        "GMU 01c.PLS header translates to Money, Test Model Ver.0.1c.",
+        "MONEY.HYP exists as a hidden domain rule pack.",
+        "The preset looks experimental, which fits a visible test layer above a deeper domain pack."
+      ]
+    }
+  ]
+}

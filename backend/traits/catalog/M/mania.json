@@ -1,0 +1,28 @@
+{
+  "id": "mania",
+  "name": "Mania",
+  "domain": "psychological",
+  "description": "Explosive nervous tension and impulsive outbursts, especially with Mars–Uranus stress.",
+  "confidence": "medium",
+  "polarity": "negative",
+  "sources": ["Carter"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "aspect", "pair": ["Uranus", "Mars"], "type": "hard", "max_orb": 4, "min_severity": "moderate", "weight": 25 },
+      { "kind": "aspect", "pair": ["Uranus", "Mercury"], "type": "hard", "max_orb": 4, "weight": 15 },
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.35, "weight": 10 },
+      { "kind": "angle_aspect", "planet": "Uranus", "type": "hard", "min_severity": "severe", "weight": 15 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "afflicted": false, "weight": -15 },
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 2.0, "weight": -10 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -10 }
+    ],
+    "escalators": [
+      { "kind": "flag", "name": "mercury_shock", "effect": "+10" },
+      { "kind": "flag", "name": "neptune_station_or_angular", "effect": "+10" }
+    ]
+  }
+}
+

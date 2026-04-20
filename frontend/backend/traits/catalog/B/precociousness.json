@@ -1,0 +1,24 @@
+{
+  "id": "precociousness",
+  "name": "Precociousness",
+  "domain": "development",
+  "description": "Early development and quick learning when Mercury is well aspected by stimulators (Sun/Mars/Uranus).",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "aspect", "pair": ["Mercury","Sun"], "type": "soft", "max_orb": 6, "weight": 12 },
+      { "kind": "aspect", "pair": ["Mercury","Mars"], "type": "soft", "max_orb": 6, "weight": 10 },
+      { "kind": "aspect", "pair": ["Mercury","Uranus"], "type": "soft", "max_orb": 6, "weight": 10 },
+      { "kind": "planet_in_sign", "planet": "Mercury", "sign": "Gemini", "weight": 6 },
+      { "kind": "planet_in_sign", "planet": "Mercury", "sign": "Virgo", "weight": 6 },
+      { "kind": "angle_aspect", "planet": "Mercury", "type": "soft", "angle": "ASC", "max_orb": 6, "weight": 6 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Mercury", "afflicted": true, "weight": -10 }
+    ],
+    "escalators": []
+  }
+}

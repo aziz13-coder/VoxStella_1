@@ -1,0 +1,76 @@
+[
+  {
+    "id": "hear_from_friend_skyscript_source_pass",
+    "question": "Will I hear from my friend?",
+    "source_url": "https://www.skyscript.co.uk/forums/viewtopic.php?t=5026",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "possible contact/reunion",
+    "source_expected_category": "friend_enemy",
+    "source_expected_houses": [
+      1,
+      11
+    ],
+    "source_expected_focus": "The Skyscript chart discussion explicitly treats the friend as her own significator, and the thread later references the 11th-house cusp in that context. This is a friend-contact question, not a generic 7th-house other-person chart.",
+    "current_engine_category": "friend_enemy",
+    "current_engine_houses": [
+      1,
+      11
+    ],
+    "current_engine_quesited_house": 11,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Current router now keeps friend-contact questions on the 11th-house friend axis."
+  },
+  {
+    "id": "received_message_skyscript_source_pass",
+    "question": "Has he received my message?",
+    "source_url": "https://skyscript.co.uk/forums/viewtopic.php?t=4058",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "probably yes / message likely received",
+    "source_expected_category": "general",
+    "source_expected_houses": [
+      1,
+      7,
+      3
+    ],
+    "source_expected_focus": "The Skyscript discussion explicitly asks whether the 3rd house should signify the message and later reads Mars as ruler of the 3rd house of communications. The chart is not only about the man; it also weighs the communication itself.",
+    "current_engine_category": "general",
+    "current_engine_houses": [
+      1,
+      7,
+      3
+    ],
+    "current_engine_quesited_house": 7,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Current router now keeps the recipient on the 7th while surfacing the 3rd house for the message itself."
+  },
+  {
+    "id": "goods_arrive_home_skyscript_source_pass",
+    "question": "When will the goods arrive at home?",
+    "source_url": "https://mail.skyscript.co.uk/forums/viewtopic.php?t=12343",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "timing",
+    "source_expected_category": "money",
+    "source_expected_houses": [
+      1,
+      2,
+      4,
+      6,
+      8
+    ],
+    "source_expected_focus": "The shipping discussion explicitly weighs the 8th for others' possessions, the 2nd for the purchased goods, the 6th for the delivery person, and the 4th for arrival at the querent's home, rather than reducing the question to property/home alone.",
+    "current_engine_category": "money",
+    "current_engine_houses": [
+      1,
+      2,
+      4,
+      6,
+      8
+    ],
+    "current_engine_quesited_house": 4,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Current router now treats delivery-arrival as a logistics family that keeps the goods, home, courier, and others-in-possession houses in view."
+  }
+]

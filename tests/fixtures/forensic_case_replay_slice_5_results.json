@@ -1,0 +1,52 @@
+[
+  {
+    "id": "twa_flight_800",
+    "status_code": 200,
+    "success": true,
+    "comparison": {
+      "status": "aligned",
+      "matched_axes": [
+        "accident_or_disaster"
+      ],
+      "missed_axes": [],
+      "contradicted_axes": []
+    },
+    "categories": {
+      "Deception": 3,
+      "Disaster": 1
+    },
+    "top_finding_titles": [
+      "Air-disaster launch pattern is active",
+      "Mercury combust the Sun",
+      "Mute signs on angles",
+      "North Node in the 8th house"
+    ]
+  },
+  {
+    "id": "haiti_earthquake",
+    "status_code": 200,
+    "success": true,
+    "comparison": {
+      "status": "aligned",
+      "matched_axes": [
+        "accident_or_disaster"
+      ],
+      "missed_axes": [],
+      "contradicted_axes": []
+    },
+    "categories": {
+      "Associates": 1,
+      "Deception": 3,
+      "Disaster": 1,
+      "Headwinds": 1
+    },
+    "top_finding_titles": [
+      "Structural catastrophe pattern is active",
+      "Friend or close associate axis is active",
+      "Moon applying to malefic by hard aspect",
+      "Mercury retrograde",
+      "Mute signs on angles",
+      "Mute signs on 3rd/9th"
+    ]
+  }
+]

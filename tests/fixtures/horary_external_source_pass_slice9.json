@@ -1,0 +1,76 @@
+[
+  {
+    "id": "coworker_steal_money_skyscript_source_pass",
+    "question": "Did my coworker steal the money?",
+    "source_url": "https://skyscript.co.uk/forums/viewtopic.php?start=24&t=5696",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "theft suspicion / whether the coworker took the money",
+    "source_expected_category": "money",
+    "source_expected_houses": [
+      1,
+      2,
+      7,
+      8
+    ],
+    "source_expected_focus": "The Skyscript discussion explicitly keeps the suspected thief on the 7th, the querent's money on the 2nd, and the other party's possession on the 8th when judging whether the coworker is taking the money.",
+    "current_engine_category": "money",
+    "current_engine_houses": [
+      1,
+      2,
+      7,
+      8
+    ],
+    "current_engine_quesited_house": 7,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Aligned after theft doctrine pass keeps the money on the 2nd, the thief on the 7th, and the thief's possession on the 8th."
+  },
+  {
+    "id": "wallet_stolen_astrologyweekly_source_pass",
+    "question": "Was my wallet stolen?",
+    "source_url": "https://astrologyweekly.com/threads/lost-stolen-wallet.21624/",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "stolen versus lost / missing wallet",
+    "source_expected_category": "lost_object",
+    "source_expected_houses": [
+      1,
+      2,
+      7
+    ],
+    "source_expected_focus": "The wallet remains the querent's movable possession, but once theft is in view the 7th house of the thief must stay in the judgment rather than treating the chart as a generic misplaced-object query.",
+    "current_engine_category": "lost_object",
+    "current_engine_houses": [
+      1,
+      2,
+      7
+    ],
+    "current_engine_quesited_house": 2,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Aligned after theft doctrine pass keeps the wallet on the 2nd and surfaces the thief on the 7th."
+  },
+  {
+    "id": "laptop_stolen_at_work_astrologyweekly_source_pass",
+    "question": "Was the laptop stolen at work?",
+    "source_url": "https://astrologyweekly.com/threads/missing-laptop-at-work.27402/post-228062",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "stolen versus moved or misplaced / work laptop",
+    "source_expected_category": "lost_object",
+    "source_expected_houses": [
+      1,
+      2,
+      7
+    ],
+    "source_expected_focus": "The thread discussion keeps the missing laptop on the object axis while also judging signatures of the thief. Even when the item belongs to a work setting, theft-signification should not disappear once the question is explicitly about whether it was stolen.",
+    "current_engine_category": "lost_object",
+    "current_engine_houses": [
+      1,
+      2,
+      7
+    ],
+    "current_engine_quesited_house": 2,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Aligned after theft doctrine pass keeps the laptop on the object axis while also surfacing the thief on the 7th."
+  }
+]

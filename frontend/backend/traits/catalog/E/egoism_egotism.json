@@ -1,0 +1,24 @@
+{
+  "id": "egoism_egotism",
+  "name": "Egoism / egotism",
+  "domain": "character_emphasis",
+  "description": "Self‑manifestation and pride with strong Sun/Leo; under affliction slides to vanity/egotism; Libra/Venus mitigate.",
+  "confidence": "medium",
+  "polarity": "negative",
+  "sources": ["Carter: Leo; Sun strength vs. vanity under affliction"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Leo", "min": 1.5, "weight": 8 },
+      { "kind": "planet_status", "planet": "Sun", "strong": true, "weight": 8 },
+      { "kind": "planet_status", "planet": "Sun", "afflicted": true, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [1,5,10], "min_total": 2, "weight": 6 }
+    ],
+    "dampeners": [
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": -6 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": -6 }
+    ],
+    "escalators": []
+  }
+}
+

@@ -1,0 +1,21 @@
+{
+  "id": "ruthlessness",
+  "name": "Ruthlessness",
+  "domain": "shadow_tendency",
+  "description": "Harsh, unyielding pursuit of aims when Mars–Saturn are in hard aspect within Scorpio/Capricorn contexts (8th/10th); Venus/Libra mediation reduces severity.",
+  "confidence": "medium",
+  "polarity": "negative",
+  "sources": ["Carter: Shadow of strength without benefics; Mars–Saturn stress"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "aspect", "pair": ["Mars","Saturn"], "type": "hard", "max_orb": 6, "weight": 10 },
+      { "kind": "sign_group_emphasis", "group": ["Scorpio","Capricorn"], "min": 2.0, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [8,10], "min_total": 2, "weight": 6 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": -6 },
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": -6 }
+    ],
+    "escalators": [] }
+}
+

@@ -1,0 +1,22 @@
+{
+  "id": "grief_bereavement",
+  "name": "Grief (bereavement sensitivity)",
+  "domain": "affect_loss_processing",
+  "description": "Bereavement sensitivity via Moon aspects and Saturn hard to Moon, Water houses 4/12; Jupiter/Venus consolation and Fire resilience mitigate.",
+  "confidence": "medium",
+  "polarity": "negative",
+  "sources": ["Carter: Moon; Saturn–Moon; Water houses; benefic consolation"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "aspect", "pair": ["Saturn","Moon"], "type": "hard", "max_orb": 6, "weight": 10 },
+      { "kind": "house_emphasis", "houses": [4,12], "min_total": 2, "weight": 8 },
+      { "kind": "planet_status", "planet": "Moon", "afflicted": true, "weight": 6 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": -6 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": -4 },
+      { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

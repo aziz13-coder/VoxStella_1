@@ -1,0 +1,25 @@
+{
+  "id": "abruptness_manner",
+  "name": "Abruptness of manner",
+  "domain": "temperament",
+  "description": "Abrupt, explosive manner when Uranus is under stress, especially with Mars and fixed signs.",
+  "confidence": "high",
+  "polarity": "negative",
+  "sources": ["Carter"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "aspect", "pair": ["Uranus", "Mars"], "type": "hard", "max_orb": 6, "min_severity": "moderate", "weight": 18 },
+      { "kind": "planet_status", "planet": "Uranus", "afflicted": true, "weight": 10 },
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.35, "weight": 8 },
+      { "kind": "angle_aspect", "planet": "Uranus", "type": "hard", "angle": "ASC", "max_orb": 6, "weight": 8 },
+      { "kind": "angle_aspect", "planet": "Uranus", "type": "hard", "angle": "MC", "max_orb": 6, "weight": 6 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": -8 },
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": -6 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -6 }
+    ],
+    "escalators": []
+  }
+}

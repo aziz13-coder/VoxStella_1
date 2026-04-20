@@ -1,0 +1,24 @@
+{
+  "id": "self_preservation",
+  "name": "Self‑preservation",
+  "domain": "instinct",
+  "description": "Protective, home‑centered prudence with Cancer/Water and Moon prominence; benefics dignified in Water strengthen; Fire/Aries drive reduces.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Cancer — self‑preservation; prudence"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Cancer", "min": 1.5, "weight": 8 },
+      { "kind": "planet_status", "planet": "Moon", "strong": true, "weight": 8 },
+      { "kind": "element", "element": "Water", "min_share": 0.35, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [4], "min_total": 1, "weight": 6 },
+      { "kind": "planet_in_sign", "planet": "Jupiter", "sign": "Cancer", "weight": 3 },
+      { "kind": "planet_in_sign", "planet": "Venus", "sign": "Pisces", "weight": 3 }
+    ],
+    "dampeners": [
+      { "kind": "element", "element": "Fire", "min_share": 0.40, "weight": -6 },
+      { "kind": "sign_emphasis", "sign": "Aries", "min": 1.5, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

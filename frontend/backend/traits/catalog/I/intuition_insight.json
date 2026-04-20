@@ -1,0 +1,14 @@
+{
+  "id": "intuition_insight",
+  "name": "Intuition (insight)",
+  "domain": "cognitive_style",
+  "description": "Intuitive insight via Water; Pisces/Scorpio; Moon/Neptune prominence; houses 8/12 support.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter: Water; Pisces/Scorpio; Moon/Neptune"],
+  "logic": { "base": 0,
+    "boosts": [ { "kind": "element", "element": "Water", "min_share": 0.35, "weight": 10 }, { "kind": "sign_group_emphasis", "group": ["Pisces","Scorpio"], "min": 2.0, "weight": 8 }, { "kind": "planet_status", "planet": "Neptune", "strong": true, "weight": 6 }, { "kind": "planet_status", "planet": "Moon", "strong": true, "weight": 6 }, { "kind": "house_emphasis", "houses": [8,12], "min_total": 2, "weight": 6 } ],
+    "dampeners": [ { "kind": "element", "element": "Air", "min_share": 0.40, "weight": -6 } ],
+    "escalators": [] }
+}
+

@@ -1,0 +1,235 @@
+[
+  {
+    "id": "will_i_get_job_article_spec",
+    "title": "Will I get the job?",
+    "question": "Will I get the job?",
+    "category": "career",
+    "source_url": "https://cunning-man.co.uk/will-i-get-the-job/",
+    "source_kind": "article_spec",
+    "source_alignment": true,
+    "article_expected_verdict": "NO",
+    "engine_expected_verdict": "NO",
+    "engine_expected_category": "career",
+    "engine_expected_perfection_type": "denial_secondary_balance",
+    "timezone": "Europe/London",
+    "local_dt": "2024-12-08T17:18:00",
+    "location_name": "Unknown (published wheel reconstruction)",
+    "location_note": "The article publish timestamp does not match the wheel. The replay timestamp is reconstructed from the published chart image's planetary positions and houses; coordinates remain placeholders and are not used for house calculation.",
+    "houses": [
+      107.8833,
+      126.0833,
+      141.75,
+      162.3,
+      201.2667,
+      240.2667,
+      287.8833,
+      306.0833,
+      321.75,
+      342.3,
+      21.2667,
+      60.2667
+    ],
+    "published_checks": [
+      {
+        "planet": "Moon",
+        "longitude": 348.1167,
+        "tolerance_degrees": 0.2,
+        "house": 10,
+        "sign": "Pisces"
+      },
+      {
+        "planet": "Jupiter",
+        "longitude": 76.1333,
+        "tolerance_degrees": 0.2,
+        "house": 12,
+        "sign": "Gemini"
+      },
+      {
+        "planet": "Sun",
+        "longitude": 257.1667,
+        "tolerance_degrees": 0.2,
+        "house": 6,
+        "sign": "Sagittarius"
+      },
+      {
+        "planet": "Mars",
+        "longitude": 126.15,
+        "tolerance_degrees": 0.2,
+        "house": 2,
+        "sign": "Leo"
+      },
+      {
+        "planet": "Saturn",
+        "house": 10,
+        "sign": "Pisces"
+      }
+    ],
+    "expected_reasoning_contains": [
+      "Querent: Moon (ruler of 1), Quesited: Jupiter (ruler of 10)",
+      "No direct perfection found between Moon and Jupiter; secondary testimony remains insufficient to overcome denial",
+      "Jupiter in cadent house"
+    ]
+  },
+  {
+    "id": "pay_rise_article_spec",
+    "title": "Will I get the pay rise?",
+    "question": "Will I get the pay rise?",
+    "category": "career",
+    "source_url": "https://cunning-man.co.uk/will-i-get-the-pay-rise/",
+    "source_kind": "article_spec",
+    "source_alignment": true,
+    "article_expected_verdict": "NO",
+    "engine_expected_verdict": "NO",
+    "engine_expected_category": "career",
+    "engine_expected_perfection_type": "denial_secondary_balance",
+    "timezone": "Europe/London",
+    "local_dt": "2022-02-02T16:54:00",
+    "location_name": "Unknown (published wheel reconstruction)",
+    "location_note": "The article publishes the timestamp but not the cast location. Houses are reconstructed from the published chart image; coordinates are placeholders and are not used for the replay.",
+    "houses": [
+      136.3167,
+      155.0333,
+      175.6167,
+      206.6667,
+      253.2333,
+      292.3667,
+      316.3167,
+      335.0333,
+      355.6167,
+      26.6667,
+      73.2333,
+      112.2333
+    ],
+    "published_checks": [
+      {
+        "planet": "Mercury",
+        "longitude": 294.5167,
+        "tolerance_degrees": 0.2,
+        "house": 6
+      },
+      {
+        "planet": "Sun",
+        "house": 6,
+        "sign": "Aquarius"
+      },
+      {
+        "planet": "Moon",
+        "sign": "Pisces"
+      }
+    ],
+    "expected_reasoning_contains": [
+      "No perfection found - strict evaluation for event likelihood",
+      "No direct perfection found between Sun and Mercury"
+    ]
+  },
+  {
+    "id": "x_romantically_article_spec",
+    "title": "Will X and I like one another romantically?",
+    "question": "Will X and I like one another romantically?",
+    "category": "relationship",
+    "source_url": "https://cunning-man.co.uk/will-x-and-i-like-one-another-romantically/",
+    "source_kind": "article_spec",
+    "source_alignment": true,
+    "article_expected_verdict": "NO",
+    "engine_expected_verdict": "NO",
+    "engine_expected_category": "relationship",
+    "engine_expected_perfection_type": "relationship_affection_balance",
+    "timezone": "Europe/London",
+    "local_dt": "2023-02-03T17:35:00",
+    "location_name": "Unknown (published wheel reconstruction)",
+    "location_note": "The article publishes the timestamp but not the cast location. Houses are reconstructed from the published chart image; coordinates are placeholders and are not used for the replay.",
+    "houses": [
+      143.35,
+      162.4833,
+      184.4,
+      217.6333,
+      263.7167,
+      300.0333,
+      323.35,
+      342.4833,
+      4.4,
+      37.6333,
+      83.7167,
+      90.0333
+    ],
+    "published_checks": [
+      {
+        "planet": "Sun",
+        "longitude": 314.6,
+        "tolerance_degrees": 0.2,
+        "sign": "Aquarius"
+      },
+      {
+        "planet": "Moon",
+        "longitude": 112.4667,
+        "tolerance_degrees": 0.2,
+        "sign": "Cancer"
+      },
+      {
+        "planet": "Saturn",
+        "longitude": 326.1667,
+        "tolerance_degrees": 0.2,
+        "sign": "Aquarius"
+      }
+    ],
+    "expected_reasoning_contains": [
+      "Relationship family: affection/reciprocity",
+      "One-way reception only: one significator receives, but reciprocity is not shown"
+    ]
+  },
+  {
+    "id": "pope_die_article_spec",
+    "title": "Will the Pope die in the next few days?",
+    "question": "Will the Pope die in the next few days?",
+    "category": "death",
+    "source_url": "https://cunning-man.co.uk/will-the-pope-die-in-the-next-few-days/",
+    "source_kind": "article_spec",
+    "source_alignment": true,
+    "article_expected_verdict": "NO",
+    "engine_expected_verdict": "NO",
+    "engine_expected_category": "death",
+    "engine_expected_perfection_type": "none",
+    "timezone": "Europe/London",
+    "local_dt": "2024-03-30T22:21:00",
+    "location_name": "Unknown (published wheel reconstruction)",
+    "location_note": "The article publishes the timestamp but not the cast location. Houses are reconstructed from the published chart image; coordinates are placeholders and are not used for the replay.",
+    "houses": [
+      228.1333,
+      252.8667,
+      293.8833,
+      340.4333,
+      9.9333,
+      29.65,
+      48.1333,
+      72.8667,
+      113.8833,
+      160.4333,
+      189.9333,
+      209.65
+    ],
+    "published_checks": [
+      {
+        "planet": "Moon",
+        "longitude": 253.9333,
+        "tolerance_degrees": 0.2,
+        "sign": "Sagittarius"
+      },
+      {
+        "planet": "Mercury",
+        "longitude": 26.9667,
+        "tolerance_degrees": 0.2,
+        "sign": "Aries"
+      },
+      {
+        "planet": "Jupiter",
+        "longitude": 47.1167,
+        "tolerance_degrees": 0.2,
+        "sign": "Taurus"
+      }
+    ],
+    "expected_reasoning_contains": [
+      "Querent: Moon (ruler of 9), Quesited: Jupiter (ruler of 4)",
+      "no direct perfection found between Moon and Jupiter"
+    ]
+  }
+]

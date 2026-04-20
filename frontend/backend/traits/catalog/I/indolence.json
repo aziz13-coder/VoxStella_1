@@ -1,0 +1,14 @@
+{
+  "id": "indolence",
+  "name": "Indolence",
+  "domain": "work_habit_negative",
+  "description": "Laziness/indolence with Fixed signs under affliction (esp. Taurus/Leo).",
+  "confidence": "medium",
+  "polarity": "negative",
+  "sources": ["Carter: Fixed under affliction"],
+  "logic": { "base": 0,
+    "boosts": [ { "kind": "modality", "modality": "Fixed", "min_share": 0.40, "weight": 10 }, { "kind": "sign_group_emphasis", "group": ["Taurus","Leo"], "min": 2.0, "weight": 6 } ],
+    "dampeners": [ { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -8 } ],
+    "escalators": [] }
+}
+

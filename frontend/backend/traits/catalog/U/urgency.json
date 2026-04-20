@@ -1,0 +1,24 @@
+{
+  "id": "urgency",
+  "name": "Urgency",
+  "domain": "drive",
+  "description": "Pressing impulse to act and move with Cardinal dominance, Aries/Fire thrust, and Mars strength; fixed/Saturn anchors and Water caution temper.",
+  "confidence": "medium",
+  "polarity": "neutral",
+  "sources": ["Carter: Cardinal 'move' vs Fixed 'not move'; Aries self‑assertion"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "modality", "modality": "Cardinal", "min_share": 0.35, "weight": 8 },
+      { "kind": "sign_emphasis", "sign": "Aries", "min": 1.5, "weight": 6 },
+      { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": 4 },
+      { "kind": "planet_status", "planet": "Mars", "strong": true, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [1,10], "min_total": 1, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.40, "weight": -6 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -6 },
+      { "kind": "element", "element": "Water", "min_share": 0.35, "weight": -3 }
+    ],
+    "escalators": [] }
+}
+

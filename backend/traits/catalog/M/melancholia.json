@@ -1,0 +1,25 @@
+{
+  "id": "melancholia",
+  "name": "Melancholia",
+  "domain": "psychological",
+  "description": "Persistent low mood and withdrawal linked to Saturn and strong Water signatures.",
+  "confidence": "medium",
+  "polarity": "negative",
+  "sources": ["Carter"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": 20 },
+      { "kind": "element", "element": "Water", "min_share": 0.35, "weight": 15 },
+      { "kind": "house_emphasis", "houses": [4, 12], "min_total": 2, "weight": 10 },
+      { "kind": "planet_status", "planet": "Moon", "afflicted": true, "weight": 10 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": -10 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": -8 },
+      { "kind": "element", "element": "Fire", "min_share": 0.3, "weight": -8 }
+    ],
+    "escalators": []
+  }
+}
+

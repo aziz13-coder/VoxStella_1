@@ -1,0 +1,23 @@
+{
+  "id": "warlike",
+  "name": "Warlike (combative)",
+  "domain": "drive_assertion",
+  "description": "Combative spirit and readiness to confront opposition with Aries/Mars and Fire emphasis; Libra/Venus and Saturn moderation reduce heat.",
+  "confidence": "high",
+  "polarity": "neutral",
+  "sources": ["Carter: Aries fights down opposition; Fire outward action"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Aries", "min": 1.5, "weight": 8 },
+      { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": 8 },
+      { "kind": "planet_status", "planet": "Mars", "strong": true, "weight": 8 },
+      { "kind": "house_emphasis", "houses": [1], "min_total": 1, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": -6 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": -4 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -6 }
+    ],
+    "escalators": [] }
+}
+

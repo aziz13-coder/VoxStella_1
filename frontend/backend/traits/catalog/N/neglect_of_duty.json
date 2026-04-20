@@ -1,0 +1,23 @@
+{
+  "id": "neglect_of_duty",
+  "name": "Neglect of duty",
+  "domain": "behavioral_risk",
+  "description": "Shirking responsibilities and lack of decision when mutable quality dominates under strain; strong Saturn/Mercury restore discipline.",
+  "confidence": "high",
+  "polarity": "negative",
+  "sources": ["Carter: Common (mutable) under affliction shirk responsibility"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "modality", "modality": "Mutable", "min_share": 0.40, "weight": 8 },
+      { "kind": "planet_status", "planet": "Mercury", "afflicted": true, "weight": 6 },
+      { "kind": "planet_status", "planet": "Jupiter", "afflicted": true, "weight": 4 },
+      { "kind": "house_emphasis", "houses": [3,6,9,12], "min_total": 2, "weight": 2 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -8 },
+      { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": -6 },
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.35, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

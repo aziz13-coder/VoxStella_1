@@ -1,0 +1,20 @@
+{
+  "id": "charity",
+  "name": "Charity (beneficence)",
+  "domain": "social_function",
+  "description": "Beneficence and charitable inclination via Jupiter/Venus; effective when organized by Saturn.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter: Jupiter/Venus beneficence; Saturn for organization"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 10 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": 8 },
+      { "kind": "house_emphasis", "houses": [11], "min_total": 1, "weight": 6 }
+    ],
+    "dampeners": [],
+    "escalators": []
+  }
+}
+

@@ -1,0 +1,23 @@
+{
+  "id": "kinship_extended_family",
+  "name": "Kinship (extended family ties)",
+  "domain": "social_bonds",
+  "description": "Closeness with siblings and kin from strong 3rd/4th emphasis and supportive Moon/Mercury; harsh Saturn or Moon afflictions strain ties.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: 3rd = kin; 4th = home; Cancer/Moon family ties"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "house_emphasis", "houses": [3,4], "min_total": 2, "weight": 8 },
+      { "kind": "planet_status", "planet": "Moon", "strong": true, "weight": 6 },
+      { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": 4 },
+      { "kind": "sign_emphasis", "sign": "Cancer", "min": 1.5, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "house_afflicted", "houses": [3,4], "any": true, "weight": -6 },
+      { "kind": "planet_status", "planet": "Moon", "afflicted": true, "weight": -6 },
+      { "kind": "planet_status", "planet": "Saturn", "afflicted": true, "weight": -6 }
+    ],
+    "escalators": [] }
+}
+

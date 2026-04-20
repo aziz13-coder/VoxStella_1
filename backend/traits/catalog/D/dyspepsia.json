@@ -1,0 +1,20 @@
+{
+  "id": "dyspepsia",
+  "name": "Dyspepsia (indigestion)",
+  "domain": "disease_digestive",
+  "description": "Indigestion tendency linked with Jupiter and Virgo/6th patterns; to refine with D details.",
+  "confidence": "low",
+  "polarity": "negative",
+  "sources": ["Carter: Dyspepsia"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "house_emphasis", "houses": [6], "min_total": 1, "weight": 6 },
+      { "kind": "sign_emphasis", "sign": "Virgo", "min": 1.5, "weight": 6 },
+      { "kind": "aspect", "pair": ["Jupiter","Sun"], "type": "hard", "max_orb": 6, "weight": 6 }
+    ],
+    "dampeners": [],
+    "escalators": []
+  }
+}
+

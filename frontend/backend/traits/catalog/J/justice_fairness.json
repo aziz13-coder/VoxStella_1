@@ -1,0 +1,14 @@
+{
+  "id": "justice_fairness",
+  "name": "Justice / fairness (sense of)",
+  "domain": "ethic_social",
+  "description": "Orientation toward fairness via Libra/Venus balance and Jupiterian moral sense.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter: Libra/Venus balance; Jupiter moral expansion"],
+  "logic": { "base": 0,
+    "boosts": [ { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": 8 }, { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": 8 }, { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 6 } ],
+    "dampeners": [ { "kind": "planet_status", "planet": "Venus", "afflicted": true, "weight": -8 }, { "kind": "planet_status", "planet": "Jupiter", "afflicted": true, "weight": -6 } ],
+    "escalators": [] }
+}
+

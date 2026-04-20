@@ -1,0 +1,22 @@
+{
+  "id": "nobility_virtue",
+  "name": "Nobility (virtue)",
+  "domain": "virtue",
+  "description": "Strength of soul and generous bearing with dignified Sun/Leo and 5th‑house expression; benefic Jupiter magnifies; Sun affliction or Saturn oppression diminish.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter: Leo — Strength of Soul; Jupiter magnanimity"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Leo", "min": 1.5, "weight": 8 },
+      { "kind": "planet_status", "planet": "Sun", "strong": true, "weight": 8 },
+      { "kind": "house_emphasis", "houses": [5], "min_total": 1, "weight": 4 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Sun", "afflicted": true, "weight": -8 },
+      { "kind": "planet_status", "planet": "Saturn", "afflicted": true, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

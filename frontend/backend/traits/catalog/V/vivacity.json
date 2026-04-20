@@ -1,0 +1,22 @@
+{
+  "id": "vivacity",
+  "name": "Vivacity (lively spirits)",
+  "domain": "energy_tone",
+  "description": "Lively, spirited presence with Fire exuberance and Sun vitality, especially through 5th/1st expression; Water heaviness and Saturn reduce.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Fire — exuberance of animal spirits; optimism"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": 8 },
+      { "kind": "planet_status", "planet": "Sun", "strong": true, "weight": 8 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 4 },
+      { "kind": "house_emphasis", "houses": [5,1], "min_total": 1, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "element", "element": "Water", "min_share": 0.40, "weight": -6 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -6 }
+    ],
+    "escalators": [] }
+}
+

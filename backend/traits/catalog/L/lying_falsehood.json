@@ -1,0 +1,23 @@
+{
+  "id": "lying_falsehood",
+  "name": "Lying / Falsehood",
+  "domain": "ethic_shadow",
+  "description": "Untruthful or misleading communication when Mercury is pressed by Neptune (confusion) or Mars (aggression); Saturn/Libra restore honesty.",
+  "confidence": "high",
+  "polarity": "negative",
+  "sources": ["Carter: Mercury speech under Mars/Neptune; Saturn/Venus‑Libra integrity"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "aspect", "pair": ["Mercury","Neptune"], "type": "hard", "max_orb": 6, "weight": 10 },
+      { "kind": "aspect", "pair": ["Mercury","Mars"], "type": "hard", "max_orb": 6, "weight": 8 },
+      { "kind": "house_emphasis", "houses": [12], "min_total": 1, "weight": 4 },
+      { "kind": "planet_status", "planet": "Mercury", "afflicted": true, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -6 },
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": -6 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

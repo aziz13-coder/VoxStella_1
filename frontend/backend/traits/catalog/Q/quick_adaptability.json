@@ -1,0 +1,20 @@
+{
+  "id": "quick_adaptability",
+  "name": "Quick adaptability",
+  "domain": "cognitive_style",
+  "description": "Rapid adjustment to changing conditions with strong Mutable quality; undermined when Mutable is afflicted via Mercury/Jupiter stress or excess Fixed inertia.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Common (mutable) flexible/adaptable/intelligent; under affliction unreliable"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "modality", "modality": "Mutable", "min_share": 0.35, "weight": 10 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Mercury", "afflicted": true, "weight": -6 },
+      { "kind": "planet_status", "planet": "Jupiter", "afflicted": true, "weight": -4 },
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.40, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

@@ -1,0 +1,38 @@
+Bundled Swiss Ephemeris files for Astro Clock asteroid support.
+
+Root files:
+- seas_00.se1
+- seas_06.se1
+- seas_12.se1
+- seas_18.se1
+- seas_24.se1
+- seas_30.se1
+- seas_36.se1
+- seas_42.se1
+- seas_48.se1
+- seas_54.se1
+- seas_60.se1
+- seas_66.se1
+- seas_72.se1
+- seas_78.se1
+- seas_84.se1
+- seas_90.se1
+- seas_96.se1
+- seas_102.se1
+- seas_108.se1
+- seas_114.se1
+- seas_120.se1
+- seas_126.se1
+- seas_132.se1
+- seas_138.se1
+- seas_144.se1
+- seas_150.se1
+- seas_156.se1
+- seas_162.se1
+- seleapsec.txt
+
+Subdirectories:
+- ast0/se00026s.se1
+
+Source copied from:
+- C:\Program Files (x86)\Galaxy\SwisEph

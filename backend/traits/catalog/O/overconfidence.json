@@ -1,0 +1,22 @@
+{
+  "id": "overconfidence",
+  "name": "Overconfidence",
+  "domain": "temperament_shadow",
+  "description": "Inflated self‑belief and risk‑taking when Fire is afflicted, especially via hard Sun–Jupiter aspects or ill‑disposed benefics; Saturn/Earth mitigate.",
+  "confidence": "high",
+  "polarity": "negative",
+  "sources": ["Carter: Fire under affliction → over‑confident, self‑indulgent"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": 6 },
+      { "kind": "aspect", "pair": ["Sun","Jupiter"], "type": "hard", "max_orb": 6, "weight": 10 },
+      { "kind": "planet_status", "planet": "Jupiter", "afflicted": true, "weight": 6 },
+      { "kind": "planet_status", "planet": "Sun", "afflicted": true, "weight": 6 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -8 },
+      { "kind": "element", "element": "Earth", "min_share": 0.35, "weight": -6 }
+    ],
+    "escalators": [] }
+}
+

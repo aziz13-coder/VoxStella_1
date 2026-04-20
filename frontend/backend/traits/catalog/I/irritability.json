@@ -1,0 +1,14 @@
+{
+  "id": "irritability",
+  "name": "Irritability",
+  "domain": "affect_reactivity",
+  "description": "Irritable reactivity when Mercury or Lights are afflicted by Mars/Uranus; Aries/Fire bias.",
+  "confidence": "medium",
+  "polarity": "negative",
+  "sources": ["Carter: Mars/Uranus afflicting Mercury/Lights"],
+  "logic": { "base": 0,
+    "boosts": [ { "kind": "aspect", "pair": ["Mercury","Mars"], "type": "hard", "max_orb": 6, "weight": 8 }, { "kind": "aspect", "pair": ["Mercury","Uranus"], "type": "hard", "max_orb": 6, "weight": 8 }, { "kind": "aspect", "pair": ["Mars","Sun"], "type": "hard", "max_orb": 6, "weight": 6 }, { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": 4 } ],
+    "dampeners": [ { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": -6 } ],
+    "escalators": [] }
+}
+

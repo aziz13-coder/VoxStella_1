@@ -1,0 +1,70 @@
+{
+  "version": "2026-04-11",
+  "chart_types": [
+    {
+      "id": "aries_ingress",
+      "label": "Aries Ingress",
+      "summary": "Use the annual Aries ingress as the high-level public framework chart for the polity and its capital context.",
+      "default_location_context_type": "capital_chart",
+      "requires_polity": true,
+      "framework_role": "annual_backdrop",
+      "trigger_summary": "Read lunations, eclipses, and angular amplifiers inside the ingress frame rather than as standalone public verdicts.",
+      "trigger_families": ["lunation", "eclipse", "angularity", "mutation_and_conjunction_cycles"],
+      "note_ids": ["aries_ingress_framework"],
+      "source_tags": ["green_ingress", "bonatti_revolutions"],
+      "research_flags": ["framework_ready"]
+    },
+    {
+      "id": "lunation",
+      "label": "Lunation",
+      "summary": "Treat the lunation as a shorter public trigger nested inside the yearly framework for the selected polity or region.",
+      "default_location_context_type": "capital_chart",
+      "requires_polity": true,
+      "framework_role": "short_window_trigger",
+      "trigger_summary": "Lunations need a larger framework behind them and gain force through angularity and domain-sensitive overlays.",
+      "trigger_families": ["lunation", "angularity", "mutation_and_conjunction_cycles"],
+      "note_ids": ["lunation_framework"],
+      "source_tags": ["green_lunations"],
+      "research_flags": ["framework_ready"]
+    },
+    {
+      "id": "eclipse",
+      "label": "Eclipse",
+      "summary": "Treat the eclipse as a high-impact public trigger that intensifies when visible, angular, or later activated by heavy planets.",
+      "default_location_context_type": "capital_chart",
+      "requires_polity": true,
+      "framework_role": "high_impact_trigger",
+      "trigger_summary": "Eclipses should be combined with visibility, angularity, and later activations rather than read as isolated catastrophe tokens.",
+      "trigger_families": ["eclipse", "eclipse_degree_activation", "angularity", "mutation_and_conjunction_cycles"],
+      "note_ids": ["eclipse_framework"],
+      "source_tags": ["green_eclipses", "watters_eclipse_degree"],
+      "research_flags": ["framework_ready"]
+    },
+    {
+      "id": "war_event",
+      "label": "War Event",
+      "summary": "Treat the outbreak or declaration chart of a war as the event anchor, then read it against the polity or national chart when available.",
+      "default_location_context_type": "event_chart",
+      "requires_polity": false,
+      "framework_role": "event_anchor",
+      "trigger_summary": "War-event charts are strongest when combined with aggressor-defender house logic and national-chart overlays.",
+      "trigger_families": ["angularity", "retrograde_mars"],
+      "note_ids": ["war_event_framework"],
+      "source_tags": ["watters_war_houses"],
+      "research_flags": ["overlay_recommended"]
+    },
+    {
+      "id": "national_chart",
+      "label": "National Chart",
+      "summary": "Use the preferred or selected national chart as the polity framework, then read later triggers and event overlays against it.",
+      "default_location_context_type": "national_chart",
+      "requires_polity": true,
+      "framework_role": "polity_foundation",
+      "trigger_summary": "National charts act as the base polity frame; later transits, eclipses, and event charts must still supply the trigger and activation layers.",
+      "trigger_families": ["mutation_and_conjunction_cycles", "angularity"],
+      "note_ids": ["national_chart_framework"],
+      "source_tags": ["green_national_horoscopes", "national_chart_candidates"],
+      "research_flags": ["candidate_chart_selection"]
+    }
+  ]
+}

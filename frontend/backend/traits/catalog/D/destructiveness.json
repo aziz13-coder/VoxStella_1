@@ -1,0 +1,22 @@
+{
+  "id": "destructiveness",
+  "name": "Destructiveness (unchecked Fire)",
+  "domain": "temperament_excess",
+  "description": "Destructive risk when Fire triplicity is excessive and Mars/Fire is afflicted.",
+  "confidence": "high",
+  "polarity": "negative",
+  "sources": ["Carter: Fire in excess becomes destructive; afflicted Mars"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "element", "element": "Fire", "min_share": 0.4, "weight": 12 },
+      { "kind": "planet_status", "planet": "Mars", "afflicted": true, "weight": 10 }
+    ],
+    "dampeners": [
+      { "kind": "element", "element": "Earth", "min_share": 0.35, "weight": -6 },
+      { "kind": "element", "element": "Water", "min_share": 0.35, "weight": -4 }
+    ],
+    "escalators": []
+  }
+}
+

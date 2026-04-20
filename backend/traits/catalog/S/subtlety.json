@@ -1,0 +1,23 @@
+{
+  "id": "subtlety",
+  "name": "Subtlety",
+  "domain": "cognitive_style",
+  "description": "Capacity to infer and penetrate beneath appearances with Scorpio/Water depth, 8th/12th emphasis, and well‑placed Mercury; Aries/Fire bluntness reduces nuance.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter: Scorpio means/depth; Water inwardness"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Scorpio", "min": 1.5, "weight": 6 },
+      { "kind": "element", "element": "Water", "min_share": 0.35, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [8,12], "min_total": 2, "weight": 6 },
+      { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": 6 },
+      { "kind": "aspect", "pair": ["Mercury","Neptune"], "type": "soft", "max_orb": 6, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "sign_emphasis", "sign": "Aries", "min": 1.5, "weight": -4 },
+      { "kind": "element", "element": "Fire", "min_share": 0.40, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

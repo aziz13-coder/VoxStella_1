@@ -1,0 +1,115 @@
+{
+  "cases": [
+    {
+      "id": "trump",
+      "subject": "Donald Trump",
+      "birth_local_source": "1946-06-14 10:54 EDT",
+      "replay_datetime_utc": "1946-06-14T14:54:00+00:00",
+      "location": "Jamaica Hospital Queens, New York",
+      "coordinates": {
+        "lat": 40.6914,
+        "lon": -73.8061
+      },
+      "country_label": "USA",
+      "timezone": "UTC",
+      "house_system_code": "R",
+      "expected_traits": [
+        "quarrelsomeness",
+        "vanity",
+        "volatility"
+      ],
+      "min_score": 45.0,
+      "min_matches": 2,
+      "sources": [
+        "https://www.astro.com/astro-databank/Trump,_Donald",
+        "https://starcats.com.au/blogs/astrology/donald-trump-birth-certificate"
+      ]
+    },
+    {
+      "id": "obama",
+      "subject": "Barack Obama",
+      "birth_local_source": "1961-08-04 19:24 HST",
+      "replay_datetime_utc": "1961-08-05T05:24:00+00:00",
+      "location": "Honolulu, Hawaii",
+      "coordinates": {
+        "lat": 21.3,
+        "lon": -157.8667
+      },
+      "country_label": "USA",
+      "timezone": "UTC",
+      "house_system_code": "R",
+      "expected_traits": [
+        "leadership_executive",
+        "quiet_authority",
+        "wisdom"
+      ],
+      "min_score": 35.0,
+      "min_matches": 2,
+      "sources": [
+        "https://rashi.my/celebrity-horoscopes/barack-obama-horoscope",
+        "https://www.astro-seek.com/birth-chart/barack-obama-horoscope"
+      ]
+    },
+    {
+      "id": "oprah",
+      "subject": "Oprah Winfrey",
+      "birth_local_source": "1954-01-29 04:30 CST",
+      "replay_datetime_utc": "1954-01-29T10:30:00+00:00",
+      "location": "Kosciusko, Mississippi",
+      "coordinates": {
+        "lat": 33.05,
+        "lon": -89.5833
+      },
+      "country_label": "USA",
+      "timezone": "UTC",
+      "house_system_code": "R",
+      "expected_traits": [
+        "philanthropy",
+        "compassion_universalism",
+        "understanding"
+      ],
+      "min_score": 33.0,
+      "min_matches": 2,
+      "sources": [
+        "https://www.astro.com/astro-databank/Winfrey,_Oprah",
+        "https://astro-charts.com/persons/chart/oprah-winfrey/"
+      ]
+    },
+    {
+      "id": "diana",
+      "subject": "Diana, Princess of Wales",
+      "birth_local_source": "1961-07-01 19:45 BST",
+      "replay_datetime_utc": "1961-07-01T18:45:00+00:00",
+      "location": "Sandringham, England",
+      "coordinates": {
+        "lat": 52.8167,
+        "lon": 0.5
+      },
+      "country_label": "England",
+      "timezone": "UTC",
+      "house_system_code": "R",
+      "expected_traits": [
+        "attractive_appearance",
+        "tenderness",
+        "compassion_universalism",
+        "grace_artistic"
+      ],
+      "min_score": 33.0,
+      "min_matches": 3,
+      "sources": [
+        "https://www.astrotheme.com/astrology/Princess_Diana",
+        "https://zvezdochet.guru/en/birth-chart/Princess-Diana"
+      ]
+    }
+  ],
+  "held_back": [
+    {
+      "subject": "Albert Einstein",
+      "reason": "Expected intellectual-family presence was too weak for promotion, and the top summary remained dominated by aggressive or conflict-adjacent traits."
+    },
+    {
+      "subject": "Steve Jobs",
+      "reason": "Expected invention-discovery family presence was too thin for promotion, and the summary was dominated by unrelated luxury or hospitality clusters."
+    }
+  ]
+}

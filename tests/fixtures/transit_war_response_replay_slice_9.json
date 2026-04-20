@@ -1,0 +1,36 @@
+[
+  {
+    "id": "george_w_bush_iraq_address",
+    "display_name": "George W. Bush Iraq address",
+    "event_label": "Address announcing military operations in Iraq",
+    "natal_datetime": "1946-07-06T07:26:00",
+    "natal_location": "New Haven, Connecticut",
+    "natal_timezone": "America/New_York",
+    "latitude": 41.3082138,
+    "longitude": -72.9250518,
+    "resolved_location": "New Haven, South Central Connecticut Planning Region, Connecticut, United States",
+    "event_datetime": "2003-03-19T22:16:00-05:00",
+    "control_datetimes": [
+      "2003-03-12T22:16:00-05:00",
+      "2003-03-05T22:16:00-05:00"
+    ],
+    "house_system_code": "R",
+    "measurement_mode": "war_response_cluster",
+    "time_basis": "official_oval_office_address_timestamp",
+    "time_confidence": "high",
+    "expected_war_hit_descriptions": [
+      "Saturn Quincunx C7 (antiscia)",
+      "Moon Quincunx C7 (contra-antiscia)"
+    ],
+    "expected_war_keywords": [
+      "attack_violence",
+      "conflict"
+    ],
+    "minimum_hit_count": 3,
+    "minimum_significance_sum_delta": 18.0,
+    "sources": {
+      "natal": "https://www.astro.com/astro-databank/Bush%2C_George_W.",
+      "event": "https://georgewbush-whitehouse.archives.gov/news/releases/2003/03/20030319-17.html"
+    }
+  }
+]

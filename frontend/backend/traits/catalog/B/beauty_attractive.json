@@ -1,0 +1,25 @@
+{
+  "id": "attractive_appearance",
+  "name": "Attractive appearance",
+  "domain": "appearance",
+  "description": "Personal attractiveness correlating with benefic/harmonic signatures and aesthetic signs.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "sign_group_emphasis", "group": ["Libra","Aquarius","Taurus","Leo","Scorpio"], "min": 3.0, "weight": 10 },
+      { "kind": "angle_aspect", "planet": "Moon", "type": "soft", "angle": "ASC", "max_orb": 6, "weight": 6 },
+      { "kind": "angle_aspect", "planet": "Venus", "type": "soft", "angle": "ASC", "max_orb": 6, "weight": 8 },
+      { "kind": "angle_aspect", "planet": "Neptune", "type": "soft", "angle": "ASC", "max_orb": 6, "weight": 4 },
+      { "kind": "angle_aspect", "planet": "Moon", "type": "soft", "angle": "MC", "max_orb": 6, "weight": 4 },
+      { "kind": "angle_aspect", "planet": "Venus", "type": "soft", "angle": "MC", "max_orb": 6, "weight": 6 },
+      { "kind": "angle_aspect", "planet": "Neptune", "type": "soft", "angle": "MC", "max_orb": 6, "weight": 3 },
+      { "kind": "planet_in_sign", "planet": "Venus", "sign": "Libra", "weight": 6 },
+      { "kind": "planet_in_sign", "planet": "Venus", "sign": "Taurus", "weight": 6 }
+    ],
+    "dampeners": [],
+    "escalators": []
+  }
+}

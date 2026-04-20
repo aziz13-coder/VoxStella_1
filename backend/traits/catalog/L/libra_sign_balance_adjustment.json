@@ -1,0 +1,22 @@
+{
+  "id": "libra_sign_balance_adjustment",
+  "name": "Libra (sign): balance, justice, adjustment",
+  "domain": "sign_psychology",
+  "description": "Power to compare, collate, choose, and adjust with Libra/Venus harmony; afflictions bring disharmony/indecision.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Libra — comparison/choice/adjustment; Venus harmony"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": 10 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": 8 },
+      { "kind": "element", "element": "Air", "min_share": 0.35, "weight": 4 },
+      { "kind": "house_emphasis", "houses": [7], "min_total": 1, "weight": 3 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Venus", "afflicted": true, "weight": -8 },
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

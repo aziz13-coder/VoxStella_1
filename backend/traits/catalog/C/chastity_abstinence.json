@@ -1,0 +1,20 @@
+{
+  "id": "chastity_abstinence",
+  "name": "Chastity / abstinence",
+  "domain": "virtue",
+  "description": "Abstinence indicated by Moon–Saturn discipline and 6th/12th axes; related to abstemiousness.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter: Moon–Saturn link; 6th/12th axes"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "aspect", "pair": ["Moon","Saturn"], "type": "soft", "max_orb": 6, "weight": 8 },
+      { "kind": "house_emphasis", "houses": [6,12], "min_total": 2, "weight": 6 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": 6 }
+    ],
+    "dampeners": [],
+    "escalators": []
+  }
+}
+

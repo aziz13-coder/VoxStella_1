@@ -1,0 +1,14 @@
+{
+  "id": "inconstancy_relations",
+  "name": "Inconstancy (relations)",
+  "domain": "attachment_style",
+  "description": "Relational inconstancy with Mutable emphasis and Venus–Uranus aspects; fixed loyalty and Saturn commitment reduce.",
+  "confidence": "medium",
+  "polarity": "negative",
+  "sources": ["Carter: Mutable; Venus–Uranus"],
+  "logic": { "base": 0,
+    "boosts": [ { "kind": "modality", "modality": "Mutable", "min_share": 0.35, "weight": 8 }, { "kind": "aspect", "pair": ["Venus","Uranus"], "type": "hard", "max_orb": 6, "weight": 8 } ],
+    "dampeners": [ { "kind": "modality", "modality": "Fixed", "min_share": 0.35, "weight": -6 }, { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -6 }, { "kind": "sign_group_emphasis", "group": ["Taurus","Cancer","Scorpio","Capricorn"], "min": 2.0, "weight": -4 } ],
+    "escalators": [] }
+}
+

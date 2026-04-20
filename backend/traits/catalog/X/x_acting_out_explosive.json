@@ -1,0 +1,24 @@
+{
+  "id": "x_acting_out_explosive",
+  "name": "X-acting out (explosive)",
+  "domain": "behavioral_risk",
+  "description": "Sudden, dramatic outbursts that ‘blow up’ situations—metaphorically ‘x-plosive’.",
+  "confidence": "medium",
+  "polarity": "negative",
+  "sources": [
+    "Carter: Uranus–Mars explosive anger; Fire under affliction"
+  ],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "aspect", "pair": ["Mars","Uranus"], "type": "hard", "max_orb": 6, "weight": 12 },
+      { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": 4 },
+      { "kind": "house_emphasis", "houses": [1,11,10], "min_total": 1, "weight": 3 }
+    ],
+    "dampeners": [
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": -4 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": -4 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -6 }
+    ],
+    "escalators": [] }
+}
+

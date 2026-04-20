@@ -1,0 +1,25 @@
+{
+  "id": "yare_readiness",
+  "name": "Yare readiness (prompt/quick)",
+  "domain": "tempo_responsiveness",
+  "description": "Smart readiness and agility in starting or changing course.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": [
+    "Carter: Aries initiative; Gemini/Mercury quickness"
+  ],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Aries", "min": 1.5, "weight": 6 },
+      { "kind": "planet_status", "planet": "Mars", "strong": true, "weight": 6 },
+      { "kind": "sign_emphasis", "sign": "Gemini", "min": 1.5, "weight": 4 },
+      { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": 4 },
+      { "kind": "house_emphasis", "houses": [1,3], "min_total": 1, "weight": 3 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -5 },
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.35, "weight": -3 }
+    ],
+    "escalators": [] }
+}
+

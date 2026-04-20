@@ -1,0 +1,20 @@
+{
+  "id": "mutable_adaptable",
+  "name": "Adaptable & intelligent (Mutable)",
+  "domain": "modality",
+  "description": "Flexible, adaptable, mediating quality of the Mutable signs; intelligence in adjustment.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Common (Mutable) = adaptable, intelligent"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "modality", "modality": "Mutable", "min_share": 0.35, "weight": 14 },
+      { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": 6 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Mercury", "afflicted": true, "weight": -6 }
+    ],
+    "escalators": []
+  }
+}

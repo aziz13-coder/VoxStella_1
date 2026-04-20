@@ -1,0 +1,70 @@
+[
+  {
+    "id": "will_i_be_arrested_source_pass",
+    "question": "Will I be arrested?",
+    "source_url": "https://astrologyweekly.com/threads/will-i-be-arrested.148736/",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "arrest by the authorities",
+    "source_expected_category": "general",
+    "source_expected_houses": [
+      1,
+      10
+    ],
+    "source_expected_focus": "The source discussion explicitly treats the friend as 1st-house querent and the police or government side of arrest as a 10th-house authority question rather than a generic other-person chart.",
+    "current_engine_category": "general",
+    "current_engine_houses": [
+      1,
+      10
+    ],
+    "current_engine_quesited_house": 10,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "The shared confinement doctrine now keeps the arrest authority visible on the 10th instead of flattening the question into generic 1/7 logic."
+  },
+  {
+    "id": "will_i_be_imprisoned_source_pass",
+    "question": "Will i be imprisoned?",
+    "source_url": "https://astrologyweekly.com/threads/will-i-be-imprisoned.114711/",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "imprisonment / jail",
+    "source_expected_category": "general",
+    "source_expected_houses": [
+      1,
+      12
+    ],
+    "source_expected_focus": "The source response explicitly says the 12th house rules prisons, with the querent on the 1st and prison on the 12th.",
+    "current_engine_category": "general",
+    "current_engine_houses": [
+      1,
+      12
+    ],
+    "current_engine_quesited_house": 12,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "The shared confinement doctrine now surfaces the 12th-house prison axis, and bounded subject matching prevents the old false turned-house drift."
+  },
+  {
+    "id": "husband_release_from_prison_source_pass",
+    "question": "Will my husband get out of prison sooner?",
+    "source_url": "https://astrologyweekly.com/threads/12th-house-matter-release-from-prison.68929/post-510952",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "spouse release from prison",
+    "source_expected_category": "general",
+    "source_expected_houses": [
+      1,
+      7,
+      12
+    ],
+    "source_expected_focus": "The source post explicitly says the querent is 1st, the husband is 7th, and the 12th house is prison, so the question keeps the spouse and confinement together.",
+    "current_engine_category": "general",
+    "current_engine_houses": [
+      1,
+      7,
+      12
+    ],
+    "current_engine_quesited_house": 7,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "The shared confinement doctrine now keeps the spouse visible while surfacing the 12th-house prison axis instead of collapsing into marriage routing."
+  }
+]

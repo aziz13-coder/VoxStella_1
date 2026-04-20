@@ -1,0 +1,20 @@
+{
+  "id": "kidney_disease_general",
+  "name": "Kidney disease (general)",
+  "domain": "disease_renal",
+  "description": "General renal susceptibility mapped via Libra/Venus organ link and 6th-house illness emphasis; placeholder until Carter’s specifics (e.g., Bright’s disease) are fully extracted.",
+  "confidence": "low",
+  "polarity": "negative",
+  "sources": ["Carter: Libra/Venus kidneys; Bright’s disease under B (to add)"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": 4 },
+      { "kind": "planet_status", "planet": "Venus", "afflicted": true, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [6], "min_total": 1, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

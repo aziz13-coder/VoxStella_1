@@ -1,0 +1,22 @@
+{
+  "id": "warmth_of_heart",
+  "name": "Warmth of heart",
+  "domain": "affective_style",
+  "description": "Generous, glowing warmth and open‑hearted expression with Leo/Sun and benefic support; Saturn on Sun chills.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Leo — warmth of heart; strength of soul"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Leo", "min": 1.5, "weight": 8 },
+      { "kind": "planet_status", "planet": "Sun", "strong": true, "weight": 8 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 4 },
+      { "kind": "house_emphasis", "houses": [5], "min_total": 1, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "aspect", "pair": ["Saturn","Sun"], "type": "hard", "max_orb": 6, "weight": -8 },
+      { "kind": "planet_status", "planet": "Sun", "afflicted": true, "weight": -6 }
+    ],
+    "escalators": [] }
+}
+

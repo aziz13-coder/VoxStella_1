@@ -1,0 +1,24 @@
+{
+  "id": "resignation",
+  "name": "Resignation (self-abnegation)",
+  "domain": "attitude",
+  "description": "Yielding, acceptance, and self‑abnegation with strong Pisces/12th and Water benefics; assertive Aries/Mars signatures reduce.",
+  "confidence": "high",
+  "polarity": "neutral",
+  "sources": ["Carter: Pisces self‑abnegation/resignation"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Pisces", "min": 1.5, "weight": 8 },
+      { "kind": "house_emphasis", "houses": [12], "min_total": 1, "weight": 6 },
+      { "kind": "planet_in_sign", "planet": "Jupiter", "sign": "Pisces", "weight": 4 },
+      { "kind": "planet_in_sign", "planet": "Venus", "sign": "Pisces", "weight": 4 },
+      { "kind": "planet_status", "planet": "Moon", "strong": true, "weight": 3 }
+    ],
+    "dampeners": [
+      { "kind": "sign_emphasis", "sign": "Aries", "min": 1.5, "weight": -6 },
+      { "kind": "planet_status", "planet": "Mars", "strong": true, "weight": -6 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

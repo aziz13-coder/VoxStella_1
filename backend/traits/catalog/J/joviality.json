@@ -1,0 +1,14 @@
+{
+  "id": "joviality",
+  "name": "Joviality (Jupiterian nature)",
+  "domain": "temperament_signature",
+  "description": "Benevolent, optimistic, open‑handed nature with Jupiter prominence; caution with overstatement when ill‑disposed.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Jupiterian benevolence"],
+  "logic": { "base": 0,
+    "boosts": [ { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 12 }, { "kind": "planet_in_sign", "planet": "Jupiter", "sign": "Sagittarius", "weight": 6 }, { "kind": "planet_in_sign", "planet": "Jupiter", "sign": "Pisces", "weight": 6 } ],
+    "dampeners": [ { "kind": "planet_status", "planet": "Jupiter", "afflicted": true, "weight": -8 } ],
+    "escalators": [] }
+}
+

@@ -1,0 +1,20 @@
+{
+  "id": "quietness",
+  "name": "Quietness (reserved temperament)",
+  "domain": "temperament",
+  "description": "Reserved bearing and steady presence with Fixed quality dominance and succeedent house strength; reduced by strong Cardinal/Fire agitation.",
+  "confidence": "high",
+  "polarity": "neutral",
+  "sources": ["Carter: Fixed reserved/intense/conservative; fixed ↔ succeedent"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.40, "weight": 10 },
+      { "kind": "house_emphasis", "houses": [2,5,8,11], "min_total": 2, "weight": 6 }
+    ],
+    "dampeners": [
+      { "kind": "modality", "modality": "Cardinal", "min_share": 0.35, "weight": -6 },
+      { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

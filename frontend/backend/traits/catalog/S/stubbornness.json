@@ -1,0 +1,20 @@
+{
+  "id": "stubbornness",
+  "name": "Stubbornness",
+  "domain": "character_defect",
+  "description": "Refusal to change or adapt when Fixed quality dominates under strain; mutable/airy influences and benefic breadth mitigate.",
+  "confidence": "high",
+  "polarity": "negative",
+  "sources": ["Carter: Fixed under affliction → tyrannical/stubborn/dull"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.40, "weight": 10 },
+      { "kind": "house_emphasis", "houses": [2,5,8,11], "min_total": 2, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "modality", "modality": "Mutable", "min_share": 0.35, "weight": -6 },
+      { "kind": "element", "element": "Air", "min_share": 0.35, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

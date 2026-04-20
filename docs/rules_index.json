@@ -1,0 +1,8 @@
+{
+  "R015": "reception_pair_kind == 'unilateral'",
+  "R016": "reception_pair_kind in ['mutual_rulership', 'mutual_exaltation', 'mutual_term', 'mutual_face']",
+  "R017": "reception_pair_kind == 'mixed_reception'",
+  "R018": "house_ruler_reception",
+  "R019": "S1_stations_before_perfection",
+  "R020": "S2_stations_before_perfection"
+}

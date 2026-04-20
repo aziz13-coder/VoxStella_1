@@ -1,0 +1,21 @@
+{
+  "id": "curiosity",
+  "name": "Curiosity (fact‑gathering)",
+  "domain": "cognitive_style",
+  "description": "Awareness of isolated facts; matter‑of‑factness; information‑seeking (Gemini/Mercury).",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Gemini cognitive style"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Gemini", "min": 1.5, "weight": 10 },
+      { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": 10 },
+      { "kind": "angle_aspect", "planet": "Mercury", "type": "soft", "angle": "ASC", "max_orb": 6, "weight": 6 }
+    ],
+    "dampeners": [
+      { "kind": "aspect", "pair": ["Mercury","Neptune"], "type": "hard", "max_orb": 6, "weight": -6 }
+    ],
+    "escalators": []
+  }
+}

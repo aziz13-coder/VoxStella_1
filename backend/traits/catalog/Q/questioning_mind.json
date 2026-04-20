@@ -1,0 +1,25 @@
+{
+  "id": "questioning_mind",
+  "name": "Questioning mind (impartial inquiry)",
+  "domain": "cognitive_motivation",
+  "description": "Impartial inquiry and desire to understand with strong Air placements and dignified Mercury/Venus/Saturn; Libra comparison and Gemini awareness emphasized.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Air ‘to be understood’; Libra comparison; Gemini awareness; joint rulership"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "element", "element": "Air", "min_share": 0.35, "weight": 8 },
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": 6 },
+      { "kind": "sign_emphasis", "sign": "Gemini", "min": 1.5, "weight": 6 },
+      { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": 6 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": 4 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": 4 },
+      { "kind": "house_emphasis", "houses": [7,11,3], "min_total": 2, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.40, "weight": -6 },
+      { "kind": "element", "element": "Earth", "min_share": 0.40, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

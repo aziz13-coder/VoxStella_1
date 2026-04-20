@@ -1,0 +1,20 @@
+{
+  "id": "cheerfulness",
+  "name": "Cheerfulness",
+  "domain": "energy_tone",
+  "description": "Cheerful energy via Fire and Jupiter; optimism and will to enjoy.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Fire/Jupiter = exuberance/optimism"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": 10 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 8 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Saturn", "afflicted": true, "weight": -6 }
+    ],
+    "escalators": []
+  }
+}

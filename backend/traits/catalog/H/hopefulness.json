@@ -1,0 +1,18 @@
+{
+  "id": "hopefulness",
+  "name": "Hopefulness",
+  "domain": "affect_outlook",
+  "description": "Buoyant, future‑oriented outlook with Jupiter/Sagittarius and Fire; care for rash optimism when ill‑disposed.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter: Jupiter/Sagittarius optimism"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 10 },
+      { "kind": "sign_emphasis", "sign": "Sagittarius", "min": 1.5, "weight": 8 },
+      { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": 6 }
+    ],
+    "dampeners": [ { "kind": "planet_status", "planet": "Jupiter", "afflicted": true, "weight": -8 } ],
+    "escalators": [] }
+}
+

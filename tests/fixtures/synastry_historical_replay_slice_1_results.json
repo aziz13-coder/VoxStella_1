@@ -1,0 +1,178 @@
+{
+  "generated_at": "2026-04-03T13:16:04+03:00",
+  "purpose": "Replay results for the first replay-ready synastry historical validation slice.",
+  "case_count": 2,
+  "status_counts": {
+    "aligned": 2
+  },
+  "matched_dimension_counts": {
+    "attachment": 1,
+    "compatibility": 2,
+    "burden": 2,
+    "friction": 1
+  },
+  "missed_primary_dimension_counts": {},
+  "missed_secondary_dimension_counts": {},
+  "results": [
+    {
+      "case_id": "paul_newman_joanne_woodward",
+      "title": "Paul Newman and Joanne Woodward",
+      "status": "aligned",
+      "comparison": {
+        "status": "aligned",
+        "matched_dimensions": [
+          "attachment",
+          "compatibility",
+          "burden"
+        ],
+        "missed_primary_dimensions": [],
+        "missed_secondary_dimensions": [],
+        "dimension_results": {
+          "attachment": {
+            "dimension": "attachment",
+            "priority": "primary",
+            "expected_band_range": [
+              4,
+              5
+            ],
+            "observed_score": 100.0,
+            "observed_band": 5,
+            "within_range": true
+          },
+          "compatibility": {
+            "dimension": "compatibility",
+            "priority": "primary",
+            "expected_band_range": [
+              3,
+              5
+            ],
+            "observed_score": 93.0,
+            "observed_band": 5,
+            "within_range": true
+          },
+          "burden": {
+            "dimension": "burden",
+            "priority": "secondary",
+            "expected_band_range": [
+              0,
+              2
+            ],
+            "observed_score": 52.0,
+            "observed_band": 2,
+            "within_range": true
+          }
+        }
+      },
+      "category_scores": {
+        "overall": 49,
+        "resonance": 61,
+        "communication": 0,
+        "attraction": 46,
+        "compatibility": 93,
+        "attachment": 100,
+        "growth": 88,
+        "friction": 100,
+        "burden": 52
+      },
+      "summary_lines": [
+        "Strongest support: Unilateral reception.",
+        "Main pressure: Saturn Square Mars.",
+        "Mutual reception adds extra binding force beneath the visible contacts."
+      ],
+      "top_supportive_titles": [
+        "Unilateral reception",
+        "Venus Sextile Venus",
+        "Ascendant Sextile Venus",
+        "Saturn Trine Venus",
+        "Sun in partner's House 1"
+      ],
+      "top_challenging_titles": [
+        "Saturn Square Mars",
+        "Saturn Square Mars",
+        "Sun Square North Node",
+        "Descendant Opposition Saturn",
+        "Natal lack activated"
+      ]
+    },
+    {
+      "case_id": "charles_diana",
+      "title": "Charles and Diana",
+      "status": "aligned",
+      "comparison": {
+        "status": "aligned",
+        "matched_dimensions": [
+          "burden",
+          "friction",
+          "compatibility"
+        ],
+        "missed_primary_dimensions": [],
+        "missed_secondary_dimensions": [],
+        "dimension_results": {
+          "burden": {
+            "dimension": "burden",
+            "priority": "primary",
+            "expected_band_range": [
+              4,
+              5
+            ],
+            "observed_score": 78.0,
+            "observed_band": 4,
+            "within_range": true
+          },
+          "friction": {
+            "dimension": "friction",
+            "priority": "primary",
+            "expected_band_range": [
+              3,
+              5
+            ],
+            "observed_score": 71.0,
+            "observed_band": 4,
+            "within_range": true
+          },
+          "compatibility": {
+            "dimension": "compatibility",
+            "priority": "secondary",
+            "expected_band_range": [
+              0,
+              2
+            ],
+            "observed_score": 52.0,
+            "observed_band": 2,
+            "within_range": true
+          }
+        }
+      },
+      "category_scores": {
+        "overall": 53,
+        "resonance": 30,
+        "communication": 49,
+        "attraction": 38,
+        "compatibility": 52,
+        "attachment": 100,
+        "growth": 99,
+        "friction": 71,
+        "burden": 78
+      },
+      "summary_lines": [
+        "Strongest support: Mutual reception.",
+        "Main pressure: Sun Square Moon.",
+        "Mutual reception adds extra binding force beneath the visible contacts."
+      ],
+      "top_supportive_titles": [
+        "Mutual reception",
+        "Unilateral reception",
+        "Venus in partner's House 10",
+        "Mercury Trine Sun",
+        "Moon Trine North Node"
+      ],
+      "top_challenging_titles": [
+        "Sun Square Moon",
+        "Saturn Conjunction Mars",
+        "Moon Square Saturn",
+        "Saturn in partner's House 8",
+        "Mars in partner's House 1"
+      ]
+    }
+  ]
+}

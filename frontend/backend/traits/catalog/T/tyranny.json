@@ -1,0 +1,23 @@
+{
+  "id": "tyranny",
+  "name": "Tyranny",
+  "domain": "shadow_tendency",
+  "description": "Overbearing insistence and refusal to accommodate when Fixed dominates under affliction; Libra/Venus and mutable/airy flexibility mitigate.",
+  "confidence": "high",
+  "polarity": "negative",
+  "sources": ["Carter: Fixed under affliction — tyrannical/stubborn/dull"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.45, "weight": 10 },
+      { "kind": "house_emphasis", "houses": [2,5,8,11], "min_total": 2, "weight": 4 },
+      { "kind": "planet_status", "planet": "Mars", "strong": true, "weight": 4 },
+      { "kind": "aspect", "pair": ["Mars","Saturn"], "type": "hard", "max_orb": 6, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": -6 },
+      { "kind": "modality", "modality": "Mutable", "min_share": 0.35, "weight": -6 },
+      { "kind": "element", "element": "Air", "min_share": 0.35, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

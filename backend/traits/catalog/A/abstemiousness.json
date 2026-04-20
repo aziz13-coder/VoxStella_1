@@ -1,0 +1,21 @@
+{
+  "id": "abstemiousness",
+  "name": "Abstemiousness (food)",
+  "domain": "habits",
+  "description": "Self-control and moderation, often seen with Moon–Saturn strength.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": ["Carter"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "aspect", "pair": ["Moon","Saturn"], "type": "hard", "max_orb": 6, "min_severity": "moderate", "weight": 10 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": 8 },
+      { "kind": "planet_in_sign", "planet": "Saturn", "sign": "Capricorn", "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": -6 }
+    ],
+    "escalators": []
+  }
+}

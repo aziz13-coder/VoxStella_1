@@ -1,0 +1,118 @@
+{
+  "generated_at": "2026-04-03T13:16:04+03:00",
+  "purpose": "Content-only synastry slice output for blog/demo cases. This artifact is explicitly outside the validation and calibration lanes.",
+  "lane": "blog_content_only",
+  "case_count": 2,
+  "results": [
+    {
+      "case_id": "justin_bieber_selena_gomez",
+      "title": "Justin Bieber and Selena Gomez",
+      "usage_lane": "blog_content_only",
+      "calibration_eligible": false,
+      "content_eligible": true,
+      "content_status": "captured_content_slice_1",
+      "content_angle": "High-search-interest on/off celebrity romance with attraction, friction, and recurring attachment themes.",
+      "timed_data_confidence": "B",
+      "source_references": [
+        "https://www.astro.com/astro-databank/Bieber,_Justin",
+        "https://www.astro.com/astro-databank/Gomez,_Selena"
+      ],
+      "what_to_trust": [
+        "Broad planet-to-planet themes",
+        "Sign-level chemistry and tension",
+        "High-level attraction, friction, and attachment discussion"
+      ],
+      "what_not_to_trust": [
+        "House-overlay-heavy claims without explicit chart capture review",
+        "Angle-sensitive interpretation as hard evidence",
+        "Any use of this pair for tuning or validating the synastry engine"
+      ],
+      "report_status": "ready",
+      "category_scores": {
+        "overall": 39,
+        "resonance": 34,
+        "communication": 39,
+        "attraction": 55,
+        "compatibility": 52,
+        "attachment": 45,
+        "growth": 92,
+        "friction": 87,
+        "burden": 47
+      },
+      "summary_lines": [
+        "Strongest support: Unilateral reception.",
+        "Main compensation factor: Fire lack filled.",
+        "Main pressure: Moon Opposition Moon."
+      ],
+      "top_supportive_titles": [
+        "Unilateral reception",
+        "Mercury Sextile Moon",
+        "Sun in partner's House 8",
+        "Sun in partner's House 8",
+        "Ascendant Trine Sun"
+      ],
+      "top_challenging_titles": [
+        "Moon Opposition Moon",
+        "Mars Square Mars",
+        "Directional overlay imbalance",
+        "Descendant Quincunx North Node",
+        "Ascendant Opposition Mars"
+      ]
+    },
+    {
+      "case_id": "justin_bieber_hailey_bieber",
+      "title": "Justin Bieber and Hailey Bieber",
+      "usage_lane": "blog_content_only",
+      "calibration_eligible": false,
+      "content_eligible": true,
+      "content_status": "captured_content_slice_1",
+      "content_angle": "High-search-interest celebrity marriage useful for a softer 'what the engine says' blog comparison.",
+      "timed_data_confidence": "C",
+      "source_references": [
+        "https://www.astro.com/astro-databank/Bieber,_Justin",
+        "https://www.astro.com/astro-databank/Bieber,_Hailey"
+      ],
+      "what_to_trust": [
+        "Broad sign and planetary themes for public-facing discussion",
+        "Lightweight narrative comparisons of how synastry can frame a relationship"
+      ],
+      "what_not_to_trust": [
+        "House overlays as strong evidence",
+        "Angular activation as a stable basis for claims",
+        "Any use of this pair for tuning or validating the synastry engine"
+      ],
+      "report_status": "ready",
+      "category_scores": {
+        "overall": 61,
+        "resonance": 33,
+        "communication": 22,
+        "attraction": 62,
+        "compatibility": 68,
+        "attachment": 98,
+        "growth": 96,
+        "friction": 73,
+        "burden": 33
+      },
+      "summary_lines": [
+        "Strongest support: Mutual reception.",
+        "Main compensation factor: Fire lack filled.",
+        "Main pressure: Ascendant Quincunx Moon.",
+        "Mutual reception adds extra binding force beneath the visible contacts."
+      ],
+      "top_supportive_titles": [
+        "Mutual reception",
+        "Unilateral reception",
+        "Sun in partner's House 1",
+        "Venus in partner's House 11",
+        "Fire lack filled"
+      ],
+      "top_challenging_titles": [
+        "Ascendant Quincunx Moon",
+        "Saturn Square Sun",
+        "Sun Square Mercury",
+        "Moon Opposition Moon",
+        "Mars in partner's House 3"
+      ]
+    }
+  ]
+}

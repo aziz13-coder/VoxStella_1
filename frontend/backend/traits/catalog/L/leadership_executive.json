@@ -1,0 +1,23 @@
+{
+  "id": "leadership_executive",
+  "name": "Leadership (executive)",
+  "domain": "role_capacity",
+  "description": "Capacity to lead when Saturn/Capricorn provide structure and Leo/Sun provide presence; Mars in Capricorn adds executive drive.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Capricorn organization; Leo presence; Mars exalted in Capricorn"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_group_emphasis", "group": ["Capricorn","Leo"], "min": 2.0, "weight": 8 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": 8 },
+      { "kind": "planet_status", "planet": "Sun", "strong": true, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [10,5], "min_total": 1, "weight": 6 },
+      { "kind": "planet_in_sign", "planet": "Mars", "sign": "Capricorn", "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Saturn", "afflicted": true, "weight": -6 },
+      { "kind": "planet_status", "planet": "Sun", "afflicted": true, "weight": -6 }
+    ],
+    "escalators": [] }
+}
+

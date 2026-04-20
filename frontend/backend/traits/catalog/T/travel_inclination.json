@@ -1,0 +1,22 @@
+{
+  "id": "travel_inclination",
+  "name": "Travel inclination",
+  "domain": "life_pattern",
+  "description": "Movement across distance for learning, trade, or outlook expansion with strong Gemini/Sagittarius, Mercury/Jupiter, and 3rd/9th emphasis; fixed/Saturn reduce.",
+  "confidence": "medium",
+  "polarity": "neutral",
+  "sources": ["Carter: Gemini/Sagittarius/9th travel themes"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_group_emphasis", "group": ["Gemini","Sagittarius"], "min": 2.0, "weight": 8 },
+      { "kind": "house_emphasis", "houses": [3,9], "min_total": 1, "weight": 6 },
+      { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": 4 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.40, "weight": -6 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

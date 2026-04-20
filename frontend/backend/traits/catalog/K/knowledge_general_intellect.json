@@ -1,0 +1,23 @@
+{
+  "id": "knowledge_general_intellect",
+  "name": "Knowledge (general intellect)",
+  "domain": "cognition",
+  "description": "Acquisition and handling of facts, analysis and study correlate with Mercury and Air; 3rd-house afflictions hinder.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Gemini/Virgo/Air intellect; 3rd-house cautions"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": 10 },
+      { "kind": "element", "element": "Air", "min_share": 0.35, "weight": 8 },
+      { "kind": "sign_group_emphasis", "group": ["Gemini","Virgo"], "min": 2.0, "weight": 6 }
+    ],
+    "dampeners": [
+      { "kind": "house_afflicted", "houses": [3], "any": true, "weight": -6 },
+      { "kind": "element", "element": "Water", "min_share": 0.40, "weight": -4 },
+      { "kind": "planet_status", "planet": "Mercury", "afflicted": true, "weight": -6 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

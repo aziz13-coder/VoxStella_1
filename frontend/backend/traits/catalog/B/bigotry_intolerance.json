@@ -1,0 +1,23 @@
+{
+  "id": "bigotry_intolerance",
+  "name": "Bigotry / intolerance",
+  "domain": "character",
+  "description": "Rigid, intolerant attitudes associated with over-fixed signatures and harsh thinking configurations.",
+  "confidence": "low",
+  "polarity": "negative",
+  "sources": ["Carter (cross-ref: Intolerance)"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.40, "weight": 10 },
+      { "kind": "aspect", "pair": ["Mercury","Saturn"], "type": "hard", "max_orb": 6, "weight": 10 },
+      { "kind": "aspect", "pair": ["Mars","Mercury"], "type": "hard", "max_orb": 6, "weight": 8 }
+    ],
+    "dampeners": [
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": -8 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": -6 }
+    ],
+    "escalators": []
+  }
+}
+

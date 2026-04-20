@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card" style="margin-bottom:16px;">
+  <form method="post" action="/admin/logout" style="display:flex; justify-content:flex-end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+    <button type="submit" style="background:#4b5563;">Logout</button>
+  </form>
+</div>
+
+<div class="card" style="margin-bottom:16px;">
+  <form method="get" action="/admin">
+    <input name="q" placeholder="Search key or email" value="{{ q }}" />
+    <button type="submit">Search</button>
+  </form>
+</div>
+
+<div class="card" style="margin-bottom:16px;">
+  <h3>Create Licenses</h3>
+  <form method="post" action="/admin/create" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+    <label>Count <input type="number" min="1" name="count" value="1" /></label>
+    <label>Plan 
+      <select name="plan"><option value="pro">pro</option><option value="standard">standard</option></select>
+    </label>
+    <label>Max Devices <input type="number" min="1" name="max_devices" value="1" /></label>
+    <label>Email <input type="email" name="owner_email" placeholder="user@example.com" /></label>
+    <label>Kind
+      <select name="kind">
+        <option value="perpetual">perpetual</option>
+        <option value="subscription">subscription</option>
+      </select>
+    </label>
+    <label>Status
+      <select name="status">
+        <option value="active">active</option>
+        <option value="past_due">past_due</option>
+        <option value="canceled">canceled</option>
+      </select>
+    </label>
+    <label>Period End (YYYY-MM-DD or seconds)
+      <input type="text" name="period_end" placeholder="blank = {{ default_subscription_term_days }} days from now" />
+    </label>
+    <button type="submit">Mint</button>
+  </form>
+</div>
+
+<div class="card">
+  <h3>Recent Licenses</h3>
+  <table>
+    <thead>
+      <tr><th>Key</th><th>Email</th><th>Plan</th><th>Kind</th><th>Status</th><th>Max</th><th>Active</th><th>Last Seen</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+        <tr>
+          <td style="font-family:monospace;">{{ r['license_key'] }}</td>
+          <td>{{ r['owner_email'] or '' }}</td>
+          <td>{{ r['plan'] }}</td>
+          <td>{{ r['kind'] or 'perpetual' }}</td>
+          <td>{{ r['status'] or 'active' }}</td>
+          <td>{{ r['max_devices'] }}</td>
+          <td>{{ 'yes' if r['active']==1 else 'no' }}</td>
+          <td>{% if r['last_seen'] %}{{ r['last_seen']|dt }}{% else %}—{% endif %}</td>
+          <td><a href="/admin/license/{{ r['license_key'] }}">open</a></td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

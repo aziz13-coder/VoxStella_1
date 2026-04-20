@@ -1,0 +1,22 @@
+{
+  "id": "confusion",
+  "name": "Confusion / fog",
+  "domain": "cognitive_shadow",
+  "description": "Cognitive fog via Mercury afflicted by Neptune/Jupiter; Neptune diffusion; mutable scatter.",
+  "confidence": "high",
+  "polarity": "negative",
+  "sources": ["Carter: Mercury afflicted by Neptune/Jupiter"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "aspect", "pair": ["Mercury","Neptune"], "type": "hard", "max_orb": 6, "weight": 12 },
+      { "kind": "aspect", "pair": ["Mercury","Jupiter"], "type": "hard", "max_orb": 6, "weight": 10 },
+      { "kind": "modality", "modality": "Mutable", "min_share": 0.40, "weight": 6 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": -8 }
+    ],
+    "escalators": []
+  }
+}
+

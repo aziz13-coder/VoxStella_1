@@ -1,0 +1,26 @@
+{
+  "id": "xenophilia",
+  "name": "Xenophilia (love of the foreign)",
+  "domain": "preference",
+  "description": "Attraction to foreign peoples, ideas, and cultures; cosmopolitan orientation.",
+  "confidence": "medium",
+  "polarity": "positive",
+  "sources": [
+    "Carter: 9th/Sagittarius travel and ideas; Aquarius universalism; Gemini curiosity"
+  ],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Sagittarius", "min": 1.5, "weight": 6 },
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 6 },
+      { "kind": "sign_emphasis", "sign": "Aquarius", "min": 1.5, "weight": 4 },
+      { "kind": "sign_emphasis", "sign": "Gemini", "min": 1.5, "weight": 3 },
+      { "kind": "house_emphasis", "houses": [9,3,11], "min_total": 1, "weight": 3 }
+    ],
+    "dampeners": [
+      { "kind": "sign_emphasis", "sign": "Cancer", "min": 1.5, "weight": -4 },
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.35, "weight": -3 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -3 }
+    ],
+    "escalators": [] }
+}
+

@@ -1,0 +1,384 @@
+{
+  "version": "2026-04-11",
+  "context_types": [
+    {
+      "id": "capital_chart",
+      "label": "Capital Chart",
+      "summary": "Use the capital as the operative location when the doctrine treats the polity through its governing center.",
+      "source_tags": ["green_ingress"],
+      "note_ids": ["capital_chart_context"]
+    },
+    {
+      "id": "national_chart",
+      "label": "National Chart Context",
+      "summary": "Use the selected national chart as the polity foundation and read later triggers against it.",
+      "source_tags": ["green_national_horoscopes", "national_chart_candidates"],
+      "note_ids": ["national_chart_context"]
+    },
+    {
+      "id": "event_chart",
+      "label": "Event Chart",
+      "summary": "Use the place and moment of the public event as the immediate anchor, especially for wars and acute public ruptures.",
+      "source_tags": ["watters_war_houses"],
+      "note_ids": ["event_chart_context"]
+    },
+    {
+      "id": "regional_chart",
+      "label": "Regional Chart",
+      "summary": "Use the regional or local frame when the doctrine applies to a city, province, or visibly bounded region rather than the whole polity.",
+      "source_tags": ["bonatti_revolutions"],
+      "note_ids": ["regional_chart_context"]
+    }
+  ],
+  "trigger_families": [
+    {
+      "id": "lunation",
+      "label": "Lunation Trigger",
+      "summary": "Shorter public trigger nested inside a larger ingress or polity framework.",
+      "status": "stable_doctrine",
+      "watch_for": ["new_moon_or_full_moon_near_sensitive_points", "domain_house_emphasis"],
+      "source_tags": ["green_lunations"]
+    },
+    {
+      "id": "eclipse",
+      "label": "Eclipse Trigger",
+      "summary": "High-impact public trigger that grows stronger with visibility and angularity.",
+      "status": "stable_doctrine",
+      "watch_for": ["visible_eclipse", "angular_eclipse", "public_disruption"],
+      "source_tags": ["green_eclipses", "watters_eclipse_degree"]
+    },
+    {
+      "id": "eclipse_degree_activation",
+      "label": "Eclipse-Degree Activation",
+      "summary": "Later activation when Mars or heavy planets strike the eclipse degree or related angles.",
+      "status": "benchmark_seeded",
+      "watch_for": ["mars_to_eclipse_degree", "heavy_planet_to_eclipse_degree"],
+      "source_tags": ["watters_eclipse_degree"]
+    },
+    {
+      "id": "retrograde_mars",
+      "label": "Retrograde Mars",
+      "summary": "Research-gated trigger tied to failed aggression, unstable leadership, or treaty reversal.",
+      "status": "source_concentrated",
+      "watch_for": ["retrograde_mars", "failed_treaty", "military_reversal"],
+      "source_tags": ["watters_retrograde_mars"]
+    },
+    {
+      "id": "mutation_and_conjunction_cycles",
+      "label": "Mutation / Conjunction Cycles",
+      "summary": "Long-cycle backdrop used as era context rather than immediate event trigger.",
+      "status": "framework_ready",
+      "watch_for": ["mutation_cycle", "great_conjunction_backdrop", "social_financial_shift"],
+      "source_tags": ["bonatti_revolutions", "watters_mutations"]
+    },
+    {
+      "id": "angularity",
+      "label": "Angularity",
+      "summary": "Amplifier that raises visibility and force of public testimony rather than acting as a domain on its own.",
+      "status": "stable_supporting_doctrine",
+      "watch_for": ["angular_planet", "angular_eclipse", "angle_contact"],
+      "source_tags": ["green_eclipses", "watters_eclipse_degree"]
+    }
+  ],
+  "activation_watchpoints": [
+    {
+      "id": "angularity",
+      "label": "Angularity Check",
+      "summary": "Treat angular placements as force multipliers for already-relevant public testimonies.",
+      "status": "stable_supporting_doctrine",
+      "source_tags": ["green_eclipses", "watters_eclipse_degree"]
+    },
+    {
+      "id": "eclipse_degree_activation",
+      "label": "Eclipse-Degree Follow-On Hit",
+      "summary": "Watch Mars or heavy planets when they revisit the eclipse degree or associated angles.",
+      "status": "benchmark_seeded",
+      "source_tags": ["watters_eclipse_degree"]
+    },
+    {
+      "id": "retrograde_mars",
+      "label": "Retrograde Mars Warning",
+      "summary": "Keep this trigger research-gated and use it as a cautionary signature for reversals rather than a standalone determinant.",
+      "status": "source_concentrated",
+      "source_tags": ["watters_retrograde_mars"]
+    }
+  ],
+  "source_index": {
+    "green_ingress": {
+      "label": "Green / Raphael / Carter on ingresses",
+      "citation": "Green, Raphael, Carter: ingress doctrine, pp. 12-20"
+    },
+    "green_lunations": {
+      "label": "Green / Raphael / Carter on lunations",
+      "citation": "Green, Raphael, Carter: lunation doctrine, pp. 14-16"
+    },
+    "green_eclipses": {
+      "label": "Green / Raphael / Carter on eclipses",
+      "citation": "Green, Raphael, Carter: eclipse doctrine, pp. 16-20"
+    },
+    "green_national_horoscopes": {
+      "label": "Green / Raphael / Carter on national horoscopes",
+      "citation": "Green, Raphael, Carter: national horoscope sections"
+    },
+    "green_public_affairs": {
+      "label": "Green / Raphael / Carter on public affairs",
+      "citation": "Green, Raphael, Carter: public-domain judgment sections"
+    },
+    "annotated_raphael_diplomacy": {
+      "label": "Annotated Raphael on diplomacy and treaty failure",
+      "citation": "Annotated Raphael's Mundane Astrology: foreign-affairs, treaty, and diplomatic breakdown framing"
+    },
+    "annotated_raphael_war_doctrine": {
+      "label": "Annotated Raphael on war outbreaks, campaigns, and reversals",
+      "citation": "Annotated Raphael's Mundane Astrology: war-house doctrine, Desert Storm eclipse case, and Gaugamela battle reversal material"
+    },
+    "bonatti_revolutions": {
+      "label": "Bonatti on revolutions and conjunctions",
+      "citation": "Bonatti, Treatise 4: conjunctions, revolutions, and location scope"
+    },
+    "watters_eclipse_degree": {
+      "label": "Watters on eclipse-degree activation",
+      "citation": "Watters: eclipse degree and heavy-planet activation doctrine"
+    },
+    "watters_retrograde_mars": {
+      "label": "Watters on retrograde Mars",
+      "citation": "Watters: retrograde Mars for treaty failure and unstable public action"
+    },
+    "watters_war_houses": {
+      "label": "Watters on war-chart houses",
+      "citation": "Watters: war-chart house assignments and aggressor-defender logic"
+    },
+    "watters_mutations": {
+      "label": "Watters on mutation cycles",
+      "citation": "Watters: mutation and conjunction cycle backdrop"
+    },
+    "annotated_raphael_public_health": {
+      "label": "Annotated Raphael on public health",
+      "citation": "Annotated Raphael's Mundane Astrology: epidemic and public-health framing"
+    },
+    "annotated_raphael_civil_unrest": {
+      "label": "Annotated Raphael on civil unrest and parliamentary rupture",
+      "citation": "Annotated Raphael's Mundane Astrology: riots, strikes, eleventh-house rupture, and social agitation"
+    },
+    "annotated_raphael_finance": {
+      "label": "Annotated Raphael on treasury and parliamentary finance",
+      "citation": "Annotated Raphael's Mundane Astrology: second-house finance, banks, securities, and eleventh-house budget disputes"
+    },
+    "watters_venus_retrograde_epidemics": {
+      "label": "Watters on retrograde epidemic signals",
+      "citation": "Watters: influenza, typhus, and retrograde burden references"
+    },
+    "national_chart_candidates": {
+      "label": "National chart candidate registry",
+      "citation": "Mundane knowledge base: candidate national charts and source preferences"
+    }
+  },
+  "doctrine_notes": {
+    "note_index": {
+      "aries_ingress_framework": {
+        "summary": "The Aries ingress is the yearly public framework chart and should be read before shorter triggers.",
+        "source_tags": ["green_ingress", "bonatti_revolutions"]
+      },
+      "lunation_framework": {
+        "summary": "Lunations narrow the time window inside a larger framework and are not sufficient by themselves for regime-level claims.",
+        "source_tags": ["green_lunations"]
+      },
+      "eclipse_framework": {
+        "summary": "Eclipses carry higher public force, but visibility, angularity, and later activation still matter.",
+        "source_tags": ["green_eclipses", "watters_eclipse_degree"]
+      },
+      "war_event_framework": {
+        "summary": "War-event charts should be read at the place and moment of outbreak, then checked against national or polity context when available.",
+        "source_tags": ["watters_war_houses"]
+      },
+      "national_chart_framework": {
+        "summary": "National charts provide the polity foundation, but event charts or later triggers are still needed for timing and acute public change.",
+        "source_tags": ["green_national_horoscopes", "national_chart_candidates"]
+      },
+      "capital_chart_context": {
+        "summary": "Capital charts are the default when the polity is read through its governing center.",
+        "source_tags": ["green_ingress"]
+      },
+      "national_chart_context": {
+        "summary": "National-chart context must preserve chart provenance and candidate-chart disagreement.",
+        "source_tags": ["national_chart_candidates"]
+      },
+      "event_chart_context": {
+        "summary": "Event-chart context is mandatory for acute public ruptures such as war outbreaks or declarations.",
+        "source_tags": ["watters_war_houses"]
+      },
+      "regional_chart_context": {
+        "summary": "Regional charts are appropriate when the doctrine points to a bounded city, province, or region rather than a whole state.",
+        "source_tags": ["bonatti_revolutions"]
+      },
+      "war_domain_framework": {
+        "summary": "War conflict is now a compatibility umbrella joining outbreak, campaign-escalation, and reversal logic, not the preferred fine-grained war lens.",
+        "source_tags": ["watters_war_houses", "green_public_affairs"]
+      },
+      "war_trigger_logic": {
+        "summary": "Use the umbrella only when backward compatibility matters; otherwise separate first hostilities, campaign broadening, and reversal or defeat logic.",
+        "source_tags": ["watters_war_houses"]
+      },
+      "war_activation_logic": {
+        "summary": "Treat the umbrella output as a merged warning surface that still requires corroboration across the more specific split war domains.",
+        "source_tags": ["watters_eclipse_degree", "watters_retrograde_mars"]
+      },
+      "war_outbreak_domain_framework": {
+        "summary": "War outbreak belongs to the first hostilities chart and the aggressor-defender house axis rather than to later campaign or defeat logic.",
+        "source_tags": ["watters_war_houses", "annotated_raphael_war_doctrine"]
+      },
+      "war_outbreak_trigger_logic": {
+        "summary": "Prioritize the war-event chart, angular Mars, the public Moon on the conflict axis, and direct first-versus-seventh polarity when judging outbreak conditions.",
+        "source_tags": ["watters_war_houses", "green_public_affairs", "annotated_raphael_war_doctrine"]
+      },
+      "war_outbreak_activation_logic": {
+        "summary": "Activation hits can sharpen an outbreak reading, but first-hostilities polarity remains primary and should not be replaced by later-cycle outcome logic.",
+        "source_tags": ["watters_eclipse_degree", "watters_war_houses"]
+      },
+      "campaign_escalation_domain_framework": {
+        "summary": "Campaign escalation belongs to sustained pressure, attritional signatures, and widening conflict beyond the opening event.",
+        "source_tags": ["watters_war_houses", "annotated_raphael_war_doctrine"]
+      },
+      "campaign_escalation_trigger_logic": {
+        "summary": "Prioritize Saturn or heavy strain, active war polarity, and eclipse or activation pressure that prolongs the campaign or broadens the theater.",
+        "source_tags": ["watters_war_houses", "watters_eclipse_degree", "annotated_raphael_war_doctrine"]
+      },
+      "campaign_escalation_activation_logic": {
+        "summary": "Treat escalation as a corroborated multi-factor pattern in which malefic pressure and activation deepen an already visible conflict axis.",
+        "source_tags": ["watters_eclipse_degree", "annotated_raphael_war_doctrine"]
+      },
+      "military_reversal_domain_framework": {
+        "summary": "Military reversal belongs to failed aggression, attrition, and defender recovery rather than merely to the fact that war is present.",
+        "source_tags": ["watters_retrograde_mars", "watters_war_houses", "annotated_raphael_war_doctrine"]
+      },
+      "military_reversal_trigger_logic": {
+        "summary": "Retrograde Mars, attritional Saturn, and eclipse or omen-style balance shifts are the current source-backed reversal triggers.",
+        "source_tags": ["watters_retrograde_mars", "annotated_raphael_war_doctrine", "watters_war_houses"]
+      },
+      "military_reversal_activation_logic": {
+        "summary": "Treat reversal as corroborated defeat pressure requiring retrograde, attritional, or defender-strength testimony rather than one isolated placement.",
+        "source_tags": ["watters_retrograde_mars", "watters_eclipse_degree", "annotated_raphael_war_doctrine"]
+      },
+      "government_domain_framework": {
+        "summary": "Government stability is now a compatibility umbrella joining leadership-transition and regime-stability logic, not the preferred fine-grained lens.",
+        "source_tags": ["green_public_affairs", "watters_retrograde_mars"]
+      },
+      "government_trigger_logic": {
+        "summary": "Use the umbrella only when backward compatibility matters; otherwise split authority stress into leadership-transition and regime-stability first.",
+        "source_tags": ["green_public_affairs", "watters_eclipse_degree"]
+      },
+      "government_activation_logic": {
+        "summary": "Treat the umbrella output as a merged warning surface that still requires corroboration across the more specific split domains.",
+        "source_tags": ["watters_retrograde_mars"]
+      },
+      "leadership_transition_domain_framework": {
+        "summary": "Leadership transition belongs to monarch, executive, succession, accession, and office-entry logic rather than generic government strain.",
+        "source_tags": ["green_public_affairs", "watters_retrograde_mars"]
+      },
+      "leadership_transition_trigger_logic": {
+        "summary": "Prioritize solar authority, luminaries, the tenth-house ruler, and direct transition-chart affliction when judging office-holder disruption.",
+        "source_tags": ["green_public_affairs", "watters_retrograde_mars", "watters_eclipse_degree"]
+      },
+      "leadership_transition_activation_logic": {
+        "summary": "Activation hits, retrograde instability, and angular authority points amplify transition risk but do not by themselves prove death or removal.",
+        "source_tags": ["watters_retrograde_mars", "watters_eclipse_degree"]
+      },
+      "regime_stability_domain_framework": {
+        "summary": "Regime stability belongs to cabinet durability, parliament, constitutional blockage, and institutional continuity rather than personal succession alone.",
+        "source_tags": ["green_public_affairs", "green_ingress"]
+      },
+      "regime_stability_trigger_logic": {
+        "summary": "Prioritize tenth- and eleventh-house institutional strain, malefics in executive or parliamentary houses, and capital-chart government logic.",
+        "source_tags": ["green_public_affairs", "green_ingress", "watters_eclipse_degree"]
+      },
+      "regime_stability_activation_logic": {
+        "summary": "Treat regime-level rupture as a corroborated institutional pattern requiring capital or authority context, not one isolated disruptive testimony.",
+        "source_tags": ["green_ingress", "watters_eclipse_degree", "watters_retrograde_mars"]
+      },
+      "diplomacy_domain_framework": {
+        "summary": "Diplomacy and treaties should be read through foreign-affairs houses first and only then through destabilizing triggers.",
+        "source_tags": ["green_public_affairs", "watters_retrograde_mars"]
+      },
+      "alliance_stress_domain_framework": {
+        "summary": "Alliance stress should be read through the eleventh house of friendly nations and support networks, then checked against seventh-, eighth-, and ninth-house treaty, ally-resource, and foreign-relations strain.",
+        "source_tags": ["green_public_affairs", "annotated_raphael_diplomacy", "watters_retrograde_mars"]
+      },
+      "alliance_stress_trigger_logic": {
+        "summary": "Moon-Saturn or malefic strain in the eleventh, eighth-house damage to allied resources, ninth-house foreign-relations weakness, and retrograde treaty breakdown are the current seeded triggers for alliance stress.",
+        "source_tags": ["green_public_affairs", "annotated_raphael_diplomacy", "watters_retrograde_mars"]
+      },
+      "alliance_stress_activation_logic": {
+        "summary": "Treat alliance-stress activation as a coalition-support warning that still requires corroborated eleventh-house strain rather than one isolated diplomatic embarrassment.",
+        "source_tags": ["green_public_affairs", "watters_retrograde_mars"]
+      },
+      "trade_and_commerce_domain_framework": {
+        "summary": "Trade and commerce should be read through second-house commercial resources, seventh- and ninth-house foreign-trade channels, and eleventh-house legislation touching commerce and state business.",
+        "source_tags": ["green_public_affairs", "annotated_raphael_finance", "annotated_raphael_diplomacy"]
+      },
+      "trade_and_commerce_trigger_logic": {
+        "summary": "Afflicted Mercury in the second, seventh, or ninth, Neptune in the ninth, eleventh-house trade-legislation strain, and commercial restriction to business initiative are the current seeded triggers for trade and commerce.",
+        "source_tags": ["green_public_affairs", "annotated_raphael_finance", "annotated_raphael_diplomacy"]
+      },
+      "trade_and_commerce_activation_logic": {
+        "summary": "Treat trade-and-commerce activation as a research-gated warning for commercial blockage or coercive restriction that still requires corroborated second-, seventh-, ninth-, or eleventh-house testimony.",
+        "source_tags": ["watters_eclipse_degree", "watters_mutations"]
+      },
+      "epidemic_wave_pressure_domain_framework": {
+        "summary": "Epidemic-wave pressure should be read as a narrower subfamily inside public health, focused on surge, recurrence, and subsiding-wave timing rather than broad collective illness burden alone.",
+        "source_tags": ["annotated_raphael_public_health", "green_public_affairs", "watters_venus_retrograde_epidemics"]
+      },
+      "epidemic_wave_pressure_trigger_logic": {
+        "summary": "Secondary-wave testimony belongs to sixth-, eighth-, and twelfth-house burden, Saturn-Uranus recurrence signatures, retrograde Venus onset or return, and lunation or eclipse timing windows.",
+        "source_tags": ["annotated_raphael_public_health", "green_public_affairs", "watters_venus_retrograde_epidemics", "watters_eclipse_degree"]
+      },
+      "epidemic_wave_pressure_activation_logic": {
+        "summary": "Treat epidemic-wave activation as a timing layer for surge, recurrence, or subsidence inside a broader public-health picture, not as a deterministic outbreak or death forecast.",
+        "source_tags": ["annotated_raphael_public_health", "watters_eclipse_degree"]
+      },
+      "diplomacy_trigger_logic": {
+        "summary": "Retrograde and eclipse stressors matter when they impair treaty durability, alliance coherence, or negotiation control.",
+        "source_tags": ["watters_retrograde_mars", "green_eclipses"]
+      },
+      "diplomacy_activation_logic": {
+        "summary": "Do not declare treaty collapse from one factor alone; require corroboration across framework and trigger layers.",
+        "source_tags": ["watters_retrograde_mars"]
+      },
+      "public_health_domain_framework": {
+        "summary": "Public-health doctrine is usable only in research mode and should remain framed as collective burden rather than personal medicine.",
+        "source_tags": ["annotated_raphael_public_health", "green_public_affairs", "watters_venus_retrograde_epidemics"]
+      },
+      "public_health_trigger_logic": {
+        "summary": "Collective health strain should rely on corroborated burden testimony and remain source-thin until more independent cases are added.",
+        "source_tags": ["annotated_raphael_public_health", "watters_venus_retrograde_epidemics"]
+      },
+      "public_health_activation_logic": {
+        "summary": "Treat public-health activations as warning overlays only; the current runtime should not present them as deterministic forecasts.",
+        "source_tags": ["annotated_raphael_public_health"]
+      },
+      "civil_unrest_domain_framework": {
+        "summary": "Civil unrest should stay tied to riot, disorder, strikes, lawlessness, and public agitation across the people, opposition, government, and parliamentary houses rather than collapsing into generic revolution language.",
+        "source_tags": ["green_public_affairs", "annotated_raphael_civil_unrest", "watters_mutations"]
+      },
+      "civil_unrest_trigger_logic": {
+        "summary": "Angular malefics, afflicted people/opposition houses, and eleventh-house parliamentary rupture are the current benchmark-backed triggers for unrest analysis.",
+        "source_tags": ["green_public_affairs", "annotated_raphael_civil_unrest", "watters_eclipse_degree"]
+      },
+      "civil_unrest_activation_logic": {
+        "summary": "Use eclipse-degree hits and martial reversals as amplifiers of already-present unrest pressure, not as standalone riot predictors.",
+        "source_tags": ["watters_eclipse_degree", "watters_retrograde_mars"]
+      },
+      "finance_domain_framework": {
+        "summary": "Finance and economy should be read through treasury, banks, commerce, securities, credit, and government revenue rather than personal wealth language.",
+        "source_tags": ["green_public_affairs", "annotated_raphael_finance", "watters_mutations"]
+      },
+      "finance_trigger_logic": {
+        "summary": "Second- and eighth-house treasury/debt condition, plus tenth- and eleventh-house government and parliamentary finance strain, are the present benchmark-backed finance triggers.",
+        "source_tags": ["green_public_affairs", "annotated_raphael_finance", "watters_mutations"]
+      },
+      "finance_activation_logic": {
+        "summary": "Sudden economic turns should stay attached to broader treasury stress rather than isolated one-factor event language.",
+        "source_tags": ["watters_eclipse_degree", "watters_mutations"]
+      }
+    }
+  }
+}

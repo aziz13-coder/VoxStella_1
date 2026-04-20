@@ -1,0 +1,23 @@
+{
+  "id": "reserve_social_style",
+  "name": "Reserve (social style)",
+  "domain": "social_style",
+  "description": "Self‑contained presence and preference for steadiness/privacy with Fixed quality and Earth/Water support; flashy Fire/Cardinal signatures reduce.",
+  "confidence": "high",
+  "polarity": "neutral",
+  "sources": ["Carter: Fixed reserved/intense/conservative; fixed ↔ succeedent"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.35, "weight": 8 },
+      { "kind": "element", "element": "Earth", "min_share": 0.35, "weight": 4 },
+      { "kind": "element", "element": "Water", "min_share": 0.35, "weight": 4 },
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": 4 },
+      { "kind": "house_emphasis", "houses": [2,5,8,11], "min_total": 2, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": -6 },
+      { "kind": "modality", "modality": "Cardinal", "min_share": 0.35, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

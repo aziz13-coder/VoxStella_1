@@ -1,0 +1,20 @@
+{
+  "id": "kidney_stones",
+  "name": "Kidney stones (renal calculi)",
+  "domain": "disease_renal",
+  "description": "Provisional rule: Saturnine 'stone' symbolism with Venus/Libra kidney link suggests tendency to calculi when Saturn presses Venus; to be refined with Carter’s specifics.",
+  "confidence": "low",
+  "polarity": "negative",
+  "sources": ["Carter: traditional correspondences; K: Kidney stones (TBD)"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": 6 },
+      { "kind": "aspect", "pair": ["Saturn","Venus"], "type": "hard", "max_orb": 6, "weight": 8 },
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

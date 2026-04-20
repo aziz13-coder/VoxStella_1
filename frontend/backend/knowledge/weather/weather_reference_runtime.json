@@ -1,0 +1,73 @@
+{
+  "layer_definitions": [
+    {
+      "id": "framework_layer",
+      "label": "Seasonal Framework",
+      "description": "Uses the latest cardinal solar ingress before the forecast time as the broader weather backdrop."
+    },
+    {
+      "id": "trigger_layer",
+      "label": "Lunar Trigger",
+      "description": "Uses the latest lunar phase before the forecast time as the shorter trigger layer."
+    },
+    {
+      "id": "locality_layer",
+      "label": "Locality Proxy",
+      "description": "Uses angle emphasis plus horizon/meridian target-zone intersection proxies until a fuller weather-map runtime is implemented."
+    }
+  ],
+  "source_index": {
+    "riske": {
+      "title": "Predicting Weather Events with Astrology",
+      "status": "operational",
+      "kind": "modern_weather_source"
+    },
+    "bonatti": {
+      "title": "Bonatti on Mundane Astrology",
+      "status": "operational",
+      "kind": "classical_weather_source"
+    },
+    "watters": {
+      "title": "Horary Astrology and the Judgment of Events",
+      "status": "supporting",
+      "kind": "supporting_signification_source"
+    },
+    "green_carter": {
+      "title": "Mundane Astrology: The Astrology of Nations and States",
+      "status": "supporting",
+      "kind": "mundane_framework_source"
+    }
+  },
+  "doctrine_notes": {
+    "note_index": {
+      "weather_framework": {
+        "label": "Ingress Plus Lunar Phase Framework",
+        "summary": "The weather seed engine preserves the benchmark-first framework that forecasts use the latest ingress for the seasonal backdrop and the latest lunar phase for shorter-term activation."
+      },
+      "weather_locality_proxy": {
+        "label": "Locality Proxy Only",
+        "summary": "The first runtime does not implement a full weather map engine; it uses angular path proxies plus horizon/meridian target-zone intersections as an explicitly limited locality layer."
+      },
+      "weather_eclipse_deferred": {
+        "label": "Bounded Eclipse Decision",
+        "summary": "Eclipse timing remains deferred in the live weather runtime until locality and weak-family discrimination improve enough to justify family-bounded eclipse scoring."
+      },
+      "flood_risk": {
+        "label": "Flood Risk Family",
+        "summary": "Flood interpretation preserves excess-water, flood, flash-flood, and prolonged heavy-precipitation logic instead of generic rain output."
+      },
+      "hurricane_pressure": {
+        "label": "Hurricane Pressure Family",
+        "summary": "Hurricane interpretation preserves tropical-storm and landfall pressure as a distinct family with wind-and-moisture emphasis."
+      },
+      "severe_convective_pressure": {
+        "label": "Severe Convective Family",
+        "summary": "Thunderstorm, hail, and tornado examples stay grouped as a severe-convection family until a larger runtime benchmark base justifies narrower splits."
+      },
+      "wind_event_pressure": {
+        "label": "Wind Event Family",
+        "summary": "Wind interpretation preserves Mercury and front-driven wind logic as a separate family, including named regional wind regimes."
+      }
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "id": "sensuality",
+  "name": "Sensuality",
+  "domain": "appetite",
+  "description": "Heightened enjoyment of the senses and bodily comfort with Taurus/Venus and Earth emphasis; Saturnian asceticism and Scorpio control reduce.",
+  "confidence": "medium",
+  "polarity": "neutral",
+  "sources": ["Carter: Taurus/Venus bodily pleasure; Earth embodiment"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Taurus", "min": 1.5, "weight": 8 },
+      { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": 10 },
+      { "kind": "element", "element": "Earth", "min_share": 0.35, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [2,5], "min_total": 1, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -6 },
+      { "kind": "sign_emphasis", "sign": "Scorpio", "min": 1.5, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

@@ -1,0 +1,23 @@
+{
+  "id": "absentmindedness",
+  "name": "Absentmindedness",
+  "domain": "cognition",
+  "description": "Forgetfulness or abstraction when Mercury is afflicted by Jupiter/Neptune; also Sagittarius/Pisces emphasis.",
+  "confidence": "medium",
+  "polarity": "negative",
+  "sources": ["Carter"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "aspect", "pair": ["Mercury","Jupiter"], "type": "hard", "max_orb": 6, "weight": 12 },
+      { "kind": "aspect", "pair": ["Mercury","Neptune"], "type": "hard", "max_orb": 6, "weight": 12 },
+      { "kind": "sign_group_emphasis", "group": ["Sagittarius","Pisces"], "min": 2.0, "weight": 4 },
+      { "kind": "planet_in_sign", "planet": "Mercury", "sign": "Sagittarius", "weight": 4 },
+      { "kind": "planet_in_sign", "planet": "Mercury", "sign": "Pisces", "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": -8 }
+    ],
+    "escalators": []
+  }
+}

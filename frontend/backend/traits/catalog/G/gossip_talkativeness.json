@@ -1,0 +1,18 @@
+{
+  "id": "gossip_talkativeness",
+  "name": "Gossip / talkativeness",
+  "domain": "communication_habit",
+  "description": "Talkative habit with Gemini/Mercury (strong → directed, afflicted → idle talk).",
+  "confidence": "medium",
+  "polarity": "neutral",
+  "sources": ["Carter: Gemini talkativeness; Mercury"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Gemini", "min": 1.5, "weight": 8 },
+      { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": 6 },
+      { "kind": "house_emphasis", "houses": [3], "min_total": 1, "weight": 6 }
+    ],
+    "dampeners": [ { "kind": "planet_status", "planet": "Mercury", "afflicted": true, "weight": -6 } ],
+    "escalators": [] }
+}
+

@@ -1,0 +1,144 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  guard-forbidden-paths:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Block forbidden path edits
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            RANGE="${BASE_SHA}...${GITHUB_SHA}"
+          elif [[ -n "${{ github.event.before }}" && "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]]; then
+            RANGE="${{ github.event.before }}...${GITHUB_SHA}"
+          else
+            RANGE="HEAD~1...HEAD"
+          fi
+          export RANGE
+          echo "Checking changed files in range: ${RANGE}"
+          python - <<'PY'
+          import fnmatch
+          import os
+          import subprocess
+          import sys
+
+          patterns = [
+              "frontend/dist-electron/**",
+              "frontend/backend/build/**",
+              "frontend/dist/**",
+              "website/**",
+              "**/win-unpacked/**",
+              "**/resources/**",
+              "**/venv/**",
+              "**/node_modules/**",
+              "licensing_server/.admin_token",
+              "licensing_server/*.db",
+              "licensing_server/*.db-shm",
+              "licensing_server/*.db-wal",
+              "licensing_server/keys/*.key",
+              "licensing_server/keys/*.pem",
+          ]
+
+          range_expr = os.environ.get("RANGE", "HEAD~1...HEAD").strip()
+          changed = subprocess.check_output(
+              ["git", "diff", "--name-only", range_expr], text=True
+          ).splitlines()
+
+          bad = []
+          for f in changed:
+              norm = f.strip().replace("\\\\", "/")
+              for pat in patterns:
+                  if fnmatch.fnmatch(norm, pat):
+                      bad.append(norm)
+                      break
+
+          if bad:
+              print("Forbidden path edits detected:")
+              for item in bad:
+                  print(f" - {item}")
+              sys.exit(1)
+          print("Forbidden-path guard passed.")
+          PY
+
+  frontend-tests:
+    runs-on: ubuntu-latest
+    needs: guard-forbidden-paths
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend deps
+        run: npm ci
+      - name: Run frontend lint
+        run: npm run lint
+      - name: Run frontend tests
+        run: npm test
+
+  backend-tests:
+    runs-on: ubuntu-latest
+    needs: guard-forbidden-paths
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install backend deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r backend/requirements.txt
+          python -m pip install bandit
+      - name: Run backend security scan
+        run: |
+          bandit -q -r backend licensing_server -x backend/build,backend/venv,backend/.venv,licensing_server/venv,licensing_server/.venv,frontend/backend/build -lll
+      - name: Run backend tests
+        run: |
+          pytest -q tests backend --ignore=backend/test_api_request.py --ignore=backend/test_engine.py --ignore=backend/test_simple.py --ignore=tests/test_election_route_contracts.py --ignore=tests/test_election_model_invariants.py --ignore=tests/test_election_rank_stress.py --ignore=tests/test_election_fuzz_matrix.py
+
+  election-fast-tests:
+    runs-on: ubuntu-latest
+    needs: guard-forbidden-paths
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install backend deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r backend/requirements.txt
+      - name: Run election fast tier
+        run: |
+          pytest -q tests/test_election_route_contracts.py tests/test_election_model_invariants.py
+
+  election-heavy-tests:
+    runs-on: ubuntu-latest
+    needs: guard-forbidden-paths
+    if: github.event_name != 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install backend deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r backend/requirements.txt
+      - name: Run election heavy tier
+        run: |
+          pytest -q tests/test_election_rank_stress.py tests/test_election_fuzz_matrix.py

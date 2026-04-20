@@ -1,0 +1,17 @@
+{
+  "id": "kidneys_region",
+  "name": "Kidneys (region)",
+  "domain": "anatomy_correspondence",
+  "description": "Traditional correspondence of kidneys with Libra/Venus; afflictions may indicate susceptibility to renal imbalance.",
+  "confidence": "medium",
+  "polarity": "neutral",
+  "sources": ["Carter: Libra/Venus correspondence; B: Bright’s disease cross‑reference"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": 6 },
+      { "kind": "planet_status", "planet": "Venus", "afflicted": true, "weight": 6 }
+    ],
+    "dampeners": [],
+    "escalators": [] }
+}
+

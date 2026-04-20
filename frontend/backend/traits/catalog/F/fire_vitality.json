@@ -1,0 +1,24 @@
+{
+  "id": "fire_vitality",
+  "name": "Fire (vitality & initiative)",
+  "domain": "triplicity_psychology",
+  "description": "Outgoing life‑energy, courage, optimism with Fire; unchecked or afflicted Fire/Mars becomes reckless/destructive.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Fire psychology"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": 12 },
+      { "kind": "planet_status", "planet": "Sun", "strong": true, "weight": 8 },
+      { "kind": "planet_status", "planet": "Mars", "strong": true, "weight": 8 },
+      { "kind": "house_emphasis", "houses": [1,5], "min_total": 2, "weight": 6 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Mars", "afflicted": true, "weight": -10 },
+      { "kind": "element", "element": "Fire", "min_share": 0.45, "weight": -6 }
+    ],
+    "escalators": []
+  }
+}
+

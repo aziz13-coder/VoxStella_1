@@ -1,0 +1,705 @@
+{
+  "generated_at": "2026-04-03T13:16:04+03:00",
+  "purpose": "Audit whether recent synastry category adjustments behave like general doctrine rather than only fitting the first two historical replay couples.",
+  "historical_replay_slices": [
+    {
+      "fixture": "C:\\Users\\sabaa\\Downloads\\codexhorary\\tests\\fixtures\\synastry_historical_replay_slice_1.json",
+      "case_count": 2,
+      "status_counts": {
+        "aligned": 2
+      },
+      "cases": [
+        {
+          "case_id": "paul_newman_joanne_woodward",
+          "status": "aligned",
+          "attraction_score": 46.0,
+          "burden_score": 52.0,
+          "compatibility_score": 93.0,
+          "friction_score": 100.0,
+          "attachment_score": 100.0,
+          "attraction_rule_ids": [
+            "overlay_mars_major",
+            "overlay_mars_major",
+            "overlay_sun_major",
+            "natal_activation_venus_mars",
+            "venus_venus_soft",
+            "overlay_outer_major"
+          ],
+          "attachment_rule_ids": [
+            "saturn_soft_bond",
+            "saturn_soft_bond",
+            "saturn_soft_bond",
+            "mutual_reception_support",
+            "saturn_soft_bond",
+            "overlay_saturn_major"
+          ],
+          "burden_rule_ids": [
+            "burden_saturn_context_relief",
+            "saturn_hard_bond",
+            "saturn_hard_bond",
+            "mars_saturn_hard",
+            "node_personal_hard",
+            "overlay_saturn_major"
+          ],
+          "compatibility_rule_ids": [
+            "venus_venus_soft",
+            "benefic_support_pairs",
+            "benefic_support_pairs",
+            "ascendant_personal_soft",
+            "element_asc_asc",
+            "overlay_jupiter_major"
+          ],
+          "has_attachment_floor": false,
+          "has_attraction_supportive_floor": false,
+          "has_attraction_stress_floor": false,
+          "has_burden_floor": false,
+          "has_compatibility_gate": false
+        },
+        {
+          "case_id": "charles_diana",
+          "status": "aligned",
+          "attraction_score": 38.0,
+          "burden_score": 78.0,
+          "compatibility_score": 52.0,
+          "friction_score": 71.0,
+          "attachment_score": 100.0,
+          "attraction_rule_ids": [
+            "overlay_venus_major",
+            "overlay_mars_major",
+            "natal_activation_venus_mars",
+            "natal_activation_venus_mars",
+            "sun_moon_stress",
+            "overlay_outer_major"
+          ],
+          "attachment_rule_ids": [
+            "mutual_reception_support",
+            "saturn_soft_bond",
+            "overlay_saturn_major",
+            "sign_house_affinity",
+            "sign_house_affinity",
+            "overlay_moon_major"
+          ],
+          "burden_rule_ids": [
+            "burden_oppressive_cluster_floor",
+            "saturn_hard_bond",
+            "overlay_saturn_major",
+            "mars_saturn_hard",
+            "sun_moon_stress",
+            "overlay_outer_major"
+          ],
+          "compatibility_rule_ids": [
+            "compatibility_conflict_gate",
+            "element_sun_sun",
+            "partnership_ruler_soft",
+            "element_asc_asc",
+            "overlay_jupiter_major",
+            "mutual_reception_support"
+          ],
+          "has_attachment_floor": false,
+          "has_attraction_supportive_floor": false,
+          "has_attraction_stress_floor": false,
+          "has_burden_floor": true,
+          "has_compatibility_gate": true
+        }
+      ]
+    },
+    {
+      "fixture": "C:\\Users\\sabaa\\Downloads\\codexhorary\\tests\\fixtures\\synastry_historical_replay_slice_2.json",
+      "case_count": 3,
+      "status_counts": {
+        "partially_aligned": 1,
+        "aligned": 2
+      },
+      "cases": [
+        {
+          "case_id": "frida_kahlo_diego_rivera",
+          "status": "partially_aligned",
+          "attraction_score": 22.0,
+          "burden_score": 43.0,
+          "compatibility_score": 57.0,
+          "friction_score": 58.0,
+          "attachment_score": 50.0,
+          "attraction_rule_ids": [
+            "overlay_mars_major",
+            "overlay_outer_major",
+            "overlay_outer_major",
+            "mars_mars_hard"
+          ],
+          "attachment_rule_ids": [
+            "mutual_reception_support",
+            "overlay_saturn_major",
+            "sign_house_affinity",
+            "unilateral_reception_support",
+            "saturn_hard_bond"
+          ],
+          "burden_rule_ids": [
+            "saturn_hard_bond",
+            "overlay_saturn_major",
+            "overlay_outer_major",
+            "overlay_outer_major",
+            "node_personal_hard",
+            "empty_house_fill_heavy"
+          ],
+          "compatibility_rule_ids": [
+            "benefic_support_pairs",
+            "overlay_jupiter_major",
+            "mutual_reception_support",
+            "unilateral_reception_support",
+            "mercury_mercury_soft",
+            "sign_house_affinity"
+          ],
+          "has_attachment_floor": false,
+          "has_attraction_supportive_floor": false,
+          "has_attraction_stress_floor": false,
+          "has_burden_floor": false,
+          "has_compatibility_gate": false
+        },
+        {
+          "case_id": "sid_nancy",
+          "status": "aligned",
+          "attraction_score": 55.0,
+          "burden_score": 100.0,
+          "compatibility_score": 52.0,
+          "friction_score": 90.0,
+          "attachment_score": 77.0,
+          "attraction_rule_ids": [
+            "attraction_stress_cluster_floor",
+            "venus_mars_square",
+            "overlay_mars_major",
+            "element_venus_mars",
+            "sun_moon_stress",
+            "overlay_outer_major"
+          ],
+          "attachment_rule_ids": [
+            "mutual_reception_support",
+            "overlay_saturn_major",
+            "overlay_saturn_major",
+            "overlay_moon_major",
+            "unilateral_reception_support",
+            "node_personal_soft"
+          ],
+          "burden_rule_ids": [
+            "saturn_hard_bond",
+            "saturn_hard_bond",
+            "saturn_hard_bond",
+            "directional_overlay_imbalance",
+            "sun_moon_stress",
+            "saturn_hard_bond"
+          ],
+          "compatibility_rule_ids": [
+            "compatibility_conflict_gate",
+            "element_sun_sun",
+            "element_asc_asc",
+            "overlay_jupiter_major",
+            "ascendant_personal_soft",
+            "ascendant_personal_soft"
+          ],
+          "has_attachment_floor": false,
+          "has_attraction_supportive_floor": false,
+          "has_attraction_stress_floor": true,
+          "has_burden_floor": false,
+          "has_compatibility_gate": true
+        },
+        {
+          "case_id": "elizabeth_taylor_richard_burton",
+          "status": "aligned",
+          "attraction_score": 70.0,
+          "burden_score": 61.0,
+          "compatibility_score": 62.0,
+          "friction_score": 100.0,
+          "attachment_score": 100.0,
+          "attraction_rule_ids": [
+            "venus_mars_attraction",
+            "attraction_supportive_polarity_floor",
+            "sun_moon_polar",
+            "element_venus_mars",
+            "natal_activation_venus_mars",
+            "natal_activation_venus_mars"
+          ],
+          "attachment_rule_ids": [
+            "mutual_reception_support",
+            "saturn_soft_bond",
+            "saturn_soft_bond",
+            "saturn_soft_bond",
+            "sun_moon_soft",
+            "overlay_moon_major"
+          ],
+          "burden_rule_ids": [
+            "saturn_hard_bond",
+            "saturn_hard_bond",
+            "mars_saturn_hard",
+            "node_personal_hard",
+            "overlay_outer_major",
+            "overlay_outer_major"
+          ],
+          "compatibility_rule_ids": [
+            "element_sun_sun",
+            "benefic_support_pairs",
+            "element_asc_asc",
+            "mutual_reception_support",
+            "benefic_support_pairs",
+            "unilateral_reception_support"
+          ],
+          "has_attachment_floor": false,
+          "has_attraction_supportive_floor": true,
+          "has_attraction_stress_floor": false,
+          "has_burden_floor": false,
+          "has_compatibility_gate": false
+        }
+      ]
+    },
+    {
+      "fixture": "C:\\Users\\sabaa\\Downloads\\codexhorary\\tests\\fixtures\\synastry_historical_replay_slice_3.json",
+      "case_count": 2,
+      "status_counts": {
+        "aligned": 2
+      },
+      "cases": [
+        {
+          "case_id": "frank_sinatra_ava_gardner",
+          "status": "aligned",
+          "attraction_score": 100.0,
+          "burden_score": 56.0,
+          "compatibility_score": 68.0,
+          "friction_score": 88.0,
+          "attachment_score": 100.0,
+          "attraction_rule_ids": [
+            "venus_mars_attraction",
+            "venus_mars_square",
+            "overlay_venus_major",
+            "overlay_mars_major",
+            "overlay_sun_major",
+            "element_venus_mars"
+          ],
+          "attachment_rule_ids": [
+            "mutual_reception_support",
+            "saturn_soft_bond",
+            "overlay_saturn_major",
+            "sign_house_affinity",
+            "overlay_moon_major",
+            "unilateral_reception_support"
+          ],
+          "burden_rule_ids": [
+            "sun_moon_stress",
+            "overlay_saturn_major",
+            "overlay_outer_major",
+            "overlay_outer_major",
+            "overlay_outer_major",
+            "empty_house_fill_heavy"
+          ],
+          "compatibility_rule_ids": [
+            "compatibility_conflict_gate",
+            "benefic_support_pairs",
+            "benefic_support_pairs",
+            "overlay_jupiter_major",
+            "mutual_reception_support",
+            "overlay_sun_major"
+          ],
+          "has_attachment_floor": false,
+          "has_attraction_supportive_floor": false,
+          "has_attraction_stress_floor": false,
+          "has_burden_floor": false,
+          "has_compatibility_gate": true
+        },
+        {
+          "case_id": "sartre_beauvoir",
+          "status": "aligned",
+          "attraction_score": 90.0,
+          "burden_score": 66.0,
+          "compatibility_score": 54.0,
+          "friction_score": 100.0,
+          "attachment_score": 70.0,
+          "attraction_rule_ids": [
+            "overlay_venus_major",
+            "overlay_mars_major",
+            "overlay_sun_major",
+            "natal_activation_venus_mars",
+            "element_venus_mars",
+            "natal_activation_venus_mars"
+          ],
+          "attachment_rule_ids": [
+            "attachment_enduring_binding_cluster_floor",
+            "mutual_reception_support",
+            "unilateral_reception_support",
+            "node_personal_soft",
+            "saturn_hard_bond",
+            "saturn_hard_bond"
+          ],
+          "burden_rule_ids": [
+            "saturn_hard_bond",
+            "saturn_hard_bond",
+            "sun_moon_stress",
+            "node_personal_hard",
+            "overlay_outer_major",
+            "overlay_outer_major"
+          ],
+          "compatibility_rule_ids": [
+            "benefic_support_pairs",
+            "element_asc_asc",
+            "overlay_sun_major",
+            "overlay_venus_major",
+            "unilateral_reception_support",
+            "ascendant_personal_soft"
+          ],
+          "has_attachment_floor": true,
+          "has_attraction_supportive_floor": false,
+          "has_attraction_stress_floor": false,
+          "has_burden_floor": false,
+          "has_compatibility_gate": false
+        }
+      ]
+    }
+  ],
+  "historical_status_counts": {
+    "synastry_historical_replay_slice_1.json": {
+      "aligned": 2
+    },
+    "synastry_historical_replay_slice_2.json": {
+      "partially_aligned": 1,
+      "aligned": 2
+    },
+    "synastry_historical_replay_slice_3.json": {
+      "aligned": 2
+    }
+  },
+  "seeded_corpus_audit": {
+    "seed_count": 24,
+    "burden_floor_count": 1,
+    "burden_floor_seeds": [
+      16
+    ],
+    "compatibility_gate_count": 6,
+    "compatibility_gate_seeds": [
+      2,
+      4,
+      6,
+      7,
+      11,
+      23
+    ],
+    "attraction_supportive_floor_count": 1,
+    "attraction_supportive_floor_seeds": [
+      1
+    ],
+    "attraction_stress_floor_count": 0,
+    "attraction_stress_floor_seeds": [],
+    "attachment_floor_count": 1,
+    "attachment_floor_seeds": [
+      1
+    ],
+    "sample_hits": [
+      {
+        "seed": 1,
+        "has_burden_floor": false,
+        "has_compatibility_gate": false,
+        "has_attraction_supportive_floor": true,
+        "has_attraction_stress_floor": false,
+        "has_attachment_floor": true,
+        "attraction_score": 70.0,
+        "attachment_score": 70.0,
+        "burden_score": 64.0,
+        "compatibility_score": 48.0
+      },
+      {
+        "seed": 2,
+        "has_burden_floor": false,
+        "has_compatibility_gate": true,
+        "has_attraction_supportive_floor": false,
+        "has_attraction_stress_floor": false,
+        "has_attachment_floor": false,
+        "attraction_score": 100.0,
+        "attachment_score": 92.0,
+        "burden_score": 86.0,
+        "compatibility_score": 68.0
+      },
+      {
+        "seed": 4,
+        "has_burden_floor": false,
+        "has_compatibility_gate": true,
+        "has_attraction_supportive_floor": false,
+        "has_attraction_stress_floor": false,
+        "has_attachment_floor": false,
+        "attraction_score": 100.0,
+        "attachment_score": 100.0,
+        "burden_score": 100.0,
+        "compatibility_score": 68.0
+      },
+      {
+        "seed": 6,
+        "has_burden_floor": false,
+        "has_compatibility_gate": true,
+        "has_attraction_supportive_floor": false,
+        "has_attraction_stress_floor": false,
+        "has_attachment_floor": false,
+        "attraction_score": 100.0,
+        "attachment_score": 85.0,
+        "burden_score": 74.0,
+        "compatibility_score": 68.0
+      },
+      {
+        "seed": 7,
+        "has_burden_floor": false,
+        "has_compatibility_gate": true,
+        "has_attraction_supportive_floor": false,
+        "has_attraction_stress_floor": false,
+        "has_attachment_floor": false,
+        "attraction_score": 100.0,
+        "attachment_score": 67.0,
+        "burden_score": 78.0,
+        "compatibility_score": 68.0
+      },
+      {
+        "seed": 11,
+        "has_burden_floor": false,
+        "has_compatibility_gate": true,
+        "has_attraction_supportive_floor": false,
+        "has_attraction_stress_floor": false,
+        "has_attachment_floor": false,
+        "attraction_score": 100.0,
+        "attachment_score": 100.0,
+        "burden_score": 82.0,
+        "compatibility_score": 52.0
+      },
+      {
+        "seed": 16,
+        "has_burden_floor": true,
+        "has_compatibility_gate": false,
+        "has_attraction_supportive_floor": false,
+        "has_attraction_stress_floor": false,
+        "has_attachment_floor": false,
+        "attraction_score": 100.0,
+        "attachment_score": 79.0,
+        "burden_score": 78.0,
+        "compatibility_score": 57.0
+      },
+      {
+        "seed": 23,
+        "has_burden_floor": false,
+        "has_compatibility_gate": true,
+        "has_attraction_supportive_floor": false,
+        "has_attraction_stress_floor": false,
+        "has_attachment_floor": false,
+        "attraction_score": 92.0,
+        "attachment_score": 100.0,
+        "burden_score": 100.0,
+        "compatibility_score": 68.0
+      }
+    ]
+  },
+  "synthetic_archetypes": {
+    "oppressive_cluster": {
+      "attraction_score": 91.0,
+      "burden_score": 78.0,
+      "compatibility_score": 100.0,
+      "friction_score": 100.0,
+      "attachment_score": 100.0,
+      "attraction_rule_ids": [
+        "venus_mars_attraction",
+        "overlay_venus_major",
+        "overlay_venus_major",
+        "overlay_mars_major",
+        "sun_moon_stress"
+      ],
+      "attachment_rule_ids": [
+        "saturn_soft_bond",
+        "mutual_reception_support",
+        "overlay_saturn_major",
+        "overlay_saturn_major",
+        "venus_mars_attraction",
+        "natal_activation_sun_soft"
+      ],
+      "burden_rule_ids": [
+        "burden_saturn_context_relief",
+        "burden_oppressive_cluster_floor",
+        "saturn_hard_bond",
+        "saturn_hard_bond",
+        "saturn_hard_bond",
+        "saturn_hard_bond"
+      ],
+      "compatibility_rule_ids": [
+        "benefic_support_pairs",
+        "benefic_support_pairs",
+        "benefic_support_pairs",
+        "ascendant_personal_soft",
+        "mercury_luminary_soft",
+        "mercury_luminary_soft"
+      ],
+      "has_attachment_floor": false,
+      "has_attraction_supportive_floor": false,
+      "has_attraction_stress_floor": false,
+      "has_burden_floor": true,
+      "has_compatibility_gate": false
+    },
+    "serious_but_workable_saturn": {
+      "attraction_score": 100.0,
+      "burden_score": 52.0,
+      "compatibility_score": 100.0,
+      "friction_score": 100.0,
+      "attachment_score": 100.0,
+      "attraction_rule_ids": [
+        "venus_mars_attraction",
+        "sun_moon_polar",
+        "overlay_venus_major",
+        "overlay_venus_major",
+        "overlay_mars_major",
+        "overlay_sun_major"
+      ],
+      "attachment_rule_ids": [
+        "mutual_reception_support",
+        "saturn_soft_bond",
+        "saturn_soft_bond",
+        "sun_moon_polar",
+        "venus_mars_attraction",
+        "overlay_moon_major"
+      ],
+      "burden_rule_ids": [
+        "burden_saturn_context_relief",
+        "saturn_hard_bond",
+        "saturn_hard_bond",
+        "saturn_hard_bond",
+        "saturn_hard_bond",
+        "saturn_hard_bond"
+      ],
+      "compatibility_rule_ids": [
+        "benefic_support_pairs",
+        "benefic_support_pairs",
+        "benefic_support_pairs",
+        "benefic_support_pairs",
+        "benefic_support_pairs",
+        "moon_moon_soft"
+      ],
+      "has_attachment_floor": false,
+      "has_attraction_supportive_floor": false,
+      "has_attraction_stress_floor": false,
+      "has_burden_floor": false,
+      "has_compatibility_gate": false
+    },
+    "high_friction_without_hard_saturn_cluster": {
+      "attraction_score": 100.0,
+      "burden_score": 27.0,
+      "compatibility_score": 100.0,
+      "friction_score": 100.0,
+      "attachment_score": 78.0,
+      "attraction_rule_ids": [
+        "venus_mars_attraction",
+        "venus_mars_attraction",
+        "overlay_venus_major",
+        "overlay_venus_major",
+        "overlay_sun_major",
+        "overlay_sun_major"
+      ],
+      "attachment_rule_ids": [
+        "mutual_reception_support",
+        "partnership_ruler_soft",
+        "overlay_saturn_major",
+        "venus_mars_attraction",
+        "overlay_moon_major",
+        "unilateral_reception_support"
+      ],
+      "burden_rule_ids": [
+        "sun_moon_stress",
+        "sun_moon_stress",
+        "overlay_saturn_major",
+        "empty_house_fill_heavy"
+      ],
+      "compatibility_rule_ids": [
+        "benefic_support_pairs",
+        "benefic_support_pairs",
+        "benefic_support_pairs",
+        "partnership_ruler_soft",
+        "element_sun_sun",
+        "mercury_luminary_soft"
+      ],
+      "has_attachment_floor": false,
+      "has_attraction_supportive_floor": false,
+      "has_attraction_stress_floor": false,
+      "has_burden_floor": false,
+      "has_compatibility_gate": false
+    },
+    "supportive_polarity_chemistry": {
+      "attraction_score": 70.0,
+      "burden_score": 18.0,
+      "compatibility_score": 68.0,
+      "friction_score": 95.0,
+      "attachment_score": 81.0,
+      "attraction_rule_ids": [
+        "venus_mars_attraction",
+        "overlay_mars_major",
+        "overlay_sun_major",
+        "element_venus_mars",
+        "attraction_supportive_polarity_floor"
+      ],
+      "attachment_rule_ids": [
+        "saturn_soft_bond",
+        "sun_moon_soft",
+        "mutual_reception_support",
+        "overlay_moon_major",
+        "sign_house_affinity",
+        "unilateral_reception_support"
+      ],
+      "burden_rule_ids": [
+        "directional_overlay_imbalance",
+        "saturn_soft_bond",
+        "empty_house_fill_heavy",
+        "empty_house_fill_heavy"
+      ],
+      "compatibility_rule_ids": [
+        "compatibility_conflict_gate",
+        "benefic_support_pairs",
+        "benefic_support_pairs",
+        "element_sun_sun",
+        "ascendant_personal_soft",
+        "ascendant_personal_soft"
+      ],
+      "has_attachment_floor": false,
+      "has_attraction_supportive_floor": true,
+      "has_attraction_stress_floor": false,
+      "has_burden_floor": false,
+      "has_compatibility_gate": true
+    },
+    "magnetic_stress_cluster": {
+      "attraction_score": 55.0,
+      "burden_score": 79.0,
+      "compatibility_score": 68.0,
+      "friction_score": 100.0,
+      "attachment_score": 100.0,
+      "attraction_rule_ids": [
+        "venus_mars_square",
+        "overlay_venus_major",
+        "overlay_sun_major",
+        "mars_mars_hard",
+        "sun_moon_stress",
+        "attraction_stress_cluster_floor"
+      ],
+      "attachment_rule_ids": [
+        "mutual_reception_support",
+        "saturn_soft_bond",
+        "saturn_soft_bond",
+        "saturn_soft_bond",
+        "saturn_soft_bond",
+        "overlay_saturn_major"
+      ],
+      "burden_rule_ids": [
+        "saturn_hard_bond",
+        "saturn_hard_bond",
+        "mars_saturn_hard",
+        "sun_moon_stress",
+        "overlay_saturn_major",
+        "saturn_soft_bond"
+      ],
+      "compatibility_rule_ids": [
+        "compatibility_conflict_gate",
+        "benefic_support_pairs",
+        "benefic_support_pairs",
+        "benefic_support_pairs",
+        "element_sun_sun",
+        "ascendant_personal_soft"
+      ],
+      "has_attachment_floor": false,
+      "has_attraction_supportive_floor": false,
+      "has_attraction_stress_floor": true,
+      "has_burden_floor": false,
+      "has_compatibility_gate": true
+    }
+  }
+}

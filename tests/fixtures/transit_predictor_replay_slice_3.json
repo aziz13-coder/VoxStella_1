@@ -1,0 +1,79 @@
+[
+  {
+    "id": "sergio_mattarella_president",
+    "display_name": "Sergio Mattarella elected President of Italy",
+    "event_label": "Elected President of the Italian Republic",
+    "natal_datetime": "1941-07-23T11:40:00",
+    "natal_location": "Palermo, Italy",
+    "natal_timezone": "Europe/Rome",
+    "latitude": 38.1112268,
+    "longitude": 13.3524434,
+    "resolved_location": "Palermo, Sicilia, Italia",
+    "event_datetime": "2015-01-31T13:00:00+01:00",
+    "house_system_code": "R",
+    "window_hours": 24,
+    "expected_exact_event_descriptions": [
+      "Jupiter Sextile Mercury (antiscia)"
+    ],
+    "max_step_score_rank": 25,
+    "max_peak_distance_hours": 4.0,
+    "sources": {
+      "natal": "https://www.astro.com/astro-databank/Mattarella%2C_Sergio",
+      "event": "https://www.astro.com/astro-databank/Mattarella%2C_Sergio"
+    }
+  },
+  {
+    "id": "obama_nobel_peace_announcement",
+    "display_name": "Barack Obama Nobel Peace Prize announcement",
+    "event_label": "Nobel Peace Prize announced",
+    "natal_datetime": "1961-08-04T19:24:00",
+    "natal_location": "Honolulu, Hawaii",
+    "natal_timezone": "Pacific/Honolulu",
+    "latitude": 21.304547,
+    "longitude": -157.8556764,
+    "resolved_location": "Honolulu, Honolulu County, Hawaii, United States",
+    "event_datetime": "2009-10-09T11:00:00+02:00",
+    "house_system_code": "R",
+    "window_hours": 24,
+    "time_basis": "official_norwegian_nobel_committee_announcement_slot",
+    "time_confidence": "medium",
+    "expected_exact_event_descriptions": [
+      "Jupiter Conjunction Asc"
+    ],
+    "max_step_score_rank": 10,
+    "max_peak_distance_hours": 7.0,
+    "sources": {
+      "natal": "https://www.astro.com/astro-databank/Obama%2C_Barack",
+      "event_announcement": "https://www.nobelprize.org/prizes/peace/2009/prize-announcement/",
+      "event_press_release": "https://www.nobelprize.org/prizes/peace/2009/press-release/",
+      "time_basis": "https://www.nobelprize.org/prizes/about/prize-announcement-dates/"
+    }
+  },
+  {
+    "id": "al_gore_nobel_peace_announcement",
+    "display_name": "Al Gore Nobel Peace Prize announcement",
+    "event_label": "Nobel Peace Prize announced",
+    "natal_datetime": "1948-03-31T12:53:00",
+    "natal_location": "Washington, District of Columbia",
+    "natal_timezone": "America/New_York",
+    "latitude": 38.8950368,
+    "longitude": -77.0365427,
+    "resolved_location": "Washington, District of Columbia, United States",
+    "event_datetime": "2007-10-12T11:00:00+02:00",
+    "house_system_code": "R",
+    "window_hours": 24,
+    "time_basis": "official_norwegian_nobel_committee_announcement_slot",
+    "time_confidence": "medium",
+    "expected_exact_event_descriptions": [
+      "Jupiter Trine Saturn"
+    ],
+    "max_step_score_rank": 25,
+    "max_peak_distance_hours": 5.0,
+    "sources": {
+      "natal": "https://www.astro.com/astro-databank/Gore%2C_Al",
+      "event_announcement": "https://www.nobelprize.org/prizes/peace/2007/press-release/",
+      "event_facts": "https://www.nobelprize.org/prizes/peace/2007/gore/facts/",
+      "time_basis": "https://www.nobelprize.org/prizes/about/prize-announcement-dates/"
+    }
+  }
+]

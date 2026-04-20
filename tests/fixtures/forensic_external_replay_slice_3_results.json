@@ -1,0 +1,35 @@
+[
+  {
+    "id": "shinzo_abe_assassination",
+    "status_code": 200,
+    "success": true,
+    "comparison": {
+      "status": "aligned",
+      "matched_axes": [
+        "violence_homicide",
+        "authority_or_public_case"
+      ],
+      "missed_axes": [],
+      "contradicted_axes": []
+    },
+    "categories": {
+      "Deception": 3,
+      "Degree Signatures": 1,
+      "Headwinds": 1,
+      "Houses": 1,
+      "Public": 1,
+      "Stressors": 1,
+      "Violence": 2
+    },
+    "top_finding_titles": [
+      "Moon in Via Combusta",
+      "Life/death overlap points to violence or homicide",
+      "1st ruler also rules the 8th",
+      "Malefic contrary to sect (angular)",
+      "Moon under death pressure",
+      "Moon applying to malefic by hard aspect",
+      "Public or authority axis is foregrounded",
+      "Mercury in a mute sign"
+    ]
+  }
+]

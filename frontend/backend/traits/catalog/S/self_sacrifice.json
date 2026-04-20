@@ -1,0 +1,23 @@
+{
+  "id": "self_sacrifice",
+  "name": "Self‑sacrifice",
+  "domain": "care_orientation",
+  "description": "Willing self‑denial for children, family, or humanity with strong Water (Pisces/Cancer), benefics dignified in Water, and 12th/4th emphasis; Aries/Mars reduces.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Higher Water types self‑sacrificing and protective"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "element", "element": "Water", "min_share": 0.35, "weight": 8 },
+      { "kind": "sign_group_emphasis", "group": ["Pisces","Cancer"], "min": 2.0, "weight": 6 },
+      { "kind": "planet_in_sign", "planet": "Jupiter", "sign": "Cancer", "weight": 3 },
+      { "kind": "planet_in_sign", "planet": "Venus", "sign": "Pisces", "weight": 3 },
+      { "kind": "house_emphasis", "houses": [12,4], "min_total": 1, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "sign_emphasis", "sign": "Aries", "min": 1.5, "weight": -6 },
+      { "kind": "planet_status", "planet": "Mars", "strong": true, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

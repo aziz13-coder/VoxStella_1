@@ -1,0 +1,74 @@
+[
+  {
+    "id": "tenant_move_out_astrologyweekly_source_pass",
+    "question": "When will my tenant move out?",
+    "source_url": "https://astrologyweekly.com/threads/when-will-my-tenant-move-out.133408/post-1041727",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "timing / eventually through tenant-leaving or eviction pressure",
+    "source_expected_category": "property",
+    "source_expected_houses": [
+      1,
+      4,
+      7
+    ],
+    "source_expected_focus": "A tenant move-out question should keep the landlord or querent, the property itself, and the tenant as counterparty together rather than reducing the matter to a bare 7th-house other person.",
+    "current_engine_category": "property",
+    "current_engine_houses": [
+      1,
+      4,
+      7
+    ],
+    "current_engine_quesited_house": 7,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Aligned after the shared tenancy doctrine pass keeps the tenant on the 7th and the property on the 4th."
+  },
+  {
+    "id": "illegal_tenant_leave_property_astrologyweekly_source_pass",
+    "question": "Will he leave the property?",
+    "source_url": "https://astrologyweekly.com/threads/will-he-leave-the-property-please-help-read.154775/post-1365899",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "eventually yes / occupancy change",
+    "source_expected_category": "property",
+    "source_expected_houses": [
+      1,
+      4,
+      7
+    ],
+    "source_expected_focus": "An unwanted tenant or occupant leaving the property keeps the property on the 4th and the occupant on the 7th, even if the court or housing authority is not the explicit question.",
+    "current_engine_category": "property",
+    "current_engine_houses": [
+      1,
+      4,
+      7
+    ],
+    "current_engine_quesited_house": 7,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Aligned after the shared tenancy doctrine pass keeps the occupant as counterparty while preserving the property on the 4th."
+  },
+  {
+    "id": "evicted_lose_home_astrologyweekly_source_pass",
+    "question": "Will I get evicted/loose my Home?",
+    "source_url": "https://astrologyweekly.com/threads/will-i-get-evicted-loose-my-home.21088/",
+    "source_kind": "mixed_external_source_pass",
+    "article_expected_verdict": "no / temporary reprieve",
+    "source_expected_category": "property",
+    "source_expected_houses": [
+      1,
+      4,
+      7
+    ],
+    "source_expected_focus": "Eviction questions keep the querent, the home, and the landlord together, since losing occupancy is not just a house question but a housing-contract conflict.",
+    "current_engine_category": "property",
+    "current_engine_houses": [
+      1,
+      4,
+      7
+    ],
+    "current_engine_quesited_house": 4,
+    "current_engine_intent": "OCCURRENCE",
+    "source_alignment": true,
+    "alignment_note": "Current routing already keeps the querent, home, and landlord together for an explicit eviction question."
+  }
+]

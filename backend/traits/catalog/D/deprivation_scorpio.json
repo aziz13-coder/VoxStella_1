@@ -1,0 +1,21 @@
+{
+  "id": "deprivation_scorpio",
+  "name": "Deprivation (Scorpio theme)",
+  "domain": "zodiac_psychology",
+  "description": "Theme of deprivation and testing associated with Scorpio and forbidding houses; can foster grit.",
+  "confidence": "medium",
+  "polarity": "negative",
+  "sources": ["Carter: Scorpio = deprivation; forbidding houses 4/8/12"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Scorpio", "min": 1.5, "weight": 10 },
+      { "kind": "house_emphasis", "houses": [4,8,12], "min_total": 2, "weight": 8 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": -6 }
+    ],
+    "escalators": []
+  }
+}
+

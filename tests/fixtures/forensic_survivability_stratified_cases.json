@@ -1,0 +1,308 @@
+{
+  "generated_at": "2026-04-07T00:00:00+00:00",
+  "purpose": "Stratified survivability benchmark that extends the resolved journalist-abduction calibration into fatal abduction, public survivor attacks, known-person homicide, and mixed disappearance-homicide families.",
+  "source_basis": {
+    "doctrine": [
+      {
+        "id": "luley_forensic_astrology_for_everyone",
+        "kind": "local_forensic_text",
+        "title": "Forensic Astrology for Everyone",
+        "notes": "Angular rulers and angular planets carry power in event charts; the Moon is always a co-significator; houses 1/4/7/10 dominate the core event narrative."
+      },
+      {
+        "id": "salerno_forensics_by_the_stars",
+        "kind": "local_forensic_text",
+        "title": "Forensics by the Stars Astrology Investigates",
+        "notes": "A fortune in an angle is safety testimony; benefic condition and lack of malefic affliction can preserve life even when the victim ruler is weak."
+      },
+      {
+        "id": "salerno_exploring_family_murders",
+        "kind": "local_forensic_text",
+        "title": "Exploring Forensic Astrology The Secrets Behind Famous Family Murders",
+        "notes": "Essential and accidental dignity both matter, and public / family homicide structures need to be evaluated separately from captivity and disappearance cases."
+      }
+    ],
+    "public_case_sources": [
+      {
+        "id": "reagan_public_papers_1981",
+        "title": "1981 Public Papers of the President - Appendix A",
+        "url": "https://www.reaganlibrary.gov/1981-public-papers-president-appendix",
+        "notes": "States the attempt occurred at approximately 2:25 p.m. outside the Washington Hilton Hotel."
+      },
+      {
+        "id": "fbi_active_shooter_study_2011_tucson",
+        "title": "A Study of Active Shooter Incidents in the United States Between 2000 and 2013",
+        "url": "https://www.fbi.gov/file-repository/reports-and-publications/active-shooter-study-2000-2013-1.pdf/view",
+        "notes": "Includes the Tucson shooting in the FBI timeline; benchmark uses the well-documented 10:10 a.m. start of fire."
+      },
+      {
+        "id": "vatican_plaque_jp2_1981",
+        "title": "Plaque JP II",
+        "url": "https://www.vatican.va/content/vatican/en/ra/piastrella-commemorativa-gpii.html",
+        "notes": "States the exact point and time of the assassination attempt on John Paul II: 13 May 1981 at 17:19."
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "lindbergh_kidnapping_fatal",
+      "family": "abduction_fatal",
+      "title": "The Lindbergh Kidnapping",
+      "query": {
+        "mode": "manual",
+        "datetime": "1932-03-01T21:50:00",
+        "location": "East Amwell, New Jersey",
+        "timezone": "America/New_York",
+        "house_system_code": "R"
+      },
+      "hard_outcome": "abduction ending in death",
+      "expected_levels": [
+        "Lower"
+      ],
+      "expected_bands": [
+        "fatal_pressure_dominant"
+      ],
+      "source_note": "Replay-ready local forensic source case from Salerno with explicit chart time."
+    },
+    {
+      "id": "reagan_assassination_attempt_survived",
+      "family": "nonfatal_violent_event",
+      "title": "Ronald Reagan assassination attempt",
+      "query": {
+        "mode": "manual",
+        "datetime": "1981-03-30T14:25:00",
+        "location": "Washington Hilton Hotel, Washington, DC, USA",
+        "timezone": "America/New_York",
+        "house_system_code": "R"
+      },
+      "hard_outcome": "survived targeted public shooting",
+      "expected_levels": [
+        "Moderate",
+        "Higher"
+      ],
+      "expected_bands": [
+        "mixed_nonfatal",
+        "nonfatal_tilt"
+      ],
+      "source_note": "Public official record places the attempt at approximately 2:25 p.m. outside the Washington Hilton."
+    },
+    {
+      "id": "gabrielle_giffords_shooting_survived",
+      "family": "nonfatal_violent_event",
+      "title": "Gabrielle Giffords shooting",
+      "query": {
+        "mode": "manual",
+        "datetime": "2011-01-08T10:10:00",
+        "location": "7110 N Oracle Rd, Tucson, AZ, USA",
+        "timezone": "America/Phoenix",
+        "house_system_code": "R"
+      },
+      "hard_outcome": "survived public shooting / active-shooter event",
+      "expected_levels": [
+        "Moderate",
+        "Higher"
+      ],
+      "expected_bands": [
+        "mixed_nonfatal",
+        "nonfatal_tilt"
+      ],
+      "source_note": "Benchmark uses the well-documented 10:10 a.m. start of the Tucson shooting."
+    },
+    {
+      "id": "john_paul_ii_assassination_attempt_survived",
+      "family": "nonfatal_violent_event",
+      "title": "John Paul II assassination attempt",
+      "query": {
+        "mode": "manual",
+        "datetime": "1981-05-13T17:19:00",
+        "location": "St. Peter's Square, Vatican City",
+        "timezone": "Europe/Vatican",
+        "house_system_code": "R"
+      },
+      "hard_outcome": "survived targeted public shooting",
+      "expected_levels": [
+        "Moderate",
+        "Higher"
+      ],
+      "expected_bands": [
+        "mixed_nonfatal",
+        "nonfatal_tilt",
+        "risk_loaded_survival"
+      ],
+      "source_note": "Vatican commemorative source gives the exact 17:19 time of the shooting in St. Peter's Square."
+    },
+    {
+      "id": "phil_hartman_known_person_homicide",
+      "family": "known_person_homicide",
+      "title": "Phil Hartman: Murder by Wife",
+      "query": {
+        "mode": "manual",
+        "datetime": "1998-05-28T02:30:00",
+        "location": "Encino, California",
+        "timezone": "America/Los_Angeles",
+        "house_system_code": "R"
+      },
+      "hard_outcome": "fatal domestic homicide",
+      "expected_levels": [
+        "Lower"
+      ],
+      "expected_bands": [
+        "fatal_pressure_dominant"
+      ],
+      "source_note": "Replay-ready local forensic source case from Salerno."
+    },
+    {
+      "id": "marvin_gaye_known_person_homicide",
+      "family": "known_person_homicide",
+      "title": "Marvin Gaye: Death by Father",
+      "query": {
+        "mode": "manual",
+        "datetime": "1984-04-01T11:38:00",
+        "location": "West Adams, Los Angeles, California",
+        "timezone": "America/Los_Angeles",
+        "house_system_code": "R"
+      },
+      "hard_outcome": "fatal family homicide",
+      "expected_levels": [
+        "Lower"
+      ],
+      "expected_bands": [
+        "fatal_pressure_dominant"
+      ],
+      "source_note": "Replay-ready local forensic source case from Salerno using the 11:38 a.m. police-call chart."
+    },
+    {
+      "id": "joey_comunale_party_monster",
+      "family": "known_person_homicide",
+      "title": "Joey Comunale",
+      "query": {
+        "mode": "manual",
+        "datetime": "2016-11-13T06:50:00",
+        "location": "420 East 58th Street, Manhattan, New York, USA",
+        "timezone": "America/New_York",
+        "house_system_code": "R"
+      },
+      "hard_outcome": "fatal after-party homicide with concealment",
+      "expected_levels": [
+        "Lower"
+      ],
+      "expected_bands": [
+        "fatal_pressure_dominant"
+      ],
+      "source_note": "Best-anchor homicide documentary probe retained for survivability pressure testing."
+    },
+    {
+      "id": "sylvie_cachay_soho_horror",
+      "family": "known_person_homicide",
+      "title": "Sylvie Cachay",
+      "query": {
+        "mode": "manual",
+        "datetime": "2010-12-09T02:00:00",
+        "location": "Soho House, Manhattan, New York, USA",
+        "timezone": "America/New_York",
+        "house_system_code": "R",
+        "case_type": "adult_female"
+      },
+      "hard_outcome": "fatal intimate-partner hotel homicide",
+      "expected_levels": [
+        "Lower"
+      ],
+      "expected_bands": [
+        "fatal_pressure_dominant"
+      ],
+      "source_note": "Best-anchor homicide documentary probe retained for survivability pressure testing."
+    },
+    {
+      "id": "lourdes_gonzalez_your_eyes_or_your_life",
+      "family": "known_person_homicide",
+      "title": "Lourdes Gonzalez",
+      "query": {
+        "mode": "manual",
+        "datetime": "1989-06-14T19:00:00",
+        "location": "East 97th Street, Manhattan, New York, USA",
+        "timezone": "America/New_York",
+        "house_system_code": "R",
+        "case_type": "adult_female"
+      },
+      "hard_outcome": "fatal home-invasion homicide",
+      "expected_levels": [
+        "Lower"
+      ],
+      "expected_bands": [
+        "fatal_pressure_dominant"
+      ],
+      "source_note": "Best-anchor homicide documentary probe retained for survivability pressure testing."
+    },
+    {
+      "id": "scott_peterson_mixed_disappearance",
+      "family": "mixed_disappearance_homicide",
+      "title": "Scott Peterson: A Talent for Deception",
+      "query": {
+        "mode": "manual",
+        "datetime": "2002-12-23T20:30:00",
+        "location": "Modesto, California",
+        "timezone": "America/Los_Angeles",
+        "house_system_code": "R"
+      },
+      "hard_outcome": "disappearance leading to homicide conviction",
+      "expected_levels": [
+        "Moderate",
+        "Lower"
+      ],
+      "expected_bands": [
+        "mixed_nonfatal",
+        "risk_loaded_survival",
+        "fatal_pressure_dominant"
+      ],
+      "source_note": "Replay-ready local forensic source case from Salerno."
+    },
+    {
+      "id": "irene_silverman_mixed_disappearance",
+      "family": "mixed_disappearance_homicide",
+      "title": "Irene Silverman",
+      "query": {
+        "mode": "manual",
+        "datetime": "1998-07-05T16:30:00",
+        "location": "20 East 65th Street, Manhattan, New York, USA",
+        "timezone": "America/New_York",
+        "house_system_code": "R",
+        "case_type": "adult_female"
+      },
+      "hard_outcome": "disappearance prosecuted as homicide without body recovery",
+      "expected_levels": [
+        "Moderate",
+        "Lower"
+      ],
+      "expected_bands": [
+        "mixed_nonfatal",
+        "risk_loaded_survival",
+        "fatal_pressure_dominant"
+      ],
+      "source_note": "Best-anchor disappearance/homicide documentary probe retained for survivability pressure testing."
+    },
+    {
+      "id": "natalie_wood_mixed_disappearance",
+      "family": "mixed_disappearance_homicide",
+      "title": "Natalie Wood: A Farewell to Splendor",
+      "query": {
+        "mode": "manual",
+        "datetime": "1981-11-29T23:05:00",
+        "location": "Catalina Island, California",
+        "timezone": "America/Los_Angeles",
+        "house_system_code": "R",
+        "case_type": "adult_female"
+      },
+      "hard_outcome": "disappearance/death with enduring homicide suspicion",
+      "expected_levels": [
+        "Moderate",
+        "Lower"
+      ],
+      "expected_bands": [
+        "mixed_nonfatal",
+        "risk_loaded_survival",
+        "fatal_pressure_dominant"
+      ],
+      "source_note": "Replay-ready local forensic source case from Salerno."
+    }
+  ]
+}

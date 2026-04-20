@@ -1,0 +1,22 @@
+{
+  "id": "observation_facts_awareness",
+  "name": "Observation (awareness of facts)",
+  "domain": "cognitive_style",
+  "description": "Quick noticing and collection of facts with Gemini/Air and strong Mercury; reduced by Mercury–Neptune fog or rigid Fixed dominance.",
+  "confidence": "high",
+  "polarity": "positive",
+  "sources": ["Carter: Gemini/Air awareness of isolated facts; observation of facts"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Gemini", "min": 1.5, "weight": 8 },
+      { "kind": "element", "element": "Air", "min_share": 0.35, "weight": 6 },
+      { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": 8 },
+      { "kind": "house_emphasis", "houses": [3], "min_total": 1, "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "aspect", "pair": ["Mercury","Neptune"], "type": "hard", "max_orb": 6, "weight": -8 },
+      { "kind": "modality", "modality": "Fixed", "min_share": 0.40, "weight": -4 }
+    ],
+    "escalators": [] }
+}
+

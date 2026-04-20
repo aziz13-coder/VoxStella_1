@@ -1,0 +1,26 @@
+{
+  "id": "blindness_predisposition",
+  "name": "Blindness predisposition",
+  "domain": "pathology",
+  "description": "Eye vulnerability suggested by harsh affliction to the Lights from Neptune or Saturn; to refine with detailed map.",
+  "confidence": "low",
+  "polarity": "negative",
+  "sources": ["Carter (B: Blindness)"],
+  "logic": {
+    "base": 0,
+    "boosts": [
+      { "kind": "aspect", "pair": ["Neptune","Sun"], "type": "hard", "max_orb": 6, "weight": 10 },
+      { "kind": "aspect", "pair": ["Neptune","Moon"], "type": "hard", "max_orb": 6, "weight": 10 },
+      { "kind": "aspect", "pair": ["Saturn","Sun"], "type": "hard", "max_orb": 6, "weight": 8 },
+      { "kind": "aspect", "pair": ["Saturn","Moon"], "type": "hard", "max_orb": 6, "weight": 8 },
+      { "kind": "house_emphasis", "houses": [12, 6], "min_total": 2, "weight": 6 },
+      { "kind": "angle_aspect", "planet": "Neptune", "type": "hard", "angle": "ASC", "max_orb": 6, "weight": 6 },
+      { "kind": "angle_aspect", "planet": "Neptune", "type": "hard", "angle": "MC", "max_orb": 6, "weight": 6 },
+      { "kind": "planet_in_sign", "planet": "Neptune", "sign": "Pisces", "weight": 4 }
+    ],
+    "dampeners": [
+      { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": -6 }
+    ],
+    "escalators": []
+  }
+}

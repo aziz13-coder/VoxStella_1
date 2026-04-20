@@ -1,0 +1,18 @@
+{
+  "id": "knees_region",
+  "name": "Knees (region)",
+  "domain": "anatomy_correspondence",
+  "description": "Traditional correspondence of knees with Capricorn/Saturn; afflictions and Mars–Saturn hardness indicate susceptibility to strain/stiffness.",
+  "confidence": "medium",
+  "polarity": "neutral",
+  "sources": ["Carter: Capricorn/Saturn structural symbolism"],
+  "logic": { "base": 0,
+    "boosts": [
+      { "kind": "sign_emphasis", "sign": "Capricorn", "min": 1.5, "weight": 6 },
+      { "kind": "planet_status", "planet": "Saturn", "afflicted": true, "weight": 6 },
+      { "kind": "aspect", "pair": ["Mars","Saturn"], "type": "hard", "max_orb": 6, "weight": 6 }
+    ],
+    "dampeners": [],
+    "escalators": [] }
+}
+

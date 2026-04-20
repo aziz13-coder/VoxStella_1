@@ -1,0 +1,155 @@
+# Fixed Stars in Forensic Astrology (reference dictionary)
+
+Algol:
+  sign: Taurus
+  degree: 26
+  title: Caput Algol (The Demon’s Head)
+  meaning: "Most malefic; danger, violence, tragedy, beheading/strangulation, ‘losing one’s head’."
+  forensic: "Flag for violent death or severe injury; strangulation/asphyxiation patterns; intense public fear."
+
+Castor:
+  sign: Cancer
+  degree: 20
+  title: Castor (α Geminorum) – The Twins
+  meaning: "Artistry, skill, spirituality; dual narratives."
+  forensic: "Two parties or siblings entwined; one appears graceful while a violent thread lurks (contrast to Pollux)."
+
+Pollux:
+  sign: Cancer
+  degree: 23
+  title: Pollux (β Geminorum) – The Twins
+  meaning: "Force, boxing, roughness; the violent twin."
+  forensic: "Audacity and bold action; rashness/malice; assaults and brawls; ruin/disgrace; brothers or close associates implicated."
+
+Altair:
+  sign: Aquarius
+  degree: 1
+  title: Altair (α Aquilae) – The Flying Eagle
+  meaning: "Bold, daring, aerial/height affinity."
+  forensic: "Aviation links, high places, flight; nicknames/branding with ‘eagle’ motifs."
+
+BatenKaitos:
+  sign: Aries
+  degree: 21
+  title: Baten Kaitos – The Whale’s Belly
+  meaning: "Falls, blows, rough journeys."
+  forensic: "Head trauma, falling injuries; bodies carried away or concealed."
+
+Denebola:
+  sign: Virgo
+  degree: 22
+  title: Denebola (β Leonis) – Lion’s Tail
+  meaning: "Reversals, disruptions, misfortune."
+  forensic: "Vehicle/water mishaps, chain-reaction accidents; unexpected endings."
+
+Spica:
+  sign: Libra
+  degree: 23
+  title: Spica (α Virginis) – Wheat Sheaf
+  meaning: "Brilliance, protection, success."
+  forensic: "Mitigating factor even in harsh charts; rescue, helpful witness, or crucial evidence."
+
+Antares:
+  sign: Sagittarius
+  degree: 9
+  title: Antares (α Scorpii) – Heart of the Scorpion
+  meaning: "Passion, intensity, courage, strategic prowess; danger in extremes."
+  forensic: "Malevolence, destructiveness, suspicion; violent/fateful events; weapon escalation and high‑risk confrontations."
+
+Regulus:
+  sign: Leo
+  degree: 29
+  title: Regulus (α Leonis) – Heart of the Lion
+  meaning: "Royal star; power, ambition, honor, prominence; pride with consequences."
+  forensic: "Public, high‑profile events; leadership, fame, power plays; revenge and downfall/disgrace when pride or ethics fail; accidents/violence tied to status."
+
+Aldebaran:
+  sign: Gemini
+  degree: 10
+  title: Aldebaran (α Tauri) – Eye of the Bull
+  meaning: "Integrity, honor, success, high status, eloquence, bravery."
+  forensic: "High status with tests; danger, loss, violent downfall when ethics are compromised; scrutiny around truthfulness."
+
+Hamal:
+  sign: Aries
+  degree: 7
+  title: Hamal (α Arietis) – Head of the Ram
+  meaning: "Aggression, resolve, strong passions, brute force."
+  forensic: "Violence, cruelty, criminal tendencies; brutish behavior and eventual disgrace when unrestrained."
+
+Alphard:
+  sign: Virgo
+  degree: 0
+  title: Alphard (α Hydrae) – Heart of the Serpent
+  meaning: "Solitary, intense, intoxicating or toxic influences."
+  forensic: "Poisoning/toxins, substance abuse; immorality/infidelity; betrayal, law problems; drowning/asphyxiation risk; sudden death via contamination."
+
+Zuben Elgenubi:
+  sign: Libra
+  degree: 19
+  title: South Scale (α Librae) – Zuben Elgenubi
+  meaning: "Weighing losses, moral tests, compromise; vulnerability to decline."
+  forensic: "Corruption, loss, theft, betrayal; disease/venereal risk; poisoning/drowning; anguish, revenge, criminality, and disgrace."
+
+Bellatrix:
+  sign: Gemini
+  degree: 20
+  title: Bellatrix (γ Orionis) – Orion’s Shoulder
+  meaning: "Warrior skill, tactical action."
+  forensic: "Operational force, raids, organized operations; common crime patterns in active phases."
+
+Sirius:
+  sign: Cancer
+  degree: 14
+  title: Sirius (α Canis Majoris) – Dog Star
+  meaning: "Eminence, brilliance, renown; heat/fire; canine associations."
+  forensic: "High‑profile/publicized cases; fires/burns/heat; police/military (K‑9); swift rise and fall; notoriety and spectacle."
+
+Rigel:
+  sign: Gemini
+  degree: 18
+  title: Rigel (β Orionis) – Left Foot of Orion
+  meaning: "Skill, engineering, operations; voyages by sea; command under pressure."
+  forensic: "Tactical operations and raids; cold precision; maritime links; lower‑limb injuries; professional perpetrators or trained units."
+
+Acrux:
+  sign: Scorpio
+  degree: 12
+  title: Acrux (α Crucis) – Southern Cross
+  meaning: "Solemnity, fate, oaths; secret rites; endings and gravity."
+  forensic: "Gravesites/burials; hidden southern locales; clandestine groups/rituals; concealed remains; fateful duty or burdens to carry."
+
+Fomalhaut:
+  sign: Pisces
+  degree: 4
+  title: Fomalhaut (α Piscis Austrini) – Mouth of the Fish
+  meaning: "Spiritual charisma, ideals, fame; purity vs. corruption; distant waters."
+  forensic: "Water/coastlines/harbors; secrecy and scandals; victims/saviors motifs; downfall via intoxication/escapism; cases drawing media fascination."
+
+Arcturus:
+  sign: Libra
+  degree: 24
+  title: Arcturus (α Boötis) – The Guardian/Driver
+  meaning: "Guidance, leadership, protections; swiftness and decisive action."
+  forensic: "Patrols/escorts/security; interventions/rescues; vigilantism or overreach; neighborhood watches and road/patrol contexts."
+
+Vega:
+  sign: Capricorn
+  degree: 15
+  title: Vega (α Lyrae) – The Harp
+  meaning: "Artistry, prestige, signal/recording; reputation swings."
+  forensic: "Celebrity/publicity links; audio/video/recording evidence; viral media; status controversies and reputational shocks."
+
+Procyon:
+  sign: Cancer
+  degree: 26
+  title: Procyon (α Canis Minoris) – The Little Dog
+  meaning: "Promptness, short windows, quick actions; canine themes."
+  forensic: "Impulsive acts and haste/regret; neighbors/short trips; canine/pet proximities; false alarms/bursts of activity; quick break‑ins or escapes."
+
+Betelgeuse:
+  sign: Gemini
+  degree: 29
+  title: Betelgeuse (α Orionis) – Right Shoulder of Orion
+  meaning: "Renown, prominence, force; fire/injury risk."
+  forensic: "High‑profile violent confrontations; fire/explosion hazards; construction/industrial sites; upper‑body injuries; strongman/armed figures."
