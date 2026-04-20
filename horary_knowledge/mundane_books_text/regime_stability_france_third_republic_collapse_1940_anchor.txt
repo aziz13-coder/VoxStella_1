@@ -1,0 +1,9 @@
+France Third Republic collapse 1940 anchor
+
+Source summary:
+- Britannica's Third Republic article states that the French Third Republic lasted from 1870 to 1940 and ended with the fall of France to Germany in 1940.
+- Britannica's France-since-1940 material places the decisive regime transition in June-July 1940, after the June 22 armistice and the July 10 vote that gave Marshal Petain full powers.
+
+Benchmark use:
+- Treat June 14, 1940 through July 10, 1940 as the operative institutional-collapse window.
+- Use this as a regime-stability benchmark, not a leadership-transition benchmark, because the issue is parliamentary-republic collapse and replacement by a new constitutional order.

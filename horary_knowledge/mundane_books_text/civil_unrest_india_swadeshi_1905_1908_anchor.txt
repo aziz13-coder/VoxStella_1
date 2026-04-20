@@ -1,0 +1,10 @@
+India Swadeshi unrest 1905-1908 anchor
+
+Source summary:
+- Britannica describes the Swadeshi Movement as an anti-colonial agitation in British India launched in 1905.
+- It was triggered by the partition of Bengal in 1905.
+- Britannica says the movement was formally launched on August 7, 1905, spread through boycott, volunteer associations, protests, and organized agitation, and had declined by 1908.
+
+Benchmark use:
+- Treat August 7, 1905 through December 31, 1908 as the core unrest window.
+- Use this as a civil-unrest benchmark because it combines agitation, protest, boycott, reform pressure, and public mobilization rather than foreign war.

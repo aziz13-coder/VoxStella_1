@@ -1,0 +1,115 @@
+[
+  {
+    "title": "Astrocartography Map Interpretation (Hermes Astrology)",
+    "source_name": "Astrocartography_Map_Interpretation_Hermes_Astrology_z-library.sk_1lib.sk_z-lib.sk.txt",
+    "role": "Interpretation encyclopedia",
+    "relevance": "high",
+    "preferred_use": "Use for line meanings, angle meanings, and crossing interpretations.",
+    "guide_path": "C:\\Users\\sabaa\\Downloads\\codexhorary\\horary_knowledge\\astrocartography_knowledge_base\\guides\\hermes_map_interpretation.md",
+    "heading_count": 80,
+    "keyword_hits": {
+      "Sun Line": 4,
+      "Moon Line": 4,
+      "Mercury Line": 4,
+      "Venus Line": 4,
+      "Mars Line": 4,
+      "Jupiter Line": 4,
+      "Saturn Line": 4,
+      "Uranus Line": 4,
+      "Neptune Line": 4,
+      "Pluto Line": 4,
+      "North Node Line": 4,
+      "Chiron Line": 4,
+      "AC LINE": 4,
+      "DC LINE": 4,
+      "MC LINE": 4,
+      "IC LINE": 4,
+      "LINE CROSSINGS": 4
+    },
+    "normalized_book_path": "C:\\Users\\sabaa\\Downloads\\codexhorary\\horary_knowledge\\astrocartography_knowledge_base\\normalized_books\\hermes_map_interpretation.md",
+    "source_chars": 335232
+  },
+  {
+    "title": "Finding Your Best Places",
+    "source_name": "Finding_Your_Best_Places_Using_Astrocartography_to_Navigate_Your_Life_Dan_Fursts_Astrocartography_Book_1_Dan_Furst_z-library.sk_1lib.sk_z-lib.sk.txt",
+    "role": "Conceptual and practical field guide",
+    "relevance": "high",
+    "preferred_use": "Use for workflow, line range assumptions, relocation vs. local-space distinctions, and user-facing guidance.",
+    "guide_path": "C:\\Users\\sabaa\\Downloads\\codexhorary\\horary_knowledge\\astrocartography_knowledge_base\\guides\\dan_furst_best_places.md",
+    "heading_count": 61,
+    "keyword_hits": {
+      "TABLE OF CONTENTS": 1,
+      "Relocation Astrology": 4,
+      "Local Space Astrology": 4,
+      "Astro*Carto*Graphy": 4,
+      "Ascendant": 4,
+      "Descendant": 4,
+      "Midheaven": 4,
+      "Nadir": 4,
+      "parans": 4,
+      "effective range": 3,
+      "If Your Best Lines Aren't Near You": 1
+    },
+    "normalized_book_path": "C:\\Users\\sabaa\\Downloads\\codexhorary\\horary_knowledge\\astrocartography_knowledge_base\\normalized_books\\dan_furst_best_places.md",
+    "source_chars": 268593
+  },
+  {
+    "title": "The Astro*Carto*Graphy Book of Maps",
+    "source_name": "The_AstroCartoGraphy_Book_of_Maps_-_The_Astrology_of_Relocation_How_136_Famous_People_Found_Their_Places_Jim_Lewis_Arielle_Guttman_z-library.sk_1lib.sk_z-lib.sk.txt",
+    "role": "Case-study atlas and historical reference",
+    "relevance": "high",
+    "preferred_use": "Use for evidence patterns, angular framing, and examples of how lines were linked to places and life events.",
+    "guide_path": "C:\\Users\\sabaa\\Downloads\\codexhorary\\horary_knowledge\\astrocartography_knowledge_base\\guides\\lewis_guttman_book_of_maps.md",
+    "heading_count": 81,
+    "keyword_hits": {
+      "angular positions": 1,
+      "Ascendant": 4,
+      "Descendant": 4,
+      "Midheaven": 4,
+      "IC": 4,
+      "Crossings": 4,
+      "Venus line": 3,
+      "Jupiter line": 2,
+      "Astro*Carto*Graphy": 4
+    },
+    "normalized_book_path": "C:\\Users\\sabaa\\Downloads\\codexhorary\\horary_knowledge\\astrocartography_knowledge_base\\normalized_books\\lewis_guttman_book_of_maps.md",
+    "source_chars": 376775
+  },
+  {
+    "title": "Dictionary of Astrology",
+    "source_name": "Dictionary_of_Astrology_D._Lee_z-library.sk_1lib.sk_z-lib.sk.txt",
+    "role": "Supporting terminology reference",
+    "relevance": "medium",
+    "preferred_use": "Use for generic astrology vocabulary when the astrocartography books assume prior knowledge.",
+    "guide_path": "C:\\Users\\sabaa\\Downloads\\codexhorary\\horary_knowledge\\astrocartography_knowledge_base\\guides\\dictionary_of_astrology.md",
+    "heading_count": 80,
+    "keyword_hits": {
+      "Ascendant": 4,
+      "Descendant": 4,
+      "Midheaven": 4,
+      "IC": 4,
+      "houses": 4,
+      "mundane": 4,
+      "relocation": 0
+    },
+    "normalized_book_path": "C:\\Users\\sabaa\\Downloads\\codexhorary\\horary_knowledge\\astrocartography_knowledge_base\\normalized_books\\dictionary_of_astrology.md",
+    "source_chars": 439375
+  },
+  {
+    "title": "The Astrology of Death",
+    "source_name": "The_Astrology_of_Death_Richard_Houck_z-library.sk_1lib.sk_z-lib.sk.txt",
+    "role": "Tangential supporting source",
+    "relevance": "low",
+    "preferred_use": "Treat as lower-priority support; it is not a primary astrocartography book.",
+    "guide_path": "C:\\Users\\sabaa\\Downloads\\codexhorary\\horary_knowledge\\astrocartography_knowledge_base\\guides\\astrology_of_death.md",
+    "heading_count": 80,
+    "keyword_hits": {
+      "TABLE OF CONTENTS": 1,
+      "Introduction": 4,
+      "Theory": 4,
+      "Application": 3
+    },
+    "normalized_book_path": "C:\\Users\\sabaa\\Downloads\\codexhorary\\horary_knowledge\\astrocartography_knowledge_base\\normalized_books\\astrology_of_death.md",
+    "source_chars": 737818
+  }
+]

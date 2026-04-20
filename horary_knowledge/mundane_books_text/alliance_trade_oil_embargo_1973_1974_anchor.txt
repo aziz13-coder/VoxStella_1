@@ -1,0 +1,13 @@
+Alliance / Trade Anchor: 1973-1974 Oil Embargo
+
+This local note preserves the historical anchor used for the Phase 5
+`alliance_stress` and `trade_and_commerce` benchmark expansions.
+
+- U.S. Department of State, Office of the Historian:
+  https://history.state.gov/historicaldocuments/frus1969-76v36/preface
+  The volume preface says the 1973-1974 embargo strained the U.S.
+  relationship with Saudi Arabia and also strained the Atlantic Alliance,
+  as U.S. allies needed American help on energy while distancing themselves
+  from U.S. Middle East policy.
+
+This file is a local benchmark note so citation validation can stay file-based.

@@ -1,0 +1,2460 @@
+=== Page 1 ===
+b
+translated from the original Latin text by:
+ON THE ARABIC PARTS
+GVIDONIS BONATI
+© Copyright 2000 New Library Limited All rights reserved
+www.new-library.com/zoller
+Robert Zoller.
+
+=== Page 2 ===
+BONATTI ON THE ARABIC PARTS
+Copyright © 1980, revised 2000 by Robert Zoller All Rights Reserved
+INTRODUCTION TO TRANSLATION
+The following is an extract of the work of Guido Bonatti translated
+from Latin into English from Guidonis Bonati Forliviensis Mathematici
+de Astronomia Tractatus X universum quod iudiciariam rationem
+nativitatum, aeris tempestatum attinet, comprehendentes. Adiectus est Cl.
+Ptolemaei liber Fructus, cum utilissimis Georgii Trapezuntii Published in
+1550, Basel. The translation is of the second part of Bonatti’s
+treatment of Revolutions of the Year of the World, which is the fourth
+part of the work and covers columns 626 – 664.
+The work seems to have been written for delivery as a series of
+lecturers. This gives it a rather disjointed continuum and requires
+careful reading. Special attention should be given to the beginning
+where Bonatti intermeshes Albumassar’s view with his own. This is
+again done with Alchabitius at the end. Minimal editing and
+standardising of the English has been undertaken so as to allow the
+thinking and practice of the medieval astrologer to shine through the
+translation.
+The work examines the ancient doctrine of Arabic parts. For a proper
+understanding of them the reader should have a working knowledge
+of natal chart erection and interpretation as well as a basic knowledge
+of horary and electional astrology. Greater detail on these areas and a
+fuller understanding of the parts as well as other important aspects
+such as profections and the revolutions of the nativities is to be found
+in the [Foundation Course on Medieval Astrology] (for the beginner)
+and the [Diploma Course on Medieval Astrology] as well as in other
+materials found on this website [Tools and Techniques].
+Here follows the translation:
+
+=== Page 3 ===
+GVIDONIS BONATI
+FOROLIVIENSIS MATHEMATICI
+DE ASTRONOMIA TRACTATUS X.
+Vniuersum quod iudiciariam rationem
+Nativitatum Aeris T empetstatum,
+attinet, comprehendentes.
+Adiectus est
+Cl.Ptolemaei liber Fructus, cum Commentariis
+vtilissimis Georgii T rapezuntii.
+BASILEÆ, ANNO M D L,
+© Copyright 2000 New Library Limited All rights reserved
+www.new-library.com
+Columns 626 - 664 {1550, Basel
+(15) p.1. 848+62}
+translated by Robert Zoller.
+or Liber astronomicus or Liber astrologiae.
+Also known as Liber astronomiae
+
+=== Page 4 ===
+CHAPTER ONE
+ON THE PROJECTION OF THE PARTS
+AND ON THEIR SIGNIFICATIONS
+Some things relating to the entire work to be considered first:
+The ancients considered the extraction of parts a matter at once
+useful, fitting, and extremely opportune; dealing with subjects which
+are dealt with in the revolutions of years. These things occur often in
+astronomical work, and the industrious artist will receive very great
+utility from them.
+Albumassar said that the extraction of parts is done for two
+reasons {duobus modis}. One is when one planet is joined to another or
+when it is separated from it by a perceivable distance. Such a planet
+acquires a signification of good or evil because a planet signifies one
+thing when it applies, another when it is with the other planet, and yet
+another when it departs and is separated from it. The planets signify
+certain things by their nature, certain things by accident, certain things
+according to more, certain things according to less, and certain things
+according to equally. {these categories reflect the influence of
+Aristotle’s Physics and Metaphysics on both the European and Arab
+astrologer}.
+ Now, if two planets have signification over one and the same
+thing, that one is allowed as stronger which is stronger in nature,
+power or dignity; or if it is diurnal and the other nocturnal; or is
+Almutem {ruler} over that part or is the planet signifying the
+beginning while the other signifies the end; or if it is stronger in any
+way or more dignified, it is to be preferred as you see in the extraction
+of the part of the father, whom the Sun and Saturn each signify
+equally {i.e. the Sun and Saturn both act as general significators for
+the father}{translation of quoniam uterque eorum habet significare partres
+has been omitted as redundant}. However, we begin from the Sun by
+day because it is stronger than Saturn is by day. Indeed, the Sun
+signifies clarity and splendour and rejoices in {these} things. But
+Saturn signifies obscurity and darkness and rejoices in those things
+which are contrary to the aforesaid. Understand likewise concerning
+the other matters as is discussed in their own time and place
+There is a second way { modo} in which the extraction of parts may
+be made. If there are two or three significators which signify one
+matter and if each is of equal virtue, or if one is more worthy or
+stronger than the other, Albumassar said that there will be a
+“similitude” in the signification, and in order to resolve the matter the
+extraction of parts is necessary.
+
+=== Page 5 ===
+Definition of the Term “Extraction of Parts”
+The extraction of the parts is the knowledge of the longitude
+which is between two significators who {both} naturally signify one
+thing. But the effect of the part would not be well known unless a
+third {significator} is brought in. That is, one which also naturally
+signifies the thing for which the part is extracted.
+The planet from which it is begun is called the first significator of
+the thing. The other is called the second, and these two are called
+immovable {or “immobile” being the first and second significators
+while the third is called the moveable or “mobile” – see Bonatti’s
+further explanation later in this text}. The third significator is called
+“he from whom the projection of degrees of distance which is between
+the first natural significators is begun”, and this third significator
+maybe the lord of the ascendant or the lord of another house {or house
+cusp} from which the projection of the degrees of distance begins and
+is movable, as will be explained below in the appropriate place. And
+because of this it is said, ‘Take what is between this and that planet
+and add it to the degree of the ascendant and project from the
+ascendant, or from such and such a place into another place or from
+one planet to another, giving to each sign 30 degrees according to
+equal degrees, and wherever the number {calculated by the above
+addition} comes to will be the place of that part.”
+Why the Parts Are Extracted
+This was done in two ways and for three reasons {strictly speaking
+Bonatti gives two reasons or causae and three methods or modi – as is
+clear from the following}.
+ The first reason was so that it might be known what ought to be
+judged regarding good or evil. This would be signified by the lord of
+the sign in which the part falls, whether from the ascendant or from
+another place from which the part is projected.
+The second reason is because the ascendant signifies the bodies
+and beginnings of all things, although {sometimes} the projection is
+from one or another of the planets or from other places because that
+house or planet is of the same nature or complexion with the place of
+the part. {This treatise mainly deals with the second of these two
+categories}.
+Albumassar said that because the ascendant or other house of the
+circle {from which the longitude which is between the two natural
+significators is projected} changes every hour, the third significator is
+called movable with regard to its signification. Furthermore, equal
+degrees { secundum axem circuli signorum – being the degrees of
+longitude of the ecliptic} are used with the parts, because the parts are
+moved according to the axis of the ecliptic, and the ascendant is
+considered according to the degree of the circle of the ecliptic, and the
+degrees of the ecliptic are equal. Albumassar said, ‘Therefore a planet
+is in such and such a sign and such and such a degree and the
+
+=== Page 6 ===
+ascendant is this or that degree of this or that sign.’ He also said that
+the whole is spoken of according to equal degrees of the ecliptic. He
+said that the degrees of ascension are from the degrees of the circle
+dividing and surrounding” {circumdantis – of which both dividing and
+surrounding are acceptable translations. It being noted that the
+equator is conceived as both surrounding the ecliptic and dividing it
+at the equinox} the ecliptic and that this right circle {the equator}
+moves the ecliptic and the other circles {refer to Plato’s Timaeus for
+comparison}.
+Albumassar also said that the ancient Babylonians and Egyptians
+and some others used ninety-seven parts, as is reported in their books
+{to which we no longer have access}.
+Three Methods of Projecting of Parts
+There are three methods of projecting the parts. The first of these is
+the projection of the seven parts of the seven planets. The second
+consists of the parts of the twelve houses. The third consists of parts
+of other things concerning which no mention or commentary is made
+in the twelve houses, yet which are necessary in certain places, both I
+revolutions and in nativities. There are seven sections to the first
+method; the second has twelve sections, and the third, ten. But first
+the parts of the seven planets ought to be discussed.
+
+=== Page 7 ===
+CHAPTER TWO
+ON THE PARTS OF THE SEVEN PLANETS AND THE
+PARTICULAR SIGNIFICATIONS OF THEM, AND FIRST
+CONCERNING THE PART OF THE MOON, WHICH IS
+CALLED THE PARS FORTUNAE.
+ Albumassar said “Know that a part is not extracted unless from
+two significators, naturally signifying the matter for which the
+extraction is made”. For when two planets naturally signify one thing
+and agree in duration of effect or in other qualities, the extraction of
+the part ought to be begun from the stronger planet, as has been said
+regarding the Sun and Saturn, who are equal in the signification of the
+father and in duration. However, the extraction of the part of the
+father is begun from the Sun because it is stronger on account of the
+reason assigned above. {see above, Chapter One.}. And if they were
+equal in signification just as was said, and one was diurnal and the
+other nocturnal {these terms are more fully explained in Robert Zoller’s
+Foundation Course on Medieval Astrology found on his website at
+http://www.new-library.com/zoller} the extraction of the part is
+begun in a diurnal figure from the diurnal planet because the day then
+prevails over the night and ought to be preferred to it. But at night it is
+begun from the nocturnal planet because of its equality in signification
+with the diurnal planet.
+For example, the extraction of the pars fortunae is extracted from the
+luminaries, which, as the ancients said, are of equal strength for good.
+But because the Sun is the diurnal benefic, it begins from the Sun in
+the day, and because the Moon is the nocturnal benefic, it is begun
+from the Moon at night. And this part is preferred above all the other
+parts in the same way as the luminaries are preferred to all the other
+stars. And this part contains all the other parts {this may be
+compared with the pars hyleg } just as the luminaries contain all the
+other stars. Similarly the Sun is more splendid than all the other stars
+and is called the diurnal luminary because day occurs by his rising
+and is removed and made night by his setting. The Sun signifies the
+natural life and the other things which have been discussed in the
+chapter on his signification, and the Moon is the luminary of the night
+and the benefic significatrix of bodies and of all things, just as was
+said elsewhere in her chapter.
+I shall give you an example of the extraction of the pars fortunae
+{refer to Figure I below}. Let it be posited that the Sun is in the 12th
+degree of Taurus and in the 5th minute and that the Moon is in the
+12th degree of Virgo and in the 5th minute, and let the matter on
+account of which you desire to extract the pars fortunae be in the day.
+
+=== Page 8 ===
+Now you have to take the place of the Sun from the place of the
+Moon and there will remain four signs. {the longitudinal distance
+between the Sun and the Moon being 120 degrees or the equivalent of
+four signs of the zodiac} And let there be 5 degrees and 5 minutes of
+the sign ascending. Begin to project from the beginning of the same
+sign {by equal degrees} giving 30 degrees to each sign, and wherever
+the number ends, there will be the place of this part. On the other
+hand, at night, you take the place of the Moon from the place of the
+Sun and add it to the degree of the sign of the ascendant and project
+{projecting and adding being the same thing in this context} this from
+the ascendant, and wherever the number ends, there will be the pars
+fortunae. However, if both luminaries are in the same degree, the pars
+fortunae will be in the degree and minute of the ascendant.
+This part signifies the life, the body, and also its soul, its strength,
+fortune, substance, and profit, that is: wealth and poverty, gold and
+silver, heaviness or lightness of things bought in the marketplace,
+praise and good reputation, and honours and recognition, good and
+evil, present and future, hidden and manifest; and it has signification
+over everything.
+It serves more for rich men and magnates than for others.
+Nevertheless, it signifies for every man according to the condition { esse}
+of each of those things. And if this part and the luminaries are well
+disposed in nativities or revolutions, it will be notably good. This part
+is called the part of the Moon or the ascendant of the Moon, and it
+signifies good fortune.
+Albumassar said that when that which has passed of the hours of
+the day is multiplied by the parts of the hours of the day and the
+product is projected from the place of the Moon according to equal
+degrees, it falls with the pars fortunae or close by it. {Bonatti seems to
+have interjected this into the discussion here without discrimination
+thus making his real meaning a little obscure}.
+And if one significator is stronger than the other in the place of the
+part the part will begin from the stronger either by day or by night.{in
+the context given this must is more likely to mean the “area of life”,
+the house to which the consideration belongs. Rather than the place
+Bonatti Tractatus X. Col 628 - Basel 1550 edition
+
+=== Page 9 ===
+where the part falls. This second interpretation being is rejected
+because the place where the part falls has not yet been found. Bonatti
+is clearly discussing the manner of determining which of the two
+immobile significators is the one to be used as the starting point from
+which to the measure the distance to the other immobile significator}.
+ If, however, the signification is from the sign and its lord, this will
+begin rather from the lord of the sign to the degree of the sign because
+the signification of the sign is strengthened by the signification of the
+planet. And if it happens that the sign is stronger in signification, it
+will begin from the sign and the ascendant, or some other place of the
+circle to which it was advanced will be a participant with it {Bonatti
+refers the reader to Chapter 17 below for clarity}. And this will be
+discussed more widely, openly, and clearly below in the course of the
+tract concerning the parts of the twelve houses and of produce as they
+happen to each of those parts when we will discourse concerning
+them, if God permits.
+On the Pars Futurorum {Part of Things to Come}, Which Is Called
+the Pars Solis {Part of the Sun}
+After the part of fortune, which exceeds all the other parts in
+strength and fortune, the part of things to come or pars futurorum,
+which is called the pars solis, ought to be spoken of.
+This, immediately after the part of fortune, exceeds and is more
+worthy than all the other parts, although some astrologers seem to
+care little about it; but it does not seem consistent to me since it is
+reputed by the wise to be extremely useful for this work. This part is
+extracted in a way contrary to that in which the pars fortunae is
+extracted: that is, by day from the Sun to the Moon; by night, from the
+Moon to the Sun; so the pars futurorum is extracted by day from the
+Moon to the Sun and at night from the Sun to the Moon, and this is
+added to that which ascends of the rising sign and is projected from
+the beginning of the sign of the ascendant, giving 30 equal degrees to
+each sign. And wherever the number ends is where the part will be.
+The parts of the luminaries precede the parts of the other planets.
+All things arise from generation and corruption. The interaction of the
+Sun and Moon cause generation {Licet generentur per corruptionem
+generanda et corrumpantur corrumpenda. Though Bonatti is being
+deliberately confusing here, the idea that the planets’ modification of
+the soli-luna generation is corruption is embodied in the wider
+doctrine of the parts}. Corruption happens by the motion of the
+planets; nevertheless, the operations which are caused by the other
+planets do not appear so manifestly, nor do they appear so similar as
+those which are caused by the luminaries.
+The pars futurorum signifies the soul and the body after the pars
+fortunae and the quality {esse} of these, and faith, prophecy, religion,
+and the culture of God and secrets, cogitation, intentions, hidden
+things and everything which is absent, and courtesy and liberality,
+praise, good reputation, heat, and cold. And Albumassar said that
+the significations of the pars fortunae and pars futurorum appear more
+
+=== Page 10 ===
+over things both absent and future than that which is present. They
+make known more regarding beginnings of works and of the
+revolutions of years both of the world and of nativities.
+And he said that the significations of the pars fortunae appear
+more during the day than the significations of the pars futurorum, and
+the significations of the pars futurorum appear more at night than the
+significations of the pars fortunae. And although mutations and
+alterations happen in their times by the mutation of the planets from
+sign to sign and they cause generations and corruption and life occurs
+in animals and other vegetable things and by the same reason they
+destroy {deficio – as this can mean eclipsed in the astronomical sense,
+this may be a reference to the occultation of the planets} and corrupt
+generated things; nevertheless, the luminaries operate on these
+{sublunary, generating things} more manifestly and more sensibly
+than all the other planets, and so these two parts work above all
+others both for good and for evil. And their significations are similar
+to the significations of the luminaries.
+On the Heavy Part, Which Is Called the Pars Saturni
+{Part of Saturn}
+The pars Saturni, which the wise called the heavy part on account
+of the serious and weighty matters which are signified by it, is taken in
+the day from Saturn to the part of fortune and at night in the opposite
+direction, and is projected from the ascendant, giving to each sign 30
+equal degrees, and where the number of its degrees and minutes fall,
+that is where the part will be.
+These are its significations: It signifies memory and profundity of
+mind and counsel; faith and religion and moderation in those things
+and constancy and durability. It signifies a matter which has perished
+or been lost or which was stolen or which fled or was submerged in the
+sea or a river or fell into a well or into a similar place, or was killed,
+and it signifies the condition {esse} of the dead, that is, by what death
+the native may die or will die. It signifies the condition {esse} of the
+lands and the condition {esse} of the harvests of other lands and of the
+growing things of the earth, and it signifies heredities, especially those
+which are bought.
+It signifies heavy buildings and especially those which do not rise
+high above the earth, and diggings and accumulations of lands and
+the transportation of them on high and the productions of the waters
+and the like. Indeed it signifies avarice and punishment of miserable
+men to pity the living, and it signifies praise and disgrace. It signifies
+old age and time causing one to grow old, and everything conquered,
+incarcerated, or placed in a jail and the liberation from the jail or from
+confinement.
+On the Part of Jupiter or Pars Iovis, Which Is Called the Part of
+Happiness
+The part of Jupiter, which the philosophers call the part of
+happiness and of assistance, is taken by day from the pars futurorum,
+
+=== Page 11 ===
+which signifies fortune, to Jupiter, which signifies happiness and
+assistance, and by night the reverse, and it is projected from the
+ascendant. And its signification is concerning honour and the
+attainments of things, victory and assistance and happiness and
+goodness. Also the laudable end of things and the petition of faith or
+the attainment of it and what the nature {esse} of this is and belief in
+God, and the zeal in every good work, and the choosing of it or of
+justice and of just judgements between men. Also buildings for the
+purpose of prayer, and it signifies wisdom and the wise and the
+sublimity of wisdom. Also trust, faith, and all good things which men
+enjoy and the mutual participation of the good.
+On the Part of Mars or Pars Martis, Which Is Called the Part of
+Daring
+ The pars Martis, which the ancients call the part of daring, is
+taken by dayfrom Mars to the pars fortunae and by night the
+reverse, and this is projected from the ascendant. Its significations
+are these: the disposition of armies, of wars and battles, and the
+worth and sharpness of the soul, also resolution, anticipation, and
+greatness of heart with impulse and haste; it also signifies
+lascivious incest from cunning and seductions.
+On the Part of Venus or Pars Veneris, Which Is Called the Part
+of Love and Concord
+ The pars Veneris, which is called the part of love and concord, is
+taken by day from the pars fortunae to the pars futurorum and at night
+the reverse, and is in projected from the ascendant. Its significations
+are these: It signifies pleasures, desires, and wants in venereal things
+and in the culture of them both licit and illicit, and the things which
+venereal people love and in which they delight and which the soul
+desires, unions and all things which pertain to the inclination to coitus
+and pleasure from games and joys and delights.
+
+=== Page 12 ===
+On the Part of Mercury or Pars Mercurii, Which Is Called the
+Part of Poverty and Ordinary Intellect
+The pars Mercurii, which is called the part of poverty or of ordinary
+intellect, is taken by day from the pars futurorum to the pars fortunae
+and at night the reverse, and it is projected from the ascendant. It
+signifies poverty and meanness of intelligence and intellect, and it
+signifies war, fear, hatred, contentions, injuries, and anger in the hour
+of injuries and enemies. It signifies negotiation, buying and selling also
+cogitation and intelligence, cunning and writings, numbers and the
+pursuit of astronomy and of diverse sciences.
+This is the method of extracting the parts of the seven planets,
+and the things mentioned above are their significations. Whence if you
+ever extract a part concerning any of the aforesaid significators and
+you project it in any figure, judge its good or evil signification
+according to its conjunction or that of its lord with the planets or their
+aspects. Nor do I wish to introduce you to the diversities of opinions
+of the ancients because this way is more correct than those preserved
+by our most reverend predecessors Hermes, Guellius, and
+Albumassar, who were the flowers of the Latins, {perhaps implying
+that Bonatti knew these authors from Latin translations} although
+they and likewise their followers studied in Athens where the study
+then flourished. But the other significations of the parts are discussed
+below in the appropriate places and chapters, if God permits.
+
+=== Page 13 ===
+CHAPTER THREE
+ON THE SIGNIFICATION OF THE PARTS OF THE TWELVE
+HOUSES
+The signification of the seven parts of the planets and their
+significations and extraction having been discussed, the parts of the
+twelve houses ought to be discussed next {after the following brief
+digression} The parts extracted above are in themselves more useful
+and necessary. And when it is said regarding the place of any part,
+“Take from such and such a planet to such and such a planet or from
+such and such a place to some other place, and project from the
+ascendant,” I say that you always add the distance between both
+places to that which is from the beginning of the sign from which you
+project {to the degree from which you project}, as was said regarding
+the extraction of the part of fortune, and the others are extracted in the
+same way.
+Nor does it seem to me that diversities of opinions ought to be
+recited here but only to apply the mind with greater diligence. The
+limits of all the things which are signified by each of the houses are not
+the same but diverse, although some may have their beginning or
+origin from the same house and certain others from others. For
+example, regarding the significations of death, the limit of its
+significations will not {always} be the same. However, they all signify
+death. For some men die in their beds or elsewhere from infirmities,
+some from short illn esses, others from long ones, some die suddenly,
+some by the sword, others by fire, others are suffocated, some are
+hung.
+ Men as it were a die in innumerable ways. And although the
+deaths are not all of the same kind, nevertheless each is a death. And
+so, too, regarding the profession which is signified by the tenth house,
+because a magistrate is one thing, a kingship another, a commander
+another, a duke another, a count another, and another is some kind of
+artisan or the like. And although they may not all be the same,
+nevertheless they all have their origin from a thing signifying honour
+and dignity. And so all the significations of any house are each
+according to its own quality {esse} and according to the nature of the
+house whose signification it is necessary to know.
+Many other parts will be discovered which would be too long to
+narrate. You, however, will consider them as you come across them by
+your own industry; nor will you be grieved by what I say to you and if
+all the things which are signified by the houses cannot be made
+manifest at the same time and immediately. Otherwise, such and so
+many things are set forth as to suffice for the extraction of all the
+parts of the houses, from which anyone who is worthy will see that the
+part of the significators of anything is signified by one of the houses of
+the circle, and he will be able by his own industry to comprehend
+clearly enough things which have not yet been explained to him.
+
+=== Page 14 ===
+CHAPTER FOUR
+ON THE PARTS OF THE FIRST HOUSE - THAT IS, THE
+ASCENDANT - AND ON THEIR EXTRACTION AND
+SIGNIFICATION
+Now concerning the extraction of twelve houses and first
+concerning the first house or ascendant and the significations of these
+parts and their extraction. As was said in the chapter on the twelve
+houses, the first house signifies the natural life. I say “natural" for this
+reason; because very often the relative strength of the nature causes
+death or some kind of accident, as was said above in another chapter.
+And therefore, for this reason the part of life or pars vitae and its
+extraction ought to be considered, for by this the quality of the life of
+the native is determined and what kind of existence {esse} he will have.
+ It is extracted from Jupiter and Saturn on account of their altitude
+and their great distance from the Earth and on account of their
+movement, which is slower than that of the other planets, and for this
+reason rulership {virtus} has been given to them over things the length
+and durability of which we aspire to. And for the reason given above
+the ascendant participates with them. This part is taken by the day
+from Jupiter to Saturn and by night the reverse, and it is projected
+from the ascendant.
+This part is the significatrix of the natural life and signifies the
+condition {esse} of the body and its sustenance. If it is well disposed, it
+signifies length of life and its continuity, the safety of the body, and
+the vitality of the soul. If, however, it is impeded, it signifies paucity
+of life and the shortness of it and its evil quality with a multitude of
+diverse infirmities and with sorrow of soul and the sadness of it. This,
+therefore, will signify the quality of men in revolutions of the years
+both in nativities and in the world.
+We have discussed the first part of the ascendant, which is the
+pars vitae; next the second part of the ascendant ought to be
+discussed. This is the part of durability and stability or pars
+durabilitatis. It is the part of the security of the ascendant or pars
+fiduciae ascendentis.
+ Thus, since it is more noble and more worthy an accident than
+may be in this world, it was necessary that it should be perfected by
+something more noble in durability and stability; and it was fitting for
+that to be by the union or completion of the soul and the body, and
+this was not able to happen unless by the stronger of the
+supercelestials; and these are the luminaries whose parts are stronger
+and are found to be more fortunate than others, and in the same way
+as the luminaries are stronger benefics than the other benefics,
+accordingly their effects are perceived to be stronger and more
+apparent than the effects of the other planets, and so their parts
+signify the body and soul just as the luminaries signify them.
+Nor can durability happen or last in living things without the
+
+=== Page 15 ===
+union of the body and the soul. Just as living things are caused and
+last in accordance with the complexion or union of these {that is, the
+soul and body}, so they are corrupted by their dissolution or
+separation. And this is the cause, which moved the wise of the
+ancients to extracting this part. They counted it from the pars fortunae
+as if from something more worthy in this way: The pars fiduciae
+ascendentis is taken by day from the pars fortunae to the pars futurorum
+and by night the reverse, and it is projected from the ascendant.
+Albumassar said that this part coincides with the pars Veneris and
+certain things are allotted to it which are not given to the other parts
+{indicating that the pars durabilitatis is has a special metaphysical
+importance}. It signifies the beauty of the native and his deformity.
+Likewise it signifies his similitude to his parents.
+When this part or its lord is well disposed in a nativity, the native
+will be physically beautiful, having a beautiful face and surrounded
+everywhere with beauty in all his parts, and this will be extended to
+his offspring, and this will last until one of the malefics hinders and
+impedes them, The native will abound in good things and the more so
+if the pars fortunae and pars futurorum are well disposed, and again
+more if their lords were fortunate. Then indeed he will have that which
+he desires from everyone. He will have very great profit both on
+journeys and wanderings and in other places.
+ However, if this part is impeded, it signifies the native’s
+deformity and ugliness and the badly complexioned condition of his
+body, accompanied by infirmities. He will be unfortunate, and all the
+good things mentioned above will fall into their contrary according to
+the place and disposition of the aforementioned part and significators.
+And this will very likely be extended to his descendants all the way
+until one of the benefics will discover their significators in a nativity of
+either of them.
+Albumassar said that if it inclines to the significator of the
+mother, the native will be like the mother and will stay at home with
+her. And he said, if you desire to know the durability of anything, for
+instance the life of the native, from a question or a revolution or from
+whatever other method you desire to know his durability or death,
+whether the matter is known or unknown, manifest or occult, look to
+this part.
+ If it is aspected by the lord of the house or exaltation or of the
+two other dignities of the sign in which it is, or if it is with the lord of
+the ascendant of that year or is with one of the lords of the angles and
+is in an angle, it signifies stability and durability of the matter and all
+the more strongly and firmly when it is in the first or the tenth house.
+But if it is cadent, it signifies his removal and destruction. However, if
+it is succedent and even more so if it is in the second or eighth, it
+signifies that the durability of the matter is always uncertain and in
+doubt. But if it is impeded in an angle, it signifies durability with
+sadness and terror. But if a benefic is with it or aspects it by a trine or
+sextile aspect or indeed by a square with reception, and the benefic is
+not impeded, there will be durability in the home, although with fear
+or suspicion. And Albumassar said, if it is fortunate in its own
+debility, the native will enjoy a fortune in accordance with the degree
+
+=== Page 16 ===
+of its debility {this appears to be a contradiction but may be so if the
+benefic is well disposed and is favourably aspected by another
+benefic}. However, if it is impeded, it will be evil and horrible in
+accordance with the degree of its debility. And if it is in a revolution of
+someone’s nativity, the significations will be more than they are
+accustomed to be and they will be more stable, more constant, and
+more firm than usual.
+The first and second parts of the ascendant having been
+discussed, now we ought to discourse on the third part, which is the
+part of reason and sense or pars rationis et sensus. And since man is not
+able to be truly without reason and sense, the wise considered whence
+they were able to extract the pars rationis et sensus. And since they saw
+that Mercury was naturally the significator of both and also of
+imagination { cogitationes which may also be translated as “thought”}
+and speech and understanding, and that Mars was the significator of
+heat and motion, they extracted the part from these two and called it
+the pars rationis et sensus.
+ In fact, this part could also be called the part of imagination and
+speech. It is taken by day from Mercury to Mars and by night in the
+opposite direction, and it is projected from the ascendant. And they
+said that this part signifies sense and reason and science and
+imagination and understanding and speech. But if this part is well
+disposed in anyone’s nativity and it is with the lord of the ascendant
+or with the lord of the house in which it is posited, or if the lord of the
+ascendant {being} in his own dignity aspects the lord of the house
+{eum – meaning literally “him”. It is taken to refer to the house
+because it requires a masculine antecedent and the part is feminine}
+and at the same time Mercury aspects both the part and the lord of
+the ascendant or the lord of the part, by trine or sextile aspect or even
+a square with reception, and if Mercury is fortunate and strong and
+not impeded - then the native will be rational, knowing, speaking,
+thinking, and understanding; and if at the same time Mars should
+aspect the ascendant or its lord or the lord of the part, the native will
+be wise, as I said, and he will be of sharp mind, learning easily and
+retaining well and not forgetting those things which he has learned.
+We have discussed the first, second, and third parts of the first
+house. It remains for us to discuss the fourth part, which is called the
+part of the hyleg or pars hyleg. The ancients did not care to say much
+regarding this part because it is so involved with other things. But
+none of them are able to exist without it. But this part is able to exist
+without them. It is to these things as matter is to form. The ancients
+would have been able to set forth the doctrine on this if they had so
+desired, but they set it aside for the reason stated above.
+This part is the root of the others {refer to Chapter 16 also} and is
+taken by day or night from the degree of the conjunction or prevention
+which preceded the nativity or the question or the revolution, to the
+degree of the Moon, and this is then projected from the ascendant.
+And this part is called the radix vitae {root of life} because it
+comprehends entirely the whole being {esse} of the native or querent or
+even the revolution, and if it is well disposed, it signifies universally
+the good “being” {esse} of the native and of other matters. However, if
+it is evilly disposed, it signifies the contrary of the aforesaid.
+
+=== Page 17 ===
+CHAPTER FIVE
+ON THE PARTS OF THE SECOND HOUSE AND THEIR
+EXTRACTION AND SIGNIFICATION
+ Having spoken above on the parts of the first house, we ought
+next to discuss the parts of the second house, which is called the
+house of substance because the first thing which man requires after
+birth, aside from life, is substance. It was for this reason that the
+signification of substance was given to the second house.
+The first part of the second house is called the part of substance
+or pars substantiae, which is taken by day or night from the lord of the
+house of substance to the degree of the house of substance and is
+projected from the ascendant. And this part signifies the maintenance
+of the life of men and their profit and other things, which are used by
+men for their sustenance. If it is well disposed and located, it signifies
+the good condition {esse} of the native or querent both in food and in
+money and the like. If, however, it is impeded, it signifies the contrary
+of those things, which have been said. And Albumassar said that the
+other significators of substance and fortune signify the other visible
+species of substance, that is, the kind which are hoarded and saved.
+The same happens in revolutions. And the part of poverty is one of
+the parts of Mercury. {though the part of poverty is the only one that
+Bonatti gives}
+The part of moneylenders or pars foeneratorum is taken by day or
+night from Saturn to Mercury and projected from the ascendant, If it
+is fortunate and well disposed, it signifies money and the increase of
+substance because of usury and moneylenders. However, if it is
+impeded and the lord of substance {lord of the second house} is also
+impeded, it signifies that the native will lose the greatest part of his
+own substance by usury and moneylenders and the like. And likewise
+with the querent. The same thing happens in revolutions. Men’s means
+are disposed according to the disposition of the aforesaid part.
+The part of happiness or pars beatitudinis, which is elsewhere called
+the pars Jovis and the pars triumphi et victoriae, is taken by day from
+Saturn to Jupiter and at night in the reverse direction, and it is
+projected from the ascendant.
+The fourth part of the second house is called the part of collection
+or pars collectionis. It is taken by day from Mercury to Venus and by
+night in the reverse direction, and it is projected from the ascendant.
+And this part signifies abandoned things or semi-scattered things
+which someone discovers at some time or other in his journeys, on the
+roads, in fields, on the seashore or on riverbanks, in the mountains or
+by digging or in some way not planned, or it is a thing which had
+fallen or had fled from some place or had been forgotten or in some
+similar fashion had been separated from its lord or had gone out from
+his hands.
+If this part is in an angle or if any of the lords of any of the
+dignities of the sign in which the part is, or either of the luminaries, is
+joined {a “conjunction” may be aspectual or corporal. two planets at
+
+=== Page 18 ===
+10 degrees of Leo are in corporal conjunction, one planet at 10 Leo ad
+another at 10 Scorpio are in aspectual conjunction} to it {unless
+combust} or if the luminary aspects the part with a trine or a sextile
+aspect, the things mentioned above will come into the native’s hands
+and he will be fortunate in them and he will rediscover any of his own
+things he may have lost or misplaced or if he left them for some
+reason as was said regarding others. And if the significators of the
+part are in good condition,’ in the places in which they are and in the
+radix of the nativity, he who discovers or rediscovers a thing will have
+good, profit, vitality, and good luck and will be successful concerning
+the things which were thus discovered. If, however, the aforesaid
+significators are evilly disposed, the native will not discover anything
+or grow rich, but rather things will turn out contrary to this and be
+damaged. The same happens to men in revolutions when the
+aforesaid part or significators are disposed in this way.
+
+=== Page 19 ===
+CHAPTER SIX
+ON THE PARTS OF THE THIRD HOUSE AND THEIR
+EXTRACTION AND SIGNIFICATION
+
+ The third house has three parts. The first is the part of brothers or
+pars fratrum and is taken in the day and night from Saturn to Jupiter
+and projected from the ascendant. The lord of the house {here
+meaning zodiacal sign} of this part signifies the condition of the
+brothers and their agreement. And if this falls in a sign of many
+brothers,{Gemini, Virgo, Sagittarius and Pisces} there will be many
+brothers. The number of brothers is known by the number which is
+between that part and the lord of the sign, giving one brother to each
+sign.
+ The second part, concerning the number of brothers or pars de numero
+fratrum, is taken from Mercury to Saturn and is joined to and
+projected from the ascendant, and if it falls in a sign of many children
+{fertile signs} there will be many brothers and sisters according to the
+number of the signs or planets, and perhaps the number equals the
+quantity of years of the planets, either the mean or greater,
+ and if
+there are any aspecting planets, they increase the years. And if this
+part falls in a sign of few children, there will be few. { the years of the
+planets and further discussion of this is found in the Robert Zoller
+Diploma of Medieval Astrology at:
+http://www.new-library.com/zoller/courses}.
+ The third part is the part of the death of the brothers and sisters or
+pars mortis fratrum et sororum, It is taken by day from the Sun to the
+degree of the Medium Coeli and is added to and projected from the
+ascendant. It signifies the cause of death of brothers and sisters.
+When this part comes to the significators of the brothers or sisters,
+or they to it, by profection {this predictive technique is discussed in
+greater detail with examples in the Robert Zoller Foundation Course in
+Medieval Astrology at http://www.new-library.com/zoller/courses}
+or direction of degrees, they will have evil.
+
+=== Page 20 ===
+CHAPTER SEVEN
+ON THE PARTS OF THE FOURTH HOUSE AND THEIR
+EXTRACTION AND SIGNIFICATION
+Now we shall speak on the parts of the fourth house and first on
+the part of the father or pars patris, which is taken by day from the Sun
+to Saturn and by night in the reverse direction, and is projected from
+the ascendant. This part is taken from those two planets because
+Saturn signifies antiquity and masculinity and the Sun signifies the
+natural heat which is the cause of the life of animals, and fathers are
+more ancient than sons and are the cause of the sons. However, if it
+happens that Saturn is under the Sun’s beams, then the pars patris is
+taken from the Sun by day to Jupiter and by night the reverse, and it is
+projected from the ascendant.
+Albumassar said that the lord of the part signifies the fortune of
+the father and his substance and labours. If the part is of good
+quality, the father will be noble. And if its lord is of good quality, he
+will be fortunate and of long life. However, if it is impeded or evilly
+located, he will be laborious, unfortunate, and of short life. And he
+said that its lord signifies the place of origin of the native and his
+honours and fortitudes.
+The second part of the fourth house is called the part of the death
+of the father. It is taken by day from Saturn to Jupiter and at night in
+the reverse direction, and it is projected from the ascendant. This part
+signifies the cause of the father’s death. As many times as the
+profection of the year comes to this part or to its lord, it signifies the
+father’s danger and misfortune, Likewise when any of them {aliquis
+eorum – presumably indicating the malefics} come to the significators
+of the father.
+The third part of the fourth house is called the part of
+grandfathers or pars avorum. It is taken by day from the lord of the
+house of the Sun to Saturn and at night in the opposite direction, and
+it is projected from the ascendant. If the Sun is in Leo, it is taken by
+day from the first degree of Leo to Saturn and by night from Saturn to
+the first degree of Leo and is projected from the ascendant. If the Sun
+is in Capricorn or Aquarius, it is taken by day from the Sun to Saturn
+and by night the contrary, and it is projected from the ascendant. Nor
+will you then care whether Saturn is under the Sun’s rays or not. This
+part signifies the things of the grandfathers. Whence whenever it is
+joined to the benefics, the grandfathers come upon something good.
+The fourth part of the fourth house is called the part of the
+ancestors or pars parentelae or of understanding or of generosity. It is
+taken by day from Saturn to Mars and by night in the opposite
+direction and is projected from the ascendant. To this is added the
+number of degrees which Saturn has completed in the sign in which he
+is, and it is projected from the beginning of the same sign, and where
+it falls is the place of the part.
+{Special Note: it is unlikely that the same part can be calculated by
+projecting from two separate places thus one of these projections
+must be a mistake. In chapter 11 On the Parts of the Eight House,
+
+=== Page 21 ===
+Albumassar compares the pars loci ponderosi and the pars parentelae.
+The calculation for the pars loci ponderosi is the distance between
+Saturn and Mars added to the degrees that Mercury is in, projected
+from the beginning of the same sign. In this light, “and is protected
+from the ascendant” (above) is probably a mistake.}
+Albumassar said, after this, see if this part is in an angle and
+whether any of the lords of the dignities of the sign in which it is
+aspect it, or the Sun or the lord of the tenth or any of the lords of the
+angles with an aspect of friendship. If so, the native will be of noble
+progeny and of honest ancestors. However, if the part is cadent and
+joined to the malefics or if none of the lords of the dignities of the sign
+in which it is or the lords of the angles aspect it, the native or querent
+will be of low-quality parents or of low-quality understanding or
+generosity.
+The fifth part of the fourth house is called the part of inheritances
+or possessions or pars haereditatum vel possessionum. It is taken by day
+or night as from Saturn to the Moon and projected from the
+ascendant. Albumassar said that this part coincides with the part of
+the king and kingdom or pars regi et regni, or what kind of work the
+native will be employed with {This part the eighth part of the tenth
+house. It corresponds to the pars regum et quid operis agat natus and
+is further discussed in chapter 13 On the Parts of the Tenth House}.
+ When it is of good condition {esse} and well located and likewise
+its lord, the native will be fortunate because of inheritances or because
+of the cultivation of the earth or planting, and he will acquire
+substance. But if it is of evil condition {esse} it signifies sorrows and
+sadness and dejection or something evil and horrible because of the
+aforesaid.
+There is another part of inheritances according to the wise of the
+Persians, and it is the sixth part of the fourth house. This part is taken
+by day from Mercury to Jupiter and by night in the opposite direction,
+and it is projected from the ascendant. This part is not considered in
+the kingdom, nor in the profession nor in the cultivation of the earth
+nor in seeds, but only in things which are called inheritances.
+The seventh part of the fourth house is called the part of the
+cultivation of the earth or pars cultus terrae. It is taken by day and by
+night from Venus to Saturn and is projected from the ascendant. If it
+is fortunate and its lord is fortunate, the native or querent will be
+successful in the cultivation of the earth in planting and sowing and
+he will be fortunate in those things. It happens likewise for all men in
+revolutions of the world and for natives in the revolutions of their
+nativities, if the aforesaid are so disposed.
+The eighth part of the fourth house according to Alchabitius is
+called the part of the nobility of the native or pars nobilitatis nati and
+“of him regarding whom there is doubt as to whether he is the son of
+his father or of another.” By day it is taken from the degree of the Sun
+to the degree of its exaltation and is projected from the ascendant.
+The ninth part of the fourth house is called the part of the ends of
+things or pars finium rerum and is taken by day from Saturn to the lord
+
+=== Page 22 ===
+of the sign of the conjunction if the figure is conjunctional {i.e. if the
+horoscope is after the New Moon} or to the lord of the sign of the
+prevention if the figure is preventional (i.e. if the horoscope is after a
+Full Moon}, and it is projected from the ascendant. And Albumassar
+said that if this part and its lord are in signs of short ascension
+{directae ascesionis} or are otherwise fortunate, the end of the
+businesses of the native or querent will be good or their nature
+laudable. However, if they are in tortuous signs or are impeded, their
+ends will be bad. And if one of them is in a direct sign and the other in
+a tortuous sign, their ends will be complicated, neither entirely good
+nor entirely bad. And Albumassar said, “After this the thing reverts to
+that which will be signified by the sign in which the lord of the part
+is.”
+
+=== Page 23 ===
+CHAPTER EIGHT
+ON THE PARTS OF THE FIFTH HOUSE AND THEIR
+EXTRACTION AND SIGNIFICATION
+We ought now to speak on the parts of the fifth house and first
+concerning the part of children or pars filiorum. This is taken by day
+from Jupiter to Saturn and by night from Saturn to Jupiter and is
+projected from the ascendant. By this part it is signified whether the
+native or querent will have any children or not.
+Albumassar said that if this part or its lord is in a sign of many
+children, the native will have many children. However, if it is in a sign
+of few children, he will have few, and if it is in a sterile sign, he will not
+have any. If the part signifies children, and it is fortunate and of good
+condition {esse}, the children live. However, if it is impeded, it signifies
+that they will not live. And he said that it signifies the entire being
+{esse} of the children, and the way it holds itself to the significators of
+the father will determine to what degree one loves the other.
+ And he said that the distance in longitude, between the part and
+its lord, is taken and one child is given to each sign, which may be
+between them. {for example if the pars filiorum is at 20 Aries and
+Mars, its lord, is at 20 Gemini then as two signs fall within the
+distance between indicates two children.} However, if there is a
+common sign between them, the number of the same sign will be
+multiplied because he will then have two children, whereas the first
+condition indicated only one. And he said that if there is a planet
+between them, it will be counted as one child for him, just as was said
+concerning brothers above.
+ The second part of the fifth house or pars masculorum vel
+foeminarum, which signifies the hour in which the child will be born,
+and the number of children and whether they are masculine or
+feminine, is taken by day or night from Mars to Jupiter and is
+projected from the ascendant. This is because the effect of children is
+signified by Jupiter on account of his temperate hot and moist nature
+and because he is the cause of increase. And because of the
+signification of Mars over heat and because of his motion and his
+delighting and hungering for natural coitus or because he
+predominates more in men. And because a child is not able to be
+unless by the coitus of men and women and by the natural heat and
+humidity connecting them. This is the reason this part is extracted
+from these significators. And Hermes said that if the first part and
+other significators the of children signify that the native or querent will
+have children, this part will give the number of them, and this when
+Jupiter arrives to this part by body or by a trine or sextile aspect, and
+so much more so if it is with reception.
+ If coitus occurs at this time, then it signifies that it generates a
+child in the same hour if his age permits. And Albumassar said that if
+it is in a masculine sign, many of his children will be masculine; if in a
+feminine sign, then many will be feminine. And he said if the
+significators signify a multitude of children for the native or querent,
+look to this part and its lord and see in what sign it may be; because
+this signifies that the number of sons he will have will be according to
+
+=== Page 24 ===
+the number of be the minor years of the lord of the part or the mean or
+the greater. And he said that it is very likely that aspecting planets
+will increase the number according to the number of their years.
+The third part of the fifth house, which signifies masculine
+children or pars filiorum masculorum, is taken by day and night from the
+Moon to Jupiter and is projected from the ascendant. Alchabitius said
+that it is then taken by day from the lord of the Moon to the Moon and
+by night in the opposite direction, and it is projected from the
+ascendant. This part is extracted in this way because the Moon
+signifies youth and the younger age during which generation occurs,
+which is stronger for procreating than old age or even advanced age,
+and the operations of nature will be more excellent or more potent at
+that age than in others because of its nearness to its nativity. {Subject
+to sufficient bodily development the closer to the Source, the greater
+the ability to procreate. The movement away from the Source is the
+expending of the amount of energy that has been allotted until the
+opposite position is reached, that being death}
+ Moreover, to generate masculine children is nobler than to
+generate feminine ones because masculinity is acting while femininity
+is passive, and action is nobler and worthier than passivity. Jupiter is
+the significator of the effect of children and of creation and the
+increase of them and especially of masculine children; for this reason
+the wise take this part from him.
+Theophilus and certain other wise men of the Persians seemed to
+wish to say something else. But Albumassar held the dictum of
+Hermes as closer to the original. They also said that this part aided
+the fortune of the native in the same way as the part of fortune, and
+this is not denied by the wise of that time.
+The fourth part of the fifth house signifies the being {esse} of the
+daughters or pars esse filiarum. According to Alchabitius it is taken by
+day and night from the Moon to Venus and is projected from the
+ascendant.
+The fifth part of the fifth house, by which it is known whether a
+conception is masculine or feminine, or pars de conceptione, is taken by
+day from the lord of the house of the Moon {no second significator is
+given as the text is incomplete. It is surmised that it should be the
+lord of the house of the Sun} and in the night the reverse, and it is
+projected from the ascendant. And if it falls in a masculine sign, then
+the native or the one whom it is asked about will be masculine, but if
+in a feminine sign, feminine.
+
+=== Page 25 ===
+CHAPTER NINE
+ON THE PARTS OF THE SIXTH HOUSE AND THEIR
+EXTRACTION AND SIGNIFICATIONS
+The narration of the parts of the sixth house, and first concerning
+the part of infirmities and accidents and of inseparable vices or pars
+infirmitatum. This is taken by day from Saturn to Mars and by night
+the reverse and is projected from the ascendant.
+The second part of the sixth house, called the part of infirmities
+both separable and inseparable, is taken by day and by night from
+Mercury to Mars and is projected from the ascendant.
+The third part of the sixth house is called the part of servants
+according to Alchabitius, and according to Theophilus it is taken by
+day from Mercury to the Moon and the reverse at night and it is
+projected from the ascendant. But according to Hermes, whose
+opinion was considered as closer to the original by the wise, it is taken
+by day or night from Mercury to the Moon, and it is projected from
+the ascendant. This because Hermes and the wise in those times
+considered servants both male and female, as many servants and
+handmaids and messengers are, to be unfaithful and readily
+changeable, and this in order to be contrary to their lords rather than
+their own profit, and therefore they attributed all these things and
+other quickly changing things to the lighter planets.
+ And so they extracted this part from them. If the part is
+fortunate and of good condition {esse} and likewise its lord, it signifies
+that the native or the querent will have good from the aforementioned
+significations of the part. However, if it is impeded, it signifies the
+contrary. And if the part is of good condition and its lord impeded, or
+vice versa, it signifies that the native will have good from them first,
+followed by its contrary from them. And if this part is in a sign of
+many children, it signifies that the native or querent will have many
+manservants, handmaids, or other servants. If it is in a sign of few
+children, he will have few servants. If it is in a sterile sign, he will lack
+them completely. And the same thing happens in revolutions
+concerning the aforesaid parts for those who have them.
+ Theophilus and certain others said that this part is taken from
+Mercury to the pars fortunae. Albumassar approves more the dictum
+of Hermes.
+ The fourth part of the sixth house, which is called the part of
+captives and the conquered or pars captivorum et vinctorum, is taken by
+day from the lord of the house of the Sun to the Sun and by night
+from the lord of the house of the Moon to the Moon, and it is projected
+from the ascendant. If it falls in a good place from the ascendant and
+is with any of the benefics, the querent or captive will be liberated
+from that captivity. But if it falls in an evil place and is with the
+malefics, it signifies for the captive evil and misery and it may signify
+the death of the captive especially if the lord of the tenth aspects it.
+And Albumassar said if the Sun is in its own house by day, or the
+Moon by night, one of these will be the signification. And he said, after
+this look to that one of these {Sun or Moon} which is the significator, in
+
+=== Page 26 ===
+what place of the circle it is and from which planet it is separated or
+to which it is joined, and work according to this. Understand the
+same in revolutions.
+CHAPTER TEN
+ON THE PARTS OF THE SEVENTH HOUSE AND THEIR
+EXTRACTION AND SIGNIFICATION
+The discourse on the parts of the seventh house, and first
+regarding the part of men’s marriages or pars coniugii virorum
+secundum Hermetem. This part is taken by day or night from Saturn to
+Venus, and it is projected from the ascendant. Hermes and the other
+wise men extract it from these two planets because Saturn signifies
+antiquity and things, which are long lasting, and marriage ought to be
+long lasting. Moreover, Saturn has signification over masculinity and
+Venus has signification over femininity, and masculinity ought to
+precede femininity by the nature of masculinity and action.
+ If this part is of good condition {esse} and well disposed, it
+signifies that the marriage is appropriate and of good fortune and
+that the native or querent profits from it and that good follows from
+that marriage, and it signifies indeed that the native contracts a
+marriage with a beautiful and decent woman. But if it is impeded, it
+signifies that the marriage will be bad and harmful and that damage
+and danger and disturbance with adversities will follow from it. See if
+Jupiter comes to the part or aspects it with a fortunate aspect,
+because then the marriage will be fortunate if it was consummated in
+that hour.
+And Albumassar said that when this part is with the lord of the
+sign in which it is posited or the Sun aspects it and the Moon and its
+lord with a strong and favourable aspect, it signifies that the native is
+joined with one of his own parents {parentelae – literally dead ancestors
+or possibly parentelia}. Understand the same thing regarding
+weddings, which are made in revolutions when the aforesaid part and
+its lord are thus disposed, as has been said.
+And Albumassar said there is a second part of men’s marriages
+which Vellius relates which is taken by day and night from the Sun to
+Venus and is projected from the ascendant.
+The third part of the seventh house is the part of cunning and of
+craftiness { ingenii} of men toward women or pars calliditatis et in genii
+virorum erga mulieres, and it is similar to the pars coniugii virorum
+according to Vellius.
+The fourth part of the seventh house is the part of coitus of men
+with women or pars coitus virorum cum mulieribus, and it is similar to
+the pars coniugii virorum of Vellius.
+The fifth part of the seventh house is called the part of luxury and
+fornication of men or pars luxuriae atque fornicationis virorum, and it is
+
+=== Page 27 ===
+taken by day and night from Venus to Saturn and it is projected from
+the ascendant. If it is in a good place, there will be a laudable union
+and the man will succeed in what he wants from women. However, if
+it is evilly located, the union will be disgraceful, nor will he be able to
+succeed with women. And Albumassar said that if it is in a sign
+signifying impeded coitus, the man will be of frequent coitus,
+lascivious, and a fornicator. However, if it is fortunate, the man will
+be of frequent coitus and the coitus will be at least partly laudable.
+And he said that on the signification of this part, if the lord of the part
+which Hermes calls the part of the wedding of men or pars nuptiarum
+virorum, {pars nuptiarum virorum refers to the already discussed pars
+coniugii virorum secundum Hermetem} falls with Vellius’ part {being the
+second part of men’s marriages already referred to above} or if the
+lord of this part { pars luxuriae atquefornicationis virorum } is aspecting
+the pars nuptiarum virorum, the native or querent will fornicate with the
+woman before he is joined to her by marriage, and afterward make the
+fact known publicly.
+The sixth part of the seventh house is called the part of marriage
+of women or pars coniugii mulierum. Hermes said that it is similar to
+the cause of the marriage of men, and it is taken in both day and night
+from Venus to Saturn and is projected from the ascendant.
+Albumassar said that this part coincides with the pars cultus terrae.
+Vellius took it by day and by night from the Sun to Mars, and
+projected it from the ascendant. Hermes, however, was closer to the
+original intent than he. If this part and its lord are well disposed and
+of good condition {esse}, it signifies the fortune of women by marriage.
+But if it is impeded, it will signify sorrows and sadness and afflictions
+or tribulations which the native or querent will discover as a result of
+the marriage, and the wife will be lustful. Again, Vellius took it in
+another and better way; he took it by day and night from the Moon to
+Mars and a projected it from the ascendant and this method pleased
+Albumassar more. This is the seventh part.
+The eighth part of the seventh house is called the part of cunning
+and craftiness { calliditatis} of women toward men. Hermes said that
+this is similar to the pars coniugii mulierum,
+The ninth part of the seventh house is called the part of pleasure
+and amusements or pars voluptatis et delectationis, It is taken by day or
+night from Venus to the degree and minute of the seventh house and
+is projected from the ascendant.
+The tenth part of the seventh house is called the part of lascivious
+women and their foulness or pars lasciviae mulierum et turpitudinis
+earum. Vellius said that it is similar to the pars coniugii mulierum. It is
+taken by day from Venus to Saturn and projected from the ascendant.
+When it is of good condition {esse} and well disposed, the woman will
+be pleased with her marriage and will praise it. But if it is of evil
+condition or evilly disposed, her marriage will of displease her and she
+will blaspheme it and she will be sorry and suffer because is of it and
+strive in treachery and deception of the mind of men. And if this part
+is of good condition {esse} and well placed or in signs of cunning and
+craft such as Leo, Sagittarius, Capricorn, and Pisces, the woman
+seduces whatever man she wishes. But if it is outside of these signs or
+
+=== Page 28 ===
+otherwise evilly located, she will not be able to seduce anyone.
+On the signification of the part of conjunction and their coitus: If
+it is in a sign signifying impeded coitus, she will be a foul fornicatrix,
+an evil, lascivious woman. But if it is fortunate in a sign signifying
+coitus, she will be full of desire in coitus, partly, however, in an
+appropriate way. {the extraction of the part of conjunction and their
+coitus – pars coniunctionis et coitus earum is unfortunately omitted from
+the text}.
+And on the signification of the pars lasciviae mulierum et
+turpitudinis earum: Albumassar said that if the pars conjugii midierum
+which Hermes mentions is with the part of the same name which
+Vellius mentions, and if the lord of this part is with the pars conjugii,
+she will fornicate with a man and later be married to him.
+The eleventh part of the seventh house is called the part of religion
+and of the honesty of the woman or pars religionis et honestatis mulieris.
+It is taken by day and night from the Moon to Venus and is projected
+from the ascendant. And he {Bonatti does not specifically state which
+author} said that this part is also the part of daughters. If it is in a
+fixed sign or in the aspect of any of the lords of the dignities of the
+sign in which it is {placed} or of any benefic, the woman will be honest
+and religious even if she may be longing for coitus. But if the malefics
+aspect it without reception and it is in a mobile sign, the woman will
+be excessive in her desire for coitus, giving herself to men and inviting
+them to coitus for a cheap price, and she will be in every way a
+fornicatrix.
+The twelfth part of the seventh house is called the part of
+marriage of men and women according to Hermes or pars conjugii
+virorum et mulierum secundum Hermetem. {this should not be confused
+with the pars coniugii virorum secundum Hermetem or the part of the
+same name according to Vellius nor to the pars conjugii mulierum
+secundum Hermetem (properly called pars ingenii atque calliditatis
+mulierum erga viros ) nor to the pars lasciviae mulierum et turpitudinis
+earum} It is taken from Venus to the degree and minute of the angle of
+weddings, that is, of the seventh, and is projected from the ascendant.
+If it is joined, to the benefics, the woman marries and it is said of her
+marriage that it is good.
+ However, if it is of evil “condition” and evilly located and joined
+to the malefics or if they aspect it without a perfect reception, her
+marriage will be scandalous and it falls into the reproach of the
+public. But if the lord of the sign in which the part is, is itself in an evil
+place and Venus is under the Sun’s rays or impeded by Saturn, the
+woman will not marry forever but leads her own life in a foul way.
+The thirteenth part of the seventh house is called the part of the
+hour of marriage and it is taken by day or night from the Sun to the
+Moon and is projected from the ascendant {this part coincides with
+the diurnal pars fortunae. If Jupiter aspects it with a favourable aspect
+or is joined to it corporally and they are of good condition {esse} and
+the figure is for a man, the man will be married to a beautiful, honest,
+easily appeased, and desirable woman.
+
+=== Page 29 ===
+And Albumassar said that this part is found in this way because
+when the nativity of a man signifies that he will marry, the cause of
+the matter will be that one luminary is hot and masculine and the
+other is humid and feminine, and because all generation in this world
+is caused by the conjunction of heat and masculinity with humidity
+and femininity, and it was for this reason that this part was named.
+The fourteenth part of the seventh house is called the part of
+intelligence and ease of marriage or pars ingenii et faciitatis conjugii. It is
+taken by day or night from the Sun to the Moon, and it is projected
+from the degree and minute of Venus. If it falls in a sign of cunning
+and is of good condition {esse}, fortunate and strong and well
+disposed, it signifies that he who aspires to marriage will attain it
+with ease as he planned. If, however, it is impeded and of evil
+condition {esse}, his marriage will be attended by severity and affliction
+and he will hardly ever be able to attain that which he intended.
+The fifteenth part of the seventh house is called the part of
+fathers-in-law. It is taken by day and by night from Saturn to Venus,
+and it is projected from the ascendant. And Albumassar said that this
+part coincides with the pars conjugii virorum secundum Hermetem. {the
+first part of the seventh house}. If it is fortunate, strong, and well
+disposed and agrees with the lord of the house in which it is, the
+native will agree with and be good to his wife’s parents and relatives
+even more than to his own. But if it is impeded, he will be an enemy to
+them.
+The sixteenth part of the seventh house is called the part of
+contenders and of contentions or pars contendentium et contentionum. It
+is taken by day from Mars to Jupiter and from Jupiter to Mars at
+night, and it is projected from the ascendant. And Albumassar said
+that if this part is in the ascendant or with its lord in any of the angles,
+the native will be given to much fighting. If this part is fortunate, evil
+follows from contention. But if the part falls with the lord of the
+seventh in the ascendant, the native will be one of those who contend
+before kings and judges.
+
+=== Page 30 ===
+CHAPTER ELEVEN
+ON THE PARTS OF THE EIGHTH HOUSE AND THEIR
+EXTRACTION AND SIGNIFICATION
+Now in this chapter, we ought to discuss the parts of the eighth
+house, which are five, and first concerning the part of death or pars
+mortis. This is taken by day or night from the Moon to the degree of
+the eighth house. To this is added the distance which Saturn has
+completed in the sign in which it is, and this sum is projected from the
+beginning of the same sign {that is take the distance between the Moon
+and the eighth house and project it from Saturn’s position}. It is
+extracted in this way because the Moon is the significatrix of the body,
+and the eighth house is the significatrix of death, which is the
+destruction of the body, and Saturn has signification over the ends of
+things and other sorrows and sadness and lamentations and
+difficulties and dissolution and destruction, all of which follow from
+death.
+This is the reason why the signification over the fact of death was
+given to these three significators. But if this part and its lord are free
+and of good nature {esse} {the part should be in the sign of a benefic
+and well disposed} or well disposed or located, the native will die in
+his own bed by a natural death. If, however, they are impeded and the
+benefics do not aspect them or at least one of them, the native will die
+a most disgraceful death. But if the said significators in any
+revolution are thus evilly disposed, as has been said, the native will
+die by such a death in that revolution.
+The second part of the eighth house, called the part of the killing
+planet or pars interficiendis planetae, is taken by day from the lord of the
+ascendant to the Moon and by night the reverse, and it is projected
+from the ascendant. This part is extracted like this because the lord of
+the ascendant signifies the soul and the Moon signifies the body,
+although sometimes it is posited as the other way around. While the
+soul is enfolded in the body, it signifies the temperament, and they
+remain thus so long as they are in agreement. However, when they are
+diverse, the body will die, although the soul still remains. For this
+reason this part was extracted in this way by the wise.
+Albumassar said that if the Moon alone aspects the part and she
+{ipsa could indicate either the part or the Moon} is impeded in a sign
+of the members of the abscissors {killing planets} or if the lord of the
+sign in which the part is or the lords of the signs in which they are
+impede each other, the native or querent dies with suffering. If,
+however, they {probably the ruler of the part and the Moon’s
+dispositor} were not impeded nor impede each other in turn, the native
+will be mutilated in the member assigned to the sign in which the
+Moon is at the time but will not die from this.
+The third part of the eighth house is called the part of the year in
+which death, affliction, destruction, impediment, or heavy affliction is
+feared for the native or pars anni in quo timetur nato. It is taken by day
+from Saturn to the lord of the house of conjunction or prevention
+which preceded the nativity, question, or revolution, and it is
+
+=== Page 31 ===
+projected from the ascendant. And this part is extracted in this way
+for the following reason. Saturn is the significator of cold and death
+and the end, and of afflictions which make for destruction. The degree
+of the conjunction or prevention likewise. Therefore they counted this
+part from these two places.
+And Albumassar said that this part coincides with the pars finium
+rerum. And he said that when this part and its lord are with the lord of
+the ascendant and impeded, the native will be of many infirmities and
+afflictions in body and substance, and frequently he will approach
+physical danger and loss of substance. And whenever a year arrives to
+this part— whether the part arrives by profections, by which one year
+is given to each sign, or by direction, which is made by degrees of
+ascension to the ascendant or its lord—the native will discover danger
+in the body or his members from infirmities, and he will discover
+difficulties and horrible things in his substance. And death will be
+feared from diverse parts.
+The fourth part of the eighth house is called the part of the heavy
+place or pars loci ponderosi, and it is taken by day from Saturn to Mars
+and at night in the opposite direction, This distance is added to the
+distance Mercury has completed in the sign in which it is, and it is
+projected from the beginning of the same sign.
+Albumassar said that this part is similar to the pars parentelae.
+And he said that if this part and the lord of the ascendant are
+impeded in someone’s nativity, he will have the incurable illness called
+azemena {so called because they are associated with an incurable
+disease called azemena. Refer to Bonatti’s Tractatus secundus pars
+secunda Chapter XXVI – this is further explained in the Robert Zoller
+Diploma Course in Medieval Astrology} in the member assigned to
+the sign in which the part is, and he will be unfortunate in all his
+businesses and will be occupied and troubling himself with them and
+will never be able to bring them to a good end, nor to complete any
+matter whether for good or ill. Things will move very slowly and he
+will hardly ever be able to in finish them.
+And Albumassar said that when the year reaches from the
+ascendant to this part or from the part to the ascendant, or to its lord
+by profections (by which one sign is given to each year) or by the
+direction of significators, the native will be involved with his busin esses
+in that year and they will delay the realisation of whatever he had
+hoped for from them, and as a result of these things he will suffer
+sorrows, sadness, and afflictions. He will begin nothing that year
+which will be successfully completed by him; rather he will suffer loss.
+He will discover infirmities in the member assigned to the sign in
+which the year of the revolution reaches this part. And if the malefics
+aspect it, he will find difficulties and destruction.
+The fifth part of the eighth house is called the part of occupation,
+severity, and destruction or pars occupationis, gravitatis, et destructionis.
+It is taken by day from Saturn to Mercury and by night the reverse,
+and it is projected from the ascendant. And if it happens that the lord
+of the ascendant is with the part and impeded in the radix of the
+nativity, it signifies that the native will be in evil and trouble all the
+days of his life. And if he were ever to do anything from which he
+
+=== Page 32 ===
+expects good or benefit, he will get trouble and evil from it, and what
+he intended will not follow.
+And if at any time the year comes to either or both day of them by
+profections {refer to Foundation Course} or by directions of degrees,
+just as is said in the tractate in nativities. When a degree is directed by
+terms to any place and the direction arrives to the part, the native will
+find evil from which he will not be liberated in that revolution. And if
+he was liberated from it, he will fall into another, perhaps more severe.
+And if the benefics aspect the place {of the part} from strong places,
+they will alleviate the evil but not do away with it entirely.
+
+=== Page 33 ===
+CHAPTER TWELVE
+ON THE PARTS OF THE NINTH HOUSE AND THEIR
+EXTRACTION AND SIGNIFICATION
+In this chapter we shall discuss the parts of the ninth house, which
+are seven. The first is called the part of travel or pars peregrinationis. It
+is taken by day and night from the lord of the ninth sign to the degree
+of the ninth house, and this is projected from the ascendant. This part
+and its lord signify the native’s or querent’s travel. If it is of good
+condition and well disposed, it signifies that his travels are useful and
+profitable. Understand likewise in revolutions of years. However, if
+{they are disposed and conditioned} evilly, say the contrary.
+The second part of the ninth house is called the part of the journey
+or
+travel on water or pars itineris ac peregrinationis in aqua. It is taken by
+day from Saturn to the 15th degree of Cancer, and by night in the
+reverse direction, and is projected from the ascendant. If this part falls
+in watery signs with the benefics, the native will see good, utility, and
+profit, also money and health, from journeys at sea and the
+conducting of them. And certain of the ancients said that if Saturn is
+in the 15th degree of Cancer and that degree is rising, with Saturn in it,
+they will then be the significators. Then look at them and their
+condition {esse}, also the aspect of the planets, and judge {operare}
+according to them.
+The third part of the ninth house is called the part of religion or
+pars religionis. It is taken by day from the Moon to Mercury and by
+night in the opposite direction and is projected from the ascendant.
+And if this part and its lord fall in the ascendant or with the lord of
+the ascendant or with the Almutem {refer to Robert Zoller Diploma
+Course in Medieval Astrology} over it, the native will be religious; also
+if the significators of the part or the lord of the ascendant aspect the
+part. If, however, the part is impeded, none of the aforesaid occur, but
+rather the contrary.
+The fourth part of the ninth house is called the part of oration and
+profundity of counsel or pars orationis atque profunditatis consilii. It is
+taken by day from Saturn to the Moon and at night in the opposite
+direction and is projected from the ascendant. The part signifies
+reason, consideration of profound things; also the profundity of
+praiseworthy counsels and invention and wisdom, even more so if
+Saturn is above the Earth by day and again more if am he is oriental
+aspecting the part and receiving it, or if the Moon aspects it from a
+very good place {ex optimo loco} from the ascendant.
+The fifth part of the ninth house is called the part of wisdom and
+patience or pars sapientiae. It is taken by day from Saturn to Jupiter
+and by night in the reverse direction, and it is projected from Mercury.
+And it is taken in this way because while Saturn signifies stability,
+philosophy, and profundity in things and close attention to speech
+and prolixity of cogitation, Jupiter signifies wisdom and patience and
+reason, and Mercury signifies writings and wisdom and experiments
+of things, so it was extracted from these.
+
+=== Page 34 ===
+If Saturn and Jupiter aspect it or are joined to it and if both or one
+of them receives it the native will an be wise, patient, and rational.
+And if Mercury aspects it or is joined to it, he will be wise, of acute
+and profound mind, the greatest expert or investigator of profound
+things, and he will be swift in the discovery of all things able to be
+discovered.
+The sixth part of the ninth house is called the part of histories and
+of science or rumours and fables or pars historiarum et scientiae, etc. It is
+taken by day from the Sun to Jupiter and by night in the reverse
+direction and is projected from the ascendant.
+ And Albumassar said that this part coincides with the pars patris.
+And he said that when Saturn is under the Sun’s rays, if this part falls
+in an angle in the aspect of Mercury and Venus and the lord of the
+ascendant aspects the part, the are native retains ancient histories and
+rumours of men and will be an inventor of fables and beautiful stories
+by which the listeners are delighted and they laugh and enjoy them.
+And Albumassar said that if, however, it was otherwise, it will be the
+contrary.
+The seventh part of the ninth house is called the part of rumours
+whether they be true or false, or pars rumorum, utrum sint veri vel falsi.
+It is taken by day or night from Mercury to the Moon and projected
+from the ascendant. Albumassar said that this part is similar to the
+pars sevorum. If it is in an angle or in a fixed sign or a sign of direct
+ascension, the rumours will be true, and even more surely if the Moon
+is joined to a true planet { planetae veridico } and truer yet if with this a
+true planet is in the first, second, fifth, or ninth. But if it is otherwise, it
+will be the contrary.
+
+=== Page 35 ===
+CHAPTER THIRTEEN
+ON THE PARTS OF THE TENTH HOUSE AND THEIR
+EXTRACTION AND SIGNIFICATION
+In this chapter will be given the discourse on the parts of the tenth
+house. First concerning the part of nobility or pars nobilitatis, which is
+taken by day from the Sun to the 19th degree of Aries, which is the
+degree of its exaltation, and by night from the Moon to the 3rd degree
+of Taurus, which is the degree of its exaltation, and is projected from
+the ascendant. And it is extracted in this way because the Sun, who is
+the luminary of the day, is the significator by day of the native’s life
+and its duration, and it signifies the soul and honour and his degree of
+elevation, also kingdom and victory; and the Moon is the luminary of
+the night and by night it signifies that which the Sun signifies by day.
+ And it was called the pars nobilitatis for this reason, because it is
+extracted from the luminaries which are the more noble bodies and
+from the degrees of their exaltation. By means of this part are known
+the nobility or generosity of the native and whether or not he is the son
+of the man whose son he is said to be, and by this part his honour and
+exaltation or his kingdom, success, and victory are known. If it falls in
+a good place, such as the tenth house, and is with benefics which are
+well located and of good condition {esse}, it signifies that the native
+will attain to honour, nobility, advancement, riches, and the
+publication of his good reputation, each according to his own degree,
+so that if the native were one of those fit to be king, he will attain to
+honours and dignities appropriate for him, {this is more fully
+discussed in the Diploma and in Robert Zoller’s Tools and Techniques
+found at http://www.new-library.com/zoller/books }. The same
+thing happens if this part is so disposed in someone’s nativity.
+But if this part falls in the aforesaid degrees and the nativity is
+diurnal, Albumassar says that the signification of those degrees will
+be the same as the signification of the degree of the ascendant. But if
+the significators of this part aspect it and they are in good connection
+with it, the native will be the son of him to whom he is attributed. If,
+however, it is otherwise, he will not be his.
+The second part of the tenth house is called the part of kingship or
+pars regni. It is taken by day from Mars to the Moon and by night in
+the opposite direction, and it is projected from the ascendant. And
+Albumassar said that if this part and its lord are of good condition
+{esse} and they are connected with the lord of the tenth and the lord of
+the ascendant, the native will be king or duke and he will be with rich
+men, who receive his words and heed them.
+The third part of the tenth house is called the part of kingship and
+of kings and of dispositors or pars regni, regum,et dispositorum. It is
+taken by day from Mercury to Mars and by night in the opposite
+direction, and it is projected from the ascendant. This part is extracted
+from these significators because the signification for giving, receiving,
+writing, prohibiting a matter from reaching the consulate, for writing
+letters, sending them, and receiving the Mass, counting money, and
+clarity of mind has been given to Mercury. And All signification of
+fear and terror is given to Mars, and therefore this part was counted
+
+=== Page 36 ===
+from these planets.
+ When the part and its lord are well disposed and of a good
+condition {esse} or well located with the lord of the ascendant, the
+native will be of good mind, easily instructed, and rational, and he
+will attain the consulship if he is fit for it. He will be a scribe of kings
+or a collector or a custodian of their census or of the substances of
+greater kings. And if he is fit for kingship or day empire, he will attain
+that and his reputation will surpass his status, and it will extend all
+the way to the borders of the lands and he will raise up certain men
+and will elevate them beyond measure and depose certain powerful
+men and kin, subjugate them, and soldiers will run freely about and
+the affairs of men will be according to his hand.
+ The fourth part of the tenth house is called the part of kingship
+and victory and assistance. It is taken by day from the Sun to Saturn
+and by night the reverse, and it is projected from the ascendant. And
+Albumassar said that this part coincides with the pars patrum when
+Saturn is under the rays of the Sun.
+ When it is well disposed or of good condition and especially when
+with the lord the of the tenth house and with the lord of the ascendant,
+it signifies kingship for the native. If he is one of those who are fit for
+kingship, it signifies honour and exaltation for each according to his
+being {esse}, and further, he will be extended and preferred and prevail
+over those of his own kind. Albumassar said if it is in a sign in which
+the lord of the ascendant or the lord of the tenth has dignity, it will
+signify victory for the native over those who contend with him, The
+same thing happens in revolutions, if this part is so disposed.
+The fifth part of the tenth house is called the part of those who are
+suddenly elevated or pars illorum qui repente sublimantur. It is taken by
+day from Saturn to the pars fortunae and by night the reverse, and it is
+projected from the ascendant. And Albumassar said that this part is
+similar to the pars Saturni. If in anyone’s nativity or question it is in
+some very good place from the ascendant and from the benefics, he
+will be suddenly elevated. And if the lord of the ascendant is with the
+part or aspects it with an aspect of friendship or from a good place
+and is well disposed, his elevation will be increased unexpectedly, and
+he will attain kingship very quickly and in the shortest time, so that
+men will wonder because of it.
+And Albumassar said, look to this part when you know that the
+man will be elevated {that is that the natal horoscope indicates this.
+Nothing will be achieved unless it is first signified in the natal
+horoscope. Thus it is only worth looking at this part if the natal
+horoscope holds promise for it} and will acquire kingship and honour.
+But he said that if this part is impeded, the native or querent will find
+evil and impediment and danger and sudden fall from power.
+Understand the same in revolutions, because if the part is of good
+condition’ and well disposed, the native and others will acquire good
+suddenly in that revolution, and if it is impeded, he will be impeded
+to the same degree.
+The sixth part of the tenth house is called the part of nobles and of
+
+=== Page 37 ===
+those who are known among men or of honoured men, or pars
+nobilium. It is taken by day and night from Mercury to the Sun and
+projected from the ascendant, When it and its lord are of good
+condition {esse} and well disposed, the native will be noble and
+honoured among kings and the wealthy and powerful. And
+Albumassar said that if it is with a planet which has great dignity in
+the Medium Coeli, the native will have an eminence by which he will
+be counted, as a tribe of a city is counted among its citizens {where an
+ethnic group has a decisive political influence in a city such that its
+power lay in its group impact over-shadowing the individual or
+smaller groups, then this part would so relate to the degree of
+influence of a member of this more powerful grouping}. However, if it
+is otherwise, the contrary will happen. Understand the same in
+revolutions.
+The seventh part of the tenth house is called the part of soldiers
+and ministers or pars militum et ministrorum. Albumassar said that it
+is taken by day from Mars to Saturn and by night in the opposite
+direction, and it is projected from the ascendant. And he said that if
+this part and its lord are commixed with the lord of the ascendant, the
+native will be a follower of the king or one of his soldiers or ministers.
+The eighth part of the tenth house is called the part of kings and
+what kind of work the native does, or pars regum et quid operis agat
+natus. It is taken by day or night from Saturn to the Moon and is
+projected from the ascendant. This because Saturn signifies labour,
+adversity, necessity, poverty, and all labourious works such as
+superintendents of houses, of diggings, operations of iron and its
+extraction from the ore, and other odious and tedious works, because
+Saturn is the significator of labour and affliction and he is the
+significator of riches which are heavy and ponderous. And the Moon
+signifies labours and quickness in things because of the speed of her
+motion and she is the significatrix of the common people, and
+therefore the wise counted this part from these significators.
+Albumassar said that this part signifies kings, honour, and
+magnificence and what kind of work the native does which he does for
+its own sake and what profession he will practice and whether he
+profits from his profession or not. And he said that if this part is in
+Gemini or Virgo or in signs of art or instruction, he will be elevated by
+works of his hands which are necessaries for the ornamentation of the
+rich, and he will be with rich men and magnates because of his skill
+and his talent. And if the part is commixed with significators of
+substance, the native acquires a great quantity of substance from his
+profession.
+ And he said that if the contrary, he will be a pauper and
+unfortunate in his profession, barely able to get his daily sustenance;
+nor will he be able to be wearied of it, and if he is not wearied of it, he
+will die of hunger - no one will offer him sustenance. The same thing
+happens in revolutions: There are sometimes years in which fortunate
+men do not gain anything, and that is when that part is evilly
+disposed in a revolution. And there are sometimes years in which
+unfortunate men acquire something, and that is when the part is well
+disposed.
+
+=== Page 38 ===
+The ninth part of the tenth house is called the part of tradesmen
+and those who work with their hands or pars negociatorum et
+operantium manibus suis. It is taken by day from Mercury to Venus
+and by night the reverse, and it is projected from the ascendant.
+Albumassar said that this part is similar to the pars collectionis. This
+part signifies ingenious men, artisans in venusian and mercurial
+professions such as those who know how to work gold, silver,
+precious stones, and the like; and those who know how to do
+business, that is, to buy and sell precious and choice merchandise
+such as pearls, rings, and the like; and those who know how to make
+beautiful clothes which pertain to women, is and how to paint and
+write and to make stamps { monetas – also translate as money} and to
+sculpt sigils and the like, which pertain to the nature of Mercury and
+Venus.
+If this part and its lord are of good condition {esse} and well
+disposed and they are commixed with the lord of the ascendant by
+conjunction, trine, or sextile aspect, the native or querent will be
+elevated because of his works or the skills of his hands. He will make
+beautiful instruments and beautiful works by hand which become
+nobles and rich men and magnates. However, if the contrary, he of is
+not introduced into the employ of these since the opposite to these
+things will occur to him. If this part and its lord are well disposed in
+someone’s revolution, or in a revolution of the world, the
+aforementioned artisans will gain from their trades. If, however, the
+contrary, the contrary comes about.
+The tenth part of the tenth house is called the part of trade of
+buying and selling or pars negotii emendi atque vendendi, It is taken by
+day from the pars futurorum to the part of fortune and by night in the
+reverse direction, and it is projected from the ascendant. And
+Albumassar said that this part is similar to the part of Mercury. And
+he said that when these parts which are of trade are received in the
+aspects of Mercury, the native will be an expert in trades and he will
+have the science of buying and selling. And if they are well disposed,
+they will profit him and he will gain from them and because of them.
+If, however, they are of evil condition {esse} and evilly disposed,
+although he may know them, he will not introduce himself into their
+employ because it will be in its contrary. It ought to be understood to
+be the same in revolutions both of the world and of nativities.
+The eleventh part of the tenth house is called the part of work and
+of a thing which must happen necessarily and absolutely must occur,
+or pars operis et reique necesse est ut omnino fiat. It is taken by day from
+the Sun to Jupiter and by night in the opposite direction and is
+projected from the ascendant. And Albumassar said that when
+Saturn is under the Sun’s rays, this part is similar to the part of the
+father. And he said that when this part is with the lord of the
+ascendant, the native will be outstanding in his works. He will know
+his business better than anyone else. He will struggle and be anxious
+about everything which he desires to do. He hopes to complete
+everything hastily and will always doubt whether a thing will be
+completed until he sees it complete.
+
+=== Page 39 ===
+Hence when someone wants to make something, and he wants to
+know what is going to happen from it, look to this part. If it is of good
+condition {esse} and especially if it is with the benefics, it will profit
+him to make the thing, and especially if he hurries to make it.
+However, if it is with the malefics or otherwise impeded, he will find
+evil, detriment, and trouble, if he makes it for this reason, and the
+more he hastens to make it, the worse and more horrible the results of
+it are for him.
+This holds not only in nativities, but also in questions and
+revolutions both of the world and of nativities.
+The twelfth part of the tenth house is called the part of mothers or
+pars matrum. It is taken by day from Venus to the Moon and by night
+the reverse and is projected from the ascendant. This part signifies the
+being {esse} of mothers. If it is of good condition {esse} and well
+disposed, it signifies that the mother’s being {esse} is good. In a
+nativity, if it is in trine or sextile aspect to the lord of the ascendant, it
+signifies that the mother loves her son, the native. If the lord of the
+tenth receives the lord of the ascendant and the lord of the ascendant
+does not receive the lord of the tenth or the Moon, it signifies that the
+mother loves the son; however, he does not love her. And if the lord of
+the ascendant receives the lord of the tenth and the lord of the tenth
+does not receive him or the Moon, it signifies that the son loves the
+mother more than she does him. If each receives the other, both love
+the other; if neither receives the other, neither loves the other. The same
+ought to be said in questions, revolution, and nativities. And the wise
+posited that the part of the mother is in the tenth because it is
+opposite the fourth, which signifies the father.
+The thirteenth part of the tenth house is called the part signifying
+whether the cause of the kingdom may or not be. It is taken by day
+and night from the Sun to the degree of the Medium Coeli and is
+projected from the degree of Jupiter.
+The fourteenth part of the tenth house is called the part of death
+of the mother. It is taken by day from Venus to Saturn and at night
+the reverse, and it is projected from the ascendant.
+
+=== Page 40 ===
+CHAPTER FOURTEEN
+ON THE PARTS OF THE ELEVENTH HOUSE AND THEIR
+EXTRACTION AND SIGNIFICATION
+In this chapter we shall discuss the parts of the eleventh house.
+First, concerning the part of excellence and nobility or pars excelientiae
+atque nobilitatis, Albumassar said that it is taken by day from the pars
+fortunae to the pars futurorum and by night the contrary and is
+projected from the ascendant. And he said that this part is similar to
+the pars stabilitatis et durabilitatis and to the pars Veneris. This part is
+extracted in this way: Since it is more noble, more stable, and far more
+useful, it was fitting that it be extracted from the two parts which are
+more noble and excellent than the others, and these are the pars
+fortunae and the pars futurorum.
+When this part is of good condition {esse} or well disposed, and is
+with the benefics well located, and the better if it is in the tenth or
+eleventh house and none of the malefics impede it, the native will be
+one who excels other men and is both noble and fortunate, and his
+fortune will last, and he will be one of those whom men seek out on
+account of his good luck and whom men will revere, and he will be
+like a prince among the tribes. And his name will remain through the
+ages for many years, and he will see good and joy and what pleases
+him from every work which he does.
+ However, if it is the contrary, the opposite will happen to him.
+Understand the same thing in general questions {in quaestionibus
+generalibus – may refer to Albumassar’s universal question or it may
+refer to the establishing of a natal horoscope when the birth time is
+unknown} and it is able to have a place in other things, likewise in
+revolutions. When this part is so disposed, good or evil happens to
+each according to his own being.
+The second part of the eleventh house is called the part signifying
+how the native or querent is loved by men or how they hate him, or
+pars qualiter diligetur natus. Albumassar said that it is taken by day
+from the pars fortunae to the pars futurorum and at night the reverse,
+and it is projected from the ascendant. And he said that this part is
+similar to the pars Venenis { it is also similar to pars excellentiae atque
+nobilitatis and so to pars stabilitatis et durabitatis}. If it falls is in the
+house, exaltation , or triplicity of any benefic, and if that benefic
+aspects the part and is not impeded by any of the malefics, the native
+will be beloved of men and loveable to them and sweet and pleasing in
+their eyes. But if the part falls with the malefics or in their aspects,
+they do not desire to see him and he frequently does and says things
+displeasing to men, even when saying and doing good.
+The third part of the eleventh house is called the part of the native
+among men and of an honoured man among them and by which of
+them a business or activities are perfected, or pars nati inter homines. It
+is taken by day from the part of fortune to the Sun and by night the
+reverse, and it is projected from the ascendant. If it is well located and
+received by the Sun, Jupiter, or with Venus, while Mercury and the
+Moon are in benefic condition or aspecting the part and the lord of the
+ascendant with a trine or sextile aspect, the native or querent will be
+
+=== Page 41 ===
+honoured both by the powerful and by the common people, and they
+will love him and return to him because of his deeds, and they will
+give to him many things and many business deals for perfecting or for
+the purpose of defining their terms, and they will have especially great
+faith in him.
+The fourth part of the eleventh house is called the part of felicity
+and profit or pars felicitatis et profectus. It is taken by day from the part
+of fortune to Jupiter and by night in the opposite direction, and it is
+projected from the ascendant.
+If it is with the lord of the ascendant or if the latter aspects the
+part by a trine or sextile aspect or even by a square with reception,
+and if it is not otherwise afflicted, it signifies that the native will be
+fortunate and profiting in all things and he will acquire all the
+temporal things which are necessary to him, and not only his
+businesses but even the busin esses of others are perfected by his hand
+according to what he desires. But if with this, the benefics aspect the
+part, he will acquire whatever he desires with ease so that it will seem
+as if none of those things he desires is lacking to him. Albumassar
+said that he might even acquire something more than that which he
+desired easily. But if it is not with the lord of the ascendant and if the
+lord of the ascendant does not aspect it and the malefics aspect it, it
+will be the reverse. The same thing happens in questions and in
+revolutions.
+The fifth part of the eleventh house is called the part of
+concupiscence and zeal or appetite for love of secular and temporal
+things, or pars concupiscentiae. It is taken by day from the pars fortunae
+to the pars futurorum and by night in the opposite direction, and it is
+projected from the ascendant. Albumassar said this part is similar to
+the part of Venus. If it is in a very good place in a nativity, question,
+or revolution, he subdues his own sensual instincts and his desires.
+And he said if it is in an evil place, his instincts conquer him and he
+will be striving and hungering after the world and its pleasure, and he
+will lose whatever he has in it.
+The sixth part of the eleventh house is called the part of faith and
+hope. It is taken by day from Saturn to Venus and by night in the
+opposite direction, and it is projected from the ascendant. If in
+anyone’s nativity or interrogation it and its lord are in a very good
+place, fortunate and strong, the native or querent will acquire
+everything he hoped for and in which he had hope.
+However, if they are of evil condition {esse} and evilly located, he
+will not acquire any of what he had hoped for, although he may profit
+himself to some degree. The same happens in revolutions. For if they
+are of good condition {esse} and evilly located, men acquire enough of
+those things which they desire in that revolution; however, if it is
+impeded, the contrary.
+The seventh part of the eleventh house is called the part of friends
+or pars amicorum. It is taken by day and by night from the Moon to
+Mercury and is projected from the ascendant. This part is taken in this
+way because Mercury is of changed appearance and of varied
+signification, at certain times signifying masculinity and at others
+
+=== Page 42 ===
+femininity, and so at certain times speed, at others slowness, at
+certain times heat, at others cold, at certain times good fortune, at
+others bad fortune, and he is always inclined to the nature of that
+planet to whom he is joined. Likewise the Moon does that same thing
+on account of the speed of her motion, and is quickly changeable, for
+which reason the wills of men are quickly changed with friends nor do
+they remain long in the same condition {esse} and therefore the wise
+extracted the part of friends from these two planets because they are
+swifter and more changeable than the others.
+If it is of good condition {esse} and well disposed and its lord well
+disposed and in mobile signs, the native or querent will have many
+friends. But if they are fortunate, his friends profit him and he them,
+and they each enjoy good things. If they are received, he will be
+considered praiseworthy among them and beloved by them. But if it is
+the contrary, judge accordingly.
+The eighth part of the eleventh house is called the part of the
+agreement of friends and of husbands and wives and their discord, or
+pars concordiae amicorum, etc. It is taken by day and night from the pars
+futurorum to Mercury and it is projected from the ascendant. This part
+is one of the more difficult to employ of all the parts because it is
+necessary to know the nativity of the native and of those who are
+posited as his friends, or of the man and the wife, and to see if the
+part falls in the ascendant of the nativity of the native or with its lord
+without the impediment of the malefics, or if it is in the sign which
+ascends in their nativity or is in the eleventh or joined to his lord or
+joined with the lord of the ascendant and the latter is of good
+condition {esse} and well disposed and in the aspect of the benefics in a
+good place from the ascendant and is not impeded by any of the
+malefics or if it is in the exaltation of any of the planets or, as
+Albumassar said, if it is in agreeing signs, because if it is thus, each
+will love the other with his friends and his wife.
+ But if it is in a sign of descension {detriment} of any of those or in
+a sign of its fall or in opposition to the ascendant or in argumentative
+signs {in signis contrariis}, they will be each other’s enemies.
+ The ninth part of the eleventh house is called the part of fertility
+and abundance of good in the home or pars fertilitatis et abundantiae
+boni in domo. It is taken by day or night from the Moon to Mercury and
+is projected from the ascendant. Albumassar said that this part is
+similar to the pars amicorum. He said that if this part and its lord are in
+good connection { complexione} with the pars fortunae and with the lord
+of the ascendant, the native or querent will be bountiful in the home
+with every fertility, and if it is otherwise, he will be the contrary. But if
+it is thus disposed in a revolution, the same thing happens.
+The tenth part of the eleventh house is called the part of the
+goodness of the soul or pars probitas animi. It is taken by day from
+Mercury to the Sun and by night the reverse, and it is projected from
+the ascendant. If it falls in a good place with any of the benefics and
+especially with Jupiter or if the Sun aspects it with a trine or a sextile
+aspect, the native or querent will be sweet and light and patient of
+soul. And Albumassar said that if this part and its lord are in signs of
+goodness, the native will be of good soul, and if it falls with the
+
+=== Page 43 ===
+malefics or in signs contrary to goodness, it will be the contrary.
+Understand the same in revolutions.
+The eleventh part of the eleventh house is called the part of praise
+and of gratitude or pars laudis et gratitudinis. It is taken by day from
+Jupiter to Venus and by night in the opposite direction, and it is
+projected from the ascendant. Whence if the part and its lord are of
+good condition {esse} and well disposed and the benefics aspect them
+or are joined to them, and especially Jupiter, the native or querent will
+be praiseworthy, deserving thanks above all in that for which purpose
+it is posited. And he will be praised for all his works, and he will
+benefit from them.
+However, if it is evilly disposed or the malefics aspect it, he will
+not be praised because of his works, nor because of his services, and
+moreover, he will not be praised for nor benefited by the services he
+does nor even receive thanks for them, and it will be possible that in
+place of financial reward for the services he does, he will receive
+vituperation and malevolence for them. The same thing happens to
+men in revolutions, if this part and its lord are thus well disposed as
+was said.
+The twelfth part of the eleventh house is called the part of
+necessity and of the selection of things or pars necessitatis et dilectionis
+rerum. According to the Persians, it is taken by day and night from
+Venus to the house of brothers {third house}, and it is projected from
+the ascendant. But according to the Egyptians, it is taken by day from
+Mars to the house of the brothers and is projected from the ascendant.
+
+=== Page 44 ===
+CHAPTER FIFTEEN
+ON THE PARTS OF THE TWELFTH HOUSE AND THEIR
+EXTRACTION AND SIGNIFICATION
+Mention ought to be made in this chapter concerning the parts of
+the twelfth house, and first concerning the part of secret enemies or
+pars inimicorum. This is taken by day and night from Saturn to Mars
+and is projected from the ascendant.
+The second part of the twelfth house, according to Hermes, is
+taken by day or night from the lord of the house of enemies to the
+house of enemies {from the lord of the twelfth to the cusp of the
+twelfth house} and is projected from the ascendant. And Albumassar
+said that both these parts ought to be used, but if they are in
+opposition or the square aspect of the lords of their houses {here
+meaning signs} or of the lord of the ascendant, the native or querent
+will have many enemies.
+However, if they are both free from their lord and from the lord of
+the ascendant, he will have enemies for a reason {non habebit inimicos de
+levi}. The same thing happens in revolutions because if they are evilly
+disposed, as had been said, men will make enemies of each other in
+that revolution.
+The third part of the twelfth house is called the part of labour and
+affliction or pars laboris et afflictionis. It is taken by day or by night from
+the pars futurorum to the pars fortunae and by night the reverse {sic},
+and it is projected from the ascendant. Albumassar said that this part
+is similar to the pars Mercurii. If it and its lord are of good condition
+{esse} and well disposed, it signifies that the native or querent will be
+fortunate in his labours and will make money from them and they will
+profit him.
+However, if it is corporally joined with the lord of the ascendant
+without a reception or is in opposition or square aspect with the lord,
+the native will labour endlessly all the days of his life and will not
+profit from his labours nor enjoy their goods or make money from
+them, nor will his success be beneficial to him.
+
+=== Page 45 ===
+CHAPTER SIXTEEN
+A RECOUNTING OF CERTAIN PARTS ACCORDING TO
+ALBUMASSAR CONCERNING WHICH NO MENTION WAS
+MADE ABOVE, OR THE FIFTH DIFFERENTIA.
+{Special Note : The “Fifth Differentia” mentioned in the title above
+refers to Albumassar’s De magnis conjunctionibus annorum
+revolutionibus ac eorum profectionibus octo continens tractatus (Venice
+1515). Bonatti’s use of it strongly suggests that he was using a Latin
+translation of Albumassar’s work.}
+ In this chapter mention ought to be made concerning certain other
+parts which have not been specifically named above, which according
+to Albumassar number ten. They are employed frequently in the work
+of the masters of this science when they desire to judge regarding any
+nativity, universal question {Albumassar’s method of establishing a
+natal horoscope when the birth time is unknown} or any revolution.
+The first of these is called the part of the hyleg or pars hyleg and it
+is a matter which the ancient Wise men of this science especially
+observed. They found it reliable. It is taken both by day and by night if
+a nativity, a question, or a revolution is conjunctional from the degree
+of the conjunction; but if it is preventional, it is taken from the degree
+of the prevention to the Moon and it is projected from the ascendant.
+{Conjunctional nativities or questions or revolutions occur between the
+time of the New Moon and the Full Moon. The conjunctional degree –
+from conjunction of luminaries - is that of the New Moon.
+Preventional nativites or questions or revolutions occur after the Full
+Moon but before the New Moon. The degree of prevention is the degree
+of the Full Moon}.
+Albumassar said that this part is directed in the same way as the
+hyleg is directed {y profection or direction}. When its direction or
+profection arrives at the places of the benefics, it signifies good, but
+when it arrives at the malefics, it signifies evil and impediment and
+danger to the native or querent or to those whose revolution it is, or
+even if it is a universal revolution. And this is why many good
+astrologers are deceived, because sometimes they see that many
+adverse situations arise which ought not to according to the hyleg.
+They considered only the hyleg and did not concern themselves with
+the pars hyleg. You, however, will not neglect this but always direct the
+pans hyleg both in nativities and questions and also in revolutions, and
+you will not err. It has its own significations besides other things
+which are of great efficacy.
+The second part of the fifth differentia is called the part of large
+bodies or pars macrorum corporum. It is taken by day from the pars
+fortunae to Mars and by night the reverse, and it is projected from the
+ascendant. Albumassar said that when this part is with the lord of the
+ascendant or with a planet which has any dignity in the ascendant or
+the Alcocoden’s place, or if it is with a planet in its own dignity or in a
+humid sign, the native will be of large members. And he said that if it
+is otherwise and is with Mercury or Mars or these planets rule it, the
+
+=== Page 46 ===
+native will be lean.
+The third part of the fifth differentia is called the part of the
+military and of daring or pars militiae et audaciae. It is taken by day
+from Saturn to the Moon and by night in the opposite direction and is
+projected from the ascendant. Albumassar said that this part is
+similar to the pars rationis ac profunditatis consilii and the pars regis et
+quid operis agat natus. When it is sextile to Mars or Jupiter in signs of
+animals, it signifies that the native is daring and a soldier and
+procurator of animals and he will be a gladiator playing with spears,
+arms, and swords.
+The fourth part of the fifth differentia is called the part of daring,
+strength, and dominion or pars audaciae, fontitudinis, et dominii. It is
+taken by day from the lord of the ascendant to the Moon and by night
+the contrary, and it is projected from the ascendant. When it is sextile
+to Mars or Jupiter, or in the house of the malefics, received in strong
+signs, it signifies that the native is spirited and strong in his body.
+The fifth part of the fifth differentia is called the part of skill,
+talent, acuity, and discipline of all arts and of memory and the like, or
+pars calliditatis, ingenii, acuitatis, etc. It is taken by day from Mercury to
+the pars futurorum and by night in the opposite direction, and it is
+projected from the ascendant. The wise took this part in this way
+because all these things are signified by Mercury and are attributed to
+him, and they refer to the soul, and the pars futurorum signifies the
+quality {esse- condition} of the soul, and all these things proceed forth
+from the power of the soul.
+ If it is of good condition {esse} and well disposed, and it is with
+Mercury in a nativity or question, and Mercury is of good condition, it
+signifies that the native will be expert in a good skill, of sharp mind,
+easily taught, as competent in many arts, learning all things which he
+desires and which he studies with less labour than others, and he will
+retain well what he has learned and all these things will profit him.
+But if they are unfortunate or evilly be disposed, he will be able to
+learn, but the things he learns will not be useful to him; indeed he will
+get evil and distress because of the aforesaid. But if Mercury is joined
+to Mars by conjunction or aspect and if Mars has any testimony in the
+place where the part is, it signifies that the native or querent will be a
+thief and robber extremely subtle and that he will know how to open
+doors and to remove the bars from entrances by craft and subtlety of
+mind without a key. But if they, that is, Mars and Mercury, are trine
+or sextile with reception, he will know how as to do all these things
+but will not do it for evil purposes.
+The same thing happens in revolutions. When this part is thus
+disposed, as has been said, the aforesaid things happen more in that
+revolution than are the customary at other times.
+The sixth part of the fifth differentia is called the part of the
+investigation of a thing and whether it will be entirely perfected or
+destroyed or divulged or produced for effect, or pars inquisitionis rei. It
+is taken by day or night from was Saturn to Mars and projected from
+Mercury.
+
+=== Page 47 ===
+This part is extracted from these three planets because the
+malefics have signification over destruction, and though they
+sometimes impede by square aspect or opposition, at other times they
+perfect the business, although perhaps wet with slowness or severity;
+but when the malefics impede, they destroy the business, and if they
+do not destroy, they delay it all the way to desperation, and because
+Mercury has participation in businesses therefore, they project this
+part from him.
+If it is of good condition {esse} and well disposed, free from the
+malefics, that is, from Mars by day and from Saturn by night, it
+signifies the completion of the matter. And if it is impeded by any of
+them as has been said, it signifies its destruction and that it will not be
+perfected. And if it is perfected, it will not last.
+Albumassar said that this part is employed in unknown matters
+and in those of an unknown kind. However, if the business is known,
+consider whether it may be either substance or marriage or whatever
+other business, the matter will be helped from its own place {for
+substance – the second house, for marriage – the seventh house} and
+the part will aid the significator signifying the matter.
+The seventh part of the fifth differentia is called the part of
+necessity and delay of things or pars necessitatis et dilationis rerum. It is
+taken by day and by night, according to the Egyptians from Mars to
+the degree of the house of brothers {the third house} and it is projected
+from the ascendant. This part signifies the indolence and inertia of the
+native. If this part is thus impeded in a revolution, it signifies that
+men will be likewise in that revolution.
+The eighth part of the fifth differentia, like the aforesaid part, is
+called the pars necessitatis et dilationis rerum. It is taken by day and
+night, according to the Persians, from the part of dilation {seventh
+part of the fifth differentia} to Mercury, and it is projected from the
+ascendant. Albumassar said that both these parts are used.
+If they are of good condition and well disposed, it signifies that
+the native is moderately motivated for conducting his busin esses. If,
+however, they are evilly disposed, joined with both the malefics or
+either of them, or if its lord {of the part} is with a malefic and
+especially with Saturn, or if the part and its lord is with the lord of the
+ascendant, it signifies that the native will be indolent and lazy and is
+scarcely moved to do anything and especially to those things which
+are necessary for him unless necessity forces him; nor will he do
+voluntarily any of those things which men do with hope of utility, nor
+will his heart suffer to let himself into any mercantile speculations or
+other lucrative matters for fear that he will lose as a result; nor will he
+believe that he is able in any way to make money, and he rarely or
+never believes that he is able or even knows how to make a living.
+Albumassar said that if the dispositor of the malefic impedes the
+lord of the house of substance, the native will destroy his own
+substance and he will not know how, or will be condemned in it as
+much as is indicated by the condition {esse} of the part.
+
+=== Page 48 ===
+The same thing happens in questions and revolutions. For if the
+part is as was said, men will be more indolent and timid than usual in
+that year.
+The ninth part of the fifth differentia is called the part of
+retribution or pars retributionis. It is taken by day from Mars to the Sun
+and by night the reverse, and it is projected from the ascendant. If it is
+of good condition {esse} and well disposed in an angle, especially in the
+first or the tenth or in the houses succedent to the angles and
+especially in the eleventh and fifth with the lord of the ascendant in
+any of their dignities, it signifies that the native will repay freely to
+those who do well for him or offer some suitable service to him.
+However, if they are of evil condition {esse} in cadent houses and
+especially in the sixth on the twelfth and not with the lord of the
+ascendant nor in any of his dignities, it signifies that he will receive
+something for free from someone and will not repay well what was
+done for him. You may say the same in revolutions, if the part is so
+located, because men will serve in that way during that revolution.
+Understand the same in questions.
+The tenth part of the fifth differentia is called the part of truth and
+good works or pars veritatis et bonarum operationum. It is taken by day
+from Mercury to Mars and by night in the opposite direction, and it is
+projected from the ascendant. Albumassar said that this part is
+similar to the pars rationis et sensus. If it is of good condition {esse} and
+well disposed, fortunate and strong and in an angle, it signifies that
+the native or querent will be observant of truth, zealous in good
+works, and abhorrent of the opposites of these, and utility and profit
+result from his actions.
+However, if this part is impeded in an angle, the native will be
+practising and observing the truth and good works, but evil and harm
+follow as a result. And if it is outside the dignities of the lord of the
+ascendant, he will be one who knows the truth but does not practice it.
+If it is so disposed in revolutions, men in that revolution will be so
+disposed and working likewise.
+Albumassar said these parts, which the ancients related and
+which they employed in nativities and in many places in the
+revolutions of years and in interrogations wherever they are necessary,
+have thus been made known to you. And he said, know that in many
+matters of the significations of the twelve houses and interrogations,
+and initiation {that is elections} and revolutions of years, there are
+parts concerning which we have made no mention because it is
+necessary that we speak of them in other books. And he said that the
+significations spoken of in this book are collections for the purpose of
+investigation because the places of the parts change their significations
+in good or evil according to the signs they are in and the conjunctions
+or aspects of the planets with them. And he said that he would relate
+the investigations of their significations in their places in the signs in
+each book as necessity required.
+
+=== Page 49 ===
+CHAPTER SEVENTEEN
+ON THE KNOWLEDGE OF CERTAIN EXTRAORDINARY PARTS
+CONCERNING WHICH NO MENTION WAS MADE ABOVE
+In this chapter we ought to look at certain extraordinary parts
+which were not mentioned in the parts of the seven planets or in the
+section on the parts of the twelve houses, nor in the recounting of the
+ten parts of the fifth differentia of Albumassar. These parts are
+exceptionally useful in revolutions, in determining which things one
+who wishes to make money is more able to profit from that year.
+By means of these parts you are able to judge the cheapness or
+mediocrity of price of whatever vegetables or of any other thing which
+it is usually necessary that men have for their sustenance and needs
+such as grain, wines, oil, etc. You will even be able to see whether there
+will be an abundance of these things or a shortage. Again, you will be
+able to know why it happens that the thing sometimes abounds and is
+expensive and at other times is cheap. Sometimes it does not abound
+and indeed there is a shortage in those things and it is cheap, and
+sometimes it is expensive. The aspect or corporal conjunctions of the
+benefics to the part or its lord, or even to the Moon, signify abundance
+of the thing, and so much more so if the benefic which aspects the part
+or its lord or the Moon is the ruler of the house in which the part falls.
+Shortage or want of these is signified by the aspect or corporal
+conjunction of the malefics to the part.
+You are able to judge the cheapness of the thing by the place of
+the lord of the house or exaltation or of the significator in which it
+falls. For if it is in its house or exaltation, or is otherwise fortunate and
+strong, or is in an angle, and especially if it is in the tenth, it signifies
+the high price of that thing. However, if one is fortunate, the other
+unfortunate, it will change the quality {esse} of that thing a little. But if
+the lord of exaltation is below {in terms of rank of dignity and the
+degree of effect} the lord of the house, the lord of the term and the lord
+of triplicity add or subtract something.
+If it is in the twelfth house in its fall or detriment or cadent from
+the angle {meaning all the cadent houses} and all the more certainly if
+it is in the twelfth or is combust, it signifies the cheapness and low
+price of the thing. And to the degree to which the significators are
+debilitated, the lower the price of the thing they signify and its
+worthlessness will be.
+If, however, they are in houses succedent to the angles, unless
+something impedes, the price will be neither very depr essed nor much
+raised up. But if all the significators are fortunate and strong, the
+thing will be expensive and will exceed measure in price, and all the
+more so if they are in the tenth house as I said. But if they are
+unfortunate and weak and evilly disposed, they signify the extreme
+worthlessness of the thing and the cheapness of it. And always take
+care to consider the situation of each significator because each of these
+gives and takes away according to its condition {esse}.
+
+=== Page 50 ===
+The significators are the lord of the sign, the lord of exaltation, the
+lord of the term, the lord of the triplicity of the planets from which the
+part is extracted and the planet which is the lord of the house from
+which you begin to project the part. There is, however, little strength in
+the lord of the face, so that you need not concern yourself much about
+it. However, the lord of the sign in which the part falls is to be
+preferred above all others, and the matter ought to be judged more
+according to it, although the others add and take away just as was
+said, and the more so if it is one of the planets from which the part is
+extracted, because the part is greatly strengthened thereby.
+
+=== Page 51 ===
+CHAPTER EIGHTEEN
+AN EXAMPLE OF THE METHOD OF EXTRACTION OF SOME
+PARTS
+Now I shall give you an example of one of the parts for all the
+extraordinary parts, and I shall begin with the part of grain or pars
+frumentum. When you wish to know the state of grain in any
+revolution, whether it will be cheap or expensive or will have a
+moderate price, take the place of the Sun from the place of Mars and
+add to this the degrees and minutes of the sign of the ascendant and
+project the sum from the beginning of the sign of the ascendant, giving
+each sign 30 equal degrees, {ecliptic longitude} and where the number
+ends, there will be the part of grain.
+Consider, therefore, how the lord of that sign is disposed, because
+the better he is disposed, of so much less worth will it be and the less
+will it be valued. Look to the other significators which I named for you
+{refer chapter 17} and see how they are disposed. Because those which
+are well disposed make for increase as in price and for shortage of the
+thing, and those which are evilly disposed make for the lowness of the
+price and for appropriate abundancy. And according to this you will
+judge regarding other things from whatever, namely according to its
+place and condition {esse} with the aforesaid good aspects and the
+Moon or concerning whatever other part you wish.
+But if the significator of the part of grain or of any other part,
+namely the lord of the house {sign} in which it falls, is impeded and of
+evil condition {quality - esse} and evilly disposed and if a benefic,
+fortunate and strong, and the Moon aspect the part, it signifies that
+the grain or whatever other thing whose part you are considering will
+abound and it will be cheap.
+If, however, a malefic aspects the part, it signifies that the grain,
+or whatever other thing whose part you sought, will be expensive and
+that there will be shortages of it. But if a benefic aspects the
+malefic,{eum – him} it signifies that it will abound, but nevertheless it
+will still be expensive. Understand the same regarding all and each of
+the other parts.
+On the Part of Barley or Pars Ordei
+When you desire to know whether barley will be cheap or expensive in
+a revolution, or what its condition will be, take the place of the Moon
+from the place of Jupiter and add to what remains the degrees and
+minutes of the ascending sign and project from the ascendant, and
+where the number ends, there will be the part of barley from which,
+according to the condition {esse} of the lord of that sign, you will judge
+by the aforesaid conditions.
+On the Part of Beans or Pars Fabarum
+ When you desire to know whether or not beans will be cheap or
+expensive in the revolution you seek, take the place of Saturn from the
+
+=== Page 52 ===
+place of Mars and add to the remainder the degree of the ascendant,
+giving 30 degrees to each sign according to equal degrees, and where
+the number ends, there will be the part of beans. Judge then as was
+said regarding the others.
+On the Part of Onions or Pars Ceparum
+You will discover that the part of onions and the part of green peas or
+pars robelliae are the same {as the preceding part}; therefore it is not
+necessary for you to make another rule for these.
+On the Part of Lentils or Pars Lentium
+When you desire to know what the status of lentils will be, take the
+place of Mars from the place of Saturn and add the degree of the sign
+of the ascendant to the remainder, and project this from the
+ascendant, and where the number ends will be where the part is. Judge
+it as was said of the others.
+On the Part of Rice or Pars Risi
+You take the pars risi from Jupiter to Saturn and project it from the
+ascendant, and where the number falls, there will be the pars risi. Judge
+concerning it as was said regarding the others.
+On the Part of Sesame or Pars Sisami
+The pans sisami is taken from Saturn to Jupiter and projected from the
+ascendant. It is a seed very like the flaxseed, but it is white and
+physicians use it in certain antidotes.
+On the Part of Sugar or Pars Zuchari
+The pars zuchari is taken by subtracting the place of Mercury from the
+place of Venus, and what remains is added to the degrees of the
+ascendant and is projected from the ascendant, and where the number
+ends, there is the pars zuchani, which you will investigate as was said
+of the others.
+On the Part of Dates or Pars Dactilorum
+If you desire to know the market of dates, take the place of the Sun
+from the place of Venus and add the degree of the sign of the
+ascendant to the remainder, and project this from the ascendant.
+Where the number ends, there will be the part.
+
+=== Page 53 ===
+On the Part of Honey or Pars Mellis
+If, however, you desire to know the market for honey, take the place of
+the Moon from the place of the Sun and add the degree of the sign of
+the ascendant, and project from the ascendant, and where the number
+ends, there will be the part.
+On the Part of Wine or Pars Vini
+If you want to know the market for wine, which is had from the
+condition {esse} of the grapes, take the place of Saturn from the place
+of Venus and add the degree of the sign of the ascendant to the
+remainder, and project from the ascendant. Where the number ends
+will be the part which you seek. Judge it as has been said regarding
+the others,
+On the Part of Olives or Pars Olivarum
+If it is your heart’s desire to know whether or not there will be an
+abundance of olives in the revolution which you seek and you desire
+to know whether olive oil will be cheap or expensive, take the place of
+Mercury from the place of the Moon, and to the remainder add the
+degree and minute of the sign of the ascendant, and project from the
+ascendant, giving to each sign 30 degrees according to equal degrees,
+and where the number ends, there will be the part.
+On the Part of Nuts or Pars Nucum
+When you desire to know whether or not there will be an abundance of
+nuts in that year or revolution, take the place of Mercury from the
+place of Mars and add the degree of the sign of the ascendant, and
+where the number ends will be the part. Judge this as was said
+regarding the others.
+On the Part of Silk and of Other Similar Things or Pars Bambaxii
+et Aliorum Conjunctorum
+If you desire to know the disposition of silk or its “quality” {esse} and
+the line of lesser things lacking extremely in dryness and loving
+temperate humidity, such as millet, Italian millet, honeys {(?) melica},
+beans {faseoli} and the like; although silks do not aspire to great
+dryness, they are nonetheless counted among these. It is taken in this
+way: You take the place of Mercury from the place of Venus, and to
+the remainder you add the degree of the sign of the ascendant so that
+where the number ends, there will be the part.
+On the Part of Melons, Lemons, Cucumbers, and Gourds or Pars
+Melonum, Citrullorum, Cucumerorum, atque Curcurbitarum
+In order to know whether or not there will be an abundance of melons,
+lemons, cucumbers, and gourds, take the place of Mercury from the
+place of Saturn, and to the remainder add the degree of the sign of the
+ascendant, and where the number ends there will be the part. Judge
+this as was said regarding the others.
+
+=== Page 54 ===
+On the Part of Hunters or Pars Venatorum
+When you desire to know whether or not there may be hunting in that
+revolution, take the place of caput draconis from the place of Saturn,
+and to the remainder add the degree of the sign of the ascendant, and
+begin to project from the ascendant, and where the number ends, there
+the part will be. Judge it as was said regarding the others.
+On the Part of Humidity and Dryness or Pars Humiditatis atque
+Siccitatis
+For having the knowledge of the humidity or dryness of the revolution,
+take by day the place of the Moon from the place of Venus and by
+night the contrary, and to the remainder add the degree of the sign of
+the ascendant, and project from the ascendant, and where the number
+ends, there will be the part which you seek. The judgment of it is as
+was said regarding the others.
+On the Part of Salted Things or Pars Rerum Salitarum
+For knowing the market of salted things, by which you are able to
+know the state of them and of salt, although perhaps not exactly but
+still for practical purposes { ad utilitatem }
+ take the place of Mars from
+the place of the Moon, and add to the remainder the degree of the
+ascendant, and where the number ends will be the part.
+On the Part of Sweet Foods or Pars Ciborum Dulcium
+For knowing the market of sweet foods, take the place of the Sun from
+the place of Venus and to the remainder add the degree of the sign of
+the ascendant, and where the number ends will be the part.
+On the Part of Bitter Foods or Pars Ciborum Amarorum
+For knowing the condition {esse}
+ of bitter foods, take the place of
+Mercury from the place of Saturn, and to the remainder add the
+degree of the sign of the ascendant and where the number ends will be
+the part.
+On the Part of Pungent Foods or Pars Ciborum Acrium
+For knowing the condition {esse} of pungent foods, take the place of
+Saturn from the place of Mars, and add to the remainder the degree of
+the sign of the ascendant, and project this from the ascendant, and
+where the number ends, there will be the part.
+
+=== Page 55 ===
+On the Part of Sharp Foods or Pars Ciborum Acutorum
+For knowing the condition {esse} of sharp foods and herbs having a
+sharp taste, take the place of Mars from the place of Saturn, and add
+to the remainder the degrees of the sign of the ascendant, and project
+from the ascendant.
+On the Part of Sweet Medicines or Pars Medicaminum Dulcium
+For knowing the condition {esse} of sweet purgative medicines, take the
+place of the Sun from the place of the Moon, and add the degree of the
+sign of the ascendant to the remainder, and where the number ends,
+there will be the part.
+On the Part of Pungent Medicines or Pars Medicaminum Acrium
+For knowing the condition {esse} of pungent medicines, take the place
+of Saturn from the place of Jupiter, and add the remainder to the
+degree of the sign of the ascendant, and project from the ascendant,
+and where the number ends, there is where the part will be.
+On the Part of Salty Medicines or Pars Medicaminum Salsorum
+For knowing the condition {esse} of salty medicines, take the place of
+Mars from the place of the Moon, and add to the remainder the degree of
+the sign of the ascendant, and project this from the ascendant, and where the
+number ends is where the part will be.
+On the Part of the Disposition of the Year or Pars Dispositionis
+Anni
+There is another part which is seen to comprehend all the aforesaid,
+and it is seen that it is a correlative with them and they with it,
+because it is generated from them and because they are generated
+from it. This part is called the part of good disposition or of the
+fertility of the year. It is taken from the Moon to Mercury and is
+projected from the ascendant, and where the number ends, there is
+where the part will be. Its judgment is like that of the others.
+But if it happens at some time that the planet whose place you wish
+to extract from the place of another may be more in signs and degrees
+and minutes than that from which you must subtract it, add twelve
+signs to the lesser from which it is taken, and after this you will be able
+to take what you wish, and to this remainder add the degrees and
+minutes of the sign of the ascendant and project from the ascendant,
+giving to each sign 30 degrees according to equal degrees, and where
+the number ends, there is where the place will be. Judge as was said
+concerning the others.
+
+=== Page 56 ===
+On the Regions Where These Things Will Be
+For knowing in which regions the aforesaid accidents will occur,
+consider from which part the lord of the ascendant or of the tenth or of
+the seventh or of the fourth may be - whether they are in the eastern
+part or the southern, or western or northern or in oriental signs, which
+are Aries and its triplicity, or southern signs, which are Taurus and its
+triplicity, or western which are Gemini and its triplicity, or northern
+signs, which are Cancer and its triplicity.
+On the Time When These Things Will Be
+For knowing the time in which the significations of the aforesaid parts
+will be and in which quarter of the year the signification will come, see
+the part which you want, and if it falls in the ascendant or between the
+ascendant and the fourth house cusp, its signification will occur in the
+first quarter of the revolution of that year or of the time in which that
+signification ought to occur. However, if it is in the fourth, or between
+the fourth and the seventh, it will occur in the second quarter. But if it
+is in the seventh or between the seventh and the tenth, it happens in
+the third quarter. But if it is in the tenth or between the tenth and the
+ascendant, it will happen in the last quarter of its time, and the closer
+it is to an angle, the sooner it happens, and the further away from an
+angle, the later it happens.
+
+=== Page 57 ===
+CHAPTER NINETEEN
+CONCERNING THE NUMBER OF SIGNIFICATORS OF EACH OF
+THE PARTS
+Each part has at least two significators naturally {the two from
+which the part is extracted} although there are some of them which are
+sometimes content with only one, such as the part of substance or pars
+substantiae when it falls in the second house, or the part of journey or
+pars itinenis when it falls in the ninth. There are some parts which have
+three significators, the two from which the part is extracted and one
+from the house in which it falls, where the latter planet is not one of
+the other two. There are other parts which have four significators: two
+from which the part is extracted, a third to which it arrives, and a
+fourth from which the projection is begun.
+A part which is content with one significator is strengthened when
+its significator aspects it. But a part which has two significators is
+strengthened when both its significators aspect it, and they give
+greater hope of perfecting what the part intends; however, the lord of
+the house in which the part falls will be more worthy. But if the part
+has three significators and two aspect it but the third does not, the
+part will not be so strong in perfecting what it intends. But if only one
+of the three aspect it and the other two do not, its strength will again
+be less than before. But if none of them aspect it, it will be even
+weaker, and it will do what it intends with difficulty and harsh effort
+in that revolution.
+You may say the same if the significators are healthy according to
+their own condition {si fuerint signifacatores salvi secundum eorum
+salvationem}. But if they were impeded, say according to their
+impediment. For if they are all impeded, the signification of that part
+will hardly ever or never appear. And if the significators aspect the
+part with a favourable aspect, he will see from it the hoped-for result.
+If, however, they aspect the part with enmity, evil and adversity
+will happen to him from that cause {indicated by the part}. It is
+possible that none of the planets having dignity in that part aspect it
+and that another which naturally signifies that which the part signifies
+does aspect it; then from this {configuration} something will occur,
+although not the entire effect. For instance, if Jupiter aspects the part
+of substance or pars .substantiae; for Jupiter naturally signifies
+substance, and if no other significators aspect it or if Venus aspects
+the part of marriage or pars coniugii and no other significators aspect
+it, it signifies some kind of effect of the thing. If you would have
+knowledge of the part of servants or handmaids or pars servorum seu
+famulorum and no significator aspected the part, but Mercury, which
+naturally signifies servants and handmaids, does aspect the part
+{some effect can be expected}. But this will be within the signification
+of the significator of the part, and it will be by someone who arrives on
+the scene unexpectedly and becomes involved in the matter on his
+own. And if the planet aspecting the part has any dignity in the house
+in which it is, this happens from that party which the querent hoped it
+would be, or from one of his acquaintances. However, if it is peregrine,
+he knows not whence it happens to him. And if the planet aspecting
+the part is unfortunate and not receiving the part or is impeded, there
+
+=== Page 58 ===
+will be commotion and rumours concerning it, but nothing of what the
+part signifies will be perfected.
+Albumassar said, after this, look to the malefic and see if it is in
+an angle or in a succedent house, and if it is direct, there will be
+destruction or impediment after {the thing} will be thought perfected.
+But if Saturn is that malefic, the impediment will be because of
+someone’s old age. If Jupiter is the planet, it will be because of
+religious men or judges and of others entering between them. But if it
+is Mars, there will be some kind of contention between them because
+of it. If it is the Sun, it will be because of the king or wealth. But if it is
+Venus, it will be because of women. But if it is Mercury and he is
+impeded, it will be because of other busin esses. And if it is the Moon,
+since she is the author of light and number, it will be because the thing
+may be increased. And if it is of little light, it will be because the thing
+is deteriorated and diminished.
+Alchabitius said that the part called the part of kingdom and
+empire or pars regni atque imperii, which is used in the revolution of the
+year, is taken from Mars to the Moon and is projected from the
+ascendant of the conjunction. It signifies the change of the kingdom.
+Understand the same in religious sects because they are like a rule or
+dominion. But according to others, it is taken from the degree of the
+ascendant of the conjunction and is projected from the degree of the
+ascendant of the revolution. However, according to yet others, it is
+taken from the degree of the Sun to the degree of the Medium Coeli of
+the revolution and is projected from the degree of Jupiter, and this
+opinion seems more appropriate to me.
+The part of the time of the rise of the kingdom or pars temporis
+elevationis regni, which signifies its duration, is taken from the hour of
+its rise or coronation from the Sun to the 15th degree of Leo by day
+and is projected from the degree of the Moon. But by night it is taken
+from the degree of the Moon all the way to the 10th degree of Cancer
+and is projected from the degree as of the Sun. There is another part of
+the kingdom or empire which is taken by day in the hour of its rise or
+beginning from the Sun to Saturn and by night in the contrary, and it
+is projected from the ascendant of the revolution of the year in which
+the king or emperor is elevated or anyone else is promoted to a
+political office.
+Alchabitius said that if Jupiter is in a common sign and the
+revolution is diurnal and Jupiter is cadent from the angles, the pars
+regni et imperii is taken from Saturn to Jupiter and 30 degrees are
+added, and it is projected from the ascendant of the revolution of the
+year in which the king ascended. But if they oppose each other and are
+both cadent, then half of the degrees which are between them is taken,
+and this is projected from the ascendant. But if Jupiter is in Cancer
+and the revolution is nocturnal this part is taken from Jupiter to
+Saturn and is projected from the ascendant.
+Alchabitius said that the first of the two parts from which the
+duration of the kingdom is judged, is found by observing where the
+profection of years comes. Begin from the conjunction of the triplicity
+which signifies the kingdom or religious sect, at the time of the rise of
+the kingdom {king’s coronation}. Of this number you give one year to
+
+=== Page 59 ===
+every 30 degrees and one month to every 2 degrees and 30 minutes.
+ When you know in what sign or degree this is, note this and save
+it for the moment because this will be the place from which you will
+calculate the first part, and when you desire to apply it, you will
+employ the ascendant of the revolution of the year in which the king,
+or whoever was chosen, rose. Next take the distance of the planet
+oriental from the Sun, from Saturn, or from Jupiter in that year {in the
+year of the rise of the king or sect} all the way to the degree of the
+equation of the part which you saved, and project this from the
+ascendant of the revolution. Where this comes to will be the place of
+the first part.
+But the second part {which shows the strength of the king in a
+given year} is found in this way: Look from the conjunction in which
+the kingdom or empire arose to that sign or degree to which the
+profection of the years comes. Of this number, give every 30 degrees
+one year to the month and day in which the king arose, and this is the
+place of the equation of the second part. Mark this point. Next, take
+the distance from a planet oriental of the Sun, Saturn, and Jupiter, all
+the way to the place of the equation of the second part which you
+marked, and project this from the ascendant of the revolution, and
+where it arrives is the place of the second part.
+These are the parts which signify the duration of the king and his
+strength.
+ END OF TRANSLATION
+
+=== Page 60 ===
+APPENDIX
+ERRATA
+We aim to make our publications as accurate as possible. However,
+the complexities of digital publishing and the nuances of translation
+can mean that the occasional error goes unnoticed. We apologise
+wholeheartedly for this, and ask that you notify us of any such errors
+you encounter, so we can corrected them in future editions.
+Visit our website for errors and notification at:
+http://www.new-library.com/zoller/errata
+
+=== Page 62 ===
+© Copyright 2000 New Library Limited All rights reserved
+www.new-library.com/zoller
+Robert Zoller.
+translated from the original Latin text by:

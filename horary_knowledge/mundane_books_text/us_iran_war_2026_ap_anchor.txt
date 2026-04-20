@@ -1,0 +1,16 @@
+U.S.-Iran War 2026 AP Anchor
+
+This local source note preserves the benchmark anchor used for the U.S.-Iran
+war opening cases.
+
+- AP, April 11, 2026:
+  https://apnews.com/article/2be904aee3f804892336730279e054b9
+  Reported that the war had begun on February 28, 2026 and that the opening
+  fighting involved joint U.S.-Israeli strikes on Iran.
+
+- AP, February 28, 2026:
+  https://apnews.com/article/c2f11247d8a66e36929266f2c557a54c
+  Treated the February 28, 2026 strikes on Iran as the opening direct war
+  event.
+
+This file is a local benchmark note so citation validation can stay file-based.

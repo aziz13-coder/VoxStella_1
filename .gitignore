@@ -60,6 +60,9 @@ frontend/backend/Lotto(10).csv
 frontend/backend/Untitled.png
 licensing_server/command cloudflare.txt
 licensing_server/New Text Document.txt
+transits.csv
+horary_knowledge/weather_earthquake_source_raw/**/*.pdf
+horary_knowledge/weather_earthquake_source_raw/**/*.rar
 /*.pdf
 /*.docx
 /*.odt

@@ -1,0 +1,18 @@
+Alliance Stress Anchor: United Arab Republic Breakup, 1961
+
+This local anchor supports a non-Atlantic alliance-break case for
+`alliance_stress`.
+
+External sources:
+- Britannica, "United Arab Republic":
+  https://www.britannica.com/place/United-Arab-Republic
+- United Nations, "Syrian Arab Republic":
+  https://www.un.org/en/node/122913
+
+Anchor summary:
+- Britannica states that the United Arab Republic was the political union of
+  Egypt and Syria proclaimed on 1 February 1958.
+- The United Nations page states that the UAR continued as a single member and
+  that, on 13 October 1961, Syria resumed its separate membership after
+  returning to independent status.
+- This makes the 1961 secession a clear alliance or union rupture benchmark.

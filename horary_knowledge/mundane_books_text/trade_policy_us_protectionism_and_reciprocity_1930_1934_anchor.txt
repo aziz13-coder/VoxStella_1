@@ -1,0 +1,19 @@
+Trade / Commerce Anchor: U.S. Protectionism and Reciprocity, 1930-1934
+
+This local anchor supports non-energy `trade_and_commerce` hardening through
+tariff escalation and trade liberalization.
+
+External sources:
+- Britannica, "Smoot-Hawley Tariff Act":
+  https://www.britannica.com/topic/Smoot-Hawley-Tariff-Act
+- Office of the Historian, "Protectionism in the Interwar Period":
+  https://history.state.gov/milestones/1921-1936/protectionism
+
+Anchor summary:
+- Britannica says the Smoot-Hawley Tariff Act was signed on 17 June 1930,
+  raised import duties, and contributed to a sharp contraction in
+  international trade.
+- The Office of the Historian says Smoot-Hawley became a symbol of
+  beggar-thy-neighbor protectionism and that, beginning with the 1934
+  Reciprocal Trade Agreements Act, the United States generally sought trade
+  liberalization through bilateral or multilateral tariff reductions.

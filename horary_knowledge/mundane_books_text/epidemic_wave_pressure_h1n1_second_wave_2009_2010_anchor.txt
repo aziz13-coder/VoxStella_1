@@ -1,0 +1,14 @@
+Epidemic Wave Anchor: U.S. H1N1 Second Wave, 2009-2010
+
+This local anchor supports post-1919 recurrence and second-wave hardening for
+`epidemic_wave_pressure`.
+
+External source:
+- CDC MMWR, "Influenza Activity — United States, 2009–10 Season":
+  https://www.cdc.gov/mmwr/pdf/wk/mm5929.pdf
+
+Anchor summary:
+- CDC states that the second wave of 2009 pandemic influenza A (H1N1) occurred
+  in the United States during the 2009-10 season.
+- CDC also reports two peaks in positive specimens: an initial June wave and a
+  second wave peaking in late October 2009.

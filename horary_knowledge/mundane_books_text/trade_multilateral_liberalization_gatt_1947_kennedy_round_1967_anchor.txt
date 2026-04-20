@@ -1,0 +1,15 @@
+Trade / Commerce Anchor: GATT 1947 and Kennedy Round 1967
+
+This local anchor supports multilateral non-energy `trade_and_commerce`
+hardening.
+
+External source:
+- WTO, "Fiftieth Anniversary of the Multilateral Trading System":
+  https://www.wto.org/english/thewto_e/minist_e/min96_e/chrono.htm
+
+Anchor summary:
+- WTO says the General Agreement on Tariffs and Trade was signed by 23 nations
+  on 30 October 1947 in Geneva.
+- WTO also says the Kennedy Round Final Act was signed in June 1967 by about
+  50 countries representing roughly 75 percent of world trade and used
+  across-the-board tariff cutting.

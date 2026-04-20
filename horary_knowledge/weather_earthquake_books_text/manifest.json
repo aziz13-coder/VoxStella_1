@@ -1,0 +1,18 @@
+[
+  {
+    "source_name": "Astrology in Predicting Weather and Earthquakes - B.V. Raman.pdf",
+    "source_ext": ".pdf",
+    "output_name": "Astrology_in_Predicting_Weather_and_Earthquakes_-_B.V._Raman.txt",
+    "status": "error",
+    "chars": 0,
+    "notes": "Stream has ended unexpectedly"
+  },
+  {
+    "source_name": "Predicting Weather Events with Astrology - Kris Brandt Riske.pdf",
+    "source_ext": ".pdf",
+    "output_name": "Predicting_Weather_Events_with_Astrology_-_Kris_Brandt_Riske.txt",
+    "status": "ok",
+    "chars": 365343,
+    "notes": ""
+  }
+]

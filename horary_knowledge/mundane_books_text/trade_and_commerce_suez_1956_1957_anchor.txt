@@ -1,0 +1,13 @@
+Trade Anchor: Suez Canal Closure 1956-1957
+
+This local note preserves the historical anchor used for the Phase 5
+`trade_and_commerce` benchmark expansion.
+
+- National Army Museum, Suez Crisis:
+  https://www.nam.ac.uk/explore/suez-crisis
+  The museum summary says Nasser nationalized the Franco-British Suez Canal
+  Company in July 1956, Britain's oil supply was damaged by the canal's
+  closure during the crisis, and the canal was reopened to shipping in
+  April 1957.
+
+This file is a local benchmark note so citation validation can stay file-based.

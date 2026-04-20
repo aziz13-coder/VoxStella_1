@@ -1,0 +1,14 @@
+Epidemic Wave Anchor: Influenza Pandemic Surges, 1957 and 1968
+
+This local anchor supports post-1919 `epidemic_wave_pressure` hardening beyond
+the 1918-1919 family.
+
+External source:
+- CDC, "Influenza Milestones":
+  https://stacks.cdc.gov/view/cdc/52910/cdc_52910_DS1.pdf
+
+Anchor summary:
+- CDC's influenza timeline says H2N2 emerged to trigger a pandemic in 1957,
+  replacing the 1918 H1N1 pandemic virus.
+- The same CDC timeline says H3N2 emerged to trigger a pandemic in 1968.
+- These are valid later-pandemic surge windows for the epidemic-wave domain.

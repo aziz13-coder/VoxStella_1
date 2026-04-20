@@ -1,0 +1,18 @@
+Epidemic Wave Anchor: India COVID-19 Second Wave 2021
+
+This local note preserves the historical anchor used for the Phase 5
+`epidemic_wave_pressure` benchmark expansion.
+
+- WHO Weekly epidemiological update on COVID-19 - 11 May 2021:
+  https://www.who.int/publications/m/item/weekly-epidemiological-update-on-covid-19---11-may-2021
+  WHO reported that the South-East Asia Region had continued an upward
+  trajectory for nine weeks and remained at the highest global case and
+  death levels since the beginning of the pandemic.
+
+- WHO SEARO weekly situation report 25, 2021:
+  https://cdn.who.int/media/docs/default-source/searo/whe/coronavirus19/sear-weekly-reports/searo-weekly-situation-report-25-2021.pdf
+  WHO's regional report said the India surge coincided with the rapid rise
+  of the Delta variant and referenced urgent control measures during the
+  second-wave mortality pressure.
+
+This file is a local benchmark note so citation validation can stay file-based.

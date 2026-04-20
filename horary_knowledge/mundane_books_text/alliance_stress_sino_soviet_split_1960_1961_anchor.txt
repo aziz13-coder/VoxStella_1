@@ -1,0 +1,15 @@
+Alliance Stress Anchor: Sino-Soviet Split, 1960-1961
+
+This local anchor supports a non-Atlantic, non-British `alliance_stress`
+benchmark case.
+
+External source:
+- Britannica, "The Sino-Soviet split":
+  https://www.britannica.com/topic/20th-century-international-relations-2085155/The-Sino-Soviet-split
+
+Anchor summary:
+- Britannica describes the Sino-Soviet split as the shattering of the strict
+  bipolarity of the Cold War and says the USSR and China became bitter rivals
+  for leadership in the Communist and Third worlds.
+- The split was already active in the early 1960s and is suitable as an
+  ally-network rupture case rather than a generic diplomacy row.

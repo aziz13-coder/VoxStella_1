@@ -1,0 +1,12 @@
+Epidemic Wave Anchor: Global Omicron Surge, January 2022
+
+This local anchor supports modern surge hardening for `epidemic_wave_pressure`.
+
+External source:
+- WHO, "Weekly epidemiological update on COVID-19 - 11 January 2022":
+  https://www.who.int/publications/m/item/weekly-epidemiological-update-on-covid-19---11-january-2022
+
+Anchor summary:
+- WHO reported that global weekly COVID-19 cases rose by 55 percent during the
+  week 3-9 January 2022, reaching more than 15 million new weekly cases.
+- This is a clear modern surge window suitable for epidemic-wave calibration.
