@@ -19,6 +19,16 @@ echo [START] %DATE% %TIME% >"%LOG%"
 REM Used only by the deterministic failure-propagation test.
 if /I "%VOX_STELLA_PACKAGE_FAIL_FAST_PROBE%"=="1" goto :intentional_failure_probe
 
+REM Prefer the verified workspace-local Node release used by the canonical
+REM release workflow. This keeps a manually launched package build independent
+REM of an older system-wide Node/npm installation.
+set "LOCAL_NODE_DIR=%WORKSPACE_ROOT%\build-logs\toolchains\node-v22.23.1-win-x64"
+if exist "%LOCAL_NODE_DIR%\node.exe" if exist "%LOCAL_NODE_DIR%\npm.cmd" (
+  set "PATH=%LOCAL_NODE_DIR%;%PATH%"
+  echo [INFO] Using workspace Node toolchain: %LOCAL_NODE_DIR%
+  >>"%LOG%" echo [INFO] Using workspace Node toolchain: %LOCAL_NODE_DIR%
+)
+
 REM Verify the exact release Node/npm toolchain before any build work.
 where node >nul 2>&1 || goto :node_missing
 where npm >nul 2>&1 || goto :npm_missing

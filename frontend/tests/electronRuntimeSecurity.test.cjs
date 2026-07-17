@@ -541,6 +541,11 @@ test('release smoke and packaging scripts pin artifact and updater identity', ()
     packageSource,
     /VoxStella-Setup-%VOX_STELLA_BUILD_VERSION%\.exe/,
   );
+  assert.match(
+    packageSource,
+    /build-logs\\toolchains\\node-v22\.23\.1-win-x64/,
+  );
+  assert.match(packageSource, /set "PATH=%LOCAL_NODE_DIR%;%PATH%"/);
   assert.doesNotMatch(packageSource, /VoxStella-Setup\*\.exe/);
   assert.doesNotMatch(packageSource, /dir \/b \/o:d "%OUT_DIR%\\\*\.exe"/);
 });
