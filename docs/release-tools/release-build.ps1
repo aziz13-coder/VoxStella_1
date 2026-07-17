@@ -63,8 +63,18 @@ function Invoke-GitText {
     [Parameter(Mandatory = $true)][string[]]$Arguments,
     [switch]$AllowFailure
   )
-  $output = & git -C $RepoRoot @Arguments 2>$null
-  $exitCode = $LASTEXITCODE
+  $previousErrorActionPreference = $ErrorActionPreference
+  try {
+    # Expected lookup misses (for example, a tag that does not exist yet)
+    # write to stderr. Under Windows PowerShell 5.1, the script-wide Stop
+    # preference can turn that native stderr into a terminating error before
+    # AllowFailure has a chance to inspect the exit code.
+    $ErrorActionPreference = 'Continue'
+    $output = & git -C $RepoRoot @Arguments 2>$null
+    $exitCode = $LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $previousErrorActionPreference
+  }
   if ($exitCode -ne 0 -and -not $AllowFailure) {
     throw "git $($Arguments -join ' ') failed with exit code $exitCode."
   }
