@@ -67,12 +67,12 @@ describe('whats new release gating', () => {
       .filter(Boolean)
       .join(' ');
 
-    expect(release.headline).toBe('Stronger activation and deeper Chinese Astrology');
-    expect(copy).toContain('Activation reliability');
-    expect(copy).toContain('Chinese Astrology');
+    expect(release.headline).toBe('Deeper Chinese Astrology readings');
+    expect(copy).toContain('Clearer Four Pillars');
+    expect(copy).toContain('Richer life areas');
     expect(copy).toContain('Relationship readings');
     expect(copy).toContain('Life timing');
-    expect(copy).not.toMatch(/\b(backend|benchmark|module|filtered catalog|API)\b/i);
+    expect(copy).not.toMatch(/\b(activation|access keys|licens\w*|backend|benchmark|module|filtered catalog|API|algorithm|calibration)\b/i);
   });
 
   it('preserves the 3.1.0 release copy', () => {

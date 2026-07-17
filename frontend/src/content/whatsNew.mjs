@@ -2,28 +2,28 @@ export const WHATS_NEW_RELEASES = {
   '3.1.1': {
     version: '3.1.1',
     publishedAt: '2026-07-17',
-    headline: 'Stronger activation and deeper Chinese Astrology',
-    summary: 'This update makes activation more reliable and expands Chinese Astrology with clearer, more carefully sourced readings.',
+    headline: 'Deeper Chinese Astrology readings',
+    summary: 'This update gives Chinese Astrology a clearer, richer reading experience across the chart, relationships, and life timing.',
     items: [
       {
-        title: 'Activation reliability',
-        tag: 'Fix',
-        body: 'Creating and activating access keys now handles device limits and previously created keys more consistently across the app and licensing website.',
+        title: 'Clearer Four Pillars',
+        tag: 'Improved',
+        body: 'Your Four Pillars reading now explains the chart\'s balance, strengths, and helpful influences in clearer everyday language.',
       },
       {
-        title: 'Chinese Astrology',
+        title: 'Richer life areas',
         tag: 'Improved',
-        body: 'Four Pillars readings now include corrected traditional rules, richer source-backed interpretation, and clearer useful-element guidance.',
+        body: 'Career, relationships, wellbeing, and personal themes are brought together with more detail and clearer guidance.',
       },
       {
         title: 'Relationship readings',
         tag: 'Improved',
-        body: 'Relationship comparisons now preserve each person\'s settings and present compatibility evidence with more careful wording.',
+        body: 'Comparisons now keep each person\'s details separate and explain shared patterns with more balanced, careful wording.',
       },
       {
         title: 'Life timing',
         tag: 'Improved',
-        body: 'Year, month, day, and hour timing stays available even when a ten-year luck cycle cannot be calculated.',
+        body: 'Year, month, day, and hour views are easier to follow and remain available even when a longer cycle cannot be shown.',
       },
     ],
   },
