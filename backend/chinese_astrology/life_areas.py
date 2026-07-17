@@ -78,9 +78,9 @@ AREA_DEFINITIONS = [
         "short_label": "Body",
         "factors": [],
         "palaces": ["day", "hour"],
-        "keywords": ["element balance", "excess", "deficiency", "pressure", "recovery context"],
-        "topic_basis": "Health is shown through a traditional Five Element body-balance lens.",
-        "palace_basis": "Day and Hour give the closest body/private-life context, while element excess and absence only mark symbolic emphasis.",
+        "keywords": ["element presence", "body correspondences", "pressure", "recovery context"],
+        "topic_basis": "Traditional Five Element body correspondences are shown as symbolic context, not as medical or qi-strength findings.",
+        "palace_basis": "Day and Hour give close body/private-life context; unweighted element presence only marks where symbols occur.",
     },
     {
         "id": "learning_resources",
@@ -342,11 +342,11 @@ def _signals(
             "tone": "activation",
         })
     if definition["id"] == "health_body":
-        strongest, weakest = _element_extremes(element_balance)
-        if strongest:
-            signals.append({"type": "element", "label": "Strongest", "detail": strongest, "tone": "balance"})
-        if weakest:
-            signals.append({"type": "element", "label": "Lightest", "detail": weakest, "tone": "balance"})
+        most_present, least_present = _element_extremes(element_balance)
+        if most_present:
+            signals.append({"type": "element", "label": "Most mentioned", "detail": most_present, "tone": "balance"})
+        if least_present:
+            signals.append({"type": "element", "label": "Least mentioned", "detail": least_present, "tone": "balance"})
     return signals
 
 
@@ -362,10 +362,11 @@ def _area_summary(
     relationship_total: int,
 ) -> str:
     if definition["id"] == "health_body":
-        strongest, weakest = _element_extremes(element_balance)
+        most_present, least_present = _element_extremes(element_balance)
         return (
-            f"Traditional body-balance context watches strongest element {strongest or '-'} and lightest element {weakest or '-'}. "
-            "Use it as element-pattern context for the chart."
+            f"Traditional body-correspondence context notes most-mentioned element {most_present or '-'} "
+            f"and least-mentioned element {least_present or '-'}. "
+            "These are unweighted placement counts, not qi strength, excess, deficiency, or medical findings."
         )
     factor_names = ", ".join(str(factor.get("factor")) for factor in factors) or "no primary factor"
     palace_names = ", ".join(str(palace.get("pillar_label") or palace.get("pillar")) for palace in palaces) or "no direct palace"
@@ -412,14 +413,14 @@ def _body_balance_evidence(
     relationships: Dict[str, Any],
     timing_rows: List[Dict[str, Any]],
 ) -> Dict[str, Any]:
-    totals = element_balance.get("total") if isinstance(element_balance, dict) else {}
+    totals = (element_balance.get("counts") or element_balance.get("total")) if isinstance(element_balance, dict) else {}
     hidden = element_balance.get("hidden_stems") if isinstance(element_balance, dict) else {}
     totals = totals if isinstance(totals, dict) else {}
     hidden = hidden if isinstance(hidden, dict) else {}
     sorted_totals = sorted(((element, int(totals.get(element) or 0)) for element in BODY_CORRESPONDENCE), key=lambda item: (-item[1], item[0]))
-    strongest = [element for element, count in sorted_totals if count == sorted_totals[0][1] and count > 0] if sorted_totals else []
-    weakest_count = min((count for _, count in sorted_totals), default=0)
-    weakest = [element for element, count in sorted_totals if count == weakest_count]
+    most_present = [element for element, count in sorted_totals if count == sorted_totals[0][1] and count > 0] if sorted_totals else []
+    least_presence_count = min((count for _, count in sorted_totals), default=0)
+    least_present = [element for element, count in sorted_totals if count == least_presence_count]
     day_hour_palaces = []
     for name in ("day", "hour"):
         pillar = pillars.get(name) if isinstance(pillars, dict) else None
@@ -462,28 +463,37 @@ def _body_balance_evidence(
         for element in BODY_CORRESPONDENCE
     ]
     signals = []
-    for element in strongest[:2]:
-        signals.append({"type": "body_balance", "label": f"{element} excess watch", "detail": BODY_CORRESPONDENCE[element]["tone"], "tone": "balance"})
-    for element in weakest[:2]:
-        signals.append({"type": "body_balance", "label": f"{element} deficiency watch", "detail": BODY_CORRESPONDENCE[element]["tone"], "tone": "balance"})
+    for element in most_present[:2]:
+        signals.append({"type": "body_presence", "label": f"{element} higher presence", "detail": BODY_CORRESPONDENCE[element]["tone"], "tone": "balance"})
+    for element in least_present[:2]:
+        signals.append({"type": "body_presence", "label": f"{element} lower presence", "detail": BODY_CORRESPONDENCE[element]["tone"], "tone": "balance"})
     if pressure_events:
         signals.append({"type": "body_contact", "label": "Day/Hour pressure", "detail": f"{len(pressure_events)} contact(s)", "tone": "contact"})
     if timing_hits:
         signals.append({"type": "body_timing", "label": "Timing repeats body-linked factors", "detail": f"{len(timing_hits)} layer(s)", "tone": "activation"})
     return {
         "status": "source_based_preview",
-        "method": "hidden_stem_body_balance_v1",
+        "method": "element_presence_body_context_v2",
+        "element_presence_model_id": element_balance.get("model_id") or "legacy_element_presence_counts",
+        "element_presence_measure": element_balance.get("measure") or "unweighted_presence_count",
+        "qi_strength_inferred": False,
         "hidden_stem_counts": dict(hidden),
         "element_counts": dict(totals),
-        "element_excess": strongest,
+        "element_presence_high": most_present,
+        "element_presence_low": least_present,
+        "element_excess": [],
         "element_absence": [element for element, count in sorted_totals if count == 0],
-        "element_deficiency": weakest,
+        "element_deficiency": [],
         "symbolic_body_correspondences": correspondences,
         "day_hour_palaces": day_hour_palaces,
         "palace_pressure": pressure_events[:6],
         "timing_activation": timing_hits[:6],
         "signals": signals,
-        "limits": ["symbolic_body_balance_only"],
+        "limits": [
+            "symbolic_body_correspondence_only",
+            "unweighted_presence_not_qi_strength",
+            "not_medical_guidance",
+        ],
         "source_page_refs": ["lu_zhiji_fate_search:pp381-382", "lu_zhiji_bazi_advanced:pp150,199"],
         "source_confidence": confidence_tags("local_source", "computed_rule", "school_variant"),
     }
@@ -494,7 +504,7 @@ def _element_extremes(element_balance: Dict[str, Any]) -> tuple[Optional[str], O
     if not isinstance(counts, dict) or not counts:
         return None, None
     rows = sorted(((str(element), int(value or 0)) for element, value in counts.items()), key=lambda item: (-item[1], item[0]))
-    strongest = f"{rows[0][0]} x{rows[0][1]}" if rows else None
-    weakest_row = sorted(rows, key=lambda item: (item[1], item[0]))[0] if rows else None
-    weakest = f"{weakest_row[0]} x{weakest_row[1]}" if weakest_row else None
-    return strongest, weakest
+    most_present = f"{rows[0][0]} x{rows[0][1]}" if rows else None
+    least_row = sorted(rows, key=lambda item: (item[1], item[0]))[0] if rows else None
+    least_present = f"{least_row[0]} x{least_row[1]}" if least_row else None
+    return most_present, least_present

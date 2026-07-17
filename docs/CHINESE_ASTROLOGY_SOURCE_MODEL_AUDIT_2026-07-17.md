@@ -14,7 +14,7 @@ The audit nevertheless found four different classes of issue that must not be co
 
 1. **Deterministic implementation defects.** These include a branch-punishment transcription error, timing self-punishments not being emitted, one sex value being reused for both members of a pair, valid timing layers being hidden when Da Yun is unavailable, and clock-basis inconsistencies around late Zi hour. These are software defects and can be corrected with exact regression tests.
 2. **School conventions.** Li Chun versus Lunar New Year, civil versus apparent solar time, the late-Zi day boundary, Luck Pillar direction, hidden-stem weighting, and transformation criteria vary by lineage or purpose. The app should expose these as named, versioned presets rather than presenting one choice as the universal Chinese-calendar rule.
-3. **Product heuristics.** Root coefficients, hidden-stem rank weights, element totals, special-structure thresholds, timing scores, and the compatibility index are modern computational choices. Some are inspired by local sources, but they are not historically standardized measurements and should remain visibly provisional.
+3. **Product heuristics.** Root coefficients, hidden-stem rank weights, special-structure thresholds, and timing scores are modern computational choices. Unweighted element totals are now separated as presence inventory, and the unsupported compatibility index has been retired rather than presented as a traditional measurement.
 4. **Interpretive claims.** Useful God, relationship outcomes, body correspondences, timing outcomes, and divinatory readings belong to a traditional symbolic system. The sources document doctrines and methods; they do not establish empirical predictive truth. The product must describe these outputs as traditional interpretations or experimental evidence layers, not validated facts.
 
 The best-supported immediate corrections were made in source and tests. The next model release should focus on uncertainty propagation at calendar boundaries, executable source fixtures, a clean separation between element presence and modeled qi strength, and a provenance-aware Useful God decision graph.
@@ -44,7 +44,7 @@ This report does **not** claim that astrology has empirically demonstrated predi
 | Tables | `backend/chinese_astrology/tables.py` | Heavenly stems, Earthly branches, hidden stems, elements, polarity, and Ten-God relationships. |
 | Strength | `backend/chinese_astrology/strength.py` | Applies the current `season_root_formation_v2` model, including season, hidden-stem roots, formation, evidence labels, and confidence. |
 | Useful elements and interpretation | `backend/chinese_astrology/interpretation.py` | Builds Five-Factor/Ten-God profiles, climate or tiao-hou rows, month-command structure, damage checks, special-structure screens, Tong Guan candidates, fixture-gated Yong Shen decisions, and narrative sections. |
-| Relationship contacts and pair comparison | `backend/chinese_astrology/relationships.py` | Detects natal and timing stem/branch contacts and builds a provisional cross-chart evidence index and judgment layer. |
+| Relationship contacts and pair comparison | `backend/chinese_astrology/relationships.py` | Detects natal and timing stem/branch contacts. Pair comparison now orders independently curated individual natal spouse-palace, spouse-star, and timing evidence; directional comparisons remain contextual, while cross-chart contacts are isolated as a product overlay with no outcome authority. |
 | Timing | `backend/chinese_astrology/timing_rhythm.py` | Normalizes Da Yun, Liu Nian, and flowing month/day/hour layers; adds Ten-God roles, relationship contacts, useful-element effects, growth stages, and preview scoring. |
 | Secondary layers | `backend/chinese_astrology/auxiliary_stars.py`, `palaces.py`, `life_areas.py` | Adds secondary markers, palace context, and domain-oriented interpretation. |
 | Curation and validation ledger | `backend/chinese_astrology/curation.py`, `validation.py` | Labels computed, local-source, school-variant, provisional, and needs-validation rules; records fixtures and release gates. |
@@ -65,7 +65,7 @@ birth instant + time zone + coordinates + selected convention
   -> month-command structure, climate, damage, special-structure screens
   -> provisional favorable elements / fixture-gated Yong Shen
   -> natal contacts, Da Yun/Liu Nian/flowing contacts, palaces, stars
-  -> life-area narratives and pair evidence index
+  -> life-area narratives and qualitative pair-evidence doctrine
   -> frontend summaries, evidence panels, and warnings
 ```
 
@@ -208,7 +208,7 @@ The 120 month cells across all ten tables were visually checked against the orig
 | Earth seasonal cap | The local passage says Earth is always medium while its adjacent table places Earth differently by season. The code caps severe Earth weakness. | Mark as an explicit reconciliation policy, not a fact. Add an Earth-policy preset or return the conflict in evidence until a chosen lineage is documented. |
 | Structure ratios | Dominant/follow/transformation screens use modern ratios and thresholds. | Treat thresholds as classifier parameters, not classical constants. Require structural predicates and executable positive/negative cases before final release. |
 | Timing weights and score | Da Yun, Liu Nian, and flowing layers use modeled stem/branch weights and a tone score. The broad layer hierarchy is source-informed, but the numbers are product choices. | Expose timing as activation evidence. Keep outcome language and “supportive/pressuring” scores provisional until worked examples are independently curated. |
-| Compatibility `/100` | The index begins from a product baseline and weights contacts, spouse palace, Day-Master exchange, timing, and useful-element supply by context. Joey Yap Book 2 p. 89 expressly says its Combination Codes describe relations within one chart, not compatibility between two people; no local source supplies this cross-chart formula, baseline, weights, or bands. | Backend status/provenance now says `product_defined_uncalibrated_heuristic`; internal fixtures are smoke examples, not calibration. The UI calls it an experimental evidence index, exposes confidence/product weights, and removes the letter grade from the headline. Keep the number de-emphasized until an independent pair corpus exists. |
+| Retired compatibility `/100` | The former index began from a product baseline and weighted contacts, spouse palace, Day-Master exchange, timing, and raw element-count matches. Joey Yap Book 2 p. 89 expressly says its Combination Codes describe relations within one chart, not compatibility between two people; no local source supplies that formula, baseline, weights, or bands. | The formula, score, grade, weights, bands, and calibration claims have been removed. `bazi_pair_qualitative_doctrine_v1` keeps each subject's natal spouse-palace, sex-dependent spouse-star, and relationship-timing evidence separate. Day-Master and unweighted element-presence comparisons are contextual only; the cross-chart overlay has `outcome_authority: none`. |
 | Auxiliary-star aggregation | Formula tables can be deterministic within a selected source, but their importance and combination are interpretive. | Give Shen Sha zero authority to override pillars, month command, strength, or structure. Present them as secondary traditional markers. |
 
 ### D. Interpretive or insufficiently validated claims
@@ -219,7 +219,7 @@ The 120 month cells across all ten tables were visually checked against the orig
 | Collapsing all “useful element” doctrines | Month-command/格局 用神, support/suppression 喜用, climate/調候, Tong Guan, disease/medicine, and special-structure paths have different questions and can disagree. | Return them as parallel named analyses. A final recommendation, if offered, must show which path controls and why other paths were subordinate or blocked. |
 | Combinations are good and clashes are bad | Classical and modern sources use contacts contextually; effect depends on element, palace, structure, timing, and whether transformation occurs. | Detect contacts neutrally first. Use “combination/contact,” “movement,” or “pressure” rather than destiny verdicts. |
 | Timing predicts events | Sources offer traditional activation logic but the app lacks a large independently curated outcome corpus. | Use “activation window,” “traditional timing emphasis,” and “candidate trigger.” Do not promise that an event will occur. |
-| Compatibility predicts relationship quality | Current scoring is transparent but not outcome-calibrated and is not a classical 合婚 formula. | Put pair evidence and both profiles first; label the index experimental; never state that a relationship will succeed or fail. |
+| Compatibility predicts relationship quality | The local corpus does not establish an aggregate 合婚 formula, and Book 2 p. 89 explicitly limits Combination Codes to one chart. | Do not compute an aggregate pair verdict. Put each natal profile and individual timing evidence first; label directional presence and cross-chart contacts as contextual observations with no outcome authority. |
 | Health & Body Balance | Traditional organ/element correspondences are not medical diagnosis or evidence-based risk estimates. | Add a permanent, visible non-medical disclaimer; use symbolic wellbeing language; never diagnose, recommend treatment, or discourage professional care. |
 | I Ching Oracle | A casting algorithm can be reproduced, but its divinatory meaning is interpretive. Coin casting initiated by software is simulated rather than a user’s physical toss. | Label “simulated coin cast”; label manual lines bottom-to-top; keep BaZi sources from changing the standalone Oracle; avoid certainty language. |
 
@@ -245,14 +245,14 @@ The following bounded corrections were implemented in both source trees where ap
 | Restrict Kui Gang to the source-defined natal Day Pillar; do not promote matching timing pillars without a source. | Implemented with a timing-negative regression. |
 | Correct Tong Guan source references from unrelated Lu pages to pp. 301–303 and 317. | Implemented in both interpretation mirrors. |
 | Preserve strength math but identify it as `augier_school_heuristic_70_25_5_v1`; mark secondary coefficients, thresholds, and Earth cap as product policy. | Implemented without silently recalibrating the model. |
-| Relabel pair math as a product-defined uncalibrated heuristic and remove source/calibration claims; expose it as an experimental evidence index in the UI. | Implemented; numeric behavior preserved for compatibility, while provenance and presentation are honest. |
+| Replace unsupported pair math with independently curated qualitative doctrine and explicit scope guards. | Implemented; numeric score/grade/weights were removed. Romantic context starts with each natal spouse palace and spouse star, family/business exclude marriage-specific layers, and Book 2 p. 89 gates the cross-chart overlay to `outcome_authority: none`. |
 | Relabel element bars as unweighted presence and render zero as zero width. | Implemented in the UI; the underlying qi-strength redesign remains a roadmap item. |
 
 Final verification:
 
-- Canonical backend: 84 passed.
-- Mirrored backend: 84 passed.
-- Focused frontend/API: 58 passed across two files.
+- Canonical backend: 96 passed.
+- Mirrored backend: 96 passed.
+- Focused frontend/API: 61 passed across two files.
 - Focused frontend ESLint: passed.
 - Python compilation for all relevant source/test/API files: passed.
 - Chinese astrology source parity: every Python source twin is byte-identical except `bazi.py`, whose only difference is the pre-existing Swiss Ephemeris import/bootstrap block.
@@ -267,7 +267,7 @@ The response contract should distinguish:
 
 1. **Observed/computed state:** birth instant, civil offset, apparent-solar correction, solar longitude, term boundary, stem/branch, hidden-stem table row.
 2. **Convention state:** year boundary, month boundary, day boundary, hour clock, Luck direction, start-age rounding, hidden-stem preset.
-3. **Modeled state:** strength score, root grades, structure classifier, climate priorities, timing weights, compatibility index.
+3. **Modeled state:** strength score, root grades, structure classifier, climate priorities, and timing weights.
 4. **Interpretive state:** Useful God narrative, life-area themes, relationship interpretation, symbolic body correspondences, Oracle reading.
 
 Each derived field should carry at least:
@@ -405,7 +405,8 @@ Pair fixtures should first assert neutral contact facts and separate sex-depende
 - zero element presence renders as zero;
 - warnings and method labels are visible in production;
 - stale requests cannot replace a newer result;
-- the compatibility number is labeled experimental;
+- no compatibility number, grade, band, or outcome claim is rendered;
+- unresolved birth-time boundary profiles withhold pair doctrine before any cross-chart overlay is shown;
 - body-balance and Oracle disclaimers are persistent.
 
 ## Prioritized Roadmap
@@ -431,7 +432,7 @@ Pair fixtures should first assert neutral contact facts and separate sex-depende
 ### P2 — interpretation calibration
 
 1. Turn timing into a transparent activation/ying-qi engine before attempting outcome language.
-2. Rework compatibility around spouse-star/palace condition, Day-Master exchange, useful-element exchange, and timing evidence; either remove the grade or clearly label it an experimental evidence index.
+2. Expand independently curated spouse-palace, spouse-star, and individual timing fixtures without reintroducing an aggregate grade; keep Day-Master and element-presence comparisons contextual and cross-chart contacts non-authoritative.
 3. Enrich auxiliary-star placement and timing only after formula tables are image-verified; never grant override power.
 4. Improve body-balance wording and evidence while maintaining a non-medical boundary.
 5. Keep the I Ching Oracle an independent module; improve casting labels and line-order UX without importing BaZi doctrine into it.
@@ -445,7 +446,7 @@ Use:
 - “Unweighted element presence” for the current count display.
 - “Traditional relationship contact” rather than “good/bad compatibility event.”
 - “Candidate,” “classified under this preset,” “withheld,” and “uncertain” as first-class statuses.
-- “Experimental evidence index” rather than “compatibility score” or a fate grade.
+- “Qualitative pair evidence” and “cross-chart comparison overlay” rather than a compatibility score, fate grade, or interpersonal verdict.
 - “Traditional symbolic body correspondence; not medical guidance.”
 - “Simulated coin cast” when the software generates coin values.
 - “Line 1 — bottom” through “Line 6 — top” for manual I Ching lines.

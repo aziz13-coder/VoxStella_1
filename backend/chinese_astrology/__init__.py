@@ -1,4 +1,4 @@
-from .bazi import BirthContext, build_bazi_profile
+from .bazi import BirthContext, SolarTermCalculationError, build_bazi_profile
 from .curation import GOLDEN_FIXTURE_MANIFEST, RULE_NOTES, curation_summary
 from .oracle import cast_iching_oracle
 from .relationships import RELATIONSHIP_CONTEXT_PROFILES, analyze_pair_relationships
@@ -9,6 +9,7 @@ __all__ = [
     "GOLDEN_FIXTURE_MANIFEST",
     "RULE_NOTES",
     "RELATIONSHIP_CONTEXT_PROFILES",
+    "SolarTermCalculationError",
     "VALIDATION_FIXTURES",
     "VALIDATION_PHASES",
     "analyze_pair_relationships",

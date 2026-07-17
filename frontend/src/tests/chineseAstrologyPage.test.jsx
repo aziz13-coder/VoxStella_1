@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import ChineseAstrologyPage from '../features/astroclock/ChineseAstrologyPage.jsx';
@@ -545,6 +545,185 @@ function makeOracle() {
   };
 }
 
+function makeBoundaryProfile() {
+  const base = makeProfile();
+  const birthTime = {
+    status: 'uncertain',
+    reason: 'unknown_birth_time_crosses_solar_term',
+    affected_pillars: ['year', 'month'],
+    boundaries: [{ key: 'li_chun', name: 'Li Chun' }],
+    candidates: [
+      {
+        id: 'candidate_1',
+        position: 'before_boundary',
+        pillars: {
+          year: pillar('Yi', 'Si', 'Wood', { branch_element: 'Fire', animal: 'Snake' }),
+          month: pillar('Ji', 'Chou', 'Earth', { animal: 'Ox' }),
+        },
+      },
+      {
+        id: 'candidate_2',
+        position: 'after_boundary',
+        pillars: {
+          year: pillar('Bing', 'Wu', 'Fire', { animal: 'Horse' }),
+          month: pillar('Geng', 'Yin', 'Metal', { branch_element: 'Wood', animal: 'Tiger' }),
+        },
+      },
+    ],
+    downstream: {
+      status: 'withheld',
+      reason_code: 'unknown_birth_time_solar_term_boundary',
+      withheld_sections: ['element_balance', 'ten_gods', 'interpretation', 'relationships', 'timing'],
+    },
+  };
+  const withheld = {
+    status: 'withheld',
+    reason_code: 'unknown_birth_time_solar_term_boundary',
+    affected_pillars: ['year', 'month'],
+    candidate_count: 2,
+  };
+  return {
+    ...base,
+    calculation_status: 'uncertain_birth_time_boundary',
+    uncertainty: { birth_time: birthTime },
+    pillars: {
+      hour: null,
+      day: base.pillars.day,
+      month: null,
+      year: null,
+    },
+    analysis: withheld,
+    element_balance: withheld,
+    useful_elements: withheld,
+    ten_gods: withheld,
+    interpretation: withheld,
+    relationships: withheld,
+    timing: withheld,
+    life_areas: withheld,
+    palace_context: withheld,
+    auxiliary_stars: withheld,
+    classical_extras: withheld,
+    luck_pillars: [],
+    withheld_outputs: ['pillars.year', 'pillars.month', 'element_balance', 'ten_gods', 'interpretation', 'relationships', 'timing'],
+    debug: {
+      ...base.debug,
+      birth_time_uncertainty: birthTime,
+    },
+  };
+}
+
+function makeQualitativeCompatibilityReport(overrides = {}) {
+  return {
+    status: 'qualitative_evidence_only',
+    method: 'bazi_pair_qualitative_doctrine_v1',
+    relationship_context: 'general',
+    summary: {
+      total: 0,
+      combination_contacts: 0,
+      pressure_contacts: 0,
+      day_partner_palace: 0,
+      partner_palace_contact: 0,
+    },
+    events: [],
+    subjects: {
+      primary: {
+        source_snap_id: 'snap-a',
+        label: 'Primary Example',
+        day_master: { stem: 'Ji', element: 'Earth', polarity: 'yin' },
+      },
+      relationship: {
+        source_snap_id: 'snap-b',
+        label: 'Relationship Example',
+        day_master: { stem: 'Geng', element: 'Metal', polarity: 'yang' },
+      },
+    },
+    day_master_exchange: {
+      status: 'available',
+      primary_to_relationship: { factor: 'Output', god: 'Eating God' },
+      relationship_to_primary: { factor: 'Resource', god: 'Direct Resource' },
+      summary: 'Directional Ten God roles are context, not a pair outcome.',
+    },
+    timing_alignment: {
+      primary: { status: 'quiet', subject_label: 'Primary Example', spouse_palace: { branch: 'You', animal: 'Rooster', branch_element: 'Metal' }, counts: {} },
+      relationship: { status: 'quiet', subject_label: 'Relationship Example', spouse_palace: { branch: 'Zi', animal: 'Rat', branch_element: 'Water' }, counts: {} },
+    },
+    interpretation: {
+      status: 'qualitative_evidence_only',
+      headline: 'The pair view presents directional context without an aggregate compatibility verdict.',
+      highlights: ['No aggregate score, grade, band, or relationship prediction is produced.'],
+    },
+    doctrine: {
+      status: 'qualitative_evidence_only',
+      method: 'bazi_pair_qualitative_doctrine_v1',
+      relationship_context: 'general',
+      context_profile: { label: 'General' },
+      aggregate_policy: { mode: 'none' },
+      evidence_order: [
+        { key: 'day_master_context', label: 'Directional Day Master context', status: 'available', applicability: 'primary' },
+        { key: 'useful_element_comparison', label: 'Unweighted element-presence comparison', status: 'available', applicability: 'primary' },
+      ],
+      conditional_evidence: [
+        { key: 'natal_spouse_palace', label: 'Natal spouse palace', status: 'available', applicability: 'conditional' },
+      ],
+      layers: {
+        natal_spouse_palace: {
+          status: 'available',
+          subjects: {
+            primary: {
+              subject_label: 'Primary Example',
+              palace: { branch: 'You', animal: 'Rooster', branch_element: 'Metal' },
+              element_context: { candidate_role: 'unresolved' },
+              summary: 'Individual natal context only.',
+            },
+            relationship: {
+              subject_label: 'Relationship Example',
+              palace: { branch: 'Zi', animal: 'Rat', branch_element: 'Water' },
+              element_context: { candidate_role: 'favorable_candidate' },
+              summary: 'Individual natal context only.',
+            },
+          },
+        },
+        natal_spouse_star: {
+          status: 'available',
+          directions: [
+            {
+              direction: 'primary_context',
+              calculation_sex: 'female',
+              sex_based_role: 'husband_star',
+              factor: 'Influence',
+              natal_condition: { status: 'present', element: 'Wood' },
+              compared_chart_element_presence: { presence_count: 1, inventory_basis: 'unweighted_element_presence' },
+            },
+            {
+              direction: 'relationship_context',
+              calculation_sex: 'male',
+              sex_based_role: 'wife_star',
+              factor: 'Wealth',
+              natal_condition: { status: 'present', element: 'Water' },
+              compared_chart_element_presence: { presence_count: 2, inventory_basis: 'unweighted_element_presence' },
+            },
+          ],
+        },
+        useful_element_comparison: {
+          status: 'available',
+          summary: 'Presence is not qi strength or supply.',
+          directions: {
+            primary_context: { favorable_candidate_matches: [], unfavorable_candidate_matches: [] },
+            relationship_context: { favorable_candidate_matches: [], unfavorable_candidate_matches: [] },
+          },
+        },
+        cross_chart_overlay: {
+          status: 'quiet',
+          outcome_authority: 'none',
+          limitation: 'Combination Codes describe one chart; the cross-chart overlay has no interpersonal outcome authority.',
+        },
+      },
+    },
+    notes: ['No aggregate compatibility score, grade, or outcome probability is computed.'],
+    ...overrides,
+  };
+}
+
 describe('ChineseAstrologyPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -640,7 +819,7 @@ describe('ChineseAstrologyPage', () => {
     expect(within(section).getByText('Current Reading')).toBeInTheDocument();
     expect(within(section).getAllByText('Day Master').length).toBeGreaterThan(0);
     expect(within(section).getByText('Season & Roots')).toBeInTheDocument();
-    expect(within(section).getByText('Element Spread')).toBeInTheDocument();
+    expect(within(section).getByText('Element Presence')).toBeInTheDocument();
     expect(within(section).getByText('Helpful Element Gate')).toBeInTheDocument();
     expect(within(section).getByText('candidate path')).toBeInTheDocument();
     expect(within(section).getByText('Reading Focus')).toBeInTheDocument();
@@ -690,15 +869,7 @@ describe('ChineseAstrologyPage', () => {
       data: {
         primary: primaryCompatibilityProfile,
         relationship: relationshipCompatibilityProfile,
-        compatibility: {
-          summary: {},
-          events: [],
-          scoring: { relationship_context: 'general' },
-          subjects: {
-            primary: { source_snap_id: 'snap-a' },
-            relationship: { source_snap_id: 'snap-b' },
-          },
-        },
+        compatibility: makeQualitativeCompatibilityReport(),
       },
     });
 
@@ -728,7 +899,12 @@ describe('ChineseAstrologyPage', () => {
     expect(AstroClockAPI.getChineseAstrologyCompatibility.mock.calls.at(-1)[0]).not.toHaveProperty('calculationSex');
 
     fireEvent.click(screen.getByRole('button', { name: 'Relationships' }));
-    expect(await screen.findByText('Experimental Evidence Index')).toBeInTheDocument();
+    expect(await screen.findByText('Curated Evidence Doctrine')).toBeInTheDocument();
+    expect(screen.getByText('Qualitative only')).toBeInTheDocument();
+    expect(screen.getByText('Evidence Reading Order')).toBeInTheDocument();
+    expect(screen.getByText(/No score, grade, band, probability, or pair outcome is calculated/)).toBeInTheDocument();
+    expect(screen.queryByText(/Experimental Evidence Index/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Index \/ 100/i)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Save Chinese Astrology reading locally' }));
 
     await waitFor(() => {
@@ -757,6 +933,168 @@ describe('ChineseAstrologyPage', () => {
       const preferences = JSON.parse(window.localStorage.getItem('voxstella.chineseAstrology.preferences.v1') || '{}');
       expect(preferences.relationshipCalculationSex).toBe('');
     });
+  });
+
+  it('shows boundary candidates and holds dependent tabs instead of rendering empty results', async () => {
+    AstroClockAPI.getChineseAstrologyBazi.mockResolvedValue({
+      success: true,
+      data: makeBoundaryProfile(),
+    });
+
+    render(<ChineseAstrologyPage snaps={[snapA, snapB]} snapsLoaded activeSnapId="snap-a" />);
+
+    expect(await screen.findByText('Birth-time boundary unresolved')).toBeInTheDocument();
+    expect(screen.getByText('The unknown birth hour crosses a solar-term boundary.')).toBeInTheDocument();
+    expect(screen.getByText('Stable Day Pillar')).toBeInTheDocument();
+    expect(screen.getByText('before boundary')).toBeInTheDocument();
+    expect(screen.getByText('after boundary')).toBeInTheDocument();
+    expect(screen.getAllByText('Year candidate', { selector: 'div' })).toHaveLength(2);
+    expect(screen.getAllByText('Month candidate', { selector: 'div' })).toHaveLength(2);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Element Balance' }));
+
+    expect(await screen.findByText('Element Balance is held back')).toBeInTheDocument();
+    expect(screen.queryByRole('meter')).not.toBeInTheDocument();
+    expect(screen.getByText(/Narrow the birth time, then recalculate/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save Chinese Astrology reading locally' }));
+    await waitFor(() => {
+      const savedRows = JSON.parse(window.localStorage.getItem('voxstella.chineseAstrology.savedReadings.v1') || '[]');
+      expect(savedRows[0].calculation_status).toBe('uncertain_birth_time_boundary');
+      expect(savedRows[0].ambiguity_label).toBe('birth-time-boundary-unresolved');
+      expect(savedRows[0].summary).toMatch(/dependent sections are held back/i);
+    });
+    expect(screen.getByText('Saved / boundary unresolved')).toBeInTheDocument();
+  });
+
+  it('does not invent a boundary-candidate count when candidate evidence is unavailable', async () => {
+    const profile = makeBoundaryProfile();
+    profile.uncertainty.birth_time.candidates = [];
+    AstroClockAPI.getChineseAstrologyBazi.mockResolvedValue({
+      success: true,
+      data: profile,
+    });
+
+    render(<ChineseAstrologyPage snaps={[snapA, snapB]} snapsLoaded activeSnapId="snap-a" />);
+
+    expect(await screen.findByText('Candidates unavailable')).toBeInTheDocument();
+    expect(screen.getByText('Candidate pillars were not returned. Narrow the birth time and calculate again.')).toBeInTheDocument();
+    expect(screen.queryByText('2 candidates')).not.toBeInTheDocument();
+  });
+
+  it('disables reading artifacts while a newly selected chart is still loading', async () => {
+    let resolveNextProfile;
+    AstroClockAPI.getChineseAstrologyBazi
+      .mockResolvedValueOnce({ success: true, data: makeProfile() })
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        resolveNextProfile = resolve;
+      }));
+
+    render(<ChineseAstrologyPage snaps={[snapA, snapB]} snapsLoaded activeSnapId="snap-a" />);
+
+    await screen.findByText('Four Pillars');
+    const saveButton = screen.getByRole('button', { name: 'Save Chinese Astrology reading locally' });
+    const exportButton = screen.getByRole('button', { name: 'Export Chinese Astrology JSON' });
+    expect(saveButton).toBeEnabled();
+    expect(exportButton).toBeEnabled();
+
+    fireEvent.change(screen.getByLabelText('Primary saved snap'), { target: { value: 'snap-b' } });
+
+    await waitFor(() => expect(AstroClockAPI.getChineseAstrologyBazi).toHaveBeenCalledTimes(2));
+    expect(saveButton).toBeDisabled();
+    expect(exportButton).toBeDisabled();
+
+    await act(async () => {
+      resolveNextProfile({
+        success: true,
+        data: makeProfile({
+          source_snap_id: 'snap-b',
+          snap_label: 'Relationship Example',
+        }),
+      });
+    });
+
+    await waitFor(() => expect(saveButton).toBeEnabled());
+    fireEvent.click(saveButton);
+    const savedRows = JSON.parse(window.localStorage.getItem('voxstella.chineseAstrology.savedReadings.v1') || '[]');
+    expect(savedRows[0].payload.profile.source_snap_id).toBe('snap-b');
+  });
+
+  it('renders the typed solar-calculation error detail and machine code together', async () => {
+    const error = new Error('solar_term_calculation_unavailable');
+    error.detail = 'Solar-term calculation is unavailable because Swiss Ephemeris did not return a verified boundary.';
+    error.payload = {
+      error: 'solar_term_calculation_unavailable',
+      detail: error.detail,
+      calculation_error: {
+        code: 'solar_term_calculation_unavailable',
+        message: error.detail,
+      },
+    };
+    AstroClockAPI.getChineseAstrologyBazi.mockRejectedValue(error);
+
+    render(<ChineseAstrologyPage snaps={[snapA, snapB]} snapsLoaded activeSnapId="snap-a" />);
+
+    expect(await screen.findByText(
+      'Solar-term calculation is unavailable because Swiss Ephemeris did not return a verified boundary. (solar_term_calculation_unavailable)',
+    )).toBeInTheDocument();
+    expect(screen.queryByText('Four Pillars', { selector: 'h4' })).not.toBeInTheDocument();
+  });
+
+  it('branches to the pair-withheld notice before rendering qualitative doctrine layers', async () => {
+    AstroClockAPI.getChineseAstrologyCompatibility.mockResolvedValue({
+      success: true,
+      data: {
+        primary: makeProfile(),
+        relationship: makeBoundaryProfile(),
+        compatibility: {
+          status: 'withheld',
+          method: 'bazi_pair_qualitative_doctrine_v1',
+          relationship_context: 'romantic',
+          reason_code: 'birth_time_boundary_uncertainty',
+          reason: 'A recorded birth-time range crosses a BaZi pillar boundary.',
+          ambiguity: {
+            status: 'requires_resolved_birth_time',
+            message: "Pair doctrine is withheld because the relationship subject's birth time crosses a pillar boundary.",
+            affected_subjects: [
+              {
+                subject: 'relationship',
+                subject_label: 'Relationship Example',
+                birth_time: {
+                  affected_pillars: ['year', 'month'],
+                  candidates: [],
+                },
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    render(<ChineseAstrologyPage snaps={[snapA, snapB]} snapsLoaded activeSnapId="snap-a" />);
+    await screen.findByText('Four Pillars');
+
+    fireEvent.change(screen.getByLabelText('Relationship snap'), { target: { value: 'snap-b' } });
+    await waitFor(() => expect(AstroClockAPI.getChineseAstrologyCompatibility).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('button', { name: 'Relationships' }));
+
+    expect(await screen.findByText('Pair doctrine held back')).toBeInTheDocument();
+    expect(screen.getByText('Resolve the birth-time boundary before comparing these charts.')).toBeInTheDocument();
+    expect(screen.getByText('Relationship Example')).toBeInTheDocument();
+    expect(screen.getByText('Birth-time candidate count unavailable')).toBeInTheDocument();
+    expect(screen.queryByText('2 birth-time candidates')).not.toBeInTheDocument();
+    expect(screen.queryByText('Curated Evidence Doctrine')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Index \/ 100/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save Chinese Astrology reading locally' }));
+    await waitFor(() => {
+      const savedRows = JSON.parse(window.localStorage.getItem('voxstella.chineseAstrology.savedReadings.v1') || '[]');
+      expect(savedRows[0].ambiguity_label).toBe('birth-time-boundary-unresolved');
+      expect(savedRows[0].calculation_status).toBe('uncertain_birth_time_boundary');
+      expect(savedRows[0].summary).toMatch(/dependent sections are held back/i);
+      expect(savedRows[0].payload.compatibility_profiles.relationship.calculation_status).toBe('uncertain_birth_time_boundary');
+    });
+    expect(screen.getByText('Saved / boundary unresolved')).toBeInTheDocument();
   });
 
   it('shows production timing layers without source evidence', async () => {
@@ -1045,12 +1383,12 @@ describe('ChineseAstrologyPage', () => {
               visible_factor_count: 0,
               hidden_factor_count: 0,
               relationship_contact_count: 0,
-              summary: 'Traditional body-balance context watches strongest element Fire x2 and lightest element Water x0. Use it as element-pattern context for the chart.',
+              summary: 'Traditional body-correspondence context notes most-mentioned element Fire x2 and least-mentioned element Water x0. These are unweighted placement counts, not qi strength, excess, deficiency, or medical findings.',
               guidance: '',
-              keywords: ['element balance', 'excess', 'deficiency'],
+              keywords: ['element presence', 'body correspondences'],
               signals: [
-                { type: 'element', label: 'Strongest', detail: 'Fire x2', tone: 'balance' },
-                { type: 'element', label: 'Lightest', detail: 'Water x0', tone: 'balance' },
+                { type: 'element', label: 'Most mentioned', detail: 'Fire x2', tone: 'balance' },
+                { type: 'element', label: 'Least mentioned', detail: 'Water x0', tone: 'balance' },
               ],
             },
           ],

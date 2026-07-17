@@ -5050,10 +5050,23 @@ def _chinese_astrology_birth_context(payload: Dict[str, Any]):
     )
 
 
+def _chinese_astrology_solar_term_error_response(exc, *, participant=None):
+    error_payload = exc.to_payload()
+    if participant in {'primary', 'relationship'}:
+        error_payload = {**error_payload, 'participant': participant}
+    return jsonify({
+        'success': False,
+        'error': error_payload['code'],
+        'detail': str(exc),
+        'participant': participant if participant in {'primary', 'relationship'} else None,
+        'calculation_error': error_payload,
+    }), 503
+
+
 @astro_clock_bp.route('/chinese-astrology/bazi', methods=['POST'])
 @_error_handler
 def chinese_astrology_bazi():
-    from chinese_astrology import build_bazi_profile
+    from chinese_astrology import SolarTermCalculationError, build_bazi_profile
 
     payload = request.get_json(silent=True) or {}
     if not isinstance(payload, dict):
@@ -5061,6 +5074,8 @@ def chinese_astrology_bazi():
     try:
         context = _chinese_astrology_birth_context(payload)
         profile = build_bazi_profile(context)
+    except SolarTermCalculationError as exc:
+        return _chinese_astrology_solar_term_error_response(exc)
     except ValueError as exc:
         return jsonify({'success': False, 'error': str(exc)}), 400
     except LocationError as exc:
@@ -5071,7 +5086,7 @@ def chinese_astrology_bazi():
 @astro_clock_bp.route('/chinese-astrology/compatibility', methods=['POST'])
 @_error_handler
 def chinese_astrology_compatibility():
-    from chinese_astrology import analyze_pair_relationships, build_bazi_profile
+    from chinese_astrology import SolarTermCalculationError, analyze_pair_relationships, build_bazi_profile
 
     payload = request.get_json(silent=True) or {}
     if not isinstance(payload, dict):
@@ -5127,6 +5142,7 @@ def chinese_astrology_compatibility():
     if str(primary_snap_id) == str(relationship_snap_id):
         return jsonify({'success': False, 'error': 'Choose two different saved snaps for Chinese Astrology compatibility'}), 400
 
+    solar_term_participant = 'primary'
     try:
         primary_payload = {
             **payload,
@@ -5141,11 +5157,18 @@ def chinese_astrology_compatibility():
             'calculation_sex': relationship_calculation_sex,
         }
         primary_profile = build_bazi_profile(_chinese_astrology_birth_context(primary_payload))
+        solar_term_participant = 'relationship'
         relationship_profile = build_bazi_profile(_chinese_astrology_birth_context(relationship_payload))
+        solar_term_participant = None
         compatibility = analyze_pair_relationships(
             primary_profile,
             relationship_profile,
             relationship_context=relationship_context,
+        )
+    except SolarTermCalculationError as exc:
+        return _chinese_astrology_solar_term_error_response(
+            exc,
+            participant=solar_term_participant,
         )
     except ValueError as exc:
         return jsonify({'success': False, 'error': str(exc)}), 400

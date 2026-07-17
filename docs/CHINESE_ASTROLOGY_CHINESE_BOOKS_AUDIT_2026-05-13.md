@@ -81,7 +81,7 @@ The OCR workflow used per-book output folders because the existing slugifier col
 
 - The books do not provide strong explicit `合婚` scoring rules for the current compatibility engine.
 - They support spouse palace/day branch, spouse star, Day Master strength, useful elements, and timing as relevant relationship evidence (`lu_zhiji_fate_search`, pp. 190-193, 429; `yuanhai_ziping_daquan`, p. 53; `sanming_tonghui_part3`, pp. 215-217).
-- Current compatibility should remain evidence-based and provisional, not a classical certainty score.
+- Current compatibility now remains qualitative: each natal spouse-palace, spouse-star, and timing layer is reported separately; no classical certainty score or aggregate pair verdict is produced.
 
 ### Auxiliary Stars
 
@@ -102,7 +102,7 @@ The OCR workflow used per-book output folders because the existing slugifier col
 3. Damaged-alternate finalization was too permissive. Current damage detection is broader than the specific `损用` and `破格` patterns in the corpus.
 4. Strength scoring is directionally valid but too compressed. The corpus preserves finer gradations and warns against mechanical counting.
 5. Auxiliary stars are valid as a subset but incomplete.
-6. Compatibility lacks explicit source support for numeric scoring. It should stay transparent and evidence-based.
+6. Compatibility lacks explicit source support for numeric scoring. The former index has therefore been removed in favor of transparent qualitative evidence and an explicitly non-authoritative cross-chart overlay.
 
 ## Corrections Implemented
 
@@ -113,7 +113,7 @@ Full source-enrichment update:
 - Re-enabled final release for classified `dominant_element`, `follow_structure`, `transformation_structure`, and `damaged_alternate` families. The release is conditional: suspected dominant patterns, false follow, failed transformation, return-to-root blockers, generic pressure, and timing-only alternates stay withheld.
 - Replaced broad damaged-useful finalization with source-pattern damage checks: officer damaged by output, wealth damaged by companions, resource damaged by wealth, and output damaged by resource.
 - Added timing interpretation fields that distinguish Da Yun branch emphasis, Liu Nian stem emphasis, rescue, damage, activation, arrival/contact, movement, pressure, and exposure.
-- Added a BaZi relationship judgement layer before compatibility scoring, using spouse palace, spouse star/useful-element exchange, Day Master exchange, cross-chart contacts, and timing activation.
+- Replaced compatibility scoring and judgement with `bazi_pair_qualitative_doctrine_v1`: individual natal spouse-palace, sex-dependent spouse-star, and timing evidence remain separate; Day-Master and unweighted presence comparisons are contextual; cross-chart contacts carry no outcome authority.
 - Expanded auxiliary stars with Hua Gai, Yang Ren, Gan Lu, Hong Yan, Jie Sha, Wang Shen, Gu Chen, Gua Su, Kong Wang, Kui Gang, and San Qi as secondary markers.
 - Frontend Useful Elements, Life Timing, Compatibility, and Auxiliary Stars panels now surface these added evidence rows.
 
@@ -151,7 +151,7 @@ Full source-enrichment update:
 3. Replace generic damage pressure with a source-backed useful-god damage classifier: harmed officer, harmed wealth, harmed resource, harmed output, and two-against-one injury.
 4. Add finer strength evidence labels for `得令`, `得地`, `得助`, same-side/opposing-side comparison, and "too strong / too weak / neutral" gradations.
 5. Add missing auxiliary stars only after formula tables are manually checked against page images.
-6. Keep compatibility scoring transparent and avoid presenting it as classical `合婚` until explicit source rules are curated.
+6. Keep compatibility qualitative and avoid presenting contextual natal or cross-chart evidence as a classical `合婚` verdict.
 7. Do not change the standalone I Ching Oracle from this corpus.
 
 ## Verification Notes

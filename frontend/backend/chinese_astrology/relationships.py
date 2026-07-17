@@ -97,49 +97,63 @@ FOUR_BRANCH_CROSSES = {
 RELATIONSHIP_CONTEXT_PROFILES = {
     "general": {
         "label": "General",
-        "summary": "Balanced reading for a pair when the relationship purpose is not specified.",
-        "weights": {
-            "cross_chart_contacts": 1.0,
-            "spouse_palace_contacts": 1.0,
-            "day_master_exchange": 1.0,
-            "timing_alignment": 1.0,
-            "useful_element_supply": 1.0,
-        },
+        "summary": "General pair context keeps marriage-specific evidence conditional rather than assuming a spouse relationship.",
+        "evidence_order": [
+            "day_master_context",
+            "useful_element_comparison",
+            "individual_timing",
+            "cross_chart_overlay",
+        ],
+        "conditional_evidence": ["natal_spouse_palace", "natal_spouse_star"],
+        "excluded_evidence": [],
     },
     "romantic": {
         "label": "Romantic",
-        "summary": "Emphasizes Day pillar / spouse-palace contacts and current timing pressure.",
-        "weights": {
-            "cross_chart_contacts": 1.0,
-            "spouse_palace_contacts": 1.35,
-            "day_master_exchange": 1.0,
-            "timing_alignment": 1.15,
-            "useful_element_supply": 1.0,
-        },
+        "summary": "Romantic context begins with each natal spouse palace and spouse star, then reads individual timing and comparison evidence.",
+        "evidence_order": [
+            "natal_spouse_palace",
+            "natal_spouse_star",
+            "individual_timing",
+            "day_master_context",
+            "useful_element_comparison",
+            "cross_chart_overlay",
+        ],
+        "conditional_evidence": [],
+        "excluded_evidence": [],
     },
     "family": {
         "label": "Family",
-        "summary": "Emphasizes Day Master exchange and de-emphasizes attraction-style spouse-palace scoring.",
-        "weights": {
-            "cross_chart_contacts": 0.85,
-            "spouse_palace_contacts": 0.75,
-            "day_master_exchange": 1.15,
-            "timing_alignment": 0.9,
-            "useful_element_supply": 1.0,
-        },
+        "summary": "Family context does not apply marriage-specific spouse-palace or spouse-star doctrine.",
+        "evidence_order": [
+            "day_master_context",
+            "useful_element_comparison",
+            "individual_timing",
+            "cross_chart_overlay",
+        ],
+        "conditional_evidence": [],
+        "excluded_evidence": ["natal_spouse_palace", "natal_spouse_star"],
     },
     "business": {
         "label": "Business",
-        "summary": "Emphasizes useful-element supply, Day Master exchange, and current timing alignment.",
-        "weights": {
-            "cross_chart_contacts": 0.9,
-            "spouse_palace_contacts": 0.65,
-            "day_master_exchange": 1.15,
-            "timing_alignment": 1.2,
-            "useful_element_supply": 1.2,
-        },
+        "summary": "Business context reads directional role, element, and timing evidence without importing marriage doctrine.",
+        "evidence_order": [
+            "day_master_context",
+            "useful_element_comparison",
+            "individual_timing",
+            "cross_chart_overlay",
+        ],
+        "conditional_evidence": [],
+        "excluded_evidence": ["natal_spouse_palace", "natal_spouse_star"],
     },
 }
+
+COMPATIBILITY_DOCTRINE_FIXTURE_IDS = {
+    "general": "compatibility.doctrine_general_scope_v1",
+    "romantic": "compatibility.doctrine_romantic_natal_priority_v1",
+    "family": "compatibility.doctrine_family_scope_guard_v1",
+    "business": "compatibility.doctrine_business_scope_guard_v1",
+}
+COMPATIBILITY_DOCTRINE_LIMIT_FIXTURE_ID = "compatibility.doctrine_cross_chart_limit_v1"
 
 
 def analyze_relationships(
@@ -182,6 +196,30 @@ def analyze_pair_relationships(
     relationship_context: str = "general",
 ) -> Dict[str, Any]:
     relationship_context = _normalize_relationship_context(relationship_context)
+    uncertain_subjects = _pair_boundary_uncertainty(primary_profile, relationship_profile)
+    if uncertain_subjects:
+        return {
+            "status": "withheld",
+            "method": "bazi_pair_qualitative_doctrine_v1",
+            "relationship_context": relationship_context,
+            "subjects": {
+                "primary": _subject_summary(primary_profile, "Primary"),
+                "relationship": _subject_summary(relationship_profile, "Relationship"),
+            },
+            "reason_code": "birth_time_boundary_uncertainty",
+            "reason": "A recorded birth-time range crosses a BaZi pillar boundary.",
+            "ambiguity": {
+                "status": "requires_resolved_birth_time",
+                "affected_subjects": uncertain_subjects,
+                "message": (
+                    "Pair doctrine is withheld because at least one birth time crosses a pillar boundary "
+                    "within the recorded uncertainty window. Resolve that subject's birth-time range first."
+                ),
+            },
+            "notes": [
+                "No doctrine, score, grade, judgement, or cross-chart overlay is produced while a pillar boundary is unresolved.",
+            ],
+        }
     primary_points = _subject_points(primary_profile, "primary", "Primary")
     relationship_points = _subject_points(relationship_profile, "relationship", "Relationship")
     events: List[Dict[str, Any]] = []
@@ -200,25 +238,18 @@ def analyze_pair_relationships(
         "primary": _relationship_timing_profile(primary_profile, "Primary"),
         "relationship": _relationship_timing_profile(relationship_profile, "Relationship"),
     }
-    scoring = _pair_scoring(
-        primary_profile,
-        relationship_profile,
-        events,
-        timing_alignment,
-        relationship_context=relationship_context,
-    )
     day_master_exchange = _day_master_exchange(primary_profile, relationship_profile)
-    judgement = _pair_judgement(
+    doctrine = _pair_doctrine(
         primary_profile=primary_profile,
         relationship_profile=relationship_profile,
         events=events,
         timing_alignment=timing_alignment,
         day_master_exchange=day_master_exchange,
-        scoring=scoring,
+        relationship_context=relationship_context,
     )
     return {
-        "status": "product_defined_uncalibrated_preview",
-        "method": "bazi_pair_relationship_codes_v1",
+        "status": "qualitative_evidence_only",
+        "method": "bazi_pair_qualitative_doctrine_v1",
         "relationship_context": relationship_context,
         "subjects": {
             "primary": _subject_summary(primary_profile, "Primary"),
@@ -226,39 +257,69 @@ def analyze_pair_relationships(
         },
         "day_master_exchange": day_master_exchange,
         "timing_alignment": timing_alignment,
-        "scoring": scoring,
-        "judgement": judgement,
-        "interpretation": _pair_interpretation(events, timing_alignment, scoring),
+        "doctrine": doctrine,
+        "interpretation": doctrine["synthesis"],
         "events": events,
-        "summary": _pair_summary(events),
+        "summary": _pair_overlay_summary(events),
         "source_basis": [
             {
-                "id": "local.destiny_code_revealed_relationships",
-                "basis": "The local source documents combinations, clashes, harms, punishments, destructions, and complete sets within one chart. Applying those codes across two charts is a product-defined extrapolation.",
+                "id": "local.destiny_code_book1_spouse_doctrine",
+                "pages": [246, 247],
+                "basis": "The local source evaluates an individual's relationship context through the natal spouse palace and the Wealth or Influence spouse-star condition.",
             },
             {
-                "id": "local.destiny_code_five_factors",
-                "basis": "The local source defines Five Factor / Ten God relationships. Treating one person's Day Master as another person's target stem is a product-defined pair heuristic.",
+                "id": "local.destiny_code_book2_relationship_timing",
+                "pages": [299],
+                "basis": "The local source treats spouse-star appearance and contacts to the natal spouse palace as individual timing evidence, not a pair outcome score.",
             },
             {
-                "id": "local.destiny_code_palace_timing",
-                "basis": "The local source supports natal palace and timing interpretation; its use as a two-person compatibility weight is not source-calibrated.",
+                "id": "local.lu_zhiji_spouse_star_context",
+                "pages": [188, 189, 190, 191, 192, 193],
+                "basis": "The local Chinese source supports sex-dependent spouse-star roles and natal chart condition.",
             },
             {
-                "id": "web.compatibility_method_cross_check",
-                "basis": "Public compatibility material mentions similar dimensions, but it does not validate this product's baseline, weights, thresholds, or grade bands.",
+                "id": "local.destiny_code_book2_cross_chart_limit",
+                "pages": [89],
+                "basis": "The local source expressly limits Combination Codes to elemental association within one chart; cross-chart contacts are therefore isolated as a product comparison overlay with no outcome authority.",
             },
         ],
-        "source_confidence": confidence_tags("computed_rule", "provisional_model", "needs_validation"),
+        "source_confidence": confidence_tags("local_source", "computed_rule", "school_variant", "needs_validation"),
         "notes": [
-            "The score is a product-defined uncalibrated heuristic evidence index, not a source-derived compatibility measure or fate verdict.",
-            "Source-backed intra-chart codes are shown as inputs; their cross-chart application and all numeric weighting are product choices.",
+            "No aggregate compatibility score, grade, or outcome probability is computed.",
+            "Source-backed natal spouse-palace, spouse-star, and timing evidence is kept separate for each subject.",
+            "Day Master and useful-element comparisons are directional context, not proof that one chart supplies or fixes another.",
+            "Cross-chart stem and branch contacts are a product comparison overlay, not a classical matching verdict.",
             f"Context profile: {RELATIONSHIP_CONTEXT_PROFILES[relationship_context]['label']} - {RELATIONSHIP_CONTEXT_PROFILES[relationship_context]['summary']}",
-            "Day-pillar contacts are highlighted because the Day branch is the partner palace in the current palace model.",
-            "Active Luck or annual contacts to either Day pillar are timing pressure markers, not automatic relationship outcomes.",
-            "Useful-element supply is included only as provisional support until the strength model has broader fixtures.",
         ],
     }
+
+
+def _pair_boundary_uncertainty(
+    primary_profile: Dict[str, Any],
+    relationship_profile: Dict[str, Any],
+) -> List[Dict[str, Any]]:
+    affected: List[Dict[str, Any]] = []
+    for key, fallback_label, profile in (
+        ("primary", "Primary", primary_profile),
+        ("relationship", "Relationship", relationship_profile),
+    ):
+        uncertainty = profile.get("uncertainty") if isinstance(profile, dict) else {}
+        birth_time = uncertainty.get("birth_time") if isinstance(uncertainty, dict) else {}
+        calculation_status = profile.get("calculation_status") if isinstance(profile, dict) else None
+        is_uncertain = calculation_status == "uncertain_birth_time_boundary"
+        if isinstance(birth_time, dict):
+            is_uncertain = is_uncertain or birth_time.get("status") == "uncertain"
+        if not is_uncertain:
+            continue
+        affected.append({
+            "subject": key,
+            "subject_label": (
+                profile.get("snap_label") if isinstance(profile, dict) else None
+            ) or fallback_label,
+            "calculation_status": calculation_status,
+            "birth_time": birth_time if isinstance(birth_time, dict) else {},
+        })
+    return affected
 
 
 def _natal_points(pillars: Dict[str, Optional[Dict[str, Any]]]) -> List[Dict[str, Any]]:
@@ -640,13 +701,22 @@ def _pair_event_context(event: Dict[str, Any]) -> Dict[str, Any]:
         intensity = "matched_pillar"
     else:
         intensity = "cross_pillar"
-    tone = _pair_tone(event.get("type"))
+    contact_family = _pair_contact_family(event.get("type"))
     return {
         **event,
         "intensity": intensity,
-        "tone": tone,
-        "reading_note": _pair_event_note(event.get("type"), intensity, tone),
+        "contact_family": contact_family,
+        "reading_note": _pair_event_note(event.get("type"), intensity, contact_family),
     }
+
+
+def _pair_contact_family(event_type: Any) -> str:
+    raw = str(event_type or "")
+    if raw in {"stem_combination", "branch_combination", "three_harmony_combination", "seasonal_combination"}:
+        return "combination_contact"
+    if raw in {"branch_clash", "branch_harm", "branch_punishment", "self_punishment", "branch_destruction"}:
+        return "pressure_contact"
+    return "other_contact"
 
 
 def _pair_tone(event_type: Any) -> str:
@@ -658,19 +728,19 @@ def _pair_tone(event_type: Any) -> str:
     return "mixed"
 
 
-def _pair_event_note(event_type: Any, intensity: str, tone: str) -> str:
-    if tone == "supportive":
-        base = "Combination contact can describe shared channels, attraction, or ease when the affected elements are usable."
-    elif tone == "challenging":
-        base = "Friction contact marks pressure that must be judged through the affected palaces and element condition."
+def _pair_event_note(event_type: Any, intensity: str, contact_family: str) -> str:
+    if contact_family == "combination_contact":
+        base = "The comparison overlay found a combination-form elemental association; it is not evidence of interpersonal compatibility."
+    elif contact_family == "pressure_contact":
+        base = "The comparison overlay found a pressure-form contact; it does not by itself predict conflict between two people."
     else:
-        base = "Complete-set contact is mixed until the chart context shows whether it stabilizes or overstimulates the pair."
+        base = "The comparison overlay found a configured contact that has no standalone interpersonal meaning."
     if intensity == "day_partner_palace":
-        return f"{base} Both Day pillars are involved, so partner-palace relevance is high."
+        return f"{base} Both Day branches are involved, so each natal spouse-palace condition should be reviewed separately."
     if intensity == "partner_palace_contact":
-        return f"{base} One Day pillar is involved, so partnership relevance is elevated."
+        return f"{base} One Day branch is involved, but the cross-chart contact has no source-backed outcome authority."
     if intensity == "matched_pillar":
-        return f"{base} The same life-stage palace is involved in both charts."
+        return f"{base} The same pillar position appears in both charts."
     return base
 
 
@@ -681,30 +751,34 @@ def _sort_pair_events(events: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
         "matched_pillar": 2,
         "cross_pillar": 3,
     }
-    tone_rank = {"challenging": 0, "mixed": 1, "supportive": 2}
+    family_rank = {"pressure_contact": 0, "other_contact": 1, "combination_contact": 2}
     return sorted(events, key=lambda event: (
         intensity_rank.get(str(event.get("intensity")), 9),
-        tone_rank.get(str(event.get("tone")), 9),
+        family_rank.get(str(event.get("contact_family")), 9),
         str(event.get("label") or ""),
     ))
 
 
-def _pair_summary(events: Sequence[Dict[str, Any]]) -> Dict[str, int]:
+def _pair_overlay_summary(events: Sequence[Dict[str, Any]]) -> Dict[str, int]:
     counts: Dict[str, int] = {
         "total": len(events),
-        "supportive": 0,
-        "mixed": 0,
-        "challenging": 0,
+        "combination_contacts": 0,
+        "pressure_contacts": 0,
+        "other_contacts": 0,
         "day_partner_palace": 0,
         "partner_palace_contact": 0,
         "matched_pillar": 0,
         "cross_pillar": 0,
     }
     for event in events:
-        tone = str(event.get("tone") or "mixed")
+        family = str(event.get("contact_family") or _pair_contact_family(event.get("type")))
         intensity = str(event.get("intensity") or "cross_pillar")
         event_type = str(event.get("type") or "unknown")
-        counts[tone] = counts.get(tone, 0) + 1
+        family_key = {
+            "combination_contact": "combination_contacts",
+            "pressure_contact": "pressure_contacts",
+        }.get(family, "other_contacts")
+        counts[family_key] = counts.get(family_key, 0) + 1
         counts[intensity] = counts.get(intensity, 0) + 1
         counts[event_type] = counts.get(event_type, 0) + 1
     return counts
@@ -844,548 +918,453 @@ def _timing_profile_note(status: str) -> str:
     return "No configured relationship-contact pressure is concentrated on the Day pillar / spouse palace."
 
 
-def _pair_scoring(
-    primary_profile: Dict[str, Any],
-    relationship_profile: Dict[str, Any],
-    events: Sequence[Dict[str, Any]],
-    timing_alignment: Dict[str, Any],
-    *,
-    relationship_context: str,
-) -> Dict[str, Any]:
-    relationship_context = _normalize_relationship_context(relationship_context)
-    context_profile = RELATIONSHIP_CONTEXT_PROFILES[relationship_context]
-    weights = context_profile["weights"]
-    components = [
-        _score_cross_chart_contacts(events),
-        _score_spouse_palace_contacts(events),
-        _score_day_master_exchange(primary_profile, relationship_profile),
-        _score_timing_alignment(timing_alignment),
-        _score_useful_element_supply(primary_profile, relationship_profile),
-    ]
-    weighted_components = [
-        _apply_context_weight(component, weights.get(str(component.get("key") or ""), 1.0))
-        for component in components
-    ]
-    raw_delta = sum(int(component.get("delta") or 0) for component in components)
-    weighted_delta = round(sum(float(component.get("weighted_delta") or 0.0) for component in weighted_components))
-    delta = _clamp_int(weighted_delta, -50, 50)
-    score = _clamp_int(50 + delta, 0, 100)
-    band = _score_band(score)
-    confidence = _score_confidence(weighted_components)
-    calibration = _compatibility_calibration_status(relationship_context, weighted_components)
-    return {
-        "status": "product_defined_uncalibrated_heuristic",
-        "method": "bazi_pair_weighted_evidence_score_v1",
-        "index_label": "Product-defined uncalibrated heuristic evidence index",
-        "numeric_provenance": "product_defined_not_source_calibrated",
-        "calibrated": False,
-        "relationship_context": relationship_context,
-        "relationship_context_label": context_profile["label"],
-        "context_profile": {
-            "key": relationship_context,
-            "label": context_profile["label"],
-            "summary": context_profile["summary"],
-            "weights": dict(weights),
-        },
-        "score": score,
-        "base_score": 50,
-        "delta": delta,
-        "raw_delta": raw_delta,
-        "grade": band["grade"],
-        "grade_label": band["label"],
-        "band": band["band"],
-        "confidence": confidence,
-        "confidence_scope": "input_evidence_coverage_only",
-        "components": weighted_components,
-        "calibration": calibration,
-        "source_evidence": _compatibility_source_evidence(calibration),
-        "source_confidence": confidence_tags("computed_rule", "provisional_model", "needs_validation"),
-        "interpretive_limits": [
-            "The numeric baseline, component values, context weights, thresholds, and grade bands are product-defined and uncalibrated.",
-            "The index weighs configured evidence; it is not a source-derived compatibility score and does not promise a relationship outcome.",
-            "Context profiles shift component weights; raw component deltas are retained for audit.",
-            "A high heuristic index can still require work when timing pressure is active.",
-            "A low heuristic index can still be workable when both people consciously manage the pressured palaces.",
-        ],
-    }
+COMPATIBILITY_DOCTRINE_LAYER_META = {
+    "natal_spouse_palace": {
+        "label": "Natal spouse palace",
+        "source_scope": "individual_natal_relationship_doctrine",
+    },
+    "natal_spouse_star": {
+        "label": "Natal spouse star",
+        "source_scope": "individual_natal_relationship_doctrine",
+    },
+    "individual_timing": {
+        "label": "Individual relationship timing",
+        "source_scope": "individual_timing_doctrine",
+    },
+    "day_master_context": {
+        "label": "Directional Day Master context",
+        "source_scope": "contextual_comparison_observation",
+    },
+    "useful_element_comparison": {
+        "label": "Unweighted element-presence comparison",
+        "source_scope": "presence_only_contextual_comparison",
+    },
+    "cross_chart_overlay": {
+        "label": "Cross-chart contact overlay",
+        "source_scope": "product_defined_comparison_overlay",
+    },
+}
 
 
-def _compatibility_calibration_status(relationship_context: str, components: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
-    fixture_ids_by_context = {
-        "general": ["compatibility.general_pair_score_seed"],
-        "romantic": ["compatibility.romantic_pair_score_seed"],
-        "family": ["compatibility.family_pair_score_seed"],
-        "business": ["compatibility.business_pair_score_seed"],
-    }
-    fixture_ids = fixture_ids_by_context.get(relationship_context, [])
-    evidence_count = sum(int(component.get("evidence_count") or 0) for component in components)
-    return {
-        "status": "uncalibrated_product_heuristic",
-        "calibrated": False,
-        "relationship_context": relationship_context,
-        "fixture_ids": fixture_ids,
-        "evidence_count": evidence_count,
-        "source_ids": [],
-        "numeric_provenance": "product_defined_not_source_calibrated",
-        "notes": [
-            "The listed fixtures are smoke examples, not calibration evidence.",
-            "No local source validates the baseline, component values, context weights, thresholds, or score bands.",
-        ],
-    }
-
-
-def _compatibility_source_evidence(calibration: Dict[str, Any]) -> List[Dict[str, Any]]:
-    fixture_ids = calibration.get("fixture_ids") if isinstance(calibration.get("fixture_ids"), list) else []
-    return [{
-        "source_id": "product.compatibility_heuristic_v1",
-        "rule_id": "compatibility.weighted_pair_score",
-        "claim": "The baseline, component values, context weights, thresholds, and grade bands are product-defined and remain uncalibrated.",
-        "strength": "uncalibrated_product_heuristic",
-        "fixture_ids": fixture_ids,
-    }]
-
-
-def _apply_context_weight(component: Dict[str, Any], weight: float) -> Dict[str, Any]:
-    raw_delta = int(component.get("delta") or 0)
-    weighted_delta = round(float(raw_delta) * float(weight), 2)
-    return {
-        **component,
-        "raw_delta": raw_delta,
-        "weight": round(float(weight), 2),
-        "weighted_delta": weighted_delta,
-        "delta": int(round(weighted_delta)),
-    }
-
-
-def _score_cross_chart_contacts(events: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
-    raw = 0.0
-    for event in events:
-        event_type = str(event.get("type") or "")
-        intensity = str(event.get("intensity") or "")
-        multiplier = {
-            "day_partner_palace": 1.45,
-            "partner_palace_contact": 1.25,
-            "matched_pillar": 1.0,
-            "cross_pillar": 0.75,
-        }.get(intensity, 0.75)
-        base = {
-            "stem_combination": 2.0,
-            "branch_combination": 3.0,
-            "three_harmony_combination": 4.0,
-            "seasonal_combination": 4.0,
-            "branch_cross": 0.0,
-            "branch_clash": -3.5,
-            "branch_harm": -3.0,
-            "branch_punishment": -3.5,
-            "self_punishment": -3.0,
-            "branch_destruction": -3.0,
-        }.get(event_type, 0.0)
-        raw += base * multiplier
-    delta = _clamp_int(round(raw), -18, 18)
-    return {
-        "key": "cross_chart_contacts",
-        "label": "Cross-chart contacts",
-        "delta": delta,
-        "range": {"min": -18, "max": 18},
-        "evidence_count": len(events),
-        "summary": "Combinations add support; clashes, harms, punishments, and destructions subtract, with Day-pillar contacts weighted higher.",
-    }
-
-
-def _score_spouse_palace_contacts(events: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
-    spouse_events = [
-        event for event in events
-        if event.get("intensity") in {"day_partner_palace", "partner_palace_contact"}
-    ]
-    raw = 0.0
-    for event in spouse_events:
-        tone = _pair_tone(event.get("type"))
-        intensity = str(event.get("intensity") or "")
-        multiplier = 1.35 if intensity == "day_partner_palace" else 1.0
-        if tone == "supportive":
-            raw += 4.0 * multiplier
-        elif tone == "challenging":
-            raw -= 5.0 * multiplier
-        else:
-            raw -= 1.0 * multiplier
-    delta = _clamp_int(round(raw), -22, 22)
-    return {
-        "key": "spouse_palace_contacts",
-        "label": "Spouse palace contacts",
-        "delta": delta,
-        "range": {"min": -22, "max": 22},
-        "evidence_count": len(spouse_events),
-        "summary": "Day Branch / spouse-palace contacts are scored separately because local and web sources treat them as the relationship checkpoint.",
-    }
-
-
-def _score_day_master_exchange(primary_profile: Dict[str, Any], relationship_profile: Dict[str, Any]) -> Dict[str, Any]:
-    exchange = _day_master_exchange(primary_profile, relationship_profile)
-    if exchange.get("status") != "available":
-        return {
-            "key": "day_master_exchange",
-            "label": "Day Master exchange",
-            "delta": 0,
-            "range": {"min": -10, "max": 10},
-            "evidence_count": 0,
-            "confidence": "low",
-            "summary": "Day Master exchange is unavailable.",
-        }
-    primary_view = exchange.get("primary_to_relationship") or {}
-    relationship_view = exchange.get("relationship_to_primary") or {}
-    raw = _ten_god_exchange_delta(primary_view) + _ten_god_exchange_delta(relationship_view)
-    delta = _clamp_int(raw, -10, 10)
-    return {
-        "key": "day_master_exchange",
-        "label": "Day Master exchange",
-        "delta": delta,
-        "range": {"min": -10, "max": 10},
-        "evidence_count": 2,
-        "summary": exchange.get("summary") or "Both Day Masters can be compared through Five Factor / Ten God exchange.",
-    }
-
-
-def _ten_god_exchange_delta(view: Dict[str, Any]) -> int:
-    factor = str(view.get("factor") or "")
-    god = str(view.get("god") or "")
-    factor_score = {
-        "Resource": 4,
-        "Output": 2,
-        "Companion": 1,
-        "Wealth": 1,
-        "Influence": 0,
-    }.get(factor, 0)
-    god_score = {
-        "Direct Resource": 1,
-        "Eating God": 1,
-        "Friend": 1,
-        "Direct Wealth": 1,
-        "Direct Officer": 1,
-        "Seven Killings": -2,
-        "Hurting Officer": -1,
-        "Rob Wealth": -1,
-    }.get(god, 0)
-    return factor_score + god_score
-
-
-def _score_timing_alignment(timing_alignment: Dict[str, Any]) -> Dict[str, Any]:
-    status_weights = {
-        "active_pressure": -10,
-        "active_support": 6,
-        "active_mixed": -2,
-        "natal_pressure": -4,
-        "natal_support": 3,
-        "natal_mixed": 0,
-        "quiet": 0,
-    }
-    raw = 0
-    evidence_count = 0
-    statuses = []
-    for profile in timing_alignment.values():
-        if not isinstance(profile, dict):
-            continue
-        status = str(profile.get("status") or "quiet")
-        statuses.append(status)
-        raw += status_weights.get(status, 0)
-        evidence_count += int((profile.get("counts") or {}).get("day_events") or 0)
-    delta = _clamp_int(raw, -18, 14)
-    return {
-        "key": "timing_alignment",
-        "label": "Timing alignment",
-        "delta": delta,
-        "range": {"min": -18, "max": 14},
-        "evidence_count": evidence_count,
-        "summary": f"Timing states: {', '.join(statuses) if statuses else 'unavailable'}. Active pressure weighs more than natal background pressure.",
-    }
-
-
-def _score_useful_element_supply(primary_profile: Dict[str, Any], relationship_profile: Dict[str, Any]) -> Dict[str, Any]:
-    primary_supply = _one_way_useful_supply(primary_profile, relationship_profile)
-    relationship_supply = _one_way_useful_supply(relationship_profile, primary_profile)
-    raw = primary_supply["delta"] + relationship_supply["delta"]
-    delta = _clamp_int(raw, -8, 14)
-    confidence = "medium"
-    if primary_supply.get("confidence") == "low" or relationship_supply.get("confidence") == "low":
-        confidence = "low"
-    return {
-        "key": "useful_element_supply",
-        "label": "Useful element supply",
-        "delta": delta,
-        "range": {"min": -8, "max": 14},
-        "evidence_count": primary_supply["evidence_count"] + relationship_supply["evidence_count"],
-        "confidence": confidence,
-        "summary": "Partner element totals are checked against each subject's provisional favorable and unfavorable elements.",
-        "details": {
-            "primary_receives": primary_supply,
-            "relationship_receives": relationship_supply,
-        },
-    }
-
-
-def _one_way_useful_supply(receiver_profile: Dict[str, Any], supplier_profile: Dict[str, Any]) -> Dict[str, Any]:
-    useful = receiver_profile.get("useful_elements") if isinstance(receiver_profile, dict) else {}
-    supplier_balance = supplier_profile.get("element_balance") if isinstance(supplier_profile, dict) else {}
-    totals = supplier_balance.get("total") if isinstance(supplier_balance, dict) else {}
-    if not isinstance(useful, dict) or not isinstance(totals, dict):
-        return {"delta": 0, "evidence_count": 0, "confidence": "low", "matches": []}
-
-    confidence = "low" if useful.get("status") == "withheld" else "medium"
-    matches: List[Dict[str, Any]] = []
-    raw = 0
-    for row in useful.get("favorable") or []:
-        if not isinstance(row, dict):
-            continue
-        element = row.get("element")
-        if not element:
-            continue
-        count = int(totals.get(element) or 0)
-        if count <= 0:
-            continue
-        integrity = row.get("integrity") if isinstance(row.get("integrity"), dict) else {}
-        addition = 3 if integrity.get("availability") == "missing" else 2
-        if integrity.get("pressure") == "pressured":
-            addition -= 1
-        raw += max(1, addition)
-        matches.append({"element": element, "role": row.get("role"), "supplier_count": count, "direction": "favorable"})
-
-    for row in useful.get("unfavorable") or []:
-        if not isinstance(row, dict):
-            continue
-        element = row.get("element")
-        if not element:
-            continue
-        count = int(totals.get(element) or 0)
-        if count >= 3:
-            raw -= 1
-            matches.append({"element": element, "role": row.get("role"), "supplier_count": count, "direction": "unfavorable_load"})
-
-    return {
-        "delta": _clamp_int(raw, -4, 7),
-        "evidence_count": len(matches),
-        "confidence": confidence,
-        "matches": matches[:6],
-    }
-
-
-def _clamp_int(value: Any, minimum: int, maximum: int) -> int:
-    try:
-        number = int(round(float(value)))
-    except Exception:
-        number = 0
-    return max(int(minimum), min(int(maximum), number))
-
-
-def _score_band(score: int) -> Dict[str, str]:
-    if score >= 85:
-        return {"grade": "A", "band": "high_support", "label": "High support"}
-    if score >= 70:
-        return {"grade": "B", "band": "strong_with_conditions", "label": "Strong with conditions"}
-    if score >= 55:
-        return {"grade": "C", "band": "workable_mixed", "label": "Workable / mixed"}
-    if score >= 40:
-        return {"grade": "D", "band": "strained", "label": "Strained"}
-    return {"grade": "E", "band": "high_friction", "label": "High friction"}
-
-
-def _score_confidence(components: Sequence[Dict[str, Any]]) -> str:
-    low_count = sum(1 for component in components if component.get("confidence") == "low")
-    evidence_count = sum(int(component.get("evidence_count") or 0) for component in components)
-    if low_count >= 2 or evidence_count < 3:
-        return "low"
-    if low_count == 1 or evidence_count < 8:
-        return "medium"
-    return "medium_high"
-
-
-def _pair_interpretation(
-    events: Sequence[Dict[str, Any]],
-    timing_alignment: Dict[str, Any],
-    scoring: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
-    summary = _pair_summary(events)
-    day_contacts = int(summary.get("day_partner_palace", 0) or 0) + int(summary.get("partner_palace_contact", 0) or 0)
-    challenging = int(summary.get("challenging", 0) or 0)
-    supportive = int(summary.get("supportive", 0) or 0)
-    score = int((scoring or {}).get("score") or 0)
-    active_pressure_subjects = [
-        key for key, profile in timing_alignment.items()
-        if isinstance(profile, dict) and profile.get("status") == "active_pressure"
-    ]
-    if score >= 70 and not active_pressure_subjects:
-        focus = "strong_structural_support"
-        headline = "The uncalibrated heuristic index shows comparatively strong configured support."
-    elif score < 40:
-        focus = "high_friction"
-        headline = "The uncalibrated heuristic index shows concentrated configured friction."
-    elif active_pressure_subjects:
-        focus = "timing_pressure"
-        headline = "Current timing is the first relationship checkpoint."
-    elif day_contacts:
-        focus = "partner_palace_contacts"
-        headline = "Partner-palace contacts are the first relationship checkpoint."
-    elif challenging > supportive:
-        focus = "cross_chart_friction"
-        headline = "Cross-chart friction outweighs easy combination contacts."
-    elif supportive:
-        focus = "combination_support"
-        headline = "Combination contacts provide the clearest shared channel."
-    else:
-        focus = "quiet_pair_codes"
-        headline = "No strong cross-chart relationship-contact emphasis is configured."
-    highlights = []
-    if day_contacts:
-        highlights.append(f"{day_contacts} cross-chart contact(s) involve at least one Day pillar / partner palace.")
-    if active_pressure_subjects:
-        highlights.append("At least one subject has active timing pressure on the Day pillar / spouse palace.")
-    if challenging:
-        highlights.append(f"{challenging} challenging contact(s) need palace and element-condition review.")
-    if supportive:
-        highlights.append(f"{supportive} supportive combination contact(s) can describe shared channels when the element is usable.")
-    if scoring:
-        highlights.append(f"Heuristic index: {scoring.get('grade')} / {scoring.get('score')} ({scoring.get('grade_label')}); bands are product-defined and uncalibrated.")
-    if not highlights:
-        highlights.append("Use Day Master exchange and the individual natal profiles as the next interpretive layer.")
-    return {
-        "status": "product_defined_uncalibrated_heuristic",
-        "focus": focus,
-        "headline": headline,
-        "highlights": highlights,
-    }
-
-
-def _pair_judgement(
+def _pair_doctrine(
     *,
     primary_profile: Dict[str, Any],
     relationship_profile: Dict[str, Any],
     events: Sequence[Dict[str, Any]],
     timing_alignment: Dict[str, Any],
     day_master_exchange: Dict[str, Any],
-    scoring: Dict[str, Any],
+    relationship_context: str,
 ) -> Dict[str, Any]:
-    summary = _pair_summary(events)
-    day_events = [
-        event for event in events
-        if str(event.get("intensity") or "") in {"day_partner_palace", "partner_palace_contact"}
-    ]
-    spouse_palace = _relationship_layer_status(day_events)
-    useful_component = next(
-        (component for component in scoring.get("components") or [] if component.get("key") == "useful_element_supply"),
-        {},
-    )
-    spouse_star = _spouse_star_exchange(primary_profile, relationship_profile)
-    timing_statuses = {
-        subject: profile.get("status")
-        for subject, profile in timing_alignment.items()
-        if isinstance(profile, dict)
-    }
-    timing_activation = {
-        "status": (
-            "pressured" if "active_pressure" in timing_statuses.values()
-            else "supportive" if "active_support" in timing_statuses.values()
-            else "mixed" if any(str(value).startswith("active") for value in timing_statuses.values())
-            else "quiet"
-        ),
-        "primary_branch_weight": "day_palace_first",
-        "subjects": timing_statuses,
-        "summary": "Current timing is judged first by activation of either Day branch / spouse palace.",
-    }
-    cross_contacts = {
-        "status": _relationship_layer_status(events)["status"],
-        "supportive": int(summary.get("supportive") or 0),
-        "challenging": int(summary.get("challenging") or 0),
-        "mixed": int(summary.get("mixed") or 0),
-        "day_palace_contacts": len(day_events),
+    relationship_context = _normalize_relationship_context(relationship_context)
+    context_profile = RELATIONSHIP_CONTEXT_PROFILES[relationship_context]
+    layers = {
+        "natal_spouse_palace": _natal_spouse_palace_layer(primary_profile, relationship_profile),
+        "natal_spouse_star": _spouse_star_exchange(primary_profile, relationship_profile),
+        "individual_timing": _individual_timing_layer(timing_alignment),
+        "day_master_context": {
+            **day_master_exchange,
+            "method": "directional_ten_god_context_v1",
+            "source_scope": "contextual_comparison_observation",
+            "outcome_authority": "none",
+        },
+        "useful_element_comparison": _useful_element_comparison(primary_profile, relationship_profile),
+        "cross_chart_overlay": _cross_chart_overlay(events),
     }
     evidence_order = [
-        {"key": "spouse_palace", "label": "Spouse palace / Day branch", "status": spouse_palace["status"]},
-        {"key": "spouse_star", "label": "Spouse star by chart context", "status": spouse_star["status"]},
-        {"key": "useful_element_exchange", "label": "Useful-element exchange", "status": useful_component.get("confidence") or "low"},
-        {"key": "day_master_exchange", "label": "Day Master relationship", "status": day_master_exchange.get("status") or "unavailable"},
-        {"key": "cross_chart_contacts", "label": "Cross-chart combinations and clashes", "status": cross_contacts["status"]},
-        {"key": "timing_activation", "label": "Current timing activation", "status": timing_activation["status"]},
+        _doctrine_evidence_row(key, layers.get(key), applicability="primary")
+        for key in context_profile["evidence_order"]
     ]
+    conditional_evidence = [
+        _doctrine_evidence_row(key, layers.get(key), applicability="conditional")
+        for key in context_profile["conditional_evidence"]
+    ]
+    fixture_ids = [
+        COMPATIBILITY_DOCTRINE_FIXTURE_IDS[relationship_context],
+        COMPATIBILITY_DOCTRINE_LIMIT_FIXTURE_ID,
+    ]
+    synthesis = _doctrine_synthesis(
+        relationship_context=relationship_context,
+        context_profile=context_profile,
+        layers=layers,
+        events=events,
+    )
     return {
-        "status": "product_defined_uncalibrated_heuristic",
-        "method": "bazi_relationship_judgement_v2",
+        "status": "qualitative_evidence_only",
+        "method": "bazi_pair_qualitative_doctrine_v1",
+        "relationship_context": relationship_context,
+        "context_profile": {
+            "key": relationship_context,
+            "label": context_profile["label"],
+            "summary": context_profile["summary"],
+            "evidence_order": list(context_profile["evidence_order"]),
+            "conditional_evidence": list(context_profile["conditional_evidence"]),
+            "excluded_evidence": list(context_profile["excluded_evidence"]),
+        },
+        "aggregate_policy": {
+            "mode": "none",
+            "reason": "The curated sources do not provide a validated aggregate pair formula, band, or outcome probability.",
+        },
         "evidence_order": evidence_order,
-        "spouse_palace": spouse_palace,
-        "spouse_star": spouse_star,
-        "useful_element_exchange": useful_component,
-        "day_master_exchange": day_master_exchange,
-        "cross_chart_contacts": cross_contacts,
-        "timing_activation": timing_activation,
-        "summary": "The product heuristic orders spouse palace, spouse star, useful-element exchange, Day Master exchange, contacts, and timing before its uncalibrated index is read.",
+        "conditional_evidence": conditional_evidence,
+        "layers": layers,
+        "synthesis": synthesis,
+        "fixture_ids": fixture_ids,
+        "source_evidence": _compatibility_doctrine_source_evidence(fixture_ids),
+        "source_confidence": confidence_tags("local_source", "computed_rule", "school_variant", "needs_validation"),
+        "interpretive_limits": [
+            "Natal spouse-palace, spouse-star, and timing evidence describes each subject separately.",
+            "Directional Day Master and element-presence comparisons are contextual observations, not relationship outcomes.",
+            "Raw element totals are unweighted presence inventory; they are not qi strength and do not prove supply.",
+            "Cross-chart contact detection is a product overlay because the cited Combination Codes source expressly limits those codes to one chart.",
+            "No aggregate compatibility score, grade, or prediction is produced.",
+        ],
     }
 
 
-def _relationship_layer_status(events: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
-    supportive = sum(1 for event in events if _pair_tone(event.get("type")) == "supportive")
-    challenging = sum(1 for event in events if _pair_tone(event.get("type")) == "challenging")
-    mixed = sum(1 for event in events if _pair_tone(event.get("type")) == "mixed")
-    if supportive and challenging:
-        status = "mixed"
-    elif challenging:
-        status = "pressured"
-    elif supportive:
-        status = "supportive"
-    elif mixed:
-        status = "mixed"
-    else:
-        status = "quiet"
+def _doctrine_evidence_row(key: str, layer: Any, *, applicability: str) -> Dict[str, Any]:
+    meta = COMPATIBILITY_DOCTRINE_LAYER_META[key]
+    payload = layer if isinstance(layer, dict) else {}
     return {
-        "status": status,
-        "supportive": supportive,
-        "challenging": challenging,
-        "mixed": mixed,
-        "event_count": len(events),
+        "key": key,
+        "label": meta["label"],
+        "status": payload.get("status") or "unavailable",
+        "applicability": applicability,
+        "source_scope": meta["source_scope"],
+    }
+
+
+def _compatibility_doctrine_source_evidence(fixture_ids: Sequence[str]) -> List[Dict[str, Any]]:
+    return [
+        {
+            "source_id": "local.destiny_code_book1_spouse_doctrine",
+            "page_refs": [246, 247],
+            "claim_scope": "individual_natal_relationship_context",
+            "supports": ["natal_spouse_palace", "natal_spouse_star"],
+            "fixture_ids": list(fixture_ids),
+        },
+        {
+            "source_id": "local.destiny_code_book2_relationship_timing",
+            "page_refs": [299],
+            "claim_scope": "individual_relationship_timing",
+            "supports": ["individual_timing"],
+            "fixture_ids": list(fixture_ids),
+        },
+        {
+            "source_id": "local.lu_zhiji_spouse_star_context",
+            "page_refs": [188, 189, 190, 191, 192, 193],
+            "claim_scope": "individual_natal_spouse_star",
+            "supports": ["natal_spouse_star"],
+            "fixture_ids": list(fixture_ids),
+        },
+        {
+            "source_id": "local.destiny_code_book2_cross_chart_limit",
+            "page_refs": [89],
+            "claim_scope": "explicit_method_limit",
+            "limits": ["cross_chart_overlay", "aggregate_pair_verdict"],
+            "fixture_ids": [COMPATIBILITY_DOCTRINE_LIMIT_FIXTURE_ID],
+        },
+    ]
+
+
+def _element_candidate_role(profile: Dict[str, Any], element: Any) -> Dict[str, Any]:
+    element = str(element or "")
+    useful = profile.get("useful_elements") if isinstance(profile, dict) else {}
+    if not element or not isinstance(useful, dict):
+        return {
+            "status": "unresolved",
+            "element": element or None,
+            "candidate_role": "unresolved",
+            "useful_element_status": None,
+        }
+    for group, candidate_role in (
+        ("favorable", "favorable_candidate"),
+        ("unfavorable", "unfavorable_candidate"),
+    ):
+        for row in useful.get(group) or []:
+            if isinstance(row, dict) and row.get("element") == element:
+                return {
+                    "status": "available",
+                    "element": element,
+                    "candidate_role": candidate_role,
+                    "role": row.get("role"),
+                    "useful_element_status": useful.get("status"),
+                }
+    return {
+        "status": "available" if useful.get("status") else "unresolved",
+        "element": element,
+        "candidate_role": "unresolved",
+        "useful_element_status": useful.get("status"),
+    }
+
+
+def _spouse_palace_condition(profile: Dict[str, Any], fallback_label: str) -> Dict[str, Any]:
+    pillars = profile.get("pillars") if isinstance(profile, dict) else {}
+    day_pillar = pillars.get("day") if isinstance(pillars, dict) else None
+    palace = _spouse_palace_payload(day_pillar)
+    if not palace:
+        return {
+            "status": "unavailable",
+            "subject_label": fallback_label,
+            "summary": "The Day branch is unavailable, so this subject's natal spouse-palace condition cannot be reviewed.",
+        }
+    element_context = _element_candidate_role(profile, palace.get("branch_element"))
+    return {
+        "status": "available",
+        "subject_label": (profile.get("snap_label") if isinstance(profile, dict) else None) or fallback_label,
+        "palace": palace,
+        "element_context": element_context,
+        "source_scope": "individual_natal_relationship_context",
+        "outcome_authority": "individual_context_only",
+        "summary": (
+            f"{palace.get('branch') or 'Unknown'} is this subject's natal Day branch / spouse palace. "
+            "Its element-candidate role is individual natal context and is not a verdict about the pair."
+        ),
+    }
+
+
+def _natal_spouse_palace_layer(
+    primary_profile: Dict[str, Any],
+    relationship_profile: Dict[str, Any],
+) -> Dict[str, Any]:
+    subjects = {
+        "primary": _spouse_palace_condition(primary_profile, "Primary"),
+        "relationship": _spouse_palace_condition(relationship_profile, "Relationship"),
+    }
+    available = sum(1 for row in subjects.values() if row.get("status") == "available")
+    return {
+        "status": "available" if available == 2 else ("partial" if available else "unavailable"),
+        "method": "natal_spouse_palace_condition_v1",
+        "subjects": subjects,
+        "source_scope": "individual_natal_relationship_doctrine",
+        "outcome_authority": "individual_context_only",
+        "summary": "Each natal Day branch / spouse palace is reviewed separately; cross-chart contacts do not determine its condition.",
+    }
+
+
+def _presence_inventory(profile: Dict[str, Any]) -> Dict[str, Any]:
+    inventory = profile.get("element_presence") if isinstance(profile, dict) else {}
+    if not isinstance(inventory, dict) or not inventory:
+        inventory = profile.get("element_balance") if isinstance(profile, dict) else {}
+    counts = {}
+    if isinstance(inventory, dict):
+        counts = inventory.get("counts") or inventory.get("total") or {}
+    return {
+        "status": "available" if isinstance(counts, dict) and bool(counts) else "unavailable",
+        "model_id": (
+            inventory.get("model_id") if isinstance(inventory, dict) else None
+        ) or "legacy_element_presence_counts",
+        "measure": (
+            inventory.get("measure") if isinstance(inventory, dict) else None
+        ) or "unweighted_presence_count",
+        "counts": counts if isinstance(counts, dict) else {},
+        "is_qi_strength": False,
+    }
+
+
+def _one_way_element_presence_context(
+    receiver_profile: Dict[str, Any],
+    compared_profile: Dict[str, Any],
+) -> Dict[str, Any]:
+    useful = receiver_profile.get("useful_elements") if isinstance(receiver_profile, dict) else {}
+    inventory = _presence_inventory(compared_profile)
+    counts = inventory["counts"]
+    if not isinstance(useful, dict) or inventory["status"] != "available":
+        return {
+            "status": "unavailable",
+            "inventory_basis": "unweighted_element_presence",
+            "inventory_model_id": inventory["model_id"],
+            "inventory_measure": inventory["measure"],
+            "favorable_candidate_matches": [],
+            "unfavorable_candidate_matches": [],
+            "outcome_authority": "none",
+        }
+
+    def matches(group: str, candidate_role: str) -> List[Dict[str, Any]]:
+        rows: List[Dict[str, Any]] = []
+        for candidate in useful.get(group) or []:
+            if not isinstance(candidate, dict) or not candidate.get("element"):
+                continue
+            element = str(candidate["element"])
+            count = int(counts.get(element) or 0)
+            if count <= 0:
+                continue
+            rows.append({
+                "element": element,
+                "role": candidate.get("role"),
+                "candidate_role": candidate_role,
+                "presence_count": count,
+                "presence_status": "present_only",
+            })
+        return rows
+
+    favorable = matches("favorable", "favorable_candidate")
+    unfavorable = matches("unfavorable", "unfavorable_candidate")
+    useful_status = str(useful.get("status") or "unresolved")
+    return {
+        "status": "available" if useful_status != "withheld" else "partial",
+        "useful_element_status": useful_status,
+        "inventory_basis": "unweighted_element_presence",
+        "inventory_model_id": inventory["model_id"],
+        "inventory_measure": inventory["measure"],
+        "semantics": {
+            "is_qi_strength": False,
+            "interpretation": "A match records element presence only; it does not establish usable qi, strength, or support from one chart to another.",
+        },
+        "favorable_candidate_matches": favorable,
+        "unfavorable_candidate_matches": unfavorable,
+        "outcome_authority": "none",
+    }
+
+
+def _useful_element_comparison(
+    primary_profile: Dict[str, Any],
+    relationship_profile: Dict[str, Any],
+) -> Dict[str, Any]:
+    directions = {
+        "primary_context": _one_way_element_presence_context(primary_profile, relationship_profile),
+        "relationship_context": _one_way_element_presence_context(relationship_profile, primary_profile),
+    }
+    available = sum(1 for row in directions.values() if row.get("status") in {"available", "partial"})
+    return {
+        "status": "available" if available == 2 else ("partial" if available else "unavailable"),
+        "method": "directional_element_presence_context_v1",
+        "directions": directions,
+        "source_scope": "presence_only_contextual_comparison",
+        "inventory_basis": "unweighted_element_presence",
+        "outcome_authority": "none",
+        "summary": "The comparison records unweighted element presence against each subject's provisional candidates; presence is not qi strength or supply.",
+    }
+
+
+def _individual_timing_layer(timing_alignment: Dict[str, Any]) -> Dict[str, Any]:
+    subjects = {
+        key: value
+        for key, value in timing_alignment.items()
+        if key in {"primary", "relationship"} and isinstance(value, dict)
+    }
+    available = len(subjects)
+    return {
+        "status": "available" if available == 2 else ("partial" if available else "unavailable"),
+        "method": "individual_relationship_timing_context_v1",
+        "subjects": subjects,
+        "source_scope": "individual_timing_doctrine",
+        "outcome_authority": "individual_context_only",
+        "summary": "Luck and annual contacts are retained as separate timing context for each subject; they are not merged into a pair outcome.",
+    }
+
+
+def _cross_chart_overlay(events: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
+    summary = _pair_overlay_summary(events)
+    return {
+        "status": "contacts_present" if summary["total"] else "quiet",
+        "method": "product_defined_cross_chart_contact_overlay_v1",
+        "summary": summary,
+        "source_scope": "product_defined_comparison_overlay",
+        "outcome_authority": "none",
+        "limitation": (
+            "The cited Combination Codes source defines elemental association within one BaZi chart. "
+            "Cross-chart contacts are shown only as a comparison overlay and cannot support an interpersonal verdict."
+        ),
+    }
+
+
+def _doctrine_synthesis(
+    *,
+    relationship_context: str,
+    context_profile: Dict[str, Any],
+    layers: Dict[str, Any],
+    events: Sequence[Dict[str, Any]],
+) -> Dict[str, Any]:
+    spouse_star = layers.get("natal_spouse_star") or {}
+    timing = layers.get("individual_timing") or {}
+    timing_subjects = timing.get("subjects") if isinstance(timing, dict) else {}
+    active_timing = [
+        key
+        for key, row in (timing_subjects or {}).items()
+        if isinstance(row, dict) and str(row.get("status") or "").startswith("active")
+    ]
+    if relationship_context == "romantic" and spouse_star.get("status") == "unknown":
+        focus = "missing_natal_spouse_star_input"
+        headline = "Calculation sex is needed before the natal spouse-star layer can be completed."
+    elif active_timing:
+        focus = "individual_timing_context"
+        headline = "At least one subject has active individual relationship-timing evidence to review."
+    elif relationship_context == "romantic":
+        focus = "individual_natal_relationship_context"
+        headline = "Read each natal spouse palace and spouse star separately before comparison overlays."
+    else:
+        focus = "contextual_pair_observations"
+        headline = "The pair view presents directional context without an aggregate compatibility verdict."
+
+    overlay_summary = _pair_overlay_summary(events)
+    highlights = [
+        context_profile["summary"],
+        "Natal spouse-palace and spouse-star evidence remains attached to each subject rather than merged into a pair result.",
+        "Directional Day Master roles and unweighted element presence are contextual observations only.",
+        (
+            f"The product overlay detected {overlay_summary['total']} cross-chart contact(s); "
+            "those contacts have no source-backed interpersonal outcome authority."
+        ),
+        "No aggregate score, grade, band, or relationship prediction is produced.",
+    ]
+    if active_timing:
+        highlights.insert(
+            1,
+            f"Active individual timing context is present for: {', '.join(active_timing)}.",
+        )
+    return {
+        "status": "qualitative_evidence_only",
+        "focus": focus,
+        "headline": headline,
+        "highlights": highlights,
     }
 
 
 def _spouse_star_exchange(primary_profile: Dict[str, Any], relationship_profile: Dict[str, Any]) -> Dict[str, Any]:
     rows = []
-    useful_proxy = []
-    for label, receiver, supplier in (
-        ("primary_receives_relationship", primary_profile, relationship_profile),
-        ("relationship_receives_primary", relationship_profile, primary_profile),
+    for label, receiver, compared in (
+        ("primary_context", primary_profile, relationship_profile),
+        ("relationship_context", relationship_profile, primary_profile),
     ):
         sex_role = _sex_based_spouse_factor(receiver)
-        receiver_factor = _factor_condition(receiver, sex_role.get("factor"))
-        supplier_balance = supplier.get("element_balance") if isinstance(supplier, dict) else {}
-        totals = supplier_balance.get("total") if isinstance(supplier_balance, dict) else {}
-        supplier_count = int(totals.get(receiver_factor.get("element")) or 0) if isinstance(totals, dict) and receiver_factor.get("element") else 0
+        natal_condition = _factor_condition(receiver, sex_role.get("factor"))
+        element = natal_condition.get("element")
+        natal_condition = {
+            **natal_condition,
+            "element_context": _element_candidate_role(receiver, element),
+            "source_scope": "individual_natal_relationship_context",
+        }
+        inventory = _presence_inventory(compared)
+        presence_count = int(inventory["counts"].get(element) or 0) if element else 0
         rows.append({
             "direction": label,
             "calculation_sex": sex_role.get("calculation_sex"),
             "sex_based_role": sex_role.get("role"),
             "factor": sex_role.get("factor"),
-            "natal_condition": receiver_factor,
-            "cross_chart_supply": {
-                "element": receiver_factor.get("element"),
-                "supplier_count": supplier_count,
-                "status": "supplied" if supplier_count else "not_supplied",
+            "natal_condition": natal_condition,
+            "compared_chart_element_presence": {
+                "element": element,
+                "presence_count": presence_count,
+                "presence_status": "present_only" if presence_count else "not_present",
+                "inventory_basis": "unweighted_element_presence",
+                "inventory_model_id": inventory["model_id"],
+                "inventory_measure": inventory["measure"],
+                "is_qi_strength": False,
+                "outcome_authority": "none",
             },
-            "status": (
-                "unknown" if sex_role.get("factor") is None
-                else "supportive" if supplier_count else
-                "natal_only" if int(receiver_factor.get("total_count") or 0) else
-                "absent"
-            ),
+            "status": "unknown" if sex_role.get("factor") is None else "available",
         })
-        receiver_useful = receiver.get("useful_elements") if isinstance(receiver, dict) else {}
-        matches = []
-        if isinstance(receiver_useful, dict) and isinstance(totals, dict):
-            for row in receiver_useful.get("favorable") or []:
-                if isinstance(row, dict) and row.get("element") and int(totals.get(row.get("element")) or 0) > 0:
-                    matches.append({"element": row.get("element"), "role": row.get("role"), "supplier_count": totals.get(row.get("element"))})
-        useful_proxy.append({"direction": label, "matches": matches[:4], "match_count": len(matches)})
-    total = sum(1 for row in rows if row.get("status") == "supportive")
     unknown = sum(1 for row in rows if row.get("status") == "unknown")
     return {
-        "status": "unknown" if unknown == len(rows) else ("supportive" if total else "quiet"),
-        "method": "sex_based_spouse_star_exchange_v2",
+        "status": "unknown" if unknown == len(rows) else ("partial" if unknown else "available"),
+        "method": "sex_based_spouse_star_context_v3",
         "directions": rows,
-        "useful_element_proxy": useful_proxy,
-        "summary": "Spouse-star context starts with Wealth for male calculation sex and Officer/Killing for female calculation sex, then checks natal condition and cross-chart supply.",
+        "source_scope": "individual_natal_relationship_doctrine",
+        "outcome_authority": "individual_context_only",
+        "summary": (
+            "Spouse-star doctrine selects Wealth for male calculation sex and Influence for female calculation sex, "
+            "then reports each natal condition separately. Compared-chart element counts are presence-only context."
+        ),
     }
 
 

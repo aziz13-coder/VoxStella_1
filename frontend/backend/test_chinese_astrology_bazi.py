@@ -4,6 +4,8 @@ import json
 import os
 import sys
 
+import pytest
+
 os.environ.setdefault("ALLOW_DEV_LICENSE_BYPASS", "1")
 os.environ.setdefault("VOX_STELLA_ENV", "development")
 
@@ -11,9 +13,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import app as app_module
 import astro_clock_api
+import chinese_astrology as chinese_astrology_module
+import chinese_astrology.bazi as bazi_module
 import chinese_astrology.interpretation as interpretation_module
 from chinese_astrology.auxiliary_stars import build_auxiliary_stars
-from chinese_astrology.bazi import BirthContext, SOLAR_TERMS, _strength_evidence, _term_payload, build_bazi_profile, sexagenary_day_index
+from chinese_astrology.bazi import BirthContext, SOLAR_TERMS, _element_balance, _strength_evidence, _term_payload, build_bazi_profile, sexagenary_day_index
 from chinese_astrology.curation import GOLDEN_FIXTURE_MANIFEST, RULE_NOTES, SOURCE_ANCHORS
 from chinese_astrology.interpretation import DAY_STEM_MONTH_CLIMATE_STEMS, _source_climate_rows, build_ten_god_profile, build_useful_element_recommendations
 from chinese_astrology.oracle import cast_iching_oracle
@@ -189,7 +193,7 @@ def test_chinese_astrology_bazi_route_uses_saved_snap_context(monkeypatch):
     assert data["ten_gods"]["factor_profile"]["status"] == "source_based_preview"
     assert data["ten_gods"]["factor_profile"]["source_basis"][0]["id"] == "local.destiny_code_five_factors"
     assert data["debug"]["snap_source"] == "saved_snap"
-    assert data["debug"]["solar_term_source"] in {"swiss_ephemeris", "fixed_approximation"}
+    assert data["debug"]["solar_term_source"] == "swiss_ephemeris"
     assert data["interpretation"]["status"] == "source_based_preview"
     assert data["analysis"]["method"] == "season_root_formation_v2"
     assert data["analysis"]["strength_model"]["season"]["season"] == "Winter"
@@ -270,15 +274,16 @@ def test_chinese_astrology_compatibility_route_compares_two_saved_snaps(monkeypa
     compatibility = data["compatibility"]
     spouse_star_directions = {
         row["direction"]: row
-        for row in compatibility["judgement"]["spouse_star"]["directions"]
+        for row in compatibility["doctrine"]["layers"]["natal_spouse_star"]["directions"]
     }
     assert data["primary"]["birth"]["calculation_sex"] == "female"
     assert data["relationship"]["birth"]["calculation_sex"] == "male"
-    assert spouse_star_directions["primary_receives_relationship"]["calculation_sex"] == "female"
-    assert spouse_star_directions["primary_receives_relationship"]["sex_based_role"] == "husband_star"
-    assert spouse_star_directions["relationship_receives_primary"]["calculation_sex"] == "male"
-    assert spouse_star_directions["relationship_receives_primary"]["sex_based_role"] == "wife_star"
-    assert compatibility["method"] == "bazi_pair_relationship_codes_v1"
+    assert spouse_star_directions["primary_context"]["calculation_sex"] == "female"
+    assert spouse_star_directions["primary_context"]["sex_based_role"] == "husband_star"
+    assert spouse_star_directions["relationship_context"]["calculation_sex"] == "male"
+    assert spouse_star_directions["relationship_context"]["sex_based_role"] == "wife_star"
+    assert compatibility["method"] == "bazi_pair_qualitative_doctrine_v1"
+    assert compatibility["status"] == "qualitative_evidence_only"
     assert compatibility["subjects"]["primary"]["source_snap_id"] == "snap-a"
     assert compatibility["subjects"]["relationship"]["source_snap_id"] == "snap-b"
     assert compatibility["day_master_exchange"]["status"] == "available"
@@ -286,46 +291,21 @@ def test_chinese_astrology_compatibility_route_compares_two_saved_snaps(monkeypa
     assert compatibility["timing_alignment"]["relationship"]["spouse_palace"]["branch"] == "You"
     assert compatibility["timing_alignment"]["primary"]["counts"]["day_events"] > 0
     assert compatibility["relationship_context"] == "romantic"
-    assert compatibility["scoring"]["method"] == "bazi_pair_weighted_evidence_score_v1"
-    assert compatibility["judgement"]["method"] == "bazi_relationship_judgement_v2"
-    assert {item["key"] for item in compatibility["judgement"]["evidence_order"]} == {
-        "spouse_palace",
-        "spouse_star",
-        "useful_element_exchange",
-        "day_master_exchange",
-        "cross_chart_contacts",
-        "timing_activation",
-    }
-    assert compatibility["judgement"]["spouse_palace"]["status"] in {
-        "supportive",
-        "pressured",
-        "mixed",
-        "quiet",
-    }
-    assert compatibility["judgement"]["timing_activation"]["primary_branch_weight"] == "day_palace_first"
-    assert compatibility["scoring"]["relationship_context"] == "romantic"
-    assert compatibility["scoring"]["relationship_context_label"] == "Romantic"
-    assert compatibility["scoring"]["context_profile"]["weights"]["spouse_palace_contacts"] > 1
-    assert isinstance(compatibility["scoring"]["raw_delta"], int)
-    assert 0 <= compatibility["scoring"]["score"] <= 100
-    assert compatibility["scoring"]["grade"] in {"A", "B", "C", "D", "E"}
-    assert {component["key"] for component in compatibility["scoring"]["components"]} == {
-        "cross_chart_contacts",
-        "spouse_palace_contacts",
-        "day_master_exchange",
-        "timing_alignment",
-        "useful_element_supply",
-    }
-    assert all("raw_delta" in component and "weight" in component for component in compatibility["scoring"]["components"])
-    assert compatibility["interpretation"]["status"] == "product_defined_uncalibrated_heuristic"
+    assert compatibility["doctrine"]["method"] == "bazi_pair_qualitative_doctrine_v1"
+    assert compatibility["doctrine"]["relationship_context"] == "romantic"
+    assert compatibility["doctrine"]["context_profile"]["evidence_order"][:2] == [
+        "natal_spouse_palace",
+        "natal_spouse_star",
+    ]
+    assert compatibility["doctrine"]["aggregate_policy"]["mode"] == "none"
+    assert compatibility["doctrine"]["layers"]["cross_chart_overlay"]["outcome_authority"] == "none"
+    assert compatibility["doctrine"]["layers"]["natal_spouse_palace"]["status"] == "available"
+    assert "scoring" not in compatibility
+    assert "judgement" not in compatibility
+    assert compatibility["interpretation"]["status"] == "qualitative_evidence_only"
     assert compatibility["interpretation"]["focus"] in {
-        "strong_structural_support",
-        "high_friction",
-        "timing_pressure",
-        "partner_palace_contacts",
-        "cross_chart_friction",
-        "combination_support",
-        "quiet_pair_codes",
+        "individual_timing_context",
+        "individual_natal_relationship_context",
     }
     assert compatibility["summary"]["total"] > 0
     assert any(
@@ -358,12 +338,12 @@ def test_chinese_astrology_compatibility_route_compares_two_saved_snaps(monkeypa
     primary_only_data = primary_only_response.get_json()["data"]
     primary_only_directions = {
         row["direction"]: row
-        for row in primary_only_data["compatibility"]["judgement"]["spouse_star"]["directions"]
+        for row in primary_only_data["compatibility"]["doctrine"]["layers"]["natal_spouse_star"]["directions"]
     }
     assert primary_only_response.status_code == 200
     assert primary_only_data["primary"]["birth"]["calculation_sex"] == "female"
     assert primary_only_data["relationship"]["birth"]["calculation_sex"] is None
-    assert primary_only_directions["relationship_receives_primary"]["sex_based_role"] == "unknown"
+    assert primary_only_directions["relationship_context"]["sex_based_role"] == "unknown"
 
 
 def test_chinese_astrology_compatibility_route_rejects_same_snap(monkeypatch):
@@ -379,6 +359,113 @@ def test_chinese_astrology_compatibility_route_rejects_same_snap(monkeypatch):
     assert response.status_code == 400
     assert payload["success"] is False
     assert "different saved snaps" in payload["error"]
+
+
+def test_chinese_astrology_compatibility_route_returns_withheld_boundary_contract(monkeypatch):
+    client = app_module.app.test_client()
+    snaps = [
+        {
+            "id": snap_id,
+            "label": label,
+            "effective_datetime": timestamp,
+            "timezone": "UTC",
+            "latitude": 0.0,
+            "longitude": 0.0,
+        }
+        for snap_id, label, timestamp in (
+            ("snap-a", "Boundary subject", "2000-01-01T12:00:00+00:00"),
+            ("snap-b", "Stable subject", "2000-01-04T12:00:00+00:00"),
+        )
+    ]
+    uncertain = _profile("2000-01-01T12:00:00+00:00", calculation_sex="female")
+    uncertain = {
+        **uncertain,
+        "calculation_status": "uncertain_birth_time_boundary",
+        "uncertainty": {
+            "birth_time": {
+                "status": "uncertain",
+                "affected_pillars": ["month"],
+                "candidate_count": 2,
+            },
+        },
+    }
+    stable = _profile("2000-01-04T12:00:00+00:00", calculation_sex="male")
+    profiles = iter((uncertain, stable))
+
+    monkeypatch.setattr(astro_clock_api, "_snaps", lambda: _FakeSnapStore(snaps))
+    monkeypatch.setattr(chinese_astrology_module, "build_bazi_profile", lambda _context: next(profiles))
+
+    response = client.post(
+        "/api/astro-clock/chinese-astrology/compatibility",
+        json={
+            "primary_snap_id": "snap-a",
+            "relationship_snap_id": "snap-b",
+            "relationship_context": "romantic",
+        },
+    )
+    report = response.get_json()["data"]["compatibility"]
+
+    assert response.status_code == 200
+    assert report["status"] == "withheld"
+    assert report["reason_code"] == "birth_time_boundary_uncertainty"
+    assert report["ambiguity"]["affected_subjects"][0]["subject"] == "primary"
+    assert "doctrine" not in report
+    assert "scoring" not in report
+    assert "judgement" not in report
+
+
+@pytest.mark.parametrize(("failed_call", "expected_participant"), ((1, "primary"), (2, "relationship")))
+def test_chinese_astrology_compatibility_solar_term_503_identifies_participant(
+    monkeypatch,
+    failed_call,
+    expected_participant,
+):
+    client = app_module.app.test_client()
+    snaps = [
+        {
+            "id": snap_id,
+            "effective_datetime": timestamp,
+            "timezone": "UTC",
+            "latitude": 0.0,
+            "longitude": 0.0,
+            "dashboard": {
+                "timestamp": timestamp,
+                "timezone": "UTC",
+                "latitude": 0.0,
+                "longitude": 0.0,
+            },
+        }
+        for snap_id, timestamp in (
+            ("snap-a", "2000-01-01T12:00:00+00:00"),
+            ("snap-b", "2000-01-04T12:00:00+00:00"),
+        )
+    ]
+    monkeypatch.setattr(astro_clock_api, "_snaps", lambda: _FakeSnapStore(snaps))
+    call_count = 0
+
+    def _build_or_fail(_context):
+        nonlocal call_count
+        call_count += 1
+        if call_count == failed_call:
+            raise bazi_module.SolarTermCalculationError(
+                year=2000,
+                term_key="xiao_han",
+                reason="solar_longitude_solver_failed",
+            )
+        return {"calculation_status": "complete"}
+
+    monkeypatch.setattr(chinese_astrology_module, "build_bazi_profile", _build_or_fail)
+    response = client.post(
+        "/api/astro-clock/chinese-astrology/compatibility",
+        json={"primary_snap_id": "snap-a", "relationship_snap_id": "snap-b"},
+    )
+    payload = response.get_json()
+
+    assert response.status_code == 503
+    assert payload["error"] == "solar_term_calculation_unavailable"
+    assert payload["participant"] == expected_participant
+    assert payload["calculation_error"]["participant"] == expected_participant
+    assert "incident_id" not in payload
 
 
 def test_iching_oracle_manual_lines_resolve_primary_and_relating_hexagrams():
@@ -511,7 +598,7 @@ def test_chinese_astrology_iching_oracle_route_rejects_bad_payloads():
     assert "coin_value_scheme" in bad_scheme.get_json()["error"]
 
 
-def test_phase_5_pair_context_profiles_weight_components_transparently():
+def test_pair_context_profiles_order_qualitative_doctrine_without_aggregate():
     primary = _profile("2000-01-01T12:00:00+00:00", calculation_sex="female", include_luck_pillars=True)
     relationship = _profile("2000-01-04T12:00:00+00:00", calculation_sex="female", include_luck_pillars=True)
 
@@ -521,42 +608,71 @@ def test_phase_5_pair_context_profiles_weight_components_transparently():
     business = analyze_pair_relationships(primary, relationship, relationship_context="business")
 
     assert {"general", "romantic", "family", "business"} <= set(RELATIONSHIP_CONTEXT_PROFILES)
-    assert general["scoring"]["relationship_context"] == "general"
-    assert romantic["scoring"]["relationship_context"] == "romantic"
-    assert romantic["scoring"]["context_profile"]["weights"]["spouse_palace_contacts"] > 1
-    assert general["status"] == "product_defined_uncalibrated_preview"
-    assert general["scoring"]["status"] == "product_defined_uncalibrated_heuristic"
-    assert general["scoring"]["index_label"] == "Product-defined uncalibrated heuristic evidence index"
-    assert general["scoring"]["calibration"]["status"] == "uncalibrated_product_heuristic"
-    assert general["scoring"]["calibration"]["calibrated"] is False
-    assert general["scoring"]["calibration"]["source_ids"] == []
-    assert family["scoring"]["calibration"]["fixture_ids"] == ["compatibility.family_pair_score_seed"]
-    assert business["scoring"]["calibration"]["fixture_ids"] == ["compatibility.business_pair_score_seed"]
-    assert all(
-        row["strength"] == "uncalibrated_product_heuristic"
-        and not row["source_id"].startswith("local.")
-        for row in general["scoring"]["source_evidence"]
-    )
-    assert "local_source" not in {
-        row["key"] for row in general["scoring"]["source_confidence"]
-    }
-    assert all("raw_delta" in row and "weighted_delta" in row and "weight" in row for row in romantic["scoring"]["components"])
-    assert romantic["scoring"]["raw_delta"] == sum(row["raw_delta"] for row in romantic["scoring"]["components"])
-    assert 0 <= romantic["scoring"]["score"] <= 100
+    assert all(report["status"] == "qualitative_evidence_only" for report in (general, romantic, family, business))
+    assert all(report["doctrine"]["aggregate_policy"]["mode"] == "none" for report in (general, romantic, family, business))
+    assert general["doctrine"]["relationship_context"] == "general"
+    assert general["doctrine"]["context_profile"]["conditional_evidence"] == [
+        "natal_spouse_palace",
+        "natal_spouse_star",
+    ]
+    assert romantic["doctrine"]["context_profile"]["evidence_order"][:2] == [
+        "natal_spouse_palace",
+        "natal_spouse_star",
+    ]
+    assert family["doctrine"]["context_profile"]["excluded_evidence"] == [
+        "natal_spouse_palace",
+        "natal_spouse_star",
+    ]
+    assert business["doctrine"]["context_profile"]["excluded_evidence"] == [
+        "natal_spouse_palace",
+        "natal_spouse_star",
+    ]
+    assert family["doctrine"]["fixture_ids"][0] == "compatibility.doctrine_family_scope_guard_v1"
+    assert business["doctrine"]["fixture_ids"][0] == "compatibility.doctrine_business_scope_guard_v1"
+    assert all("scoring" not in report and "judgement" not in report for report in (general, romantic, family, business))
 
 
-def test_compatibility_uses_sex_based_spouse_star_before_generic_score():
+def test_compatibility_uses_sex_based_natal_spouse_star_before_comparison_context():
     primary = _profile("2000-01-01T12:00:00+00:00", calculation_sex="male", include_luck_pillars=True)
     relationship = _profile("2000-01-04T12:00:00+00:00", calculation_sex="female", include_luck_pillars=True)
 
     report = analyze_pair_relationships(primary, relationship, relationship_context="romantic")
-    spouse_star = report["judgement"]["spouse_star"]
+    spouse_star = report["doctrine"]["layers"]["natal_spouse_star"]
     directions = {row["direction"]: row for row in spouse_star["directions"]}
 
-    assert spouse_star["method"] == "sex_based_spouse_star_exchange_v2"
-    assert directions["primary_receives_relationship"]["factor"] == "Wealth"
-    assert directions["relationship_receives_primary"]["factor"] == "Influence"
-    assert report["judgement"]["evidence_order"][1]["key"] == "spouse_star"
+    assert spouse_star["method"] == "sex_based_spouse_star_context_v3"
+    assert directions["primary_context"]["factor"] == "Wealth"
+    assert directions["relationship_context"]["factor"] == "Influence"
+    assert directions["primary_context"]["compared_chart_element_presence"]["inventory_basis"] == "unweighted_element_presence"
+    assert directions["primary_context"]["compared_chart_element_presence"]["outcome_authority"] == "none"
+    assert report["doctrine"]["evidence_order"][1]["key"] == "natal_spouse_star"
+
+
+def test_pair_doctrine_is_withheld_for_unresolved_birth_time_boundary():
+    primary = _profile("2000-01-01T12:00:00+00:00", calculation_sex="male")
+    relationship = _profile("2000-01-04T12:00:00+00:00", calculation_sex="female")
+    primary = {
+        **primary,
+        "calculation_status": "uncertain_birth_time_boundary",
+        "uncertainty": {
+            "birth_time": {
+                "status": "uncertain",
+                "affected_pillars": ["month"],
+                "candidate_count": 2,
+            },
+        },
+    }
+
+    report = analyze_pair_relationships(primary, relationship, relationship_context="romantic")
+
+    assert report["status"] == "withheld"
+    assert report["reason_code"] == "birth_time_boundary_uncertainty"
+    assert report["reason"] == "A recorded birth-time range crosses a BaZi pillar boundary."
+    assert report["ambiguity"]["status"] == "requires_resolved_birth_time"
+    assert report["ambiguity"]["affected_subjects"][0]["subject"] == "primary"
+    assert "doctrine" not in report
+    assert "scoring" not in report
+    assert "judgement" not in report
 
 
 def test_chinese_astrology_profile_exposes_phase_1_curation_payload():
@@ -814,8 +930,8 @@ def test_validation_luck_pillar_start_age_fixtures_match_hko_jie_table():
         assert abs(timing["debug"]["start_age_years"] - expected["start_age"]) <= tolerance["start_age"], fixture["id"]
 
 
-def test_validation_pair_fixture_table_matches_current_scoring_engine():
-    pair_fixtures = [fixture for fixture in VALIDATION_FIXTURES if fixture.get("kind") == "pair_profile"]
+def test_validation_pair_fixture_table_matches_current_qualitative_doctrine():
+    pair_fixtures = [fixture for fixture in VALIDATION_FIXTURES if fixture.get("kind") == "pair_doctrine"]
 
     assert pair_fixtures
     for fixture in pair_fixtures:
@@ -839,6 +955,8 @@ def test_validation_pair_fixture_table_matches_current_scoring_engine():
         )
         for path, expected_value in (fixture.get("expected") or {}).get("paths", {}).items():
             assert _value_at(report, path) == expected_value, f"{fixture['id']} {path}"
+        assert "scoring" not in report
+        assert "judgement" not in report
 
 
 def test_golden_fixture_li_chun_year_boundary():
@@ -855,6 +973,117 @@ def test_golden_fixture_jing_zhe_month_boundary():
 
     assert before["pillars"]["month"]["branch"] == "Yin"
     assert after["pillars"]["month"]["branch"] == "Mao"
+
+
+def test_unknown_time_on_ordinary_date_has_one_stable_solar_term_candidate():
+    profile = _profile("2000-01-01T12:00:00+00:00", hour_known=False)
+    uncertainty = profile["uncertainty"]["birth_time"]
+
+    assert uncertainty["status"] == "stable"
+    assert uncertainty["affected_pillars"] == []
+    assert len(uncertainty["candidates"]) == 1
+    assert uncertainty["candidates"][0]["position"] == "only_candidate"
+    assert uncertainty["candidates"][0]["selected"] is True
+    assert uncertainty["selected_candidate"] == 0
+    assert uncertainty["interval"] == {
+        "start_local": "2000-01-01T00:00:00+00:00",
+        "end_local_exclusive": "2000-01-02T00:00:00+00:00",
+        "start_utc": "2000-01-01T00:00:00+00:00",
+        "end_utc_exclusive": "2000-01-02T00:00:00+00:00",
+    }
+    assert profile["pillars"]["year"] is not None
+    assert profile["pillars"]["month"] is not None
+    assert profile["birth"]["datetime_utc"] is None
+    assert profile["birth"]["local_datetime"] is None
+    assert profile["birth"]["representative_datetime_utc"] == "2000-01-01T12:00:00+00:00"
+    assert profile["withheld_outputs"] == []
+
+
+def test_unknown_time_local_date_crossing_li_chun_returns_two_candidates_and_withholds_dependents():
+    crossing = _term_payload(2000, next(term for term in SOLAR_TERMS if term["key"] == "li_chun"))["datetime_utc"]
+    local_noon_utc = datetime(
+        crossing.year,
+        crossing.month,
+        crossing.day,
+        4,
+        tzinfo=timezone.utc,
+    )
+    profile = _profile(
+        local_noon_utc.isoformat(),
+        timezone_name="Asia/Shanghai",
+        hour_known=False,
+    )
+    uncertainty = profile["uncertainty"]["birth_time"]
+
+    assert profile["calculation_status"] == "uncertain_birth_time_boundary"
+    assert uncertainty["status"] == "uncertain"
+    assert uncertainty["affected_pillars"] == ["year", "month"]
+    assert [item["key"] for item in uncertainty["boundaries"]] == ["li_chun"]
+    assert [candidate["position"] for candidate in uncertainty["candidates"]] == [
+        "before_boundary",
+        "after_boundary",
+    ]
+    assert {
+        (candidate["pillars"]["year"]["stem"], candidate["pillars"]["year"]["branch"])
+        for candidate in uncertainty["candidates"]
+    } == {("Ji", "Mao"), ("Geng", "Chen")}
+    assert {
+        (candidate["pillars"]["month"]["stem"], candidate["pillars"]["month"]["branch"])
+        for candidate in uncertainty["candidates"]
+    } == {("Ding", "Chou"), ("Wu", "Yin")}
+    assert uncertainty["provenance"] == {
+        "source": "swiss_ephemeris",
+        "method": "swiss_ephemeris_solar_longitude_bisection_v1",
+        "tolerance_seconds": 1.0,
+        "error": None,
+    }
+    assert profile["pillars"]["year"] is None
+    assert profile["pillars"]["month"] is None
+    assert profile["birth"]["datetime_utc"] is None
+    assert profile["birth"]["local_datetime"] is None
+    assert profile["birth"]["representative_datetime_utc"] == local_noon_utc.isoformat()
+    assert profile["debug"]["bazi_year"] is None
+    assert profile["debug"]["solar_year_boundary"] is None
+    assert profile["debug"]["month_solar_term"] is None
+    assert profile["debug"]["representative_candidate_calculation"]["status"] == "non_authoritative_reference_only"
+    for section in (
+        "element_balance",
+        "ten_gods",
+        "analysis",
+        "useful_elements",
+        "auxiliary_stars",
+        "palace_context",
+        "life_areas",
+        "classical_extras",
+        "interpretation",
+        "relationships",
+        "timing",
+    ):
+        assert profile[section]["status"] == "withheld", section
+        assert profile[section]["reason_code"] == "unknown_birth_time_solar_term_boundary", section
+    assert profile["luck_pillars"] == []
+    assert uncertainty["downstream"]["status"] == "withheld"
+
+
+def test_unknown_time_local_date_crossing_jie_withholds_month_but_keeps_year():
+    crossing = _term_payload(2000, next(term for term in SOLAR_TERMS if term["key"] == "jing_zhe"))["datetime_utc"]
+    profile = _profile(
+        datetime(crossing.year, crossing.month, crossing.day, 12, tzinfo=timezone.utc).isoformat(),
+        hour_known=False,
+    )
+    uncertainty = profile["uncertainty"]["birth_time"]
+
+    assert uncertainty["status"] == "uncertain"
+    assert uncertainty["affected_pillars"] == ["month"]
+    assert [item["key"] for item in uncertainty["boundaries"]] == ["jing_zhe"]
+    assert {
+        candidate["pillars"]["month"]["branch"]
+        for candidate in uncertainty["candidates"]
+    } == {"Yin", "Mao"}
+    assert profile["pillars"]["year"] is not None
+    assert profile["pillars"]["month"] is None
+    assert profile["analysis"]["status"] == "withheld"
+    assert profile["timing"]["status"] == "withheld"
 
 
 def test_golden_fixture_hour_boundary_and_unknown_time():
@@ -952,8 +1181,49 @@ def test_phase_3_solar_term_fixture_payload_covers_all_jie_terms():
 
     assert [term["key"] for term in terms] == [term["key"] for term in SOLAR_TERMS]
     assert len(terms) == 12
-    assert {term["source"] for term in terms} <= {"swiss_ephemeris", "fixed_approximation"}
+    assert {term["source"] for term in terms} == {"swiss_ephemeris"}
+    assert {term["calculation_status"] for term in terms} == {"authoritative"}
+    assert {term["method"] for term in terms} == {"swiss_ephemeris_solar_longitude_bisection_v1"}
+    assert {term["tolerance_seconds"] for term in terms} == {1.0}
     assert all(terms[index]["datetime_utc"] < terms[index + 1]["datetime_utc"] for index in range(len(terms) - 1))
+
+
+def test_solar_term_unavailability_raises_typed_uncached_error_instead_of_approximation(monkeypatch):
+    bazi_module._term_crossing_utc.cache_clear()
+    monkeypatch.setattr(bazi_module, "swe", None)
+
+    with pytest.raises(bazi_module.SolarTermCalculationError) as caught:
+        _term_payload(2000, next(term for term in SOLAR_TERMS if term["key"] == "li_chun"))
+
+    assert caught.value.to_payload() == {
+        "code": "solar_term_calculation_unavailable",
+        "status": "unavailable",
+        "reason": "swiss_ephemeris_unavailable",
+        "year": 2000,
+        "term_key": "li_chun",
+        "source": "swiss_ephemeris",
+        "method": "swiss_ephemeris_solar_longitude_bisection_v1",
+        "tolerance_seconds": 1.0,
+        "retryable": True,
+    }
+    assert bazi_module._term_crossing_utc.cache_info().currsize == 0
+    bazi_module._term_crossing_utc.cache_clear()
+
+
+def test_solar_term_solver_failure_is_explicit_and_never_returns_fixed_midnight(monkeypatch):
+    bazi_module._term_crossing_utc.cache_clear()
+    monkeypatch.setattr(bazi_module, "swe", object())
+
+    def _failed_longitude(_value):
+        raise RuntimeError("transient ephemeris failure")
+
+    monkeypatch.setattr(bazi_module, "_solar_longitude", _failed_longitude)
+    with pytest.raises(bazi_module.SolarTermCalculationError) as caught:
+        _term_payload(2000, next(term for term in SOLAR_TERMS if term["key"] == "jing_zhe"))
+
+    assert caught.value.reason == "solar_longitude_solver_failed"
+    assert bazi_module._term_crossing_utc.cache_info().currsize == 0
+    bazi_module._term_crossing_utc.cache_clear()
 
 
 def test_golden_fixture_luck_direction_rule_seed():
@@ -1046,10 +1316,14 @@ def test_profile_exposes_classical_extras_body_balance_and_aux_timing():
 
     health = next(area for area in profile["life_areas"]["areas"] if area["id"] == "health_body")
     body = health["body_balance"]
-    assert body["method"] == "hidden_stem_body_balance_v1"
+    assert body["method"] == "element_presence_body_context_v2"
+    assert body["element_presence_measure"] == "unweighted_presence_count"
+    assert body["qi_strength_inferred"] is False
     assert body["hidden_stem_counts"]
     assert body["symbolic_body_correspondences"]
-    assert "symbolic_body_balance_only" in body["limits"]
+    assert body["element_excess"] == []
+    assert body["element_deficiency"] == []
+    assert "unweighted_presence_not_qi_strength" in body["limits"]
 
     markers = profile["auxiliary_stars"]["markers"]
     assert markers
@@ -1220,6 +1494,76 @@ def test_day_master_strength_can_stay_weak_despite_some_counts_when_out_of_seaso
     assert result["model"]["season"]["season"] == "Autumn"
     assert result["model"]["season"]["state"] == "dead"
     assert result["model"]["root"]["normal_root"] is False
+
+
+def test_element_presence_inventory_is_not_qi_strength_and_placement_changes_the_result():
+    spring_month = {
+        "year": {
+            "stem_element": "Metal",
+            "branch": "You",
+            "branch_element": "Metal",
+            "hidden_stems": [{"element": "Metal", "rank": 1}],
+        },
+        "month": {
+            "stem_element": "Fire",
+            "branch": "Mao",
+            "branch_element": "Wood",
+            "hidden_stems": [{"element": "Wood", "rank": 1}],
+        },
+        "day": {
+            "stem_element": "Wood",
+            "branch": "Zi",
+            "branch_element": "Water",
+            "hidden_stems": [{"element": "Water", "rank": 1}],
+        },
+        "hour": {
+            "stem_element": "Earth",
+            "branch": "Wu",
+            "branch_element": "Fire",
+            "hidden_stems": [
+                {"element": "Fire", "rank": 1},
+                {"element": "Earth", "rank": 2},
+            ],
+        },
+    }
+    autumn_month = {
+        **spring_month,
+        "year": spring_month["month"],
+        "month": spring_month["year"],
+    }
+
+    spring_presence = _element_balance(spring_month)
+    autumn_presence = _element_balance(autumn_month)
+    spring_strength = _strength_evidence(0, spring_month, spring_presence)
+    autumn_strength = _strength_evidence(0, autumn_month, autumn_presence)
+
+    assert spring_presence["model_id"] == "element_presence_inventory_v1"
+    assert spring_presence["measure"] == "unweighted_presence_count"
+    assert spring_presence["semantics"]["is_qi_strength"] is False
+    assert spring_presence["counts"] == spring_presence["total"]
+    assert spring_presence["branch_bodies"] == spring_presence["branches"]
+    assert spring_presence["elements"]["Wood"] == {
+        "visible_stem_count": 1,
+        "branch_body_count": 1,
+        "hidden_stem_count": 1,
+        "presence_count": 3,
+        "present": True,
+    }
+    assert spring_presence["counts"] == autumn_presence["counts"]
+
+    assert spring_strength["label"] == "strong"
+    assert autumn_strength["label"] == "weak"
+    assert spring_strength["measure"] == "day_master_seasonal_rooted_qi_strength"
+    assert spring_strength["scope"] == {"subject": "day_master", "element": "Wood"}
+    separation = spring_strength["model"]["count_strength_separation"]
+    assert separation["element_presence_model_id"] == "element_presence_inventory_v1"
+    assert separation["presence_counts_used_in_qi_score"] is False
+    assert separation["qi_strength_inputs"] == [
+        "month_season",
+        "hidden_stem_roots",
+        "visible_and_branch_formation",
+    ]
+    assert spring_strength["presence_counts"] == spring_presence["counts"]
 
 
 def test_root_grade_evidence_marks_storage_roots_and_three_gain_layers():
@@ -1423,11 +1767,14 @@ def test_useful_elements_report_presence_timing_and_relationship_pressure():
     assert result["damage_summary"]["damaged"] == 1
     assert result["useful_god"]["final_status"] == "withheld"
     assert result["useful_god"]["candidate_status"] == "candidate_preview"
-    assert result["useful_god"]["decision_path"] == "yong_shen.damaged_alternate"
-    assert "alternate_timing_only" in result["useful_god"]["blocking_reasons"]
+    assert result["useful_god"]["decision_path"] == "yong_shen.damage_withheld"
+    assert "damage_pattern_not_source_backed" in result["useful_god"]["blocking_reasons"]
     assert result["useful_god"]["evidence"]["strength"]["label"] == "strong"
     assert "local.destiny_code_favorable_elements" in result["useful_god"]["source_ids"]
     assert result["special_structure_screen"]["status"] in {"candidate_flags", "screened_not_classified"}
+    assert result["element_presence"]["is_qi_strength"] is False
+    assert earth["presence_measure"] == "unweighted_presence_count"
+    assert earth["qi_strength_status"] == "not_evaluated"
 
 
 def _useful_result(
@@ -1456,6 +1803,68 @@ def _useful_result(
         relationships=relationships or {"events": []},
         timing=timing or {"luck_pillars_enabled": False},
     )
+
+
+def test_day_master_reference_is_not_companion_presence_or_candidate_qi():
+    result = _useful_result(
+        strength="weak",
+        support_score=2,
+        pressure_score=7,
+        season="Autumn",
+        month_branch="You",
+        balance={"Wood": 1, "Fire": 2, "Earth": 2, "Metal": 2, "Water": 2},
+        pillars={
+            "year": {"stem": "Geng", "stem_element": "Metal", "branch": "Shen", "branch_element": "Metal", "hidden_stems": [{"key": "Geng", "element": "Metal"}]},
+            "month": {"stem": "Ren", "stem_element": "Water", "branch": "Zi", "branch_element": "Water", "hidden_stems": [{"key": "Gui", "element": "Water"}]},
+            "day": {"stem": "Jia", "stem_element": "Wood", "branch": "Si", "branch_element": "Fire", "hidden_stems": [{"key": "Bing", "element": "Fire"}]},
+            "hour": {"stem": "Wu", "stem_element": "Earth", "branch": "Chen", "branch_element": "Earth", "hidden_stems": [{"key": "Wu", "element": "Earth"}]},
+        },
+    )
+
+    companion = next(row for row in result["favorable"] if row["role"] == "Companion")
+    companion_check = next(row for row in result["damage_assessment"] if row["role"] == "Companion")
+
+    assert companion["presence_count"] == 1
+    assert companion["candidate_presence_count"] == 0
+    assert companion["integrity"]["availability"] == "missing"
+    assert companion["integrity"]["day_master_reference_excluded"] is True
+    assert companion["integrity"]["day_master_reference_excluded_count"] == 1
+    assert companion["integrity"]["qi_strength_status"] == "not_evaluated"
+    assert companion["integrity"]["decision_authority"] == "none"
+    assert companion_check["status"] == "presence_missing"
+    assert companion_check["functional_state"] == "qi_strength_unresolved"
+    assert result["useful_god"]["decision_path"] == "yong_shen.weak_support"
+    assert "candidate_qi_strength_unresolved" in result["useful_god"]["blocking_reasons"]
+
+
+def test_count_only_dominance_cannot_change_the_yong_shen_decision_path():
+    pillars = {
+        "year": {"stem_element": "Water", "branch_element": "Water", "hidden_stems": [{"element": "Water"}]},
+        "month": {"stem_element": "Metal", "branch_element": "Metal", "hidden_stems": [{"element": "Metal"}]},
+        "day": {"stem_element": "Wood", "branch_element": "Fire", "hidden_stems": [{"element": "Fire"}]},
+        "hour": {"stem_element": "Fire", "branch_element": "Fire", "hidden_stems": [{"element": "Fire"}]},
+    }
+    distributed = _useful_result(
+        season="Unknown",
+        month_branch="Unknown",
+        balance={"Wood": 2, "Fire": 2, "Earth": 1, "Metal": 2, "Water": 2},
+        pillars=pillars,
+    )
+    count_dominant = _useful_result(
+        season="Unknown",
+        month_branch="Unknown",
+        balance={"Wood": 1, "Fire": 1, "Earth": 8, "Metal": 1, "Water": 1},
+        pillars=pillars,
+    )
+
+    assert count_dominant["special_structure_screen"]["primary_structure"]["classification"] == "suspected_presence_only"
+    assert count_dominant["special_structure_screen"]["presence_only_decision_authority"] == "none"
+    assert distributed["useful_god"]["decision_path"] == count_dominant["useful_god"]["decision_path"] == "yong_shen.strong_balancing"
+    assert distributed["useful_god"]["element"] == count_dominant["useful_god"]["element"] == "Earth"
+    assert distributed["useful_god"]["role"] == count_dominant["useful_god"]["role"] == "Wealth"
+    assert distributed["useful_god"]["blocking_reasons"] == count_dominant["useful_god"]["blocking_reasons"]
+    assert "special_structure_review_required" not in count_dominant["useful_god"]["blocking_reasons"]
+    assert "candidate_qi_strength_unresolved" in count_dominant["useful_god"]["blocking_reasons"]
 
 
 def test_narrative_only_strong_balancing_family_stays_candidate_only():
@@ -1824,7 +2233,7 @@ def test_climate_rows_requiring_page_check_cannot_be_override_candidates(monkeyp
     assert result["useful_god"]["decision_path"] != "yong_shen.climate_override"
 
 
-def test_special_structure_blocks_climate_override_finalization():
+def test_presence_only_special_structure_cannot_block_climate_review():
     pillars = {
         "year": {"stem_element": "Fire", "branch_element": "Fire", "hidden_stems": [{"element": "Fire"}]},
         "month": {"stem_element": "Fire", "branch_element": "Fire", "hidden_stems": [{"element": "Fire"}]},
@@ -1848,12 +2257,13 @@ def test_special_structure_blocks_climate_override_finalization():
 
     useful_god = result["useful_god"]
     assert useful_god["final_status"] == "withheld"
-    assert useful_god["decision_path"] == "yong_shen.special_structure_withheld"
-    assert "special_structure_review_required" in useful_god["blocking_reasons"]
+    assert useful_god["decision_path"] == "yong_shen.climate_override"
+    assert "special_structure_review_required" not in useful_god["blocking_reasons"]
+    assert "candidate_qi_strength_unresolved" in useful_god["blocking_reasons"]
     assert result["special_structure_screen"]["structure_status"] in {"classified", "suspected"}
 
 
-def test_month_command_structure_selection_identifies_standard_structure_and_damage():
+def test_month_command_structure_selection_keeps_counted_damage_as_presence_watch():
     clean = _useful_result(
         month_branch="You",
         balance={"Wood": 2, "Fire": 1, "Earth": 2, "Metal": 3, "Water": 1},
@@ -1879,9 +2289,14 @@ def test_month_command_structure_selection_identifies_standard_structure_and_dam
     assert clean["structure_selection"]["primary_structure"]["use_mode"] == "shun_yong"
     assert clean["structure_selection"]["primary_structure"]["status"] == "usable"
     assert clean["useful_god"]["evidence"]["structure_selection"]["primary_structure"]["label"] == "Direct Officer Structure"
-    assert damaged["structure_selection"]["primary_structure"]["status"] == "damaged_needs_rescue"
-    assert damaged["structure_selection"]["primary_structure"]["success_failure"] == "failure_or_lower_grade"
-    assert damaged["structure_selection"]["primary_structure"]["damage_patterns"][0]["type"] == "officer_damaged_by_output"
+    damaged_structure = damaged["structure_selection"]["primary_structure"]
+    assert damaged_structure["status"] == "usable"
+    assert damaged_structure["success_failure"] == "usable"
+    assert damaged_structure["damage_patterns"] == []
+    assert damaged_structure["damage_presence_watches"][0]["type"] == "officer_damaged_by_output"
+    assert damaged_structure["damage_presence_watches"][0]["status"] == "presence_only_unclassified"
+    assert damaged_structure["damage_presence_watches"][0]["qi_strength_status"] == "not_evaluated"
+    assert damaged_structure["ten_god_count_semantics"]["is_qi_strength"] is False
 
 
 def test_wealth_structure_does_not_count_visible_day_master_as_companion():
@@ -1906,10 +2321,13 @@ def test_wealth_structure_does_not_count_visible_day_master_as_companion():
     assert clean_structure["damage_patterns"] == []
     assert clean_structure["status"] == "usable"
     assert peer_structure["ten_god_counts"]["Rob Wealth"] >= 1
-    assert peer_structure["damage_patterns"][0]["type"] == "wealth_damaged_by_companion"
+    assert peer_structure["status"] == "usable"
+    assert peer_structure["damage_patterns"] == []
+    assert peer_structure["damage_presence_watches"][0]["type"] == "wealth_damaged_by_companion"
+    assert peer_structure["damage_presence_watches"][0]["decision_candidate"] is False
 
 
-def test_qu_zhi_is_reachable_from_emitted_strong_label_but_final_is_gated():
+def test_qu_zhi_presence_ratio_stays_unclassified_and_withheld():
     result = _useful_result(
         strength="strong",
         support_score=9,
@@ -1929,16 +2347,19 @@ def test_qu_zhi_is_reachable_from_emitted_strong_label_but_final_is_gated():
 
     assert useful_god["final_status"] == "withheld"
     assert useful_god["candidate_status"] == "candidate_preview"
-    assert useful_god["decision_path"] == "yong_shen.dominant_element"
-    assert useful_god["role"] == "qu_zhi"
-    assert useful_god["element"] == "Wood"
+    assert useful_god["decision_path"] == "yong_shen.strong_balancing"
+    assert "special_structure_review_required" not in useful_god["blocking_reasons"]
+    assert "candidate_qi_strength_unresolved" in useful_god["blocking_reasons"]
     assert structure["type"] == "qu_zhi"
-    assert structure["classification"] == "classified"
-    assert useful_god["evidence"]["fixture_gate"]["released"] is False
-    assert "family_fixture_gate_blocked" in useful_god["blocking_reasons"]
+    assert structure["classification"] == "suspected_presence_only"
+    assert structure["presence_ratio"] > 0.7
+    assert structure["ratio_measure"] == "unweighted_presence_count"
+    assert structure["qi_strength_status"] == "not_evaluated"
+    assert structure["decision_authority"] == "none"
+    assert structure["structural_conditions_met"] is True
 
 
-def test_cong_cai_follow_structure_is_classified_but_final_is_gated():
+def test_cong_cai_presence_ratio_cannot_classify_follow_structure():
     result = _useful_result(
         strength="very weak",
         support_score=1,
@@ -1948,7 +2369,7 @@ def test_cong_cai_follow_structure_is_classified_but_final_is_gated():
         balance={"Wood": 1, "Fire": 1, "Earth": 8, "Metal": 1, "Water": 0},
         pillars={
             "year": {"stem": "Wu", "stem_element": "Earth", "branch": "Chen", "branch_element": "Earth", "hidden_stems": [{"key": "Wu", "element": "Earth"}]},
-            "month": {"stem": "Ji", "stem_element": "Earth", "branch": "Xu", "branch_element": "Earth", "hidden_stems": [{"key": "Wu", "element": "Earth"}]},
+            "month": {"stem": "Wu", "stem_element": "Earth", "branch": "Xu", "branch_element": "Earth", "hidden_stems": [{"key": "Wu", "element": "Earth"}]},
             "day": {"stem": "Jia", "stem_element": "Wood", "branch": "Si", "branch_element": "Fire", "hidden_stems": [{"key": "Bing", "element": "Fire"}]},
             "hour": {"stem": "Wu", "stem_element": "Earth", "branch": "Chou", "branch_element": "Earth", "hidden_stems": [{"key": "Ji", "element": "Earth"}]},
         },
@@ -1959,12 +2380,16 @@ def test_cong_cai_follow_structure_is_classified_but_final_is_gated():
 
     assert useful_god["final_status"] == "withheld"
     assert useful_god["candidate_status"] == "candidate_preview"
-    assert useful_god["decision_path"] == "yong_shen.follow_structure"
-    assert useful_god["role"] == "cong_cai"
-    assert useful_god["element"] == "Earth"
-    assert structure["classification"] == "classified"
+    assert useful_god["decision_path"] == "yong_shen.weak_support"
+    assert "special_structure_review_required" not in useful_god["blocking_reasons"]
+    assert "candidate_qi_strength_unresolved" in useful_god["blocking_reasons"]
+    assert structure["role"] == "cong_cai"
+    assert structure["element"] == "Earth"
+    assert structure["classification"] == "suspected_presence_only"
+    assert structure["structural_conditions_met"] is True
+    assert structure["qi_strength_status"] == "not_evaluated"
+    assert structure["decision_authority"] == "none"
     assert structure["false_follow_blockers"] == []
-    assert "family_fixture_gate_blocked" in useful_god["blocking_reasons"]
 
 
 def test_false_follow_with_return_to_root_stays_withheld():
@@ -2059,7 +2484,7 @@ def test_hour_branch_secret_root_blocks_stem_transformation():
     assert "return_to_root_blocker" in structure["blockers"]
 
 
-def test_wealth_useful_god_damaged_by_companion_reroutes_to_output():
+def test_wealth_presence_count_does_not_create_damage_or_reroute():
     result = _useful_result(
         balance={"Wood": 5, "Fire": 2, "Earth": 2, "Metal": 1, "Water": 1},
         pillars={
@@ -2073,14 +2498,16 @@ def test_wealth_useful_god_damaged_by_companion_reroutes_to_output():
     useful_god = result["useful_god"]
     earth_damage = next(item for item in result["damage_assessment"] if item["element"] == "Earth")
 
-    assert earth_damage["damage_type"] == "wealth_damaged_by_companion"
-    assert earth_damage["status"] == "damaged"
+    assert earth_damage["status"] == "presence_only"
+    assert earth_damage["functional_state"] == "qi_strength_unresolved"
+    assert earth_damage["source_pattern"] is False
+    assert earth_damage["presence_damage_watch"]["watch_type"] == "wealth_damaged_by_companion"
+    assert earth_damage["presence_damage_watch"]["status"] == "presence_only_unclassified"
+    assert earth_damage["presence_damage_watch"]["qi_strength_status"] == "not_evaluated"
+    assert result["damage_summary"]["source_pattern_damaged"] == 0
     assert useful_god["final_status"] == "withheld"
     assert useful_god["candidate_status"] == "candidate_preview"
-    assert useful_god["decision_path"] == "yong_shen.damaged_alternate"
-    assert useful_god["element"] == "Fire"
-    assert useful_god["role"] == "Output"
-    assert "family_fixture_gate_blocked" in useful_god["blocking_reasons"]
+    assert useful_god["decision_path"] != "yong_shen.damaged_alternate"
 
 
 def test_suspected_dominant_element_stays_withheld_until_classified():
@@ -2097,9 +2524,10 @@ def test_suspected_dominant_element_stays_withheld_until_classified():
     useful_god = result["useful_god"]
     assert useful_god["final_status"] == "withheld"
     assert useful_god["candidate_status"] == "candidate_preview"
-    assert useful_god["decision_path"] == "yong_shen.special_structure_withheld"
-    assert "special_structure_review_required" in useful_god["blocking_reasons"]
-    assert result["special_structure_screen"]["primary_structure"]["classification"] == "suspected"
+    assert useful_god["decision_path"] == "yong_shen.strong_balancing"
+    assert "special_structure_review_required" not in useful_god["blocking_reasons"]
+    assert "candidate_qi_strength_unresolved" in useful_god["blocking_reasons"]
+    assert result["special_structure_screen"]["primary_structure"]["classification"] == "suspected_presence_only"
 
 
 def test_suspected_follow_structure_stays_withheld_until_classified():
@@ -2121,9 +2549,10 @@ def test_suspected_follow_structure_stays_withheld_until_classified():
     useful_god = result["useful_god"]
     assert useful_god["final_status"] == "withheld"
     assert useful_god["candidate_status"] == "candidate_preview"
-    assert useful_god["decision_path"] == "yong_shen.special_structure_withheld"
-    assert "special_structure_review_required" in useful_god["blocking_reasons"]
-    assert result["special_structure_screen"]["primary_structure"]["classification"] == "suspected"
+    assert useful_god["decision_path"] == "yong_shen.weak_support"
+    assert "special_structure_review_required" not in useful_god["blocking_reasons"]
+    assert "candidate_qi_strength_unresolved" in useful_god["blocking_reasons"]
+    assert result["special_structure_screen"]["primary_structure"]["classification"] == "suspected_presence_only"
 
 
 def test_failed_transformation_structure_stays_withheld():
@@ -2146,7 +2575,7 @@ def test_failed_transformation_structure_stays_withheld():
     assert result["special_structure_screen"]["primary_structure"]["month_support"] is False
 
 
-def test_generic_relationship_damage_stays_withheld_until_source_pattern():
+def test_generic_relationship_damage_does_not_promote_presence_only_alternate():
     relationships = {
         "events": [
             {
@@ -2178,11 +2607,13 @@ def test_generic_relationship_damage_stays_withheld_until_source_pattern():
     assert useful_god["final_status"] == "withheld"
     assert useful_god["candidate_status"] == "candidate_preview"
     assert useful_god["decision_path"] == "yong_shen.damage_withheld"
-    assert useful_god["element"] == "Fire"
-    assert useful_god["role"] == "Output"
+    assert useful_god["element"] == "Earth"
+    assert useful_god["role"] == "Wealth"
     assert useful_god["evidence"]["damage"]["status"] == "damaged"
     assert useful_god["evidence"]["fixture_gate"]["released"] is False
     assert "damage_pattern_not_source_backed" in useful_god["blocking_reasons"]
+    assert "primary_candidate_damaged" in useful_god["blocking_reasons"]
+    assert "candidate_qi_strength_unresolved" in useful_god["blocking_reasons"]
 
 
 def test_timing_assisted_family_remains_visible_but_blocked_from_final_yong_shen():
@@ -2246,6 +2677,10 @@ def test_ten_god_profile_summarizes_five_factor_visibility_and_favorability():
     assert "favorable-element direction" in wealth["summary"]
     assert resource["favorability"] == "caution"
     assert resource["functional_status"] == "caution"
+    assert wealth["layer_label"] == "visible and hidden"
+    assert resource["layer_label"] == "hidden-stem placement"
+    assert "rooted" not in resource["summary"]
+    assert any("hidden-count presence alone does not establish rooted qi" in note for note in result["notes"])
     assert all("not counted as a separate visible Ten God" not in item for item in result["notes"])
     assert all("quantity is evidence, not a prediction" not in item for item in result["notes"])
     assert result["source_basis"][0]["id"] == "local.destiny_code_five_factors"
@@ -2486,7 +2921,58 @@ def test_chinese_astrology_bazi_route_handles_unknown_birth_time():
     data = payload["data"]
     assert data["birth"]["time_precision"] == "unknown"
     assert data["pillars"]["hour"] is None
+    assert data["uncertainty"]["birth_time"]["status"] == "stable"
+    assert data["uncertainty"]["birth_time"]["method"] == "unknown_local_civil_day_solar_term_candidates_v1"
     assert any("Birth time is unknown" in item for item in data["debug"]["warnings"])
+
+
+def test_chinese_astrology_bazi_route_exposes_unknown_time_boundary_candidates_and_withholding():
+    client = app_module.app.test_client()
+
+    response = client.post(
+        "/api/astro-clock/chinese-astrology/bazi",
+        json={"date": "2000-02-04", "timezone": "Asia/Shanghai"},
+    )
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert payload["success"] is True
+    data = payload["data"]
+    uncertainty = data["uncertainty"]["birth_time"]
+    assert uncertainty["status"] == "uncertain"
+    assert uncertainty["affected_pillars"] == ["year", "month"]
+    assert len(uncertainty["candidates"]) == 2
+    assert data["pillars"]["year"] is None
+    assert data["pillars"]["month"] is None
+    assert data["analysis"]["status"] == "withheld"
+    assert data["useful_elements"]["status"] == "withheld"
+    assert data["relationships"]["status"] == "withheld"
+    assert data["life_areas"]["status"] == "withheld"
+    assert data["interpretation"]["status"] == "withheld"
+    assert data["timing"]["status"] == "withheld"
+    assert data["luck_pillars"] == []
+
+
+def test_chinese_astrology_bazi_route_returns_structured_503_when_solar_terms_are_unavailable(monkeypatch):
+    client = app_module.app.test_client()
+    bazi_module._term_crossing_utc.cache_clear()
+    monkeypatch.setattr(bazi_module, "swe", None)
+
+    response = client.post(
+        "/api/astro-clock/chinese-astrology/bazi",
+        json={"date": "2000-01-01", "time": "12:00", "timezone": "UTC"},
+    )
+    payload = response.get_json()
+
+    assert response.status_code == 503
+    assert payload["success"] is False
+    assert payload["error"] == "solar_term_calculation_unavailable"
+    assert payload["calculation_error"]["status"] == "unavailable"
+    assert payload["calculation_error"]["source"] == "swiss_ephemeris"
+    assert payload["calculation_error"]["method"] == "swiss_ephemeris_solar_longitude_bisection_v1"
+    assert payload["calculation_error"]["tolerance_seconds"] == 1.0
+    assert payload["calculation_error"]["retryable"] is True
+    bazi_module._term_crossing_utc.cache_clear()
 
 
 def test_chinese_astrology_bazi_route_returns_luck_pillars_when_requested():

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, Compass, Copy, Download, History, RotateCcw, Save, Trash2 } from 'lucide-react';
 import { AstroClockAPI } from './api.mjs';
 
@@ -271,6 +271,84 @@ function snapHasLongitude(snap) {
   return value !== '' && Number.isFinite(Number(value));
 }
 
+function profileBoundaryUncertainty(profile) {
+  if (!profile || typeof profile !== 'object') return null;
+  const birthTime = profile.uncertainty?.birth_time || profile.debug?.birth_time_uncertainty || null;
+  const uncertain = profile.calculation_status === 'uncertain_birth_time_boundary'
+    || birthTime?.status === 'uncertain';
+  if (!uncertain) return null;
+  return {
+    status: 'uncertain_birth_time_boundary',
+    reasonCode: birthTime?.downstream?.reason_code || 'unknown_birth_time_solar_term_boundary',
+    affectedPillars: Array.isArray(birthTime?.affected_pillars) ? birthTime.affected_pillars : [],
+    candidates: Array.isArray(birthTime?.candidates) ? birthTime.candidates : [],
+    boundaries: Array.isArray(birthTime?.boundaries) ? birthTime.boundaries : [],
+    withheldSections: Array.isArray(birthTime?.downstream?.withheld_sections)
+      ? birthTime.downstream.withheld_sections
+      : (Array.isArray(profile.withheld_outputs) ? profile.withheld_outputs : []),
+  };
+}
+
+function formatChineseAstrologyError(error, fallback) {
+  const payload = error?.payload || {};
+  const calculationError = payload?.calculation_error || {};
+  const code = firstPresent(calculationError?.code, payload?.error);
+  const detail = firstPresent(error?.detail, payload?.detail, calculationError?.message, error?.message, fallback);
+  if (code && detail && code !== detail) return `${detail} (${code})`;
+  return detail || code || fallback;
+}
+
+function compatibilityBoundaryUncertainty(report, profiles) {
+  const reportAffected = Array.isArray(report?.ambiguity?.affected_subjects)
+    ? report.ambiguity.affected_subjects
+    : [];
+  const derivedAffected = ['primary', 'relationship']
+    .map((subject) => {
+      const state = profileBoundaryUncertainty(profiles?.[subject]);
+      return state ? {
+        subject,
+        subject_label: subject === 'primary' ? 'Primary chart' : 'Relationship chart',
+        birth_time: {
+          reason_code: state.reasonCode,
+          affected_pillars: state.affectedPillars,
+          candidates: state.candidates,
+          withheld_sections: state.withheldSections,
+        },
+      } : null;
+    })
+    .filter(Boolean);
+  const reasonCode = firstPresent(report?.reason_code, report?.ambiguity?.reason_code);
+  const reportSignalsBoundary = report?.status === 'withheld'
+    && /birth.?time|boundary/i.test(`${reasonCode || ''} ${report?.ambiguity?.status || ''}`);
+  if (!reportAffected.length && !derivedAffected.length && !reportSignalsBoundary) return null;
+  return {
+    reasonCode: reasonCode || 'unknown_birth_time_solar_term_boundary',
+    affectedSubjects: reportAffected.length ? reportAffected : derivedAffected,
+  };
+}
+
+function readingBoundaryUncertainty(profile, compatibilityReport, compatibilityProfiles) {
+  const primary = profileBoundaryUncertainty(profile);
+  const compatibility = compatibilityBoundaryUncertainty(compatibilityReport, compatibilityProfiles);
+  if (!primary && !compatibility) return null;
+  const compatibilityPillars = (compatibility?.affectedSubjects || [])
+    .flatMap((subject) => subject?.birth_time?.affected_pillars || []);
+  return {
+    label: 'birth-time-boundary-unresolved',
+    reasonCode: primary?.reasonCode || compatibility?.reasonCode || 'unknown_birth_time_solar_term_boundary',
+    affectedPillars: primary?.affectedPillars?.length
+      ? primary.affectedPillars
+      : [...new Set(compatibilityPillars)],
+    withheldSections: primary?.withheldSections || [],
+    primary,
+    compatibility,
+  };
+}
+
+function ambiguityExportLabel(profile, compatibilityReport, compatibilityProfiles) {
+  return readingBoundaryUncertainty(profile, compatibilityReport, compatibilityProfiles)?.label || null;
+}
+
 function buildReadingText(data, compatibilityReport) {
   if (!data) return '';
   const lines = [];
@@ -281,6 +359,18 @@ function buildReadingText(data, compatibilityReport) {
   const dayMaster = data.day_master || {};
   if (dayMaster.stem || dayMaster.element) {
     lines.push(`Day Master: ${[dayMaster.stem, dayMaster.polarity, dayMaster.element].filter(Boolean).join(' / ')}`);
+  }
+  const boundaryState = profileBoundaryUncertainty(data);
+  if (boundaryState) {
+    lines.push('Calculation status: birth-time boundary unresolved');
+    lines.push(`Affected pillars: ${boundaryState.affectedPillars.join(', ') || 'year/month'}`);
+    lines.push('Dependent interpretation, element, role, relationship, and timing sections are held back until the birth time is narrowed.');
+    boundaryState.candidates.forEach((candidate) => {
+      const year = candidate?.pillars?.year || {};
+      const month = candidate?.pillars?.month || {};
+      lines.push(`${ruleTokenLabel(candidate?.position || candidate?.id)}: Year ${year.stem || '-'} ${year.branch || '-'} / Month ${month.stem || '-'} ${month.branch || '-'}`);
+    });
+    return lines.join('\n');
   }
   if (data.interpretation?.summary) lines.push(`Summary: ${data.interpretation.summary}`);
   const sections = Array.isArray(data.interpretation?.sections) ? data.interpretation.sections : [];
@@ -293,9 +383,16 @@ function buildReadingText(data, compatibilityReport) {
     lines.push('');
     lines.push(`Useful Elements: ${data.useful_elements.status} / confidence ${data.useful_elements.confidence || 'low'}`);
   }
-  if (compatibilityReport?.scoring) {
+  if (compatibilityReport?.status === 'withheld') {
     lines.push('');
-    lines.push(`Experimental Pair Evidence Index: ${compatibilityReport.scoring.score}/100 / uncalibrated model band ${compatibilityReport.scoring.grade_label || '-'} / confidence ${compatibilityReport.scoring.confidence || 'low'}`);
+    lines.push(`Pair doctrine withheld: ${compatibilityReport.reason || compatibilityReport.ambiguity?.message || 'A birth-time boundary is unresolved.'}`);
+  } else if (compatibilityReport?.doctrine) {
+    lines.push('');
+    lines.push(`Pair evidence doctrine: ${compatibilityReport.doctrine.context_profile?.label || 'General'} / qualitative evidence only`);
+    if (compatibilityReport.doctrine.synthesis?.headline) {
+      lines.push(`Pair reading focus: ${compatibilityReport.doctrine.synthesis.headline}`);
+    }
+    lines.push('No aggregate compatibility score, grade, or relationship prediction is produced.');
   }
   return lines.join('\n');
 }
@@ -352,13 +449,25 @@ function saveReadingSnapshot(payload) {
   try {
     const current = JSON.parse(window.localStorage.getItem(SAVED_READINGS_KEY) || '[]');
     const rows = Array.isArray(current) ? current : [];
+    const ambiguityState = readingBoundaryUncertainty(
+      payload.profile,
+      payload.compatibility,
+      payload.compatibility_profiles,
+    );
+    const ambiguityLabel = ambiguityState?.label || null;
     const next = [
       {
         id: `chinese-${Date.now()}`,
         saved_at: new Date().toISOString(),
         snap_label: payload.profile.snap_label || payload.profile.source_snap_id || 'Chinese Astrology profile',
         day_master: payload.profile.day_master || null,
-        summary: payload.profile.interpretation?.summary || '',
+        calculation_status: ambiguityLabel
+          ? 'uncertain_birth_time_boundary'
+          : (payload.profile.calculation_status || 'complete'),
+        ambiguity_label: ambiguityLabel,
+        summary: ambiguityLabel
+          ? 'At least one birth time crosses a solar-term boundary; dependent sections are held back.'
+          : (payload.profile.interpretation?.summary || ''),
         payload,
       },
       ...rows,
@@ -704,6 +813,104 @@ function StatePanel({ title, body, tone = 'zinc' }) {
   );
 }
 
+function CalculationStatusBanner({ state }) {
+  if (!state) return null;
+  const affected = state.affectedPillars.length
+    ? state.affectedPillars.map((pillar) => `${ruleTokenLabel(pillar)} Pillar`).join(' and ')
+    : 'Year or Month Pillar';
+  const boundaryNames = state.boundaries
+    .map((boundary) => boundary?.name || boundary?.key)
+    .filter(Boolean);
+  const candidateLabel = state.candidates.length
+    ? `${state.candidates.length} candidate${state.candidates.length === 1 ? '' : 's'}`
+    : 'Candidates unavailable';
+  return (
+    <div className="rounded-sm border border-amber-300 bg-amber-50 px-4 py-4" role="status">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <Micro className="text-amber-800">Birth-time boundary unresolved</Micro>
+          <div className="mt-2 text-base font-semibold text-amber-950">
+            The unknown birth hour crosses a solar-term boundary.
+          </div>
+          <p className="mt-1 max-w-3xl text-sm leading-relaxed text-amber-900">
+            {affected} changes during this local date. The stable Day Pillar and the before/after candidates remain visible,
+            while dependent interpretation, element, role, relationship, and timing are held back. Any saved or exported copy is marked unresolved.
+          </p>
+          {boundaryNames.length ? (
+            <div className="mt-2 text-[12px] text-amber-800">Boundary: {boundaryNames.join(' / ')}</div>
+          ) : null}
+        </div>
+        <span className="shrink-0 rounded-full border border-amber-300 bg-white px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-800" style={monoStyle}>
+          {candidateLabel}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function BoundaryCandidateChart({ data, state }) {
+  const day = data?.pillars?.day || data?.day_master?.pillar || {};
+  const candidates = state?.candidates || [];
+  return (
+    <div className="grid gap-5 lg:grid-cols-[minmax(240px,0.7fr)_minmax(0,1.3fr)]">
+      <div className="rounded-sm border border-teal-200 bg-teal-50/60 p-5">
+        <Micro className="text-teal-700">Stable Day Pillar</Micro>
+        <div className="mt-4 space-y-2 text-base">
+          <div><StemValue stem={day.stem} element={day.stem_element} /></div>
+          <div><BranchValue branch={day.branch} animal={day.animal} element={day.branch_element} /></div>
+        </div>
+        <p className="mt-4 text-[12px] leading-relaxed text-zinc-600">
+          This pillar does not change across the returned birth-time candidates.
+        </p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {candidates.map((candidate, index) => {
+          const year = candidate?.pillars?.year || {};
+          const month = candidate?.pillars?.month || {};
+          return (
+            <div key={candidate?.id || index} className="rounded-sm border border-zinc-200 bg-white p-4">
+              <Micro>{ruleTokenLabel(candidate?.position || `candidate_${index + 1}`)}</Micro>
+              <div className="mt-3 space-y-3">
+                <div className="border-b border-zinc-100 pb-3">
+                  <div className="text-[11px] uppercase tracking-[0.1em] text-zinc-400">Year candidate</div>
+                  <div className="mt-1 flex flex-wrap gap-3 text-sm">
+                    <StemValue stem={year.stem} element={year.stem_element} compact />
+                    <BranchValue branch={year.branch} animal={year.animal} element={year.branch_element} compact />
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[11px] uppercase tracking-[0.1em] text-zinc-400">Month candidate</div>
+                  <div className="mt-1 flex flex-wrap gap-3 text-sm">
+                    <StemValue stem={month.stem} element={month.stem_element} compact />
+                    <BranchValue branch={month.branch} animal={month.animal} element={month.branch_element} compact />
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        {!candidates.length ? (
+          <div className="rounded-sm border border-zinc-200 bg-zinc-50 p-4 text-sm leading-relaxed text-zinc-600 sm:col-span-2">
+            Candidate pillars were not returned. Narrow the birth time and calculate again.
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function WithheldCalculationPanel({ activeTab, state }) {
+  const tabLabel = TAB_CONFIG.find(([id]) => id === activeTab)?.[1] || 'This section';
+  const affected = state?.affectedPillars?.map((pillar) => ruleTokenLabel(pillar)).join(' and ') || 'Year or Month';
+  return (
+    <StatePanel
+      tone="warn"
+      title={`${tabLabel} is held back`}
+      body={`${affected} Pillar candidates differ across the unknown birth-time interval. Narrow the birth time, then recalculate before reading this dependent section.`}
+    />
+  );
+}
+
 function InputPromptStrip({ prompts }) {
   const items = Array.isArray(prompts) ? prompts.filter((item) => item?.message) : [];
   if (!items.length) return null;
@@ -758,7 +965,12 @@ function ReadingHistoryPanel({ rows, onLoad, onClear }) {
             const savedLabel = savedAt && !Number.isNaN(savedAt.getTime())
               ? savedAt.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
               : 'Saved reading';
-            const pairScore = row.payload?.compatibility?.scoring?.score;
+            const pairContext = row.payload?.compatibility?.doctrine?.context_profile?.label;
+            const ambiguityLabel = row.ambiguity_label || ambiguityExportLabel(
+              row.payload?.profile,
+              row.payload?.compatibility,
+              row.payload?.compatibility_profiles,
+            );
             return (
               <div key={row.id} className="rounded-sm border border-zinc-200 bg-white px-4 py-3">
                 <div className="flex min-w-0 items-start justify-between gap-3">
@@ -766,7 +978,8 @@ function ReadingHistoryPanel({ rows, onLoad, onClear }) {
                     <div className="truncate text-sm font-semibold text-zinc-900">{row.snap_label || 'Chinese Astrology profile'}</div>
                     <div className="mt-1 text-[12px] text-zinc-500">
                       {savedLabel} / {dayMaster.stem || '-'} {dayMaster.element || ''}
-                      {Number.isFinite(Number(pairScore)) ? ` / experimental pair index ${pairScore}` : ''}
+                      {ambiguityLabel ? ' / boundary unresolved' : ''}
+                      {!ambiguityLabel && pairContext ? ` / ${pairContext} pair doctrine` : ''}
                     </div>
                   </div>
                   <button
@@ -1002,7 +1215,7 @@ function StrengthModelEvidence({ model }) {
 }
 
 function ElementBalance({ balance }) {
-  const total = balance?.total || {};
+  const total = balance?.counts || balance?.total || {};
   const max = Math.max(1, ...ELEMENTS.map((element) => Number(total[element] || 0)));
   return (
     <div className="rounded-sm border border-zinc-200 bg-white p-5">
@@ -1199,34 +1412,85 @@ function PairCompatibilityPanel({ report, loading, error }) {
   const exchange = report?.day_master_exchange || {};
   const timing = report?.timing_alignment || {};
   const interpretation = report?.interpretation || {};
-  const judgement = report?.judgement || {};
-  const judgementOrder = Array.isArray(judgement?.evidence_order) ? judgement.evidence_order : [];
-  const scoring = report?.scoring || {};
+  const doctrine = report?.doctrine || {};
+  const layers = doctrine?.layers || {};
+  const evidenceOrder = Array.isArray(doctrine?.evidence_order) ? doctrine.evidence_order : [];
+  const conditionalEvidence = Array.isArray(doctrine?.conditional_evidence) ? doctrine.conditional_evidence : [];
+  const spousePalace = layers?.natal_spouse_palace || {};
+  const spouseStar = layers?.natal_spouse_star || {};
+  const elementComparison = layers?.useful_element_comparison || {};
+  const overlay = layers?.cross_chart_overlay || {};
   const subjects = report?.subjects || {};
   const primary = subjects.primary || {};
   const relationship = subjects.relationship || {};
   const topEvents = events.slice(0, 6);
+  const contextLabel = doctrine?.context_profile?.label || ruleTokenLabel(report?.relationship_context || 'general');
+  const natalLayerCount = [spousePalace, spouseStar].filter((layer) => layer?.status && layer.status !== 'unavailable').length;
+  const withheld = report?.status === 'withheld';
+  const affectedSubjects = Array.isArray(report?.ambiguity?.affected_subjects)
+    ? report.ambiguity.affected_subjects
+    : [];
 
   return (
     <MemoSection
       number="VIII-A"
       title="Pair Compatibility"
-      subtitle="Two saved snaps are compared through an experimental cross-chart evidence model. It is not a classical compatibility verdict or an outcome prediction."
+      subtitle="Source-curated natal relationship evidence is kept separate for each person. Directional comparisons and cross-chart contacts do not produce a compatibility verdict."
     >
-      {loading ? <StatePanel title="Comparing saved snaps" body="Cross-chart relationship contacts are being calculated from the two selected BaZi charts." /> : null}
+      {loading ? <StatePanel title="Comparing saved snaps" body="The two natal contexts and their qualitative comparison layers are being prepared." /> : null}
       {!loading && error ? <div className="rounded-sm border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div> : null}
       {!loading && !error && !report ? <div className="text-sm text-zinc-500">Select a second saved snap to compare the pair.</div> : null}
-      {!loading && !error && report ? (
+      {!loading && !error && withheld ? (
+        <div className="rounded-sm border border-amber-300 bg-amber-50 px-5 py-5" role="status">
+          <Micro className="text-amber-800">Pair doctrine held back</Micro>
+          <div className="mt-2 text-lg font-semibold text-amber-950">
+            Resolve the birth-time boundary before comparing these charts.
+          </div>
+          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-amber-900">
+            {report?.ambiguity?.message || report?.reason || 'At least one subject has Year or Month Pillar candidates that change during the recorded birth-time interval.'}
+          </p>
+          {affectedSubjects.length ? (
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {affectedSubjects.map((subject) => {
+                const returnedCandidateCount = Array.isArray(subject.birth_time?.candidates)
+                  ? subject.birth_time.candidates.length
+                  : 0;
+                const declaredCandidateCount = Number(subject.birth_time?.candidate_count);
+                const candidateCount = returnedCandidateCount
+                  || (Number.isFinite(declaredCandidateCount) && declaredCandidateCount > 0 ? declaredCandidateCount : 0);
+                return (
+                  <div key={subject.subject} className="rounded-sm border border-amber-200 bg-white px-3 py-3 text-sm text-zinc-700">
+                    <div className="font-semibold text-zinc-900">{subject.subject_label || ruleTokenLabel(subject.subject)}</div>
+                    <div className="mt-1 text-[12px] text-zinc-600">
+                      Affected pillars: {(subject.birth_time?.affected_pillars || []).map((pillar) => ruleTokenLabel(pillar)).join(' / ') || 'Year / Month'}
+                    </div>
+                    <div className="mt-1 text-[12px] text-zinc-500">
+                      {candidateCount
+                        ? `${candidateCount} birth-time candidate${candidateCount === 1 ? '' : 's'}`
+                        : 'Birth-time candidate count unavailable'}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
+          <div className="mt-4 text-[12px] leading-relaxed text-amber-800">
+            No doctrine, aggregate score, judgement, or cross-chart overlay is rendered while this boundary is unresolved.
+          </div>
+        </div>
+      ) : null}
+      {!loading && !error && report && !withheld ? (
         <div className="space-y-6">
           <div className="flex flex-wrap items-center gap-2">
-            <ProvisionalBadge>Experimental Evidence Index</ProvisionalBadge>
+            <ProvisionalBadge>Curated Evidence Doctrine</ProvisionalBadge>
+            <Pill>Qualitative only</Pill>
           </div>
           <div className="grid gap-5 border-b border-zinc-200 pb-5 md:grid-cols-6">
-            <RelationshipStat label="Index / 100" value={Number.isFinite(Number(scoring.score)) ? scoring.score : '-'} />
-            <RelationshipStat label="Confidence" value={formatRelationshipStatus(scoring.confidence || 'low')} />
-            <RelationshipStat label="Context" value={scoring.relationship_context_label || 'General'} />
-            <RelationshipStat label="Supportive" value={summary.supportive || 0} />
-            <RelationshipStat label="Challenging" value={summary.challenging || 0} />
+            <RelationshipStat label="Context" value={contextLabel} />
+            <RelationshipStat label="Aggregate" value="None" />
+            <RelationshipStat label="Natal Layers" value={natalLayerCount} />
+            <RelationshipStat label="Combination Contacts" value={summary.combination_contacts || 0} />
+            <RelationshipStat label="Pressure Contacts" value={summary.pressure_contacts || 0} />
             <RelationshipStat label="Partner Palace" value={(summary.day_partner_palace || 0) + (summary.partner_palace_contact || 0)} />
           </div>
 
@@ -1240,45 +1504,90 @@ function PairCompatibilityPanel({ report, loading, error }) {
                 {interpretation.highlights.map((item) => <div key={item}>{item}</div>)}
               </div>
             ) : null}
-            {scoring.grade_label ? (
-              <div className="mt-3 text-[12px] text-zinc-500">
-                Uncalibrated index {scoring.score ?? '-'} / 100 / model band {scoring.grade_label} / {scoring.relationship_context_label || 'General'} context
-                {` / confidence ${formatRelationshipStatus(scoring.confidence || 'low')}`}
-              </div>
-            ) : null}
+            <div className="mt-3 text-[12px] leading-relaxed text-zinc-500">
+              Evidence is ordered by context. No score, grade, band, probability, or pair outcome is calculated.
+            </div>
           </div>
 
-          {judgementOrder.length ? (
+          {evidenceOrder.length || conditionalEvidence.length ? (
             <div className="rounded-sm border border-zinc-200 bg-white p-4">
-              <Micro>BaZi Relationship Judgement</Micro>
+              <Micro>Evidence Reading Order</Micro>
               <div className="mt-3 grid gap-3 md:grid-cols-3">
-                {judgementOrder.map((item) => (
+                {[...evidenceOrder, ...conditionalEvidence].map((item) => (
                   <div key={item.key} className="rounded-sm border border-zinc-100 bg-zinc-50 px-3 py-2">
                     <div className="text-[11px] uppercase tracking-[0.12em] text-zinc-500" style={monoStyle}>{item.label || ruleTokenLabel(item.key)}</div>
                     <div className="mt-1 text-sm font-semibold text-zinc-900">{ruleTokenLabel(item.status || '-')}</div>
+                    <div className="mt-1 text-[11px] text-zinc-500">{ruleTokenLabel(item.applicability || 'primary')}</div>
                   </div>
                 ))}
               </div>
-              {judgement?.timing_activation?.summary ? (
-                <div className="mt-3 text-[12px] leading-relaxed text-zinc-500">{judgement.timing_activation.summary}</div>
-              ) : null}
-              {Array.isArray(judgement?.spouse_star?.directions) && judgement.spouse_star.directions.length ? (
-                <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  {judgement.spouse_star.directions.map((row) => (
-                    <div key={row.direction} className="rounded-sm border border-zinc-100 bg-white px-3 py-2 text-[12px] leading-relaxed text-zinc-600">
-                      <div className="font-semibold text-zinc-900">{ruleTokenLabel(row.direction)}</div>
-                      <div>{ruleTokenLabel(row.sex_based_role || 'unknown')} / {row.factor || '-'}</div>
-                      <div className="text-zinc-500">
-                        Natal {ruleTokenLabel(row.natal_condition?.status || 'unknown')} / cross-chart {ruleTokenLabel(row.cross_chart_supply?.status || 'quiet')}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
             </div>
           ) : null}
 
-          <ScoreBreakdown scoring={scoring} />
+          {spousePalace?.subjects ? (
+            <div>
+              <Micro>Natal Spouse Palaces</Micro>
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                {Object.entries(spousePalace.subjects).map(([key, row]) => (
+                  <div key={key} className="rounded-sm border border-zinc-200 bg-white p-4">
+                    <div className="text-sm font-semibold text-zinc-900">{row?.subject_label || ruleTokenLabel(key)}</div>
+                    <div className="mt-2 text-[12px] text-zinc-600">
+                      Day branch {row?.palace?.branch || '-'} / {row?.palace?.animal || '-'} / {row?.palace?.branch_element || '-'}
+                    </div>
+                    <div className="mt-2 text-[12px] text-zinc-500">
+                      Element context: {ruleTokenLabel(row?.element_context?.candidate_role || 'unresolved')}
+                    </div>
+                    {row?.summary ? <p className="mt-3 text-[12px] leading-relaxed text-zinc-600">{row.summary}</p> : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {Array.isArray(spouseStar?.directions) && spouseStar.directions.length ? (
+            <div>
+              <Micro>Natal Spouse-Star Context</Micro>
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                {spouseStar.directions.map((row) => (
+                  <div key={row.direction} className="rounded-sm border border-zinc-200 bg-white p-4 text-[12px] leading-relaxed text-zinc-600">
+                    <div className="font-semibold text-zinc-900">{ruleTokenLabel(row.direction)}</div>
+                    <div className="mt-1">{ruleTokenLabel(row.sex_based_role || 'unknown')} / {row.factor || '-'}</div>
+                    <div className="mt-2 text-zinc-500">
+                      Natal condition: {ruleTokenLabel(row.natal_condition?.status || 'unknown')}
+                      {row.natal_condition?.element ? ` / ${row.natal_condition.element}` : ''}
+                    </div>
+                    <div className="mt-2 border-l border-zinc-200 pl-3 text-zinc-500">
+                      Compared chart: {row.compared_chart_element_presence?.presence_count || 0} unweighted presence mention(s).
+                      This is not qi strength or supply.
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {elementComparison?.directions ? (
+            <div className="rounded-sm border border-zinc-200 bg-white p-4">
+              <Micro>Directional Element-Presence Context</Micro>
+              <p className="mt-2 text-[12px] leading-relaxed text-zinc-600">{elementComparison.summary}</p>
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                {Object.entries(elementComparison.directions).map(([key, row]) => {
+                  const favorable = Array.isArray(row?.favorable_candidate_matches) ? row.favorable_candidate_matches : [];
+                  const unfavorable = Array.isArray(row?.unfavorable_candidate_matches) ? row.unfavorable_candidate_matches : [];
+                  return (
+                    <div key={key} className="rounded-sm border border-zinc-100 bg-zinc-50 px-3 py-3">
+                      <div className="text-sm font-semibold text-zinc-900">{ruleTokenLabel(key)}</div>
+                      <div className="mt-2 text-[12px] text-zinc-600">
+                        Candidate matches: {favorable.length} favorable / {unfavorable.length} unfavorable
+                      </div>
+                      <div className="mt-1 text-[11px] text-zinc-500">Unweighted presence only / outcome authority none</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+
           <div className="grid gap-4 lg:grid-cols-2">
             <TimingAlignmentCard title="Primary Timing" profile={timing.primary} />
             <TimingAlignmentCard title="Relationship Timing" profile={timing.relationship} />
@@ -1311,9 +1620,10 @@ function PairCompatibilityPanel({ report, loading, error }) {
             </div>
 
             <div className="rounded-sm border border-zinc-200 bg-white p-4">
-              <Micro>Pair Notes</Micro>
+              <Micro>Doctrine Limits</Micro>
               <div className="mt-3 space-y-2 text-sm leading-relaxed text-zinc-600">
                 {(Array.isArray(report.notes) ? report.notes : []).map((note) => <div key={note}>{note}</div>)}
+                {overlay?.limitation ? <div className="border-l border-amber-300 pl-3">{overlay.limitation}</div> : null}
               </div>
             </div>
           </div>
@@ -1323,7 +1633,7 @@ function PairCompatibilityPanel({ report, loading, error }) {
               {topEvents.map((event) => <RelationshipCard key={event.id || `${event.type}-${event.label}`} event={event} />)}
             </div>
           ) : (
-            <EmptyPanel title="No cross-chart relationship contacts detected." body="The pair report did not find configured stem or branch contacts between the two selected charts." />
+            <EmptyPanel title="No cross-chart contacts in the comparison overlay." body="This does not imply either compatibility or incompatibility; natal and timing evidence remains individual." />
           )}
 
         </div>
@@ -1473,45 +1783,6 @@ function RelationshipCodesPanel({ relationships, number = 'VIII' }) {
   );
 }
 
-function ScoreBreakdown({ scoring }) {
-  const components = Array.isArray(scoring?.components) ? scoring.components : [];
-  if (!components.length) return null;
-  return (
-    <div>
-      <div className="mb-3 text-[12px] leading-relaxed text-zinc-500">
-        Component deltas and context weights are product-defined and uncalibrated; inspect them as comparative evidence, not predicted relationship quality.
-      </div>
-      <div className="grid gap-3 lg:grid-cols-5">
-        {components.map((component) => (
-          <div key={component.key || component.label} className="rounded-sm border border-zinc-200 bg-white p-3">
-            <Micro>{component.label || component.key}</Micro>
-            <div className={`mt-2 text-[1.4rem] font-medium leading-none tracking-[-0.05em] ${Number(component.delta || 0) < 0 ? 'text-rose-700' : Number(component.delta || 0) > 0 ? 'text-teal-700' : 'text-zinc-900'}`} style={serifStyle}>
-              {formatSignedDelta(component.delta)}
-            </div>
-            <div className="mt-2 text-[12px] leading-relaxed text-zinc-500">{component.summary || ''}</div>
-            {Number.isFinite(Number(component.weight)) && Number(component.weight) !== 1 ? (
-              <div className="mt-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-400" style={monoStyle}>
-                raw {formatSignedDelta(component.raw_delta)} / product weight {component.weight}
-              </div>
-            ) : null}
-            {component.confidence ? (
-              <div className="mt-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-400" style={monoStyle}>
-                confidence {component.confidence}
-              </div>
-            ) : null}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function formatSignedDelta(value) {
-  const numeric = Number(value || 0);
-  if (!Number.isFinite(numeric) || numeric === 0) return '0';
-  return numeric > 0 ? `+${Math.round(numeric)}` : String(Math.round(numeric));
-}
-
 function TimingAlignmentCard({ title, profile }) {
   const spouse = profile?.spouse_palace || {};
   const counts = profile?.counts || {};
@@ -1641,18 +1912,18 @@ function relationshipTone(type) {
 }
 
 function elementTotals(balance) {
-  const raw = balance?.total || balance?.counts || {};
+  const raw = balance?.counts || balance?.total || {};
   return ELEMENTS.reduce((acc, element) => {
     acc[element] = Number(raw[element] || 0);
     return acc;
   }, {});
 }
 
-function rankedElements(balance, strongest = true) {
+function rankedElements(balance, mostFirst = true) {
   const totals = elementTotals(balance);
   return ELEMENTS
     .map((element) => ({ element, count: totals[element] || 0 }))
-    .sort((a, b) => strongest ? (b.count - a.count || a.element.localeCompare(b.element)) : (a.count - b.count || a.element.localeCompare(b.element)));
+    .sort((a, b) => mostFirst ? (b.count - a.count || a.element.localeCompare(b.element)) : (a.count - b.count || a.element.localeCompare(b.element)));
 }
 
 function formatElementRank(rows, fallback = '-') {
@@ -1722,8 +1993,8 @@ function OverviewSignals({ data }) {
   const model = analysis?.strength_model || {};
   const season = model?.season || {};
   const root = model?.root || {};
-  const strongest = rankedElements(data?.element_balance, true);
-  const weakest = rankedElements(data?.element_balance, false);
+  const mostMentioned = rankedElements(data?.element_presence || data?.element_balance, true);
+  const leastMentioned = rankedElements(data?.element_presence || data?.element_balance, false);
   const useful = overviewUsefulStatus(data?.useful_elements || {});
   const timing = overviewTimingStatus(data?.timing || {});
   const relationships = data?.relationships || {};
@@ -1742,9 +2013,9 @@ function OverviewSignals({ data }) {
         detail={`Month ${data?.pillars?.month?.branch || '-'} / ${season.state || 'season pending'} / root ${root.score ?? '-'}`}
       />
       <OverviewSignalCard
-        label="Element Spread"
-        value={formatElementRank(strongest)}
-        detail={`Lightest: ${formatElementRank(weakest)}`}
+        label="Element Presence"
+        value={`Most mentioned: ${formatElementRank(mostMentioned)}`}
+        detail={`Least mentioned: ${formatElementRank(leastMentioned)}. Inventory only; these counts are not qi strength.`}
       />
       <OverviewSignalCard
         label="Helpful Element Gate"
@@ -2349,7 +2620,7 @@ function UsefulElementsPanel({ recommendations }) {
     <MemoSection
       number="V"
       title="Useful Elements"
-      subtitle="Helpful elements are organized as a decision path through strength, climate, structure, damage, and timing."
+      subtitle="Helpful roles are reviewed through strength, climate, structure, damage, and timing; placement counts remain inventory and do not establish candidate qi."
     >
       <div className="mb-5 flex flex-wrap items-center gap-2">
         <ProvisionalBadge>{recommendations?.status === 'withheld' ? 'Withheld' : 'Decision Path'}</ProvisionalBadge>
@@ -2384,7 +2655,7 @@ function UsefulElementsPanel({ recommendations }) {
           ) : null}
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             <TimingMetric label="Damaged" value={damageSummary?.damaged ?? 0} />
-            <TimingMetric label="Absent" value={damageSummary?.absent ?? 0} />
+            <TimingMetric label="Not found" value={damageSummary?.presence_missing ?? damageSummary?.absent ?? 0} />
             <TimingMetric label="Checked" value={damageSummary?.checked ?? 0} />
           </div>
           <div className="mt-4">
@@ -2403,7 +2674,7 @@ function UsefulElementsPanel({ recommendations }) {
                 <div key={`${row.element}-${row.function}`} className="border-b border-zinc-100 pb-3 last:border-0 last:pb-0">
                   <div className="flex items-center justify-between gap-3">
                     <div className="text-sm font-semibold text-zinc-900">{row.stem ? `${row.stem} / ${row.element}` : row.element}</div>
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500" style={monoStyle}>{row.priority || '-'} / x{row.count ?? 0}</div>
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500" style={monoStyle}>{row.priority || '-'} / presence x{row.presence_count ?? row.count ?? 0}</div>
                   </div>
                   {row.condition ? <div className="mt-2 text-[12px] leading-relaxed text-zinc-700">{row.condition}</div> : null}
                   <div className="mt-2 text-[12px] leading-relaxed text-zinc-600">{row.reason}</div>
@@ -2439,7 +2710,7 @@ function UsefulElementsPanel({ recommendations }) {
           <Micro>Elements To Watch</Micro>
           <div className="mt-4 flex flex-wrap gap-2">
             {candidates.map((item) => (
-              <Pill key={item.element}>{item.element} x{item.count}</Pill>
+              <Pill key={item.element}>{item.element} presence x{item.presence_count ?? item.count}</Pill>
             ))}
           </div>
         </div>
@@ -2524,7 +2795,7 @@ function UsefulElementGroup({ title, items, tone }) {
                 <div className="text-[1.1rem] font-semibold tracking-[-0.02em] text-zinc-900">{item.element}</div>
                 <div className="mt-1 text-xs uppercase tracking-[0.14em] text-zinc-500" style={monoStyle}>{item.role} / {item.priority}</div>
               </div>
-              <div className="text-xs font-semibold text-zinc-500" style={monoStyle}>x{item.count ?? 0}</div>
+              <div className="text-xs font-semibold text-zinc-500" style={monoStyle}>presence x{item.presence_count ?? item.count ?? 0}</div>
             </div>
             <div className="mt-2 text-sm leading-relaxed text-zinc-600">{item.reason}</div>
             {item.integrity?.summary ? (
@@ -2541,8 +2812,8 @@ function UsefulElementGroup({ title, items, tone }) {
 
 function damageToneClass(status) {
   if (status === 'damaged') return 'border-rose-200 bg-rose-50 text-rose-800';
-  if (status === 'absent') return 'border-amber-200 bg-amber-50 text-amber-800';
-  if (status === 'supported') return 'border-teal-200 bg-teal-50 text-teal-800';
+  if (status === 'presence_missing' || status === 'absent') return 'border-amber-200 bg-amber-50 text-amber-800';
+  if (status === 'contact_supported' || status === 'supported') return 'border-teal-200 bg-teal-50 text-teal-800';
   return 'border-zinc-200 bg-zinc-50 text-zinc-700';
 }
 
@@ -2584,7 +2855,7 @@ function DamageAssessmentPanel({ rows }) {
                 {rescues.slice(0, 2).map((rescue) => (
                   <div key={`${row.element}-${rescue.path}-${rescue.element}`} className="rounded-sm border border-teal-100 bg-teal-50/60 px-3 py-2 text-[11px] leading-relaxed text-teal-900">
                     <span className="font-semibold">{rescue.role || 'Rescue'} {rescue.element}</span>
-                    {rescue.count !== undefined ? ` x${rescue.count}` : ''}
+                    {rescue.presence_count !== undefined || rescue.count !== undefined ? ` presence x${rescue.presence_count ?? rescue.count}` : ''}
                   </div>
                 ))}
               </div>
@@ -3503,6 +3774,8 @@ export default function ChineseAstrologyPage({
   const [oracleError, setOracleError] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const baziRequestIdRef = useRef(0);
+  const compatibilityRequestIdRef = useRef(0);
   const [calculationSex, setCalculationSex] = useState(() => normalizeCalculationSex(initialPreferences.calculationSex));
   const [relationshipCalculationSex, setRelationshipCalculationSex] = useState(
     () => normalizeCalculationSex(initialPreferences.relationshipCalculationSex),
@@ -3553,6 +3826,13 @@ export default function ChineseAstrologyPage({
       && comparisonSnapId
       && !sameComparisonSnap,
   );
+  const boundaryState = useMemo(() => profileBoundaryUncertainty(data), [data]);
+  const profileHasBoundaryUncertainty = Boolean(boundaryState);
+  const artifactAmbiguityState = useMemo(
+    () => readingBoundaryUncertainty(data, compatibilityData, compatibilityProfiles),
+    [compatibilityData, compatibilityProfiles, data],
+  );
+  const artifactActionsBusy = loading || compatibilityLoading;
 
   const loadSnaps = useCallback(async () => {
     setLoadingSnaps(true);
@@ -3584,8 +3864,11 @@ export default function ChineseAstrologyPage({
   }, [onRefreshSnaps]);
 
   const runBazi = useCallback(async () => {
+    const requestId = baziRequestIdRef.current + 1;
+    baziRequestIdRef.current = requestId;
     setLoading(true);
     setError('');
+    setData(null);
     try {
       const request = sourceMode === 'snap'
         ? {
@@ -3612,12 +3895,18 @@ export default function ChineseAstrologyPage({
             luckDirectionRule,
           };
       const res = await AstroClockAPI.getChineseAstrologyBazi(request);
-      setData(res?.data || null);
+      if (requestId === baziRequestIdRef.current) {
+        setData(res?.data || null);
+      }
     } catch (err) {
-      setData(null);
-      setError(String(err?.message || 'Failed to calculate BaZi chart.'));
+      if (requestId === baziRequestIdRef.current) {
+        setData(null);
+        setError(formatChineseAstrologyError(err, 'Failed to calculate BaZi chart.'));
+      }
     } finally {
-      setLoading(false);
+      if (requestId === baziRequestIdRef.current) {
+        setLoading(false);
+      }
     }
   }, [
     calculationSex,
@@ -3637,8 +3926,12 @@ export default function ChineseAstrologyPage({
 
   const runCompatibility = useCallback(async () => {
     if (!comparisonReady) return;
+    const requestId = compatibilityRequestIdRef.current + 1;
+    compatibilityRequestIdRef.current = requestId;
     setCompatibilityLoading(true);
     setCompatibilityError('');
+    setCompatibilityData(null);
+    setCompatibilityProfiles(null);
     try {
       const res = await AstroClockAPI.getChineseAstrologyCompatibility({
         primarySnapId: selectedSnapId,
@@ -3653,17 +3946,23 @@ export default function ChineseAstrologyPage({
         luckDirectionRule,
       });
       const responseData = res?.data || {};
-      setCompatibilityData(responseData.compatibility || null);
-      setCompatibilityProfiles({
-        primary: responseData.primary || null,
-        relationship: responseData.relationship || null,
-      });
+      if (requestId === compatibilityRequestIdRef.current) {
+        setCompatibilityData(responseData.compatibility || null);
+        setCompatibilityProfiles({
+          primary: responseData.primary || null,
+          relationship: responseData.relationship || null,
+        });
+      }
     } catch (err) {
-      setCompatibilityData(null);
-      setCompatibilityProfiles(null);
-      setCompatibilityError(String(err?.message || 'Failed to calculate BaZi compatibility.'));
+      if (requestId === compatibilityRequestIdRef.current) {
+        setCompatibilityData(null);
+        setCompatibilityProfiles(null);
+        setCompatibilityError(formatChineseAstrologyError(err, 'Failed to calculate BaZi compatibility.'));
+      }
     } finally {
-      setCompatibilityLoading(false);
+      if (requestId === compatibilityRequestIdRef.current) {
+        setCompatibilityLoading(false);
+      }
     }
   }, [calculationSex, comparisonReady, comparisonSnapId, dayBoundaryRule, hourPillarVariant, luckDirectionRule, relationshipCalculationSex, relationshipContext, selectedSnapId, useTrueSolarTime]);
 
@@ -3754,6 +4053,7 @@ export default function ChineseAstrologyPage({
       runCompatibility();
       return;
     }
+    compatibilityRequestIdRef.current += 1;
     setCompatibilityData(null);
     setCompatibilityProfiles(null);
     setCompatibilityError('');
@@ -3832,16 +4132,28 @@ export default function ChineseAstrologyPage({
       .replace(/[^a-z0-9_-]+/gi, '-')
       .replace(/^-+|-+$/g, '')
       .toLowerCase() || (oracleOnly ? 'iching-oracle' : 'bazi-profile');
-    const ok = downloadJson(`${oracleOnly ? 'iching-oracle' : 'chinese-astrology'}-${label}.json`, {
+    const ambiguityLabel = artifactAmbiguityState?.label || null;
+    const filenameLabel = ambiguityLabel ? `${label}-${ambiguityLabel}` : label;
+    const ok = downloadJson(`${oracleOnly ? 'iching-oracle' : 'chinese-astrology'}-${filenameLabel}.json`, {
       profile: data || null,
       compatibility: compatibilityData || null,
       compatibility_profiles: compatibilityProfiles || null,
       oracle: oracleData || null,
+      calculation_status: ambiguityLabel
+        ? 'uncertain_birth_time_boundary'
+        : (data?.calculation_status || null),
+      ambiguity: ambiguityLabel ? {
+        label: ambiguityLabel,
+        reason_code: artifactAmbiguityState?.reasonCode,
+        affected_pillars: artifactAmbiguityState?.affectedPillars || [],
+        affected_subjects: artifactAmbiguityState?.compatibility?.affectedSubjects || [],
+        withheld_sections: artifactAmbiguityState?.withheldSections || [],
+      } : null,
       exported_at: new Date().toISOString(),
     });
-    setCopyStatus(ok ? 'Exported' : 'Export failed');
+    setCopyStatus(ok ? (ambiguityLabel ? 'Exported / boundary unresolved' : 'Exported') : 'Export failed');
     window.setTimeout?.(() => setCopyStatus(''), 1800);
-  }, [activeTab, compatibilityData, compatibilityProfiles, data, oracleData]);
+  }, [activeTab, artifactAmbiguityState, compatibilityData, compatibilityProfiles, data, oracleData]);
   const handleSaveReading = useCallback(() => {
     if (!data) return;
     const ok = saveReadingSnapshot({
@@ -3853,9 +4165,9 @@ export default function ChineseAstrologyPage({
       setSavedReadings(readSavedReadingSnapshots());
       setShowHistory(true);
     }
-    setCopyStatus(ok ? 'Saved' : 'Save failed');
+    setCopyStatus(ok ? (artifactAmbiguityState ? 'Saved / boundary unresolved' : 'Saved') : 'Save failed');
     window.setTimeout?.(() => setCopyStatus(''), 1800);
-  }, [compatibilityData, compatibilityProfiles, data]);
+  }, [artifactAmbiguityState, compatibilityData, compatibilityProfiles, data]);
   const handleOpenSavedReading = useCallback((row) => {
     const payload = row?.payload || {};
     if (!payload.profile) return;
@@ -3889,7 +4201,7 @@ export default function ChineseAstrologyPage({
     const relationshipSnapId = profiles?.relationship?.source_snap_id
       || payload.compatibility?.subjects?.relationship?.source_snap_id;
     if (relationshipSnapId) setComparisonSnapId(String(relationshipSnapId));
-    const context = payload.compatibility?.scoring?.relationship_context || payload.compatibility?.relationship_context;
+    const context = payload.compatibility?.doctrine?.relationship_context || payload.compatibility?.relationship_context;
     if (context) setRelationshipContext(normalizeRelationshipContext(context));
     setCopyStatus('Loaded');
     window.setTimeout?.(() => setCopyStatus(''), 1800);
@@ -3958,9 +4270,9 @@ export default function ChineseAstrologyPage({
           <div className="flex items-center gap-2">
             <IconAction icon={History} label="Open saved Chinese Astrology readings" onClick={() => setShowHistory((value) => !value)} disabled={!savedReadings.length} />
             <IconAction icon={RotateCcw} label="Reset Chinese Astrology preferences" onClick={handleResetPreferences} />
-            <IconAction icon={Save} label="Save Chinese Astrology reading locally" onClick={handleSaveReading} disabled={!data} />
-            <IconAction icon={Copy} label="Copy Chinese Astrology reading" onClick={handleCopyReading} disabled={!data && !oracleData} />
-            <IconAction icon={Download} label="Export Chinese Astrology JSON" onClick={handleExportJson} disabled={!data && !oracleData} />
+            <IconAction icon={Save} label="Save Chinese Astrology reading locally" onClick={handleSaveReading} disabled={!data || artifactActionsBusy} />
+            <IconAction icon={Copy} label="Copy Chinese Astrology reading" onClick={handleCopyReading} disabled={(!data && !oracleData) || artifactActionsBusy || oracleLoading} />
+            <IconAction icon={Download} label="Export Chinese Astrology JSON" onClick={handleExportJson} disabled={(!data && !oracleData) || artifactActionsBusy || oracleLoading} />
           </div>
           {copyStatus ? (
             <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500" style={monoStyle}>{copyStatus}</div>
@@ -4154,6 +4466,10 @@ export default function ChineseAstrologyPage({
             <StatePanel title="Composing BaZi profile." body="The memo is resolving pillars, Day Master, timing, and relationship contacts from the selected chart." />
           ) : null}
 
+          {activeTab !== 'oracle' && data && boundaryState ? (
+            <CalculationStatusBanner state={boundaryState} />
+          ) : null}
+
           {activeTab === 'oracle' ? (
             <IChingOraclePanel
               question={oracleQuestion}
@@ -4183,31 +4499,38 @@ export default function ChineseAstrologyPage({
               number="I"
               title="Four Pillars"
             >
-              <div className="grid gap-8 xl:grid-cols-[minmax(0,1.85fr)_minmax(300px,0.75fr)]">
-                <ChartGrid pillars={data.pillars || {}} />
-                <DayMasterCard dayMaster={data.day_master} analysis={data.analysis} />
-              </div>
+              {profileHasBoundaryUncertainty ? (
+                <BoundaryCandidateChart data={data} state={boundaryState} />
+              ) : (
+                <div className="grid gap-8 xl:grid-cols-[minmax(0,1.85fr)_minmax(300px,0.75fr)]">
+                  <ChartGrid pillars={data.pillars || {}} />
+                  <DayMasterCard dayMaster={data.day_master} analysis={data.analysis} />
+                </div>
+              )}
             </MemoSection>
           ) : null}
-          {data && activeTab === 'reading' ? <InterpretationPanel data={data} /> : null}
-          {SHOW_DEV_METHOD_SURFACE && data && activeTab === 'day-master' ? (
+          {data && profileHasBoundaryUncertainty && activeTab !== 'chart' && activeTab !== 'oracle' ? (
+            <WithheldCalculationPanel activeTab={activeTab} state={boundaryState} />
+          ) : null}
+          {data && !profileHasBoundaryUncertainty && activeTab === 'reading' ? <InterpretationPanel data={data} /> : null}
+          {SHOW_DEV_METHOD_SURFACE && data && !profileHasBoundaryUncertainty && activeTab === 'day-master' ? (
             <MemoSection number="III" title="Day Master" subtitle="Strength stays provisional until the chart evidence is decisive.">
               <DayMasterCard dayMaster={data.day_master} analysis={data.analysis} />
             </MemoSection>
           ) : null}
-          {data && activeTab === 'elements' ? (
+          {data && !profileHasBoundaryUncertainty && activeTab === 'elements' ? (
             <MemoSection number="IV" title="Element Balance" subtitle="Unweighted presence counts include visible stems, branch bodies, and hidden stems. They are an inventory, not a qi-strength score.">
               <ElementBalance balance={data.element_balance} />
             </MemoSection>
           ) : null}
-          {data && activeTab === 'useful' ? <UsefulElementsPanel recommendations={data.useful_elements} /> : null}
-          {data && activeTab === 'ten-gods' ? (
+          {data && !profileHasBoundaryUncertainty && activeTab === 'useful' ? <UsefulElementsPanel recommendations={data.useful_elements} /> : null}
+          {data && !profileHasBoundaryUncertainty && activeTab === 'ten-gods' ? (
             <MemoSection number="VI" title="Ten Gods" subtitle="Visible stems and hidden stems are mapped relative to the Day Master.">
               <TenGodsPanel tenGods={data.ten_gods} />
             </MemoSection>
           ) : null}
-          {data && activeTab === 'palaces' ? <LifeAreasPanel lifeAreas={data.life_areas} context={data.palace_context} /> : null}
-          {data && activeTab === 'relationships' ? (
+          {data && !profileHasBoundaryUncertainty && activeTab === 'palaces' ? <LifeAreasPanel lifeAreas={data.life_areas} context={data.palace_context} /> : null}
+          {data && !profileHasBoundaryUncertainty && activeTab === 'relationships' ? (
             <>
               {sourceMode === 'snap' && (comparisonSnapId || compatibilityLoading || compatibilityError || compatibilityData) ? (
                 <PairCompatibilityPanel
@@ -4219,12 +4542,12 @@ export default function ChineseAstrologyPage({
               <RelationshipCodesPanel relationships={data.relationships} number={comparisonSnapId ? 'VIII-B' : 'VIII'} />
             </>
           ) : null}
-          {data && activeTab === 'stars' ? <AuxiliaryStarsPanel stars={data.auxiliary_stars} /> : null}
-          {data && activeTab === 'classical' ? <ClassicalExtrasPanel extras={data.classical_extras} /> : null}
-          {data && activeTab === 'timing' ? (
+          {data && !profileHasBoundaryUncertainty && activeTab === 'stars' ? <AuxiliaryStarsPanel stars={data.auxiliary_stars} /> : null}
+          {data && !profileHasBoundaryUncertainty && activeTab === 'classical' ? <ClassicalExtrasPanel extras={data.classical_extras} /> : null}
+          {data && !profileHasBoundaryUncertainty && activeTab === 'timing' ? (
             <TimingPanel data={data} />
           ) : null}
-          {SHOW_DEV_METHOD_SURFACE && data && activeTab === 'notes' ? (
+          {SHOW_DEV_METHOD_SURFACE && data && !profileHasBoundaryUncertainty && activeTab === 'notes' ? (
             <>
               <NotesPanel data={data} />
               <MemoSection number="XIII" title="Technical Details" subtitle="Calculation settings and backend assumptions for this profile.">

@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 
 from .curation import confidence_tags
-from .tables import CONTROLS, PRODUCES, STEMS
+from .tables import CONTROLS, ELEMENTS, PRODUCES, STEMS
 
 
 SEASON_BY_BRANCH = dict(zip(
@@ -47,6 +47,12 @@ AUGIER_STRENGTH_PAGE_REF = {
     "pages": [43, 44, 45, 46, 66],
 }
 
+LU_STRENGTH_PAGE_REF = {
+    "source_id": "local.lu_zhiji_fate_search",
+    "path": "output/chinese_books_private_corpus/ocr/lu_zhiji_fate_search/document.ocr.pages.jsonl",
+    "pages": [157, 158, 159, 160],
+}
+
 
 def _inverse_lookup(mapping: Dict[str, str], target: str) -> Optional[str]:
     for key, value in mapping.items():
@@ -79,7 +85,7 @@ def _month_season_component(day_element: str, month: Optional[Dict[str, Any]]) -
         "weighted_score": round(score * 0.7, 3),
         "note": note,
         "source_basis": "Season is the primary strength authority; branch phase and timing determine whether the Day Master has usable seasonal force.",
-        "source_page_refs": [AUGIER_STRENGTH_PAGE_REF],
+        "source_page_refs": [AUGIER_STRENGTH_PAGE_REF, LU_STRENGTH_PAGE_REF],
     }
 
 
@@ -359,7 +365,7 @@ def _root_grade_evidence(
             "Root-grade evidence separates de ling (season), de di (root/place), and de zhu "
             "visible support before the coarse strong/weak label is used."
         ),
-        "source_page_refs": [AUGIER_STRENGTH_PAGE_REF],
+        "source_page_refs": [AUGIER_STRENGTH_PAGE_REF, LU_STRENGTH_PAGE_REF],
     }
 
 
@@ -417,6 +423,11 @@ def evaluate_day_master_strength(
     balance: Dict[str, Any],
 ) -> Dict[str, Any]:
     day_element = STEMS[int(day_stem_index) % 10]["element"]
+    raw_presence_counts = balance.get("counts") or balance.get("total") or {}
+    presence_counts = {
+        element: int(raw_presence_counts.get(element) or 0)
+        for element in ELEMENTS
+    }
     season = _month_season_component(day_element, pillars.get("month"))
     root = _root_component(day_element, pillars)
     formation = _formation_component(day_element, pillars)
@@ -456,9 +467,34 @@ def evaluate_day_master_strength(
         weighted_score=weighted_score,
         label=label,
     )
+    count_strength_separation = {
+        "element_presence_model_id": balance.get("model_id") or "legacy_element_presence_counts",
+        "presence_measure": balance.get("measure") or "unweighted_presence_count",
+        "qi_strength_measure": "day_master_seasonal_rooted_qi_strength",
+        "presence_counts_used_in_qi_score": False,
+        "qi_strength_inputs": [
+            "month_season",
+            "hidden_stem_roots",
+            "visible_and_branch_formation",
+        ],
+        "note": (
+            "Presence counts inventory where elements appear; they do not measure seasonal authority "
+            "or rooted qi and are not inputs to the Day Master strength score."
+        ),
+        "doctrine_basis": (
+            "Lu pp. 157-160 separates gaining the month command, gaining rooted place, and receiving "
+            "assistance from the comparison of same-side and opposing forces."
+        ),
+        "source_page_refs": [LU_STRENGTH_PAGE_REF],
+    }
 
     return {
         "label": label,
+        "measure": "day_master_seasonal_rooted_qi_strength",
+        "scope": {
+            "subject": "day_master",
+            "element": day_element,
+        },
         "support_score": round(support_score, 3),
         "pressure_score": round(pressure_score, 3),
         "weighted_score": round(weighted_score, 3),
@@ -468,10 +504,20 @@ def evaluate_day_master_strength(
             "method": "season_root_formation_v2",
             "model_id": "augier_school_heuristic_70_25_5_v1",
             "model_status": "product_defined_uncalibrated",
+            "measure": "day_master_seasonal_rooted_qi_strength",
+            "scope": {
+                "subject": "day_master",
+                "element": day_element,
+            },
+            "count_strength_separation": count_strength_separation,
             "source_weighting": {"season": 0.7, "root": 0.25, "formation": 0.05},
             "architecture_provenance": (
                 "Augier pp. 43-46 supplies the Season 70% / Root 25% / Formation 5% "
                 "architecture and the Day normal-root / Hour secret-root distinction."
+            ),
+            "doctrine_provenance": (
+                "Lu pp. 157-160 supplies the de ling / de di / de zhu distinction and the "
+                "same-side versus opposing-force comparison."
             ),
             "parameter_provenance": {
                 "season_state_scores": "product_defined",
@@ -533,8 +579,10 @@ def evaluate_day_master_strength(
                 "formation",
                 "eight palaces",
             ],
-            "source_page_refs": [AUGIER_STRENGTH_PAGE_REF],
+            "source_page_refs": [AUGIER_STRENGTH_PAGE_REF, LU_STRENGTH_PAGE_REF],
             "source_confidence": confidence_tags("local_source", "provisional_model", "needs_validation"),
         },
-        "balance_counts": balance.get("total") or {},
+        "presence_counts": presence_counts,
+        "balance_counts": presence_counts,
+        "count_strength_separation": count_strength_separation,
     }

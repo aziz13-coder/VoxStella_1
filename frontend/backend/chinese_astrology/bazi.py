@@ -30,13 +30,45 @@ from .timing_rhythm import build_timing_rhythm
 
 try:
     import swisseph as swe  # type: ignore
-except Exception:  # pragma: no cover - fallback is tested through output flags.
+except Exception:  # pragma: no cover - the typed unavailable state is tested separately.
     swe = None  # type: ignore
 
 try:
     from swisseph_state import swisseph_lock
 except Exception:  # pragma: no cover
     swisseph_lock = None  # type: ignore
+
+
+SOLAR_TERM_METHOD = "swiss_ephemeris_solar_longitude_bisection_v1"
+SOLAR_TERM_TOLERANCE_SECONDS = 1.0
+
+
+class SolarTermCalculationError(RuntimeError):
+    """Raised when an authoritative Jie/Li-Chun crossing cannot be calculated."""
+
+    code = "solar_term_calculation_unavailable"
+
+    def __init__(self, *, year: int, term_key: str, reason: str) -> None:
+        self.year = int(year)
+        self.term_key = str(term_key)
+        self.reason = str(reason)
+        super().__init__(
+            f"Authoritative solar-term calculation is unavailable for "
+            f"{self.term_key} {self.year}."
+        )
+
+    def to_payload(self) -> Dict[str, Any]:
+        return {
+            "code": self.code,
+            "status": "unavailable",
+            "reason": self.reason,
+            "year": self.year,
+            "term_key": self.term_key,
+            "source": "swiss_ephemeris",
+            "method": SOLAR_TERM_METHOD,
+            "tolerance_seconds": SOLAR_TERM_TOLERANCE_SECONDS,
+            "retryable": True,
+        }
 
 
 @dataclass(frozen=True)
@@ -131,26 +163,43 @@ def _term_crossing_utc(year: int, term_key: str) -> Tuple[datetime, str]:
     term = next(item for item in SOLAR_TERMS if item["key"] == term_key)
     approx = datetime(int(year), int(term["month"]), int(term["day"]), 0, 0, tzinfo=timezone.utc)
     if swe is None:
-        return approx, "fixed_approximation"
+        raise SolarTermCalculationError(
+            year=int(year),
+            term_key=str(term_key),
+            reason="swiss_ephemeris_unavailable",
+        )
 
     target = float(term["longitude"])
     lo = approx - timedelta(days=6)
     hi = approx + timedelta(days=6)
     try:
+        bracketed = False
         for _ in range(4):
             if _angle_delta(_solar_longitude(lo), target) <= 0 <= _angle_delta(_solar_longitude(hi), target):
+                bracketed = True
                 break
             lo -= timedelta(days=3)
             hi += timedelta(days=3)
-        for _ in range(48):
+        if not bracketed:
+            raise RuntimeError("solar_term_crossing_not_bracketed")
+        for _ in range(64):
+            if (hi - lo).total_seconds() <= SOLAR_TERM_TOLERANCE_SECONDS:
+                break
             mid = lo + ((hi - lo) / 2)
             if _angle_delta(_solar_longitude(mid), target) < 0:
                 lo = mid
             else:
                 hi = mid
-        return hi, "swiss_ephemeris"
-    except Exception:
-        return approx, "fixed_approximation"
+        crossing = lo + ((hi - lo) / 2)
+        return crossing, "swiss_ephemeris"
+    except SolarTermCalculationError:
+        raise
+    except Exception as exc:
+        raise SolarTermCalculationError(
+            year=int(year),
+            term_key=str(term_key),
+            reason="solar_longitude_solver_failed",
+        ) from exc
 
 
 def _term_payload(year: int, term: Dict[str, Any]) -> Dict[str, Any]:
@@ -162,6 +211,10 @@ def _term_payload(year: int, term: Dict[str, Any]) -> Dict[str, Any]:
         "month_index": term["month_index"],
         "datetime_utc": crossing,
         "source": source,
+        "calculation_status": "authoritative",
+        "method": SOLAR_TERM_METHOD,
+        "tolerance_seconds": SOLAR_TERM_TOLERANCE_SECONDS,
+        "error": None,
     }
 
 
@@ -327,24 +380,50 @@ def _pillar_payload(name: str, stem_index: int, branch_index: int, day_stem_inde
 
 def _element_balance(pillars: Dict[str, Optional[Dict[str, Any]]]) -> Dict[str, Any]:
     visible = {element: 0 for element in ELEMENTS}
-    branches = {element: 0 for element in ELEMENTS}
+    branch_bodies = {element: 0 for element in ELEMENTS}
     hidden = {element: 0 for element in ELEMENTS}
     for pillar in pillars.values():
         if not pillar:
             continue
         visible[pillar["stem_element"]] += 1
-        branches[pillar["branch_element"]] += 1
+        branch_bodies[pillar["branch_element"]] += 1
         for hidden_stem in pillar.get("hidden_stems") or []:
             hidden[hidden_stem["element"]] += 1
-    total = {
-        element: visible[element] + branches[element] + hidden[element]
+    counts = {
+        element: visible[element] + branch_bodies[element] + hidden[element]
+        for element in ELEMENTS
+    }
+    elements = {
+        element: {
+            "visible_stem_count": visible[element],
+            "branch_body_count": branch_bodies[element],
+            "hidden_stem_count": hidden[element],
+            "presence_count": counts[element],
+            "present": counts[element] > 0,
+        }
         for element in ELEMENTS
     }
     return {
+        "model_id": "element_presence_inventory_v1",
+        "measure": "unweighted_presence_count",
+        "unit": "element_mentions",
         "visible_stems": visible,
-        "branches": branches,
+        "branch_bodies": branch_bodies,
+        "branches": branch_bodies,
         "hidden_stems": hidden,
-        "total": total,
+        "counts": counts,
+        "total": counts,
+        "elements": elements,
+        "present_elements": [element for element in ELEMENTS if counts[element] > 0],
+        "absent_elements": [element for element in ELEMENTS if counts[element] == 0],
+        "semantics": {
+            "is_qi_strength": False,
+            "counting_rule": "Each visible stem, branch body, and listed hidden stem contributes one unweighted mention.",
+            "interpretation": (
+                "This is a placement inventory only. Seasonal authority, rootedness, and formation "
+                "belong to the separate Day Master qi-strength model."
+            ),
+        },
     }
 
 
@@ -831,6 +910,186 @@ def _serialize_term(term: Dict[str, Any]) -> Dict[str, Any]:
         "longitude": term.get("longitude"),
         "datetime_utc": term.get("datetime_utc").isoformat() if isinstance(term.get("datetime_utc"), datetime) else term.get("datetime_utc"),
         "source": term.get("source"),
+        "calculation_status": term.get("calculation_status"),
+        "method": term.get("method"),
+        "tolerance_seconds": term.get("tolerance_seconds"),
+        "error": term.get("error"),
+    }
+
+
+UNKNOWN_TIME_WITHHELD_SECTIONS = (
+    "element_balance",
+    "element_presence",
+    "ten_gods",
+    "analysis",
+    "useful_elements",
+    "auxiliary_stars",
+    "palace_context",
+    "life_areas",
+    "classical_extras",
+    "interpretation",
+    "relationships",
+    "timing",
+    "luck_pillars",
+)
+
+
+def _candidate_pillar_payload(stem_index: int, branch_index: int) -> Dict[str, Any]:
+    stem = STEMS[int(stem_index) % 10]
+    branch = BRANCHES[int(branch_index) % 12]
+    return {
+        "stem": stem["key"],
+        "branch": branch["key"],
+        "stem_index": int(stem_index) % 10,
+        "branch_index": int(branch_index) % 12,
+        "stem_element": stem["element"],
+        "branch_element": branch["element"],
+        "stem_polarity": stem["polarity"],
+        "animal": branch["animal"],
+    }
+
+
+def _unknown_time_solar_term_uncertainty(
+    context: BirthContext,
+    *,
+    local_dt: datetime,
+    representative_dt_utc: datetime,
+) -> Dict[str, Any]:
+    method = "unknown_local_civil_day_solar_term_candidates_v1"
+    if context.hour_known:
+        return {
+            "status": "not_applicable",
+            "reason": None,
+            "scope": "year_month_solar_term_boundaries",
+            "method": method,
+            "interval": None,
+            "boundaries": [],
+            "affected_pillars": [],
+            "candidates": [],
+            "selected_candidate": None,
+            "downstream": {
+                "status": "authoritative",
+                "withheld_sections": [],
+            },
+            "provenance": {
+                "source": "swiss_ephemeris",
+                "method": SOLAR_TERM_METHOD,
+                "tolerance_seconds": SOLAR_TERM_TOLERANCE_SECONDS,
+                "error": None,
+            },
+        }
+
+    local_date = local_dt.date()
+    next_local_date = local_date + timedelta(days=1)
+    start_local = datetime(
+        local_date.year,
+        local_date.month,
+        local_date.day,
+        tzinfo=local_dt.tzinfo,
+    )
+    end_local = datetime(
+        next_local_date.year,
+        next_local_date.month,
+        next_local_date.day,
+        tzinfo=local_dt.tzinfo,
+    )
+    start_utc = start_local.astimezone(timezone.utc)
+    end_utc = end_local.astimezone(timezone.utc)
+    boundaries = [
+        term
+        for term in _terms_around(representative_dt_utc)
+        if start_utc < term["datetime_utc"] < end_utc
+    ]
+    edges = [start_utc, *(term["datetime_utc"] for term in boundaries), end_utc]
+    candidates: List[Dict[str, Any]] = []
+    for index, (valid_from, valid_until) in enumerate(zip(edges, edges[1:])):
+        year_index, candidate_bazi_year, candidate_li_chun = _year_pillar_index(valid_from)
+        month_stem_index, month_branch_index, candidate_month_term = _month_pillar_indices(
+            valid_from,
+            year_index % 10,
+        )
+        if not boundaries:
+            position = "only_candidate"
+        elif index == 0:
+            position = "before_boundary"
+        elif index == len(edges) - 2:
+            position = "after_boundary"
+        else:
+            position = "between_boundaries"
+        candidates.append({
+            "id": f"candidate_{index + 1}",
+            "position": position,
+            "selected": False,
+            "valid_from_utc": valid_from.isoformat(),
+            "valid_until_utc_exclusive": valid_until.isoformat(),
+            "valid_from_local": valid_from.astimezone(local_dt.tzinfo).isoformat(),
+            "valid_until_local_exclusive": valid_until.astimezone(local_dt.tzinfo).isoformat(),
+            "bazi_year": candidate_bazi_year,
+            "pillars": {
+                "year": _candidate_pillar_payload(year_index % 10, year_index % 12),
+                "month": _candidate_pillar_payload(month_stem_index, month_branch_index),
+            },
+            "boundary_basis": {
+                "year": _serialize_term(candidate_li_chun),
+                "month": _serialize_term(candidate_month_term),
+            },
+        })
+
+    affected_pillars: List[str] = []
+    for pillar_name in ("year", "month"):
+        signatures = {
+            (
+                candidate["pillars"][pillar_name]["stem"],
+                candidate["pillars"][pillar_name]["branch"],
+            )
+            for candidate in candidates
+        }
+        if len(signatures) > 1:
+            affected_pillars.append(pillar_name)
+
+    is_uncertain = bool(affected_pillars)
+    if not is_uncertain and len(candidates) == 1:
+        candidates[0]["selected"] = True
+    withheld_sections = list(UNKNOWN_TIME_WITHHELD_SECTIONS) if is_uncertain else []
+    return {
+        "status": "uncertain" if is_uncertain else "stable",
+        "reason": "unknown_birth_time_crosses_solar_term" if is_uncertain else "unknown_birth_time_but_solar_term_pillars_are_stable",
+        "scope": "year_month_solar_term_boundaries",
+        "method": method,
+        "representative_datetime_utc": representative_dt_utc.isoformat(),
+        "representative_time_authoritative": False,
+        "interval": {
+            "start_local": start_local.isoformat(),
+            "end_local_exclusive": end_local.isoformat(),
+            "start_utc": start_utc.isoformat(),
+            "end_utc_exclusive": end_utc.isoformat(),
+        },
+        "boundaries": [_serialize_term(term) for term in boundaries],
+        "affected_pillars": affected_pillars,
+        "candidates": candidates,
+        "selected_candidate": None if is_uncertain else 0,
+        "downstream": {
+            "status": "withheld" if is_uncertain else "authoritative_for_solar_term_pillars",
+            "reason_code": "unknown_birth_time_solar_term_boundary" if is_uncertain else None,
+            "withheld_sections": withheld_sections,
+        },
+        "provenance": {
+            "source": "swiss_ephemeris",
+            "method": SOLAR_TERM_METHOD,
+            "tolerance_seconds": SOLAR_TERM_TOLERANCE_SECONDS,
+            "error": None,
+        },
+    }
+
+
+def _withheld_section_payload(section: str, uncertainty: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "status": "withheld",
+        "reason_code": "unknown_birth_time_solar_term_boundary",
+        "reason": "This result depends on a year or month pillar that changes within the unknown birth-time interval.",
+        "section": section,
+        "affected_pillars": list(uncertainty.get("affected_pillars") or []),
+        "candidate_count": len(uncertainty.get("candidates") or []),
     }
 
 
@@ -846,6 +1105,18 @@ def build_bazi_profile(context: BirthContext, reference_dt_utc: Optional[datetim
     year_stem_index = year_index % 10
     year_branch_index = year_index % 12
     month_stem_index, month_branch_index, month_term = _month_pillar_indices(dt_utc, year_stem_index)
+    birth_time_uncertainty = _unknown_time_solar_term_uncertainty(
+        context,
+        local_dt=local_dt,
+        representative_dt_utc=dt_utc,
+    )
+    solar_term_boundary_uncertain = birth_time_uncertainty.get("status") == "uncertain"
+    if solar_term_boundary_uncertain:
+        affected = ", ".join(birth_time_uncertainty.get("affected_pillars") or [])
+        warnings.append(
+            "Birth time is unknown and the local civil date crosses a solar-term boundary; "
+            f"{affected} pillar candidates and dependent results are withheld."
+        )
     true_solar = _true_solar_conversion(local_dt, context.longitude) if context.hour_known else None
     true_solar_requested = bool(context.use_true_solar_time)
     selected_hour_dt = (
@@ -943,6 +1214,10 @@ def build_bazi_profile(context: BirthContext, reference_dt_utc: Optional[datetim
         "support_score": strength["support_score"],
         "pressure_score": strength["pressure_score"],
         "weighted_score": strength.get("weighted_score"),
+        "strength_measure": strength.get("measure"),
+        "strength_scope": strength.get("scope"),
+        "element_presence_counts": strength.get("presence_counts"),
+        "count_strength_separation": strength.get("count_strength_separation"),
         "strength_model": strength.get("model"),
         "method": strength["method"],
     }
@@ -1044,8 +1319,10 @@ def build_bazi_profile(context: BirthContext, reference_dt_utc: Optional[datetim
         "method": true_solar.get("method") if true_solar else None,
     }
     birth_payload = {
-        "datetime_utc": dt_utc.isoformat(),
-        "local_datetime": local_dt.isoformat(),
+        "datetime_utc": dt_utc.isoformat() if context.hour_known else None,
+        "local_datetime": local_dt.isoformat() if context.hour_known else None,
+        "representative_datetime_utc": dt_utc.isoformat() if not context.hour_known else None,
+        "representative_local_datetime": local_dt.isoformat() if not context.hour_known else None,
         "date": local_dt.date().isoformat(),
         "time": local_dt.strftime("%H:%M") if context.hour_known else None,
         "location": context.location,
@@ -1054,6 +1331,7 @@ def build_bazi_profile(context: BirthContext, reference_dt_utc: Optional[datetim
         "longitude": context.longitude,
         "time_precision": context.time_precision,
         "calculation_sex": _normalize_calculation_sex(context.calculation_sex),
+        "time_uncertainty": birth_time_uncertainty,
         "true_solar_time": true_solar_payload,
         "calculation_options": {
             "day_boundary_rule": day_boundary_rule,
@@ -1063,7 +1341,8 @@ def build_bazi_profile(context: BirthContext, reference_dt_utc: Optional[datetim
         "day_basis": {
             "basis": day_basis,
             "date": day_basis_dt.date().isoformat(),
-            "local_datetime": day_basis_dt.isoformat(),
+            "local_datetime": day_basis_dt.isoformat() if context.hour_known else None,
+            "representative_local_datetime": day_basis_dt.isoformat() if not context.hour_known else None,
             "true_solar_day_boundary_applied": true_solar_day_applied,
             "late_zi_next_day_applied": late_zi_applied,
         },
@@ -1139,13 +1418,22 @@ def build_bazi_profile(context: BirthContext, reference_dt_utc: Optional[datetim
         "life_areas",
     ))
 
-    return {
+    result = {
         "source_snap_id": context.source_snap_id,
         "snap_label": context.snap_label,
         "birth": birth_payload,
+        "calculation_status": (
+            "uncertain_birth_time_boundary"
+            if solar_term_boundary_uncertain
+            else "complete"
+        ),
+        "uncertainty": {
+            "birth_time": birth_time_uncertainty,
+        },
         "missing_inputs": missing_inputs,
         "pillars": pillars,
         "day_master": day_master_payload,
+        "element_presence": balance,
         "element_balance": balance,
         "ten_gods": ten_gods_payload,
         "analysis": analysis_payload,
@@ -1168,10 +1456,34 @@ def build_bazi_profile(context: BirthContext, reference_dt_utc: Optional[datetim
         "timing": timing,
         "debug": {
             "snap_source": context.source,
-            "bazi_year": bazi_year,
-            "solar_year_boundary": _serialize_term(li_chun),
-            "month_solar_term": _serialize_term(month_term),
+            "bazi_year": None if solar_term_boundary_uncertain else bazi_year,
+            "solar_year_boundary": None if solar_term_boundary_uncertain else _serialize_term(li_chun),
+            "month_solar_term": None if solar_term_boundary_uncertain else _serialize_term(month_term),
             "solar_term_source": month_term.get("source") or li_chun.get("source"),
+            "solar_term_calculation": {
+                "status": "authoritative",
+                "source": "swiss_ephemeris",
+                "method": SOLAR_TERM_METHOD,
+                "tolerance_seconds": SOLAR_TERM_TOLERANCE_SECONDS,
+                "error": None,
+            },
+            "representative_candidate_calculation": (
+                {
+                    "status": "non_authoritative_reference_only",
+                    "datetime_utc": dt_utc.isoformat(),
+                    "local_datetime": local_dt.isoformat(),
+                    "bazi_year": bazi_year,
+                    "solar_year_boundary": _serialize_term(li_chun),
+                    "month_solar_term": _serialize_term(month_term),
+                    "pillars": {
+                        "year": _candidate_pillar_payload(year_stem_index, year_branch_index),
+                        "month": _candidate_pillar_payload(month_stem_index, month_branch_index),
+                    },
+                }
+                if solar_term_boundary_uncertain
+                else None
+            ),
+            "birth_time_uncertainty": birth_time_uncertainty,
             "hour_rule": "true solar time two-hour branch windows" if true_solar_applied else "civil local time two-hour branch windows",
             "hour_pillar_comparison": hour_comparison,
             "day_pillar_comparison": day_comparison,
@@ -1188,3 +1500,19 @@ def build_bazi_profile(context: BirthContext, reference_dt_utc: Optional[datetim
             "warnings": warnings,
         },
     }
+    if solar_term_boundary_uncertain:
+        affected_pillars = set(birth_time_uncertainty.get("affected_pillars") or [])
+        for pillar_name in ("year", "month"):
+            if pillar_name in affected_pillars:
+                result["pillars"][pillar_name] = None
+        for section in UNKNOWN_TIME_WITHHELD_SECTIONS:
+            if section == "luck_pillars":
+                result[section] = []
+            else:
+                result[section] = _withheld_section_payload(section, birth_time_uncertainty)
+        result["withheld_outputs"] = [
+            f"pillars.{pillar_name}" for pillar_name in ("year", "month") if pillar_name in affected_pillars
+        ] + list(UNKNOWN_TIME_WITHHELD_SECTIONS)
+    else:
+        result["withheld_outputs"] = []
+    return result

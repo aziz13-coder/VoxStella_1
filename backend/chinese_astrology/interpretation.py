@@ -131,8 +131,8 @@ FACTOR_UI_META = {
 FACTOR_LAYER_LABELS = {
     "absent": "not emphasized",
     "surface": "surface-visible",
-    "hidden": "rooted or latent",
-    "surface_and_hidden": "visible and rooted",
+    "hidden": "hidden-stem placement",
+    "surface_and_hidden": "visible and hidden",
 }
 
 YONG_SHEN_RULE_FAMILIES = {
@@ -337,7 +337,7 @@ def _factor_decision_status(
         status = "final_useful"
     elif damage_status == "damaged":
         status = "pressured_useful"
-    elif damage_status == "absent":
+    elif damage_status == "presence_missing":
         status = "needed_absent"
     elif timing_status == "pressured_by_timing":
         status = "timing_challenged"
@@ -401,16 +401,16 @@ def _factor_summary(
     elif visible_count:
         layer_text = "is visible on the stems, so it is easier to read as outward behavior or visible circumstance"
     else:
-        layer_text = "sits in hidden stems, so it is better read as rooted, latent, or context-dependent"
+        layer_text = "appears in hidden stems, so it is concealed, latent, or context-dependent; hidden placement alone does not establish a usable root"
 
     if functional_status == "final_useful":
         balance_text = "It is the released useful direction for this chart after the strength, fixture, and damage gates are clear."
     elif functional_status == "pressured_useful":
         balance_text = "It would help by strength logic, but contact pressure touches its element, so read it as useful but unstable."
     elif functional_status == "needed_absent":
-        balance_text = "It is a needed balancing direction, but current checked placements do not supply it cleanly."
+        balance_text = "It is a needed balancing direction, but it was not found in checked natal or timing placements."
     elif functional_status == "timing_activated":
-        balance_text = "Current timing supplies or activates this factor, making its topics active in the decade/year layer."
+        balance_text = "Current timing repeats or activates this factor, making its topics active in the decade/year layer without proving usable qi."
     elif functional_status == "timing_challenged":
         balance_text = "Current timing pressures this factor, so its topics are active but strained."
     elif functional_status == "favorable_candidate" or favorability == "favorable":
@@ -438,17 +438,17 @@ def _profile_summary(factors: List[Dict[str, Any]]) -> str:
         active,
         key=lambda item: (-int(item.get("visible_count") or 0), -int(item.get("total_count") or 0), str(item.get("factor") or "")),
     )
-    rooted = sorted(
+    hidden_ranked = sorted(
         active,
         key=lambda item: (-int(item.get("hidden_count") or 0), -int(item.get("total_count") or 0), str(item.get("factor") or "")),
     )
-    dominant_visible = visible[0] if int(visible[0].get("visible_count") or 0) else None
-    dominant_rooted = rooted[0] if int(rooted[0].get("hidden_count") or 0) else None
+    most_visible = visible[0] if int(visible[0].get("visible_count") or 0) else None
+    most_hidden = hidden_ranked[0] if int(hidden_ranked[0].get("hidden_count") or 0) else None
     parts = []
-    if dominant_visible:
-        parts.append(f"{dominant_visible.get('factor')} is the most visible factor")
-    if dominant_rooted:
-        parts.append(f"{dominant_rooted.get('factor')} is the strongest hidden/rooted factor")
+    if most_visible:
+        parts.append(f"{most_visible.get('factor')} is the most visible factor")
+    if most_hidden:
+        parts.append(f"{most_hidden.get('factor')} is the most repeated hidden-stem factor")
     if not parts:
         parts.append(f"{active[0].get('factor')} is the most repeated configured factor")
     return "; ".join(parts) + ". Ten God labels are read through these Five Factor families before making topic claims."
@@ -543,7 +543,7 @@ def build_ten_god_profile(
         })
 
     notes = [
-        "Visible stems describe surface expression, while hidden stems show roots or latent material carried by the branches.",
+        "Visible stems describe surface expression, while hidden stems show concealed or latent material; hidden-count presence alone does not establish rooted qi.",
     ]
     if str(analysis.get("strength") or "").lower() in {"balanced", "uncertain"}:
         notes.append("A useful-factor priority needs a decisive strength gate or a released climate/special-structure override.")
@@ -590,11 +590,15 @@ def _role_item(
     reason: str,
     counts: Dict[str, int],
 ) -> Dict[str, Any]:
+    presence_count = int(counts.get(element) or 0)
     return {
         "element": element,
         "role": role,
         "priority": priority,
-        "count": int(counts.get(element) or 0),
+        "count": presence_count,
+        "presence_count": presence_count,
+        "presence_measure": "unweighted_presence_count",
+        "qi_strength_status": "not_evaluated",
         "reason": reason,
     }
 
@@ -778,10 +782,10 @@ def _integrity_summary(
         opening = f"{element} is present in the natal chart."
     elif timing_sources:
         availability = "timing_supported"
-        opening = f"{element} is not natal-heavy, but current timing introduces it."
+        opening = f"{element} is not present in checked natal placements, but current timing introduces it."
     else:
         availability = "missing"
-        opening = f"{element} is not prominent in natal placements or current timing."
+        opening = f"{element} was not found in checked natal placements or current timing."
 
     if challenging:
         pressure = "pressured"
@@ -800,7 +804,9 @@ def _integrity_summary(
 
     return {
         "availability": availability,
+        "availability_semantics": "placement_presence_only",
         "pressure": pressure,
+        "decision_authority": "none",
         "summary": f"{opening} {pressure_text}",
     }
 
@@ -819,6 +825,7 @@ def _with_element_integrity(
     relationship_data = relationships or {}
     timing_data = timing or {}
     payload = {**recommendations}
+    day_master_element = str(recommendations.get("day_master_element") or "")
     integrity_rows: List[Dict[str, Any]] = []
     seen: set[Tuple[str, str]] = set()
 
@@ -833,7 +840,19 @@ def _with_element_integrity(
                 continue
             element = str(row["element"])
             role_group = "watch" if group_name == "candidates_to_watch" else group_name
-            natal_sources = _natal_sources_for_element(pillar_data, element)
+            raw_natal_sources = _natal_sources_for_element(pillar_data, element)
+            day_master_reference_sources = [
+                source
+                for source in raw_natal_sources
+                if element == day_master_element
+                and source.get("pillar") == "day"
+                and source.get("part") == "stem"
+            ]
+            natal_sources = [
+                source
+                for source in raw_natal_sources
+                if source not in day_master_reference_sources
+            ]
             timing_sources = _timing_sources_for_element(timing_data, element)
             impacts = _element_impacts(element, relationship_data)
             state = _integrity_summary(
@@ -843,14 +862,27 @@ def _with_element_integrity(
                 timing_sources=timing_sources,
                 impacts=impacts,
             )
+            raw_inventory_presence_count = int(row.get("presence_count") or row.get("count") or len(raw_natal_sources) or 0)
+            candidate_presence_count = len(natal_sources)
             integrity = {
                 **state,
-                "natal_count": int(row.get("count") or len(natal_sources) or 0),
+                "natal_count": candidate_presence_count,
+                "natal_presence_count": candidate_presence_count,
+                "raw_inventory_presence_count": raw_inventory_presence_count,
+                "day_master_reference_excluded": bool(day_master_reference_sources),
+                "day_master_reference_excluded_count": len(day_master_reference_sources),
+                "presence_measure": "unweighted_presence_count",
+                "qi_strength_status": "not_evaluated",
+                "decision_authority": "none",
                 "natal_sources": natal_sources[:5],
                 "timing_sources": timing_sources[:5],
                 "event_impacts": impacts,
             }
-            updated = {**row, "integrity": integrity}
+            updated = {
+                **row,
+                "candidate_presence_count": candidate_presence_count,
+                "integrity": integrity,
+            }
             updated_rows.append(updated)
 
             key = (role_group, element)
@@ -877,7 +909,7 @@ def _with_element_integrity(
     }
     notes = list(payload.get("notes") or [])
     integrity_note = (
-        "Presence and pressure checks distinguish elements that are natal, supplied by timing, missing, or touched by relationship contacts."
+        "Placement presence distinguishes natal, timing, and not-found evidence for display only; it does not establish candidate qi or decision eligibility."
     )
     if integrity_note not in notes:
         notes.append(integrity_note)
@@ -1377,6 +1409,9 @@ def _climate_row_integrity(
         **state,
         "availability": availability,
         "natal_count": count,
+        "natal_presence_count": count,
+        "presence_measure": "unweighted_presence_count",
+        "qi_strength_status": "not_evaluated",
         "natal_sources": natal_sources[:5],
         "timing_sources": timing_sources[:5],
         "event_impacts": impacts,
@@ -1433,6 +1468,9 @@ def _source_climate_rows(
             "condition": condition,
             "taboos": _climate_row_taboos(function, priority),
             "count": count,
+            "presence_count": count,
+            "presence_measure": "unweighted_presence_count",
+            "qi_strength_status": "not_evaluated",
             "availability": integrity.get("availability"),
             "pressure": integrity.get("pressure"),
             "integrity": integrity,
@@ -1476,6 +1514,9 @@ def _season_fallback_climate_rows(season: str, counts: Dict[str, int]) -> List[D
             "function": function,
             "priority": priority,
             "count": count,
+            "presence_count": count,
+            "presence_measure": "unweighted_presence_count",
+            "qi_strength_status": "not_evaluated",
             "availability": availability,
             "pressure": "clear",
             "override_candidate": False,
@@ -1533,6 +1574,7 @@ def _climate_adjustment(
         "notes": [
             "Climate/regulating stems are evaluated separately from ordinary strength-balancing favorable elements.",
             "Source-table rows can override ordinary balancing only when the regulating element is present or timing-supported and no blocker is active.",
+            "Unweighted presence can establish availability, but it does not establish that the regulating element has usable qi strength.",
             "The source supplies regulating stems and conditions; app priority/function labels are a provisional operational interpretation.",
         ],
         "source_basis": [LOCAL_SOURCE_BASIS[7], CHINESE_CLIMATE_SOURCE_BASIS],
@@ -1540,55 +1582,37 @@ def _climate_adjustment(
     }
 
 
-def _source_damage_pattern(row: Dict[str, Any], counts: Dict[str, int], day_element: str) -> Optional[Dict[str, Any]]:
+def _source_damage_presence_watch(row: Dict[str, Any], counts: Dict[str, int], day_element: str) -> Optional[Dict[str, Any]]:
     role = str(row.get("role") or "")
     if str(row.get("priority") or "") != "primary":
         return None
-    companion_count = int(counts.get(day_element) or 0)
     output_element = PRODUCES.get(day_element, "")
     wealth_element = CONTROLS.get(day_element, "")
     resource_element = _inverse_lookup(PRODUCES, day_element) or ""
-    pattern: Optional[Dict[str, Any]] = None
-    if role == "Wealth" and companion_count >= 5:
-        pattern = {
-            "damage_type": "wealth_damaged_by_companion",
-            "damaging_role": "Companion",
-            "damaging_element": day_element,
-            "damaging_count": companion_count,
-            "reason": "Wealth useful god is damaged when Companion/Rob Wealth heavily contests it.",
-        }
-    elif role == "Influence" and int(counts.get(output_element) or 0) >= 3:
-        pattern = {
-            "damage_type": "officer_damaged_by_output",
-            "damaging_role": "Output",
-            "damaging_element": output_element,
-            "damaging_count": int(counts.get(output_element) or 0),
-            "reason": "Officer/Killing usefulness is damaged when Output, especially Hurting Officer, attacks it.",
-        }
-    elif role == "Resource" and int(counts.get(wealth_element) or 0) >= 4:
-        pattern = {
-            "damage_type": "resource_damaged_by_wealth",
-            "damaging_role": "Wealth",
-            "damaging_element": wealth_element,
-            "damaging_count": int(counts.get(wealth_element) or 0),
-            "reason": "Resource usefulness is damaged when Wealth controls or burdens it.",
-        }
-    elif role == "Output" and int(counts.get(resource_element) or 0) >= 4:
-        pattern = {
-            "damage_type": "output_damaged_by_resource",
-            "damaging_role": "Resource",
-            "damaging_element": resource_element,
-            "damaging_count": int(counts.get(resource_element) or 0),
-            "reason": "Eating God/Output usefulness is damaged when Resource/Owl suppresses expression.",
-        }
-    if not pattern:
+    damage_family = {
+        "Wealth": ("wealth_damaged_by_companion", "Companion", day_element),
+        "Influence": ("officer_damaged_by_output", "Output", output_element),
+        "Resource": ("resource_damaged_by_wealth", "Wealth", wealth_element),
+        "Output": ("output_damaged_by_resource", "Resource", resource_element),
+    }.get(role)
+    if not damage_family:
+        return None
+    damage_type, damaging_role, damaging_element = damage_family
+    presence_count = int(counts.get(damaging_element) or 0)
+    if presence_count <= 0:
         return None
     return {
-        **pattern,
-        "status": "damaged",
-        "severity": "high",
-        "source_pattern": True,
-        "rescue_status": "alternate_required",
+        "watch_type": damage_type,
+        "damaging_role": damaging_role,
+        "damaging_element": damaging_element,
+        "damaging_presence_count": presence_count,
+        "presence_measure": "unweighted_presence_count",
+        "status": "presence_only_unclassified",
+        "qi_strength_status": "not_evaluated",
+        "reason": (
+            f"{damaging_role} is present, so the traditional {damage_type.replace('_', ' ')} family is worth checking. "
+            "Presence alone does not establish effective damage."
+        ),
     }
 
 
@@ -1622,6 +1646,9 @@ def _damage_rescue_candidates(
                 "role": rescue_role,
                 "element": rescue_element,
                 "count": int(counts.get(rescue_element) or 0),
+                "presence_count": int(counts.get(rescue_element) or 0),
+                "presence_measure": "unweighted_presence_count",
+                "qi_strength_status": "not_evaluated",
                 "path": "rescue_role",
                 "reason": reason,
             })
@@ -1632,6 +1659,9 @@ def _damage_rescue_candidates(
                 "role": "Tong Guan",
                 "element": bridge,
                 "count": int(counts.get(bridge) or 0),
+                "presence_count": int(counts.get(bridge) or 0),
+                "presence_measure": "unweighted_presence_count",
+                "qi_strength_status": "not_evaluated",
                 "path": "tong_guan_bridge",
                 "reason": f"{bridge} bridges {source_pattern.get('damaging_element')} pressure into {element} function through the generating cycle.",
             })
@@ -1659,22 +1689,24 @@ def _damage_channels(
             "detail": f"{len(integrity.get('event_impacts') or [])} challenging/supportive contact(s) touch the element.",
         })
     if availability in {"missing", "absent"}:
-        rows.append({"channel": "absent", "status": "absent", "detail": "No natal or timing source was found."})
+        rows.append({
+            "channel": "placement_not_found",
+            "status": "presence_missing",
+            "detail": "No checked natal or timing placement was found; this is not a qi-strength finding.",
+        })
     if availability == "timing_supported":
-        rows.append({"channel": "timing_only", "status": "timing_assisted", "detail": "The element is supplied by timing rather than natal structure."})
+        rows.append({"channel": "timing_only", "status": "timing_assisted", "detail": "The element appears in timing rather than checked natal placements; usable qi is not established."})
     return rows
 
 
 def _functional_state(status: str, source_pattern: Optional[Dict[str, Any]], rescue_candidates: List[Dict[str, Any]]) -> str:
-    if status == "damaged" and source_pattern and any(int(row.get("count") or 0) > 0 for row in rescue_candidates):
-        return "damaged_but_rescuable"
+    if status == "damaged" and source_pattern and rescue_candidates:
+        return "damaged_rescue_qi_unverified"
     if status == "damaged":
         return "damaged_needs_rescue"
-    if status == "absent":
-        return "absent_needs_substitute"
     if status == "timing_assisted":
-        return "present_by_timing_only"
-    return "functional"
+        return "timing_evidence_qi_unverified"
+    return "qi_strength_unresolved"
 
 
 def _damage_status(row: Dict[str, Any], counts: Dict[str, int], day_element: str) -> Dict[str, Any]:
@@ -1682,31 +1714,28 @@ def _damage_status(row: Dict[str, Any], counts: Dict[str, int], day_element: str
     element = str(row.get("element") or "")
     availability = str(integrity.get("availability") or "unknown")
     pressure = str(integrity.get("pressure") or "clear")
-    source_pattern = _source_damage_pattern(row, counts, day_element)
-    if source_pattern:
-        status = "damaged"
-        severity = "high"
-        reason = source_pattern["reason"]
-    elif pressure == "pressured":
+    presence_watch = _source_damage_presence_watch(row, counts, day_element)
+    source_pattern = None
+    if pressure == "pressured":
         status = "damaged"
         severity = "high"
         reason = f"{element} is favorable but touched by a challenging relationship code."
     elif availability == "missing":
-        status = "absent"
-        severity = "medium"
-        reason = f"{element} is favorable but not available in natal placements or current timing."
+        status = "presence_missing"
+        severity = "watch"
+        reason = f"{element} was not found in checked placements; absence from the inventory does not establish weak or unusable qi."
     elif availability == "timing_supported":
         status = "timing_assisted"
         severity = "watch"
-        reason = f"{element} is supplied by current timing rather than strongly rooted in the natal chart."
+        reason = f"{element} appears in current timing but not checked natal placements; this does not establish rooted or usable qi."
     elif pressure == "supported":
-        status = "supported"
-        severity = "low"
-        reason = f"{element} is favorable and supported by a configured relationship code."
+        status = "contact_supported"
+        severity = "watch"
+        reason = f"{element} is touched by a supportive relationship code, but effective qi remains unevaluated."
     else:
-        status = "available"
-        severity = "low"
-        reason = f"{element} is favorable and no configured damage marker currently blocks it."
+        status = "presence_only"
+        severity = "watch"
+        reason = f"{element} appears in checked placements, but presence does not establish effective or usable qi."
     rescue_candidates = _damage_rescue_candidates(row, source_pattern, counts, day_element)
     damage_channels = _damage_channels(
         source_pattern=source_pattern,
@@ -1727,16 +1756,17 @@ def _damage_status(row: Dict[str, Any], counts: Dict[str, int], day_element: str
         "damage_channels": damage_channels,
         "rescue_candidates": rescue_candidates,
         "functional_state": _functional_state(status, source_pattern, rescue_candidates),
+        "qi_strength_status": "not_evaluated",
+        "decision_authority": "none" if status != "damaged" else "contact_pressure_only",
         "two_against_one": any(
             int(channel.get("status") == "damaged") for channel in damage_channels
         ) and len([channel for channel in damage_channels if channel.get("status") == "damaged"]) >= 2,
     }
-    if source_pattern:
-        payload.update(source_pattern)
-    else:
-        payload["source_pattern"] = False
-        if status == "damaged":
-            payload["damage_type"] = "relationship_contact_pressure"
+    payload["source_pattern"] = False
+    if presence_watch:
+        payload["presence_damage_watch"] = presence_watch
+    if status == "damaged":
+        payload["damage_type"] = "relationship_contact_pressure"
     return payload
 
 
@@ -1751,10 +1781,13 @@ def _damage_assessment(payload: Dict[str, Any], counts: Optional[Dict[str, int]]
         "checked": len(rows),
         "damaged": sum(1 for row in rows if row.get("status") == "damaged"),
         "source_pattern_damaged": sum(1 for row in rows if row.get("status") == "damaged" and row.get("source_pattern") is True),
-        "absent": sum(1 for row in rows if row.get("status") == "absent"),
+        "presence_only_watches": sum(1 for row in rows if row.get("presence_damage_watch")),
+        "presence_missing": sum(1 for row in rows if row.get("status") == "presence_missing"),
+        "presence_only": sum(1 for row in rows if row.get("status") == "presence_only"),
+        "absent": sum(1 for row in rows if row.get("status") == "presence_missing"),
         "timing_assisted": sum(1 for row in rows if row.get("status") == "timing_assisted"),
-        "supported": sum(1 for row in rows if row.get("status") == "supported"),
-        "available": sum(1 for row in rows if row.get("status") == "available"),
+        "supported": sum(1 for row in rows if row.get("status") == "contact_supported"),
+        "available": sum(1 for row in rows if row.get("status") == "presence_only"),
     }
     return rows, summary
 
@@ -1792,12 +1825,18 @@ def _tong_guan_analysis(
             "target_element": target,
             "damaging_element": damaging,
             "count": bridge_count,
+            "presence_count": bridge_count,
+            "presence_measure": "unweighted_presence_count",
             "availability": availability,
             "pressure": pressure,
             "integrity": integrity,
             "source_damage_type": damaged.get("damage_type"),
-            "decision_candidate": bridge_count > 0 and pressure != "pressured",
-            "reason": f"{bridge} can bridge {damaging} pressure into {target} function instead of treating the conflict as simple good/bad scoring.",
+            "decision_candidate": False,
+            "qi_strength_status": "not_evaluated",
+            "reason": (
+                f"{bridge} is the generating-cycle bridge from {damaging} pressure into {target}. "
+                "Raw presence cannot establish that the bridge has usable qi, so this remains evidence-only."
+            ),
         })
     primary = next((row for row in candidates if row.get("decision_candidate")), None) or (candidates[0] if candidates else None)
     return {
@@ -1807,7 +1846,7 @@ def _tong_guan_analysis(
         "candidates": candidates,
         "notes": [
             "Tong Guan is evaluated as a bridge path when a source damage pattern creates a controlling-cycle conflict.",
-            "The bridge is evidence first; it can only displace the ordinary alternate path when no cleaner released alternate is available.",
+            "A counted or visible bridge remains evidence-only until its seasonal/rooted qi is evaluated.",
         ],
         "source_page_refs": ["lu_zhiji_fate_search:pp301-303", "lu_zhiji_fate_search:p317"],
         "source_confidence": confidence_tags("local_source", "computed_rule", "school_variant"),
@@ -1905,39 +1944,72 @@ def _chart_ten_god_counts(day_stem_index: int, pillars: Optional[Dict[str, Optio
     return dict(counts)
 
 
-def _structure_damage_patterns(structure_key: str, ten_god_counts: Dict[str, int]) -> List[Dict[str, Any]]:
-    patterns: List[Dict[str, Any]] = []
-    if structure_key in {"direct_officer", "seven_killings"} and (
-        ten_god_counts.get("Output", 0) or ten_god_counts.get("Hurting Officer", 0)
-    ):
-        patterns.append({
-            "type": "officer_damaged_by_output",
-            "status": "damaged",
-            "source_pattern": True,
-            "reason": "Officer/Killing structure is harmed when Output, especially Hurting Officer, attacks the authority star.",
-        })
-    if structure_key in {"direct_wealth", "indirect_wealth"} and ten_god_counts.get("Companion", 0):
-        patterns.append({
-            "type": "wealth_damaged_by_companion",
-            "status": "damaged",
-            "source_pattern": True,
-            "reason": "Wealth structure is harmed when Companion/Rob Wealth overpowers the wealth star.",
-        })
-    if structure_key in {"direct_resource", "indirect_resource"} and ten_god_counts.get("Wealth", 0):
-        patterns.append({
-            "type": "resource_damaged_by_wealth",
-            "status": "damaged",
-            "source_pattern": True,
-            "reason": "Resource structure is harmed when Wealth controls the resource star.",
-        })
-    if structure_key == "eating_god" and ten_god_counts.get("Resource", 0):
-        patterns.append({
-            "type": "output_damaged_by_resource",
-            "status": "damaged",
-            "source_pattern": True,
-            "reason": "Eating God is harmed when Owl/Resource suppresses output.",
-        })
-    return patterns
+def _structure_presence_watch(
+    *,
+    watch_type: str,
+    watch_family: str,
+    factor: str,
+    presence_count: int,
+    reason: str,
+) -> Dict[str, Any]:
+    return {
+        "type": watch_type,
+        "watch_family": watch_family,
+        "factor": factor,
+        "presence_count": int(presence_count),
+        "presence_measure": "unweighted_ten_god_mention_count",
+        "status": "presence_only_unclassified",
+        "qi_strength_status": "not_evaluated",
+        "decision_candidate": False,
+        "source_pattern": False,
+        "reason": (
+            f"{reason} The counted appearance opens a placement-and-qi review only; "
+            "it does not establish effective damage, mixing, or rescue."
+        ),
+    }
+
+
+def _structure_damage_presence_watches(structure_key: str, ten_god_counts: Dict[str, int]) -> List[Dict[str, Any]]:
+    checks = []
+    if structure_key in {"direct_officer", "seven_killings"}:
+        checks.append((
+            "officer_damaged_by_output",
+            "Output",
+            int(ten_god_counts.get("Output") or ten_god_counts.get("Hurting Officer") or 0),
+            "Officer/Killing can be harmed when effective Output, especially Hurting Officer, attacks the authority star.",
+        ))
+    if structure_key in {"direct_wealth", "indirect_wealth"}:
+        checks.append((
+            "wealth_damaged_by_companion",
+            "Companion",
+            int(ten_god_counts.get("Companion") or 0),
+            "Wealth can be harmed when effective Companion/Rob Wealth contests it.",
+        ))
+    if structure_key in {"direct_resource", "indirect_resource"}:
+        checks.append((
+            "resource_damaged_by_wealth",
+            "Wealth",
+            int(ten_god_counts.get("Wealth") or 0),
+            "Resource can be harmed when effective Wealth controls it.",
+        ))
+    if structure_key == "eating_god":
+        checks.append((
+            "output_damaged_by_resource",
+            "Resource",
+            int(ten_god_counts.get("Resource") or 0),
+            "Eating God can be harmed when effective Resource/Owl suppresses output.",
+        ))
+    return [
+        _structure_presence_watch(
+            watch_type=watch_type,
+            watch_family="damage",
+            factor=factor,
+            presence_count=count,
+            reason=reason,
+        )
+        for watch_type, factor, count, reason in checks
+        if count > 0
+    ]
 
 
 STRUCTURE_RESCUE_MAP = {
@@ -1952,7 +2024,7 @@ STRUCTURE_RESCUE_MAP = {
 }
 
 
-def _structure_rescue_patterns(structure_key: str, ten_god_counts: Dict[str, int]) -> List[Dict[str, Any]]:
+def _structure_rescue_presence_watches(structure_key: str, ten_god_counts: Dict[str, int]) -> List[Dict[str, Any]]:
     rescue = STRUCTURE_RESCUE_MAP.get(structure_key)
     if not rescue:
         return []
@@ -1960,24 +2032,33 @@ def _structure_rescue_patterns(structure_key: str, ten_god_counts: Dict[str, int
     count = int(ten_god_counts.get(factor) or 0)
     if count <= 0:
         return []
-    return [{
-        "type": "structure_rescue",
-        "rescue_factor": factor,
-        "count": count,
-        "status": "rescue_available",
-        "reason": reason,
-    }]
+    return [_structure_presence_watch(
+        watch_type="structure_rescue",
+        watch_family="rescue",
+        factor=factor,
+        presence_count=count,
+        reason=reason,
+    )]
 
 
-def _structure_mixed_patterns(structure_key: str, ten_god_counts: Dict[str, int]) -> List[Dict[str, Any]]:
-    rows: List[Dict[str, Any]] = []
+def _structure_mixed_presence_watches(structure_key: str, ten_god_counts: Dict[str, int]) -> List[Dict[str, Any]]:
+    checks = []
     if structure_key == "direct_officer" and ten_god_counts.get("Seven Killings", 0):
-        rows.append({"type": "officer_killing_mixed", "status": "mixed", "reason": "Direct Officer structure is mixed by Seven Killings and needs clearing."})
+        checks.append(("officer_killing_mixed", "Seven Killings", int(ten_god_counts["Seven Killings"]), "Direct Officer may be mixed when effective Seven Killings also participates."))
     if structure_key == "seven_killings" and ten_god_counts.get("Direct Officer", 0):
-        rows.append({"type": "officer_killing_mixed", "status": "mixed", "reason": "Seven Killings structure is mixed by Direct Officer and needs clearing."})
+        checks.append(("officer_killing_mixed", "Direct Officer", int(ten_god_counts["Direct Officer"]), "Seven Killings may be mixed when effective Direct Officer also participates."))
     if structure_key == "eating_god" and ten_god_counts.get("Hurting Officer", 0):
-        rows.append({"type": "output_mixed", "status": "mixed", "reason": "Eating God and Hurting Officer both appear; purity depends on placement and rescue."})
-    return rows
+        checks.append(("output_mixed", "Hurting Officer", int(ten_god_counts["Hurting Officer"]), "Eating God and Hurting Officer both appear; purity depends on placement, qi, and rescue."))
+    return [
+        _structure_presence_watch(
+            watch_type=watch_type,
+            watch_family="mixing",
+            factor=factor,
+            presence_count=count,
+            reason=reason,
+        )
+        for watch_type, factor, count, reason in checks
+    ]
 
 
 def _structure_assessment(
@@ -2037,14 +2118,17 @@ def _month_command_structure_selection(
     factor = str(god_payload.get("factor") or "Unknown")
     key, label, use_mode = STRUCTURE_BY_GOD.get(god, ("unclassified", f"{god} Structure", "neutral"))
     counts = _chart_ten_god_counts(day_stem_index, pillars)
-    damage_patterns = _structure_damage_patterns(key, counts)
-    rescue_patterns = _structure_rescue_patterns(key, counts)
-    mixed_patterns = _structure_mixed_patterns(key, counts)
+    damage_presence_watches = _structure_damage_presence_watches(key, counts)
+    rescue_presence_watches = _structure_rescue_presence_watches(key, counts)
+    mixed_presence_watches = _structure_mixed_presence_watches(key, counts)
+    damage_patterns: List[Dict[str, Any]] = []
+    rescue_patterns: List[Dict[str, Any]] = []
+    mixed_patterns: List[Dict[str, Any]] = []
     assessment = _structure_assessment(key, damage_patterns, rescue_patterns, mixed_patterns)
     status = assessment["status"]
     return {
         "status": "source_based_preview",
-        "method": "month_command_structure_selection_v2",
+        "method": "month_command_structure_selection_v3",
         "primary_structure": {
             "key": key,
             "label": label,
@@ -2057,17 +2141,29 @@ def _month_command_structure_selection(
             "damage_patterns": damage_patterns,
             "rescue_patterns": rescue_patterns,
             "mixed_patterns": mixed_patterns,
+            "damage_presence_watches": damage_presence_watches,
+            "rescue_presence_watches": rescue_presence_watches,
+            "mixed_presence_watches": mixed_presence_watches,
             "success_failure": assessment["success_failure"],
             "qing_zhuo": assessment["qing_zhuo"],
             "xiang_shen_candidates": rescue_patterns,
+            "xiang_shen_presence_watches": rescue_presence_watches,
             "ji_shen_patterns": damage_patterns + mixed_patterns,
+            "ji_shen_presence_watches": damage_presence_watches + mixed_presence_watches,
             "ten_god_counts": counts,
+            "ten_god_presence_counts": counts,
+            "ten_god_count_semantics": {
+                "measure": "unweighted_ten_god_mention_count",
+                "is_qi_strength": False,
+                "used_for": ["presence_only_review"],
+                "not_used_for": ["damage_classification", "rescue_classification", "mixing_classification"],
+            },
             "ordinary_rules_apply": assessment["ordinary_rules_apply"],
         },
         "notes": [
             "Month-command structure is selected before ordinary strong/weak balancing is treated as final.",
-            "Damaged structures route to rescue or alternate-useful checks instead of generic scoring.",
-            "Structure assessment now distinguishes usable, damaged, rescued, mixed, and unclassified paths.",
+            "Ten God mention counts open damage, rescue, and mixing reviews but cannot classify their effective qi.",
+            "Only evaluated structure evidence may populate damage, rescue, or mixing patterns and alter the structure assessment.",
         ],
         "source_page_refs": ["lu_zhiji_fate_search:pp123-124", "lu_zhiji_advanced:p24"],
         "source_confidence": confidence_tags("local_source", "computed_rule"),
@@ -2139,7 +2235,7 @@ def _dominant_special_candidate(
         or controller_count != 0
     ):
         return None
-    classified = (
+    structural_conditions_met = (
         ratio >= 0.7
         and controller_count == 0
         and (
@@ -2154,14 +2250,21 @@ def _dominant_special_candidate(
         "role": meta.get("role") or "dominant",
         "element": dominant_element,
         "ratio": round(ratio, 3),
-        "classification": "classified" if classified else "suspected",
+        "presence_ratio": round(ratio, 3),
+        "ratio_measure": "unweighted_presence_count",
+        "classification": "suspected_presence_only",
+        "qi_strength_status": "not_evaluated",
+        "decision_authority": "none",
+        "review_only": True,
+        "structural_conditions_met": structural_conditions_met,
         "month_support": month_support,
         "branch_frame_hits": branch_count,
         "opposing_controller_count": controller_count,
+        "opposing_controller_presence_count": controller_count,
         "priority": 3,
         "reason": (
-            f"{dominant_element} dominates the counted placements. Classified special structures require "
-            "month/frame support and no effective opposing controller."
+            f"{dominant_element} is the most-mentioned element in the unweighted inventory. "
+            "Month/frame evidence can trigger review, but presence counts cannot classify a dominant structure."
         ),
     }
 
@@ -2191,23 +2294,30 @@ def _follow_special_candidate(
     if strength not in {"weak", "very weak", "extremely weak"} or dominant_element == day_element or ratio < 0.5:
         return None
     root_present = _day_master_root_present(pillars, day_stem_key, day_element)
-    blockers = ["day_master_root_present"] if root_present or day_count > 1 else []
+    blockers = ["day_master_root_present"] if root_present else []
     month_support = _month_supports_element(pillars, dominant_element)
-    classified = ratio >= 0.62 and not blockers and month_support
-    classification = "classified" if classified else ("false_follow" if blockers else "suspected")
+    structural_conditions_met = ratio >= 0.62 and not blockers and month_support
+    classification = "false_follow" if blockers else "suspected_presence_only"
     return {
         "type": "follow_structure",
         "family": "follow_structure",
         "role": _follow_role(day_element, dominant_element),
         "element": dominant_element,
         "ratio": round(ratio, 3),
+        "presence_ratio": round(ratio, 3),
+        "ratio_measure": "unweighted_presence_count",
         "classification": classification,
+        "qi_strength_status": "not_evaluated",
+        "decision_authority": "none" if classification == "suspected_presence_only" else "structural_blocker_only",
+        "review_only": classification == "suspected_presence_only",
+        "structural_conditions_met": structural_conditions_met,
         "month_support": month_support,
+        "day_element_presence_count": day_count,
         "false_follow_blockers": blockers,
         "priority": 1,
         "reason": (
-            "Follow structures require a rootless weak Day Master and an overwhelming chart force; "
-            "return-to-root evidence makes it false follow."
+            "Follow structures require a rootless weak Day Master and an overwhelming chart force. "
+            "The root test is structural, but the unweighted presence ratio cannot establish the dominant force's qi."
         ),
     }
 
@@ -2303,17 +2413,24 @@ def _special_structure_screen(
     flags = sorted(flags, key=lambda flag: (int(flag.get("priority") or 99), str(flag.get("type") or "")))
     classified = [flag for flag in flags if flag.get("classification") == "classified"]
     suspected = [flag for flag in flags if flag.get("classification") != "classified"]
+    presence_only_flags = [
+        flag for flag in flags
+        if flag.get("classification") == "suspected_presence_only"
+    ]
     primary_structure = classified[0] if classified else (suspected[0] if suspected else None)
     return {
         "status": "candidate_flags" if flags else "screened_not_classified",
-        "method": "dominant_element_special_structure_screen_v1",
+        "method": "presence_screened_special_structure_v2",
         "structure_status": "classified" if classified else ("suspected" if suspected else "none"),
         "structure_types": sorted({str(flag.get("type")) for flag in flags if flag.get("type")}),
         "primary_structure": primary_structure,
         "flags": flags,
+        "presence_only_flags": presence_only_flags,
+        "presence_only_decision_authority": "none",
         "notes": [
             "Special structures displace ordinary support/pressure rules only when source criteria are classified.",
             "False follow and failed transformation remain visible but withhold final Useful God selection.",
+            "Unweighted element ratios can trigger review but cannot classify dominant or follow structures as usable qi.",
         ],
         "source_page_refs": ["lu_zhiji_fate_search:pp281-297", "yuanhai_ziping:pp110-130"],
         "source_confidence": confidence_tags("local_source", "computed_rule"),
@@ -2482,13 +2599,18 @@ def _decide_yong_shen(
         row for row in payload.get("favorable") or []
         if isinstance(row, dict) and row.get("element")
     ]
-    usable_candidates = [
+    qi_evaluated_candidates = [
         row for row in payload.get("favorable") or []
         if isinstance(row, dict)
         and row.get("element")
-        and damage_by_element.get(row.get("element"), {}).get("status") not in {"damaged", "absent"}
+        and isinstance(row.get("integrity"), dict)
+        and row.get("integrity", {}).get("qi_strength_status") == "evaluated"
+        and damage_by_element.get(row.get("element"), {}).get("status") != "damaged"
     ]
-    primary = next((row for row in usable_candidates if row.get("priority") == "primary"), None) or (usable_candidates[0] if usable_candidates else None)
+    primary = (
+        next((row for row in qi_evaluated_candidates if row.get("priority") == "primary"), None)
+        or (qi_evaluated_candidates[0] if qi_evaluated_candidates else None)
+    )
     blocked_primary = next((row for row in all_candidates if row.get("priority") == "primary"), None) or (all_candidates[0] if all_candidates else None)
     primary_damage = damage_by_element.get((blocked_primary or {}).get("element"))
     climate = payload.get("climate_adjustment") if isinstance(payload.get("climate_adjustment"), dict) else {}
@@ -2512,10 +2634,18 @@ def _decide_yong_shen(
         else None
     )
     special_flags = special_screen.get("flags") if isinstance(special_screen.get("flags"), list) else []
+    presence_only_special_flags = [
+        flag for flag in special_flags
+        if isinstance(flag, dict) and flag.get("classification") == "suspected_presence_only"
+    ]
+    actionable_special_flags = [
+        flag for flag in special_flags
+        if isinstance(flag, dict) and flag.get("classification") != "suspected_presence_only"
+    ]
     blocking_reasons: List[str] = []
     decision_path = base_family
-    selected = primary
-    selected_role = primary.get("role") if primary else None
+    selected = primary or blocked_primary
+    selected_role = selected.get("role") if isinstance(selected, dict) else None
 
     if status != "provisional":
         decision_path = YONG_SHEN_RULE_FAMILIES["balanced_withheld"]
@@ -2523,15 +2653,13 @@ def _decide_yong_shen(
     if confidence not in {"medium", "high"}:
         decision_path = YONG_SHEN_RULE_FAMILIES["confidence_withheld"]
         blocking_reasons.append("low_recommendation_confidence")
-    if special_flags and not special_candidate:
+    if actionable_special_flags and not special_candidate:
         decision_path = YONG_SHEN_RULE_FAMILIES["special_structure_withheld"]
         blocking_reasons.append("special_structure_review_required")
-        if primary_damage and primary_damage.get("status") in {"damaged", "absent"}:
+        if primary_damage and primary_damage.get("status") == "damaged":
             blocking_reasons.append(f"primary_candidate_{primary_damage.get('status')}")
     if status == "provisional" and not all_candidates:
         blocking_reasons.append("no_favorable_candidate")
-    if status == "provisional" and all_candidates and not primary and not special_candidate:
-        blocking_reasons.append("no_usable_primary_candidate")
     if special_candidate and status == "provisional":
         decision_path = YONG_SHEN_RULE_FAMILIES[str(special_candidate.get("family"))]
         selected = {
@@ -2542,13 +2670,14 @@ def _decide_yong_shen(
                 "availability": "structural",
                 "pressure": "clear",
                 "summary": special_candidate.get("reason"),
+                "qi_strength_status": "structurally_classified",
             },
         }
         selected_role = selected.get("role")
-    elif special_flags and status == "provisional":
+    elif actionable_special_flags and status == "provisional":
         selected = blocked_primary or selected
         selected_role = selected.get("role") if isinstance(selected, dict) else None
-    elif climate_override_candidate and not special_flags and status == "provisional":
+    elif climate_override_candidate and not actionable_special_flags and status == "provisional":
         decision_path = YONG_SHEN_RULE_FAMILIES["climate_override"]
         selected = {
             "element": climate_override_candidate.get("element"),
@@ -2559,6 +2688,7 @@ def _decide_yong_shen(
                 "pressure": climate_override_candidate.get("pressure") or "clear",
                 "summary": climate_override_candidate.get("reason"),
                 "source_page_refs": climate_override_candidate.get("source_page_refs") or [],
+                "qi_strength_status": climate_override_candidate.get("qi_strength_status") or "not_evaluated",
             },
         }
         selected_role = "regulating"
@@ -2566,8 +2696,10 @@ def _decide_yong_shen(
             blocking_reasons.append("climate_candidate_absent")
         if climate_override_candidate.get("pressure") == "pressured":
             blocking_reasons.append("climate_candidate_pressured")
-    elif primary_damage and primary_damage.get("status") in {"damaged", "absent"}:
-        alternate = next((row for row in usable_candidates if row.get("element") != (blocked_primary or {}).get("element")), None)
+        if climate_override_candidate.get("qi_strength_status") != "evaluated":
+            blocking_reasons.append("climate_candidate_qi_strength_unresolved")
+    elif primary_damage and primary_damage.get("status") == "damaged":
+        alternate = next((row for row in qi_evaluated_candidates if row.get("element") != (blocked_primary or {}).get("element")), None)
         alternate_damage = damage_by_element.get((alternate or {}).get("element")) if alternate else None
         if not alternate and tong_guan_candidate and primary_damage.get("source_pattern") is True:
             decision_path = YONG_SHEN_RULE_FAMILIES["tong_guan"]
@@ -2598,10 +2730,21 @@ def _decide_yong_shen(
             blocking_reasons.append("damage_pattern_not_source_backed")
         else:
             decision_path = YONG_SHEN_RULE_FAMILIES["damage_withheld"]
+            if primary_damage.get("source_pattern") is not True:
+                blocking_reasons.append("damage_pattern_not_source_backed")
             blocking_reasons.append(f"primary_candidate_{primary_damage.get('status')}")
     elif primary_damage and primary_damage.get("status") == "timing_assisted":
         decision_path = YONG_SHEN_RULE_FAMILIES["timing_assisted"]
         blocking_reasons.append("timing_assisted_final_not_released")
+
+    selected_integrity = selected.get("integrity") if isinstance(selected, dict) and isinstance(selected.get("integrity"), dict) else {}
+    if (
+        status == "provisional"
+        and selected
+        and not special_candidate
+        and selected_integrity.get("qi_strength_status") != "evaluated"
+    ):
+        blocking_reasons.append("candidate_qi_strength_unresolved")
 
     source_ids = _source_ids_from_basis((payload.get("source_basis") or []) + (climate.get("source_basis") or []))
     family_key = _family_key_from_decision_path(decision_path)
@@ -2631,6 +2774,8 @@ def _decide_yong_shen(
         "damage": primary_damage or {},
         "structure_selection": payload.get("structure_selection") or {},
         "special_structure": special_screen,
+        "presence_only_special_flags": presence_only_special_flags,
+        "actionable_special_flags": actionable_special_flags,
         "tong_guan": payload.get("tong_guan") or {},
         "fixture_gate": gate,
         "timing": payload.get("timing_interaction") or {},
@@ -2680,7 +2825,7 @@ def _decide_yong_shen(
             "rule_family": family_key,
             "decision_path": decision_path,
             "confidence": confidence,
-            "reason": "This candidate passes the strength and damage checks, but final Yong Shen remains withheld until broader fixtures are curated.",
+            "reason": "This is a strength-derived role candidate, but its own effective qi and the remaining release fixtures are unresolved.",
             "blocking_reasons": blocking_reasons or ["final_fixture_not_curated"],
             "evidence": evidence,
             "source_ids": source_ids,
@@ -2696,7 +2841,7 @@ def _decide_yong_shen(
         "rule_family": family_key,
         "decision_path": decision_path,
         "confidence": confidence,
-        "reason": "The app does not name a final Yong Shen when strength confidence is low, the chart is balanced/uncertain, or the primary candidate is absent/damaged.",
+        "reason": "The app does not name a final Yong Shen when strength confidence is low, the chart is balanced/uncertain, or candidate qi and damage gates are unresolved.",
         "blocking_reasons": blocking_reasons or ["final_fixture_not_curated"],
         "evidence": evidence,
         "source_ids": source_ids,
@@ -2747,6 +2892,7 @@ def _finalize_useful_element_payload(
     for note in (
         "Climate, special-structure, damaged-useful, and timing evidence are released only through executable chart-input assertion gates.",
         "Timing-assisted candidates remain evidence-only until the timing-assisted fixture family is enabled for final release.",
+        "Unweighted element presence is reported as placement availability only and has no Yong Shen decision authority.",
     ):
         if note not in notes:
             notes.append(note)
@@ -2766,9 +2912,27 @@ def build_useful_element_recommendations(
     day_stem = STEMS[int(day_stem_index) % 10]
     day_element = day_stem["element"]
     roles = _element_role_map(day_element)
+    raw_presence_counts = balance.get("counts") or balance.get("total") or {}
     counts = {
-        element: int((balance.get("total") or {}).get(element) or 0)
+        element: int(raw_presence_counts.get(element) or 0)
         for element in ELEMENTS
+    }
+    presence_context = {
+        "model_id": balance.get("model_id") or "legacy_element_presence_counts",
+        "measure": balance.get("measure") or "unweighted_presence_count",
+        "counts": counts,
+        "is_qi_strength": False,
+        "decision_authority": "none",
+        "used_for": ["placement_availability_display", "presence_only_review"],
+        "not_used_for": [
+            "day_master_strength",
+            "candidate_qi_strength",
+            "candidate_eligibility",
+            "candidate_actionability",
+            "effective_element_supply",
+            "damage_classification",
+            "dominant_or_follow_structure_classification",
+        ],
     }
     strength = str(analysis.get("strength") or "uncertain").lower()
     support_score = float(analysis.get("support_score") or 0)
@@ -2834,6 +2998,7 @@ def build_useful_element_recommendations(
             "confidence": recommendation_confidence,
             "day_master_strength": strength,
             "day_master_element": day_element,
+            "element_presence": presence_context,
             "favorable": favorable,
             "unfavorable": unfavorable,
             "notes": [
@@ -2890,6 +3055,7 @@ def build_useful_element_recommendations(
             "confidence": recommendation_confidence,
             "day_master_strength": strength,
             "day_master_element": day_element,
+            "element_presence": presence_context,
             "favorable": favorable,
             "unfavorable": unfavorable,
             "notes": [
@@ -2907,15 +3073,23 @@ def build_useful_element_recommendations(
         "confidence": "low",
         "day_master_strength": strength,
         "day_master_element": day_element,
+        "element_presence": presence_context,
         "favorable": [],
         "unfavorable": [],
         "candidates_to_watch": [
-            {"element": element, "count": counts.get(element, 0)}
+            {
+                "element": element,
+                "count": counts.get(element, 0),
+                "presence_count": counts.get(element, 0),
+                "presence_measure": "unweighted_presence_count",
+                "qi_strength_status": "not_evaluated",
+                "reason": "This element is light in the unweighted inventory; that alone does not make it useful or weak.",
+            }
             for element in low_elements
         ],
         "notes": [
             "The current chart is balanced or uncertain, so the app does not name a useful element yet.",
-            "Use the element balance, roots, Ten Gods, and timing layers as evidence until strength fixtures are expanded.",
+            "Use the element presence inventory, roots, Ten Gods, and timing layers as separate evidence until strength fixtures are expanded.",
         ],
         "source_basis": [*source_basis, LOCAL_SOURCE_BASIS[7], LOCAL_SOURCE_BASIS[8]],
         "source_confidence": confidence_tags("local_source", "provisional_model", "needs_validation"),
@@ -3046,8 +3220,8 @@ def build_interpretation(
     month = pillars.get("month") or {}
     hour = pillars.get("hour") or {}
     totals = balance.get("total") or {}
-    strongest = sorted(ELEMENTS, key=lambda element: (-int(totals.get(element) or 0), element))[:2]
-    weakest = sorted(ELEMENTS, key=lambda element: (int(totals.get(element) or 0), element))[:2]
+    most_mentioned = sorted(ELEMENTS, key=lambda element: (-int(totals.get(element) or 0), element))[:2]
+    least_mentioned = sorted(ELEMENTS, key=lambda element: (int(totals.get(element) or 0), element))[:2]
     visible_factors = _top_counts(ten_gods.get("visible") or [], "factor")
     hidden_factors = _top_counts(ten_gods.get("hidden") or [], "factor")
     factor_profile = ten_gods.get("factor_profile") if isinstance(ten_gods.get("factor_profile"), dict) else {}
@@ -3072,7 +3246,7 @@ def build_interpretation(
             "items": [
                 f"The month branch is {month.get('branch', '-')} ({month.get('branch_element', '-')}); month season is weighted before looser element counts.",
                 f"Season state: {season_model.get('season', '-')} / {season_model.get('state', '-')}; root score: {root_model.get('score', '-')}; formation score: {formation_model.get('score', '-')}.",
-                f"Count cross-check only: strongest counted elements are {', '.join(strongest)}; lightest counted elements are {', '.join(weakest)}.",
+                f"Presence cross-check only: most-mentioned elements are {', '.join(most_mentioned)}; least-mentioned elements are {', '.join(least_mentioned)}. These unweighted counts are not qi strength.",
             ],
             "source_ids": ["local.four_pillars_strength"],
             "source_confidence": confidence_tags("local_source", "computed_rule", "provisional_model"),
