@@ -25,8 +25,9 @@ from typing import Iterable
 from pypdf import PdfReader
 
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SOURCE = Path(r"C:\Users\sabaa\Desktop\astrolgy books")
-DEFAULT_DEST = Path(r"C:\Users\sabaa\Downloads\codexhorary\horary_knowledge\desktop_books_text")
+DEFAULT_DEST = REPO_ROOT / "horary_knowledge" / "desktop_books_text"
 TEXT_EXTENSIONS = {".txt", ".text"}
 EPUB_HTML_EXTENSIONS = {".html", ".htm", ".xhtml", ".xml", ".ncx", ".opf"}
 SUSPECT_MIN_CHARS = 200

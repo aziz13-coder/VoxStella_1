@@ -128,6 +128,13 @@ echo [SUCCESS] Unpacked app created.
 echo [SUCCESS] Unpacked app created: "%APP_EXE%" >>"%LOG%"
 
 echo.
+echo [GATE] Validating projected default Windows install paths
+echo.>>"%LOG%"
+echo [GATE] Validating projected default Windows install paths>>"%LOG%"
+call :run_logged "..\backend\.release-venv\Scripts\python.exe ..\scripts\check_windows_install_paths.py --unpacked-root dist-electron\win-unpacked"
+if errorlevel 1 goto :windows_install_path_error
+
+echo.
 echo [10/11] Creating NSIS installer
 echo.>>"%LOG%"
 echo [10/11] Creating NSIS installer (full build to embed auto-update config)>>"%LOG%"
@@ -197,6 +204,10 @@ goto :error
 
 :unpacked_app_missing
 echo [ERROR] Unpacked app not created: "%APP_EXE%">>"%LOG%"
+goto :error
+
+:windows_install_path_error
+echo [ERROR] Packaged paths exceed the safe default Windows install-path limit>>"%LOG%"
 goto :error
 
 :packaged_smoke_error

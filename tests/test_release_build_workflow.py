@@ -58,3 +58,17 @@ def test_release_batch_wrapper_keeps_crlf_line_endings():
 
     assert b"\n" in payload
     assert payload.count(b"\r\n") == payload.count(b"\n")
+
+
+def test_github_release_list_is_flattened_for_windows_powershell():
+    script = RELEASE_SCRIPT.read_text(encoding="utf-8")
+
+    assert "$releaseResponse = Invoke-RestMethod" in script
+    assert "foreach ($releaseItem in $releaseResponse)" in script
+    assert "$releases += $releaseItem" in script
+    assert (
+        '$releases = @(\n'
+        '    Invoke-RestMethod -Headers $Headers '
+        '-Uri "$ApiBase/releases?per_page=100" -Method Get\n'
+        '  )'
+    ) not in script

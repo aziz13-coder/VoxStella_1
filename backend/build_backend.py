@@ -77,7 +77,11 @@ RUNTIME_DATA_ENTRIES = (
 )
 
 OPTIONAL_RUNTIME_DATA_ENTRIES = (
-    ("../extracted_text_docs/new_sources_inspection", "traits/corpus/new_sources_inspection"),
+    # Keep the bundled corpus root deliberately short. The corpus contains long,
+    # descriptive source and chunk names; nesting it below
+    # traits/corpus/new_sources_inspection pushes valid default Windows install
+    # paths past legacy MAX_PATH during NSIS upgrades.
+    ("../extracted_text_docs/new_sources_inspection", "tc"),
 )
 
 

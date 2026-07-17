@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Dict, List
 
 
-ROOT = Path(r"C:\Users\sabaa\Downloads\codexhorary")
+ROOT = Path(__file__).resolve().parents[1]
 REFERENCE_DIR = ROOT / "horary_knowledge" / "astrocartography_knowledge_base" / "reference"
 OUTPUT_PATH = ROOT / "backend" / "knowledge" / "astrocartography" / "interpretation_runtime.json"
 

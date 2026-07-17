@@ -29,8 +29,9 @@ except Exception:  # pragma: no cover - optional dependency
     _fix_text = None
 
 
-RAW_DIR = Path(r"C:\Users\sabaa\Downloads\codexhorary\horary_knowledge\synastry_books_text")
-OUT_DIR = Path(r"C:\Users\sabaa\Downloads\codexhorary\horary_knowledge\synastry_knowledge_base")
+REPO_ROOT = Path(__file__).resolve().parents[1]
+RAW_DIR = REPO_ROOT / "horary_knowledge" / "synastry_books_text"
+OUT_DIR = REPO_ROOT / "horary_knowledge" / "synastry_knowledge_base"
 PAGE_MARKER_RE = re.compile(r"^=== Page (\d+) ===$")
 
 

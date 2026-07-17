@@ -71,6 +71,13 @@ RUNTIME_DATA_ENTRIES = (
     ("ephemeris/sweph", "ephemeris/sweph"),
 )
 
+OPTIONAL_RUNTIME_DATA_ENTRIES = (
+    # Match the canonical desktop backend's compact packaged trait-corpus root.
+    # This legacy builder is not used by package-app-new.bat, but keeping the
+    # tracked source mirror aligned preserves direct-build behavior.
+    ("../../extracted_text_docs/new_sources_inspection", "tc"),
+)
+
 
 def _log_ok(message: str) -> None:
     print(f"[OK] {message}")
@@ -85,6 +92,12 @@ def build_runtime_data_args(backend_dir: Path, build_metadata_path: Path) -> lis
     data_args: list[str] = []
     for relative_source, destination in RUNTIME_DATA_ENTRIES:
         data_args.extend(["--add-data", f"{backend_dir / relative_source};{destination}"])
+    for relative_source, destination in OPTIONAL_RUNTIME_DATA_ENTRIES:
+        source = (backend_dir / relative_source).resolve()
+        if source.exists():
+            data_args.extend(["--add-data", f"{source};{destination}"])
+        else:
+            print(f"[WARN] Optional runtime data is unavailable: {source}")
     data_args.extend(["--add-data", f"{build_metadata_path};."])
     return data_args
 

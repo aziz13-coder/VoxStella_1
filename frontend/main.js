@@ -33,6 +33,11 @@ const {
   createBackendInstanceSecret,
   verifyBackendInstanceProof,
 } = require('./main/backend-instance-auth');
+const { createBackendParentState } = require('./main/backend-parent-state');
+const {
+  acquireSingleInstanceLock,
+  focusWindow,
+} = require('./main/single-instance');
 // Optional modules (exist if installed)
 let initAutoUpdater; try { ({ initAutoUpdater } = require('./main/updater')); } catch (_) {}
 let LicenseManager; try { ({ LicenseManager } = require('./main/license')); } catch (_) {}
@@ -170,7 +175,7 @@ let backendLogDir = null;
 let mainLogPath = null;
 let backendRestartAttempts = 0;
 let backendRestartTimer = null;
-let backendParentStateFile = null;
+let backendParentState = null;
 let backendHeartbeatTimer = null;
 let ipcHandlersRegistered = false;
 let backendLicenseSessionSecretB64 = null;
@@ -184,6 +189,7 @@ let backendConsecutiveProbeFailures = 0;
 let backendRecoveryInProgress = false;
 let fatalExitStarted = false;
 let initialBackendReadinessPending = false;
+let secondInstanceFocusPending = false;
 const MAX_BACKEND_RESTARTS = (() => {
   const raw = Number(process.env.VOX_STELLA_BACKEND_RESTARTS || 3);
   return Number.isFinite(raw) && raw >= 0 ? Math.floor(raw) : 3;
@@ -204,6 +210,31 @@ const BACKEND_STATUS_PING_TIMEOUT_MS = Math.max(
   1000,
   Number(process.env.VOX_STELLA_BACKEND_STATUS_PING_TIMEOUT_MS || DEFAULT_BACKEND_STATUS_PING_TIMEOUT_MS),
 );
+
+if (SMOKE_TEST_MODE) {
+  app.setPath(
+    'userData',
+    path.join(app.getPath('temp'), `VoxStella-smoke-${process.pid}`),
+  );
+}
+
+const hasSingleInstanceLock = acquireSingleInstanceLock(
+  app,
+  () => mainWindow,
+  {
+    onWindowUnavailable: () => {
+      if (closed || backendKillStarted) return;
+      secondInstanceFocusPending = true;
+      if (ipcHandlersRegistered && BrowserWindow.getAllWindows().length === 0) {
+        void createWindow();
+      }
+    },
+  },
+);
+if (!hasSingleInstanceLock) {
+  closed = true;
+  app.quit();
+}
 
 function configureMainFileLogging(logDir) {
   if (mainLogPath || !ensureLogDir(logDir)) return;
@@ -387,36 +418,38 @@ function clearBackendRestartTimer() {
 }
 
 function ensureBackendParentStateFile(logDir) {
-  if (backendParentStateFile) return backendParentStateFile;
+  if (backendParentState) return backendParentState.stateFile;
   const baseDir = logDir || app.getPath('userData');
-  try {
-    if (!fs.existsSync(baseDir)) fs.mkdirSync(baseDir, { recursive: true });
-  } catch (_) {}
-  backendParentStateFile = path.join(baseDir, 'backend-parent-state.json');
-  return backendParentStateFile;
+  backendParentState = createBackendParentState(baseDir, { pid: process.pid });
+  return backendParentState.stateFile;
 }
 
 function writeBackendParentState() {
-  const stateFile = backendParentStateFile;
-  if (!stateFile) return;
+  const state = backendParentState;
+  if (!state) return;
   try {
-    fs.writeFileSync(stateFile, JSON.stringify({
-      pid: process.pid,
-      updated_at_ms: Date.now(),
-    }), 'utf8');
+    state.write();
   } catch (_) {}
 }
 
 function startBackendHeartbeat(logDir) {
-  const stateFile = ensureBackendParentStateFile(logDir);
-  if (!stateFile) return null;
-  writeBackendParentState();
-  if (backendHeartbeatTimer) clearInterval(backendHeartbeatTimer);
-  backendHeartbeatTimer = setInterval(writeBackendParentState, 1000);
-  if (typeof backendHeartbeatTimer.unref === 'function') {
-    backendHeartbeatTimer.unref();
+  try {
+    const stateFile = ensureBackendParentStateFile(logDir);
+    backendParentState.write();
+    if (backendHeartbeatTimer) clearInterval(backendHeartbeatTimer);
+    backendHeartbeatTimer = setInterval(writeBackendParentState, 1000);
+    if (typeof backendHeartbeatTimer.unref === 'function') {
+      backendHeartbeatTimer.unref();
+    }
+    return stateFile;
+  } catch (error) {
+    if (backendParentState) {
+      try { backendParentState.cleanup(); } catch (_) {}
+      backendParentState = null;
+    }
+    console.warn('Backend parent heartbeat unavailable; using PID watchdog only:', error);
+    return null;
   }
-  return stateFile;
 }
 
 function stopBackendHeartbeat() {
@@ -424,9 +457,10 @@ function stopBackendHeartbeat() {
     clearInterval(backendHeartbeatTimer);
     backendHeartbeatTimer = null;
   }
-  if (backendParentStateFile) {
-    try { fs.unlinkSync(backendParentStateFile); } catch (_) {}
-    backendParentStateFile = null;
+  if (backendParentState) {
+    const state = backendParentState;
+    backendParentState = null;
+    try { state.cleanup(); } catch (_) {}
   }
 }
 
@@ -990,6 +1024,10 @@ async function createWindow() {
   }
 
   broadcastBackendStatus();
+  if (secondInstanceFocusPending) {
+    secondInstanceFocusPending = false;
+    focusWindow(window);
+  }
   window.on('closed', () => {
     clearTimeout(showFallbackTimer);
     if (mainWindow === window) mainWindow = null;
@@ -1276,34 +1314,36 @@ function terminateApplication(reason, error, exitCode) {
   } catch (_) {}
 }
 
-app.on('before-quit', shutdownBackend);
-app.on('will-quit', shutdownBackend);
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    shutdownBackend();
-    app.quit();
-  }
-});
-
-// Extra safety: kill backend on process exit or signals
-process.once('exit', shutdownBackend);
-process.once('SIGINT', () => terminateApplication('SIGINT', 'interrupt signal', 130));
-process.once('SIGTERM', () => terminateApplication('SIGTERM', 'termination signal', 143));
-process.once('uncaughtException', (error) => terminateApplication('uncaughtException', error, 1));
-process.once('unhandledRejection', (reason) => terminateApplication('unhandledRejection', reason, 1));
-
-app.whenReady()
-  .then(startApplication)
-  .catch((error) => {
-    if (SMOKE_TEST_MODE) {
-      try {
-        writeSmokeResultFile(
-          process.env.VOX_STELLA_SMOKE_RESULT_PATH,
-          { ok: false, error: String(error?.message || error) },
-        );
-      } catch (resultError) {
-        console.error(`[smoke] result file failed: ${String(resultError?.message || resultError)}`);
-      }
+if (hasSingleInstanceLock) {
+  app.on('before-quit', shutdownBackend);
+  app.on('will-quit', shutdownBackend);
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') {
+      shutdownBackend();
+      app.quit();
     }
-    terminateApplication('startup', error, 1);
   });
+
+  // Extra safety: kill backend on process exit or signals
+  process.once('exit', shutdownBackend);
+  process.once('SIGINT', () => terminateApplication('SIGINT', 'interrupt signal', 130));
+  process.once('SIGTERM', () => terminateApplication('SIGTERM', 'termination signal', 143));
+  process.once('uncaughtException', (error) => terminateApplication('uncaughtException', error, 1));
+  process.once('unhandledRejection', (reason) => terminateApplication('unhandledRejection', reason, 1));
+
+  app.whenReady()
+    .then(startApplication)
+    .catch((error) => {
+      if (SMOKE_TEST_MODE) {
+        try {
+          writeSmokeResultFile(
+            process.env.VOX_STELLA_SMOKE_RESULT_PATH,
+            { ok: false, error: String(error?.message || error) },
+          );
+        } catch (resultError) {
+          console.error(`[smoke] result file failed: ${String(resultError?.message || resultError)}`);
+        }
+      }
+      terminateApplication('startup', error, 1);
+    });
+}

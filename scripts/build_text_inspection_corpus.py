@@ -33,8 +33,9 @@ except Exception:  # pragma: no cover - optional dependency
     _fix_text = None
 
 
-DEFAULT_RAW = Path(r"C:\Users\sabaa\Downloads\codexhorary\extracted_text_docs\new_sources_text")
-DEFAULT_OUT = Path(r"C:\Users\sabaa\Downloads\codexhorary\extracted_text_docs\new_sources_inspection")
+REPO_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_RAW = REPO_ROOT / "extracted_text_docs" / "new_sources_text"
+DEFAULT_OUT = REPO_ROOT / "extracted_text_docs" / "new_sources_inspection"
 PAGE_MARKER_RE = re.compile(r"^=== Page (\d+) ===$")
 MAX_CHUNK_CHARS = 7000
 MAX_SLUG_LEN = 96

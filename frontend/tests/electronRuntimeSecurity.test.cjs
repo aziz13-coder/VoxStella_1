@@ -29,6 +29,11 @@ const {
   verifyBackendInstanceProof,
 } = require('../main/backend-instance-auth');
 const { requestJsonWithDeadline } = require('../main/backend-http');
+const { createBackendParentState } = require('../main/backend-parent-state');
+const {
+  acquireSingleInstanceLock,
+  focusWindow,
+} = require('../main/single-instance');
 
 test('external URL policy allows browser-safe destinations and rejects dangerous schemes', () => {
   assert.equal(isAllowedExternalUrl('https://example.com/reference?q=1'), true);
@@ -360,6 +365,41 @@ test('packaged smoke result file is written atomically for GUI-subsystem launche
   }
 });
 
+test('backend parent heartbeat files are instance-specific, atomic, and independently cleaned', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vox-stella-parent-state-'));
+  const first = createBackendParentState(tempDir, {
+    pid: 4101,
+    instanceId: 'instance-a',
+  });
+  const second = createBackendParentState(tempDir, {
+    pid: 4101,
+    instanceId: 'instance-b',
+  });
+
+  try {
+    assert.notEqual(first.stateFile, second.stateFile);
+    first.write(123456);
+    first.write(123457);
+    second.write(654321);
+
+    assert.deepEqual(JSON.parse(fs.readFileSync(first.stateFile, 'utf8')), {
+      pid: 4101,
+      instance_id: 'instance-a',
+      updated_at_ms: 123457,
+    });
+    assert.equal(fs.existsSync(first.temporaryFile), false);
+    assert.equal(fs.existsSync(second.temporaryFile), false);
+
+    first.cleanup();
+    assert.equal(fs.existsSync(first.stateFile), false);
+    assert.equal(fs.existsSync(second.stateFile), true);
+  } finally {
+    try { first.cleanup(); } catch (_) {}
+    try { second.cleanup(); } catch (_) {}
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 function makeIpcMain() {
   const handlers = new Map();
   return {
@@ -381,6 +421,46 @@ function makeWindow() {
     },
   };
 }
+
+test('single-instance gate rejects duplicate roots and restores the existing window', () => {
+  const losingApp = new EventEmitter();
+  losingApp.requestSingleInstanceLock = () => false;
+  assert.equal(
+    acquireSingleInstanceLock(losingApp, () => null),
+    false,
+  );
+  assert.equal(losingApp.listenerCount('second-instance'), 0);
+
+  const winningApp = new EventEmitter();
+  winningApp.requestSingleInstanceLock = () => true;
+  let currentWindow = null;
+  let unavailableCount = 0;
+  const calls = [];
+  assert.equal(
+    acquireSingleInstanceLock(
+      winningApp,
+      () => currentWindow,
+      { onWindowUnavailable: () => { unavailableCount += 1; } },
+    ),
+    true,
+  );
+
+  winningApp.emit('second-instance');
+  assert.equal(unavailableCount, 1);
+
+  currentWindow = {
+    isDestroyed: () => false,
+    isMinimized: () => true,
+    isVisible: () => false,
+    restore: () => calls.push('restore'),
+    show: () => calls.push('show'),
+    focus: () => calls.push('focus'),
+  };
+  winningApp.emit('second-instance');
+
+  assert.deepEqual(calls, ['restore', 'show', 'focus']);
+  assert.equal(focusWindow({ isDestroyed: () => true }), false);
+});
 
 test('updater reports terminal failures, validates IPC, and targets recreated windows', async () => {
   const ipcMain = makeIpcMain();
@@ -510,6 +590,18 @@ test('main process source retains smoke, redirect, IPC, watchdog, and fatal-exit
   assert.match(source, /registerTrustedIpcHandler\('report:export'/);
   assert.match(source, /webContents\.on\('will-redirect'/);
   assert.match(source, /terminateApplication\('uncaughtException'/);
+  assert.match(source, /const hasSingleInstanceLock = acquireSingleInstanceLock/);
+  assert.match(source, /if \(hasSingleInstanceLock\) \{/);
+  assert.ok(
+    source.indexOf('const hasSingleInstanceLock = acquireSingleInstanceLock') <
+      source.indexOf('app.whenReady()'),
+    'the single-instance lock must be acquired before Electron startup',
+  );
+  assert.ok(
+    source.indexOf("path.join(app.getPath('temp'), `VoxStella-smoke-${process.pid}`)") <
+      source.indexOf('const hasSingleInstanceLock = acquireSingleInstanceLock'),
+    'smoke mode must isolate userData before acquiring the single-instance lock',
+  );
   assert.match(indexHtml, /script-src 'self'/);
   assert.doesNotMatch(indexHtml, /script-src[^"]*paypal/i);
   assert.doesNotMatch(astroClockSource, /window\.open\(\s*['"]{2}\s*,\s*['"]_blank['"]/);

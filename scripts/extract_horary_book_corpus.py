@@ -15,12 +15,11 @@ from typing import Iterable, Optional
 from xml.etree import ElementTree as ET
 
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
 BOOK_PATH = Path(
     r"C:\Users\sabaa\Downloads\Horary Examples Traditional Horary Astrology By Example ( etc.) (z-library.sk, 1lib.sk, z-lib.sk).epub"
 )
-OUTPUT_PATH = Path(
-    r"C:\Users\sabaa\Downloads\codexhorary\tests\fixtures\horary_book_examples_corpus.json"
-)
+OUTPUT_PATH = REPO_ROOT / "tests" / "fixtures" / "horary_book_examples_corpus.json"
 
 SECTION_TITLES = {
     "Introduction",

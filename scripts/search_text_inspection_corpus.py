@@ -12,7 +12,8 @@ import re
 from pathlib import Path
 
 
-DEFAULT_INDEX = Path(r"C:\Users\sabaa\Downloads\codexhorary\extracted_text_docs\new_sources_inspection\chunk_index.jsonl")
+REPO_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_INDEX = REPO_ROOT / "extracted_text_docs" / "new_sources_inspection" / "chunk_index.jsonl"
 
 
 def tokenize(query: str) -> list[str]:

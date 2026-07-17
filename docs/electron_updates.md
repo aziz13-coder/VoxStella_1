@@ -100,8 +100,13 @@ Packaging notes
   - it never deletes or rewrites the tracked `frontend/backend/` source mirror
   - it stages only `frontend/backend/runtime/horary_backend/`
   - it verifies every copied runtime file by size and SHA-256
-  - the optional trait corpus is embedded by PyInstaller under
-    `traits/corpus/new_sources_inspection`, where the frozen resolver can find it
+  - the optional trait corpus is embedded by PyInstaller under the compact
+    `_internal/tc` root, where the frozen resolver can find it without pushing
+    descriptive corpus filenames past Windows install-path limits
+  - before NSIS runs, `scripts/check_windows_install_paths.py` projects every
+    unpacked file and directory below a conservative default per-user install
+    root and enforces 247 characters, preserving 12 characters of headroom below
+    Windows' 259-visible-character ceiling
 - Process cleanup is workspace-scoped:
   - `package-app-new.bat` uses `scripts/stop-workspace-packaging-processes.ps1`
   - the helper only stops this repo's matching `node.exe`, `electron.exe`, `horary_backend.exe`, or unpacked `Vox Stella.exe` processes

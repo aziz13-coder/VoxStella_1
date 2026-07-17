@@ -1924,6 +1924,11 @@ def _load_trait_corpus_support(root: Optional[str] = None) -> Dict[str, Any]:
 
     for backend_root in _candidate_backend_roots():
         bundled_dirs = [
+            # Current packaged layout. Keep this root short so the descriptive
+            # corpus filenames remain installable by Windows NSIS.
+            os.path.join(backend_root, "tc"),
+            # Backward-compatible locations used by older packages and local
+            # development checkouts.
             os.path.join(backend_root, "traits", "corpus", "new_sources_inspection"),
             os.path.join(backend_root, "extracted_text_docs", "new_sources_inspection"),
             os.path.join(backend_root, "new_sources_inspection"),

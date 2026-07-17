@@ -60,3 +60,15 @@ def test_server_launcher_fails_closed_and_reports_success_explicitly():
     assert 'set "EXIT_CODE=0"' in content
     assert "endlocal & exit /b %EXIT_CODE%" in content
     assert content.index('set "EXIT_CODE=0"') > content.index("[DONE] Licensing server is running.")
+
+
+def test_server_launcher_refuses_an_occupied_port_before_setup_or_spawn():
+    content = (SERVER_DIR / "run-licensing-server.bat").read_text(encoding="utf-8")
+    port_check = 'scripts\\assert-port-available.ps1" -Port "%PORT%"'
+
+    assert port_check in content
+    assert "if errorlevel 1 goto :port_in_use" in content
+    assert ":port_in_use" in content
+    assert "Refusing to start a duplicate server process." in content
+    assert content.index(port_check) < content.index("uv venv --python 3.12 .venv")
+    assert content.index(port_check) < content.index('start "Vox Stella Licensing"')

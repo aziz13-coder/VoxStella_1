@@ -13,6 +13,10 @@ if "%LICENSE_SUBS_GRACE_SECONDS%"=="" set "LICENSE_SUBS_GRACE_SECONDS=172800"
 if "%LICENSE_PERPETUAL_VERIFY_INTERVAL_SECONDS%"=="" set "LICENSE_PERPETUAL_VERIFY_INTERVAL_SECONDS=0"
 if "%LICENSE_PERPETUAL_GRACE_SECONDS%"=="" set "LICENSE_PERPETUAL_GRACE_SECONDS=259200"
 
+REM Refuse duplicate or conflicting launches before setup work or opening a new window.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0..\scripts\assert-port-available.ps1" -Port "%PORT%" -Purpose "Vox Stella licensing server"
+if errorlevel 1 goto :port_in_use
+
 set "VENV_PY=.venv\Scripts\python.exe"
 set "PRIVATE_KEY_FILE=%cd%\keys\ed25519_private.key"
 set "PUBLIC_KEY_FILE=%cd%\keys\ed25519_public.key"
@@ -172,6 +176,11 @@ goto :end
 
 :dependency_error
 echo [ERROR] Failed installing hash-locked Python requirements.
+goto :end
+
+:port_in_use
+echo [ERROR] Licensing server port %PORT% is already in use.
+echo [ERROR] Refusing to start a duplicate server process.
 goto :end
 
 :key_generation_error

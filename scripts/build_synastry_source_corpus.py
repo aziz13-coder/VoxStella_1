@@ -15,7 +15,7 @@ from pathlib import Path
 import shutil
 
 
-REPO_ROOT = Path(r"C:\Users\sabaa\Downloads\codexhorary")
+REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SOURCE = Path(r"C:\Users\sabaa\Desktop\astrolgy books\synastry")
 DEFAULT_RAW_DEST = REPO_ROOT / "horary_knowledge" / "synastry_books_text"
 DEFAULT_KB_DEST = REPO_ROOT / "horary_knowledge" / "synastry_knowledge_base"

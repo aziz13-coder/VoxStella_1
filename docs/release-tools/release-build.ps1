@@ -518,9 +518,18 @@ function Get-OrCreateRelease {
     }
   }
 
-  $releases = @(
-    Invoke-RestMethod -Headers $Headers -Uri "$ApiBase/releases?per_page=100" -Method Get
-  )
+  # Windows PowerShell 5.1 can preserve a top-level JSON array returned by
+  # Invoke-RestMethod as one nested object when it is wrapped directly in
+  # @(...). Flatten the response explicitly so draft tag matching examines
+  # individual release objects.
+  $releaseResponse = Invoke-RestMethod `
+    -Headers $Headers `
+    -Uri "$ApiBase/releases?per_page=100" `
+    -Method Get
+  $releases = @()
+  foreach ($releaseItem in $releaseResponse) {
+    $releases += $releaseItem
+  }
   $draft = $releases | Where-Object { $_.tag_name -eq $Tag -and $_.draft -eq $true } | Select-Object -First 1
   if ($draft) {
     if ([string]$draft.target_commitish -ne $Commit) {

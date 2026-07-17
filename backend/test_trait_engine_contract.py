@@ -278,7 +278,7 @@ def test_trait_engine_emits_layered_keywords_and_citations_from_corpus(tmp_path,
     assert trait["citations"][0]["locator"]["guide_path"]
 
 
-def test_trait_engine_finds_bundled_packaged_corpus_layout(tmp_path, monkeypatch):
+def test_trait_engine_finds_short_bundled_packaged_corpus_layout(tmp_path, monkeypatch):
     backend_root = tmp_path / "backend"
     traits_dir = backend_root / "traits"
     traits_dir.mkdir(parents=True)
@@ -296,7 +296,7 @@ def test_trait_engine_finds_bundled_packaged_corpus_layout(tmp_path, monkeypatch
         ),
         encoding="utf-8",
     )
-    corpus_dir = traits_dir / "corpus" / "new_sources_inspection"
+    corpus_dir = backend_root / "tc"
     corpus_dir.mkdir(parents=True)
     (corpus_dir / "chunk_index.jsonl").write_text(
         json.dumps(

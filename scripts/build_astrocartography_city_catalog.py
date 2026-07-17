@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Tuple
 
 
-ROOT = Path(r"C:\Users\sabaa\Downloads\codexhorary")
+ROOT = Path(__file__).resolve().parents[1]
 OUTPUT_PATH = ROOT / "backend" / "knowledge" / "astrocartography" / "city_catalog.runtime.json"
 
 GEONAMES_CITIES_URL = "https://download.geonames.org/export/dump/cities15000.zip"
