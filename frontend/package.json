@@ -126,6 +126,13 @@
     "icon": "assets/icon.ico",
     "artifactName": "VoxStella-Setup-${version}.${ext}",
     "win": {
+      "forceCodeSigning": true,
+      "signtoolOptions": {
+        "certificateSha1": "C3437A82C01A8D773E3004E6EE4B0D584610F59C",
+        "signingHashAlgorithms": [
+          "sha256"
+        ]
+      },
       "target": [
         {
           "target": "nsis",
