@@ -1,4 +1,32 @@
 export const WHATS_NEW_RELEASES = {
+  '3.1.1': {
+    version: '3.1.1',
+    publishedAt: '2026-07-17',
+    headline: 'Stronger activation and deeper Chinese Astrology',
+    summary: 'This update makes activation more reliable and expands Chinese Astrology with clearer, more carefully sourced readings.',
+    items: [
+      {
+        title: 'Activation reliability',
+        tag: 'Fix',
+        body: 'Creating and activating access keys now handles device limits and previously created keys more consistently across the app and licensing website.',
+      },
+      {
+        title: 'Chinese Astrology',
+        tag: 'Improved',
+        body: 'Four Pillars readings now include corrected traditional rules, richer source-backed interpretation, and clearer useful-element guidance.',
+      },
+      {
+        title: 'Relationship readings',
+        tag: 'Improved',
+        body: 'Relationship comparisons now preserve each person\'s settings and present compatibility evidence with more careful wording.',
+      },
+      {
+        title: 'Life timing',
+        tag: 'Improved',
+        body: 'Year, month, day, and hour timing stays available even when a ten-year luck cycle cannot be calculated.',
+      },
+    ],
+  },
   '3.1.0': {
     version: '3.1.0',
     publishedAt: '2026-06-24',
