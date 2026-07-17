@@ -12349,15 +12349,16 @@ def _start_research_compile(body: Dict[str, Any], force: bool = False) -> Tuple[
     tz_hint = defaults.get('timezone') or defaults.get('tz')
     row_limit = body.get('rowLimit')
     session_id = _research_session_id(path, time_str, location, row_limit)
-    csv_path = _safe_research_path(path)
-    cache_dir = _ensure_research_cache_dir()
-    cache_path = cache_dir / f"{session_id}.json"
 
     # The deterministic session id also de-duplicates concurrent requests,
     # including forced refreshes while an older on-disk cache still exists.
     existing = _research_session_snapshot(session_id)
     if existing and not _research_session_is_terminal(existing):
         return session_id, _research_progress_payload(session_id)
+
+    csv_path = _safe_research_path(path)
+    cache_dir = _ensure_research_cache_dir()
+    cache_path = cache_dir / f"{session_id}.json"
 
     if cache_path.exists() and not force:
         rows = _load_cached_rows(cache_path)

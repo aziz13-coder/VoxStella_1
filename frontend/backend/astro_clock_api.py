@@ -11868,6 +11868,15 @@ def _start_research_compile(body: Dict[str, Any], force: bool = False) -> Tuple[
     tz_hint = defaults.get('timezone') or defaults.get('tz')
     row_limit = body.get('rowLimit')
     session_id = _research_session_id(path, time_str, location, row_limit)
+
+    # Return an already-running deterministic session before touching the
+    # source path or a stale cache. The original worker already validated the
+    # path, and duplicate callers must not depend on that file still existing.
+    with _research_lock:
+        sess = _research_sessions.get(session_id)
+        if sess and sess.get('thread') and sess['thread'].is_alive():
+            return session_id, _research_progress_payload(session_id)
+
     csv_path = _safe_research_path(path)
     cache_dir = _ensure_research_cache_dir()
     cache_path = cache_dir / f"{session_id}.json"
@@ -11885,12 +11894,6 @@ def _start_research_compile(body: Dict[str, Any], force: bool = False) -> Tuple[
                 'cache_path': str(cache_path),
             }
         return session_id, _research_progress_payload(session_id)
-
-    # Avoid duplicate workers
-    with _research_lock:
-        sess = _research_sessions.get(session_id)
-        if sess and sess.get('thread') and sess['thread'].is_alive():
-            return session_id, _research_progress_payload(session_id)
 
     total_rows = _count_csv_rows(csv_path)
     with _research_lock:
