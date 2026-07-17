@@ -1,29 +1,59 @@
 import os
 from pathlib import Path
-import re
-import uuid
-import webbrowser
-import tkinter as tk
-from tkinter import messagebox
 
-def read_token():
-    token = (os.environ.get('ADMIN_TOKEN') or '').strip()
+TOKEN_RELATIVE_PATH = Path("VoxStella") / "licensing" / "admin_token.txt"
+
+
+def default_token_file(environ=None):
+    env = os.environ if environ is None else environ
+    local_app_data = (env.get("LOCALAPPDATA") or "").strip()
+    if not local_app_data:
+        return None
+    return Path(local_app_data) / TOKEN_RELATIVE_PATH
+
+
+def read_token(environ=None):
+    env = os.environ if environ is None else environ
+    token = (env.get('ADMIN_TOKEN') or '').strip()
     if token:
         return token
 
-    token_file = (os.environ.get('ADMIN_TOKEN_FILE') or '').strip()
-    if token_file:
-        tf = Path(token_file)
+    candidates = []
+    explicit_token_file = (env.get('ADMIN_TOKEN_FILE') or '').strip()
+    if explicit_token_file:
+        candidates.append(Path(explicit_token_file))
+    canonical_token_file = default_token_file(env)
+    if canonical_token_file is not None and canonical_token_file not in candidates:
+        candidates.append(canonical_token_file)
+
+    for tf in candidates:
         if tf.exists():
-            raw = tf.read_text(encoding='utf-8').strip()
+            try:
+                raw = tf.read_text(encoding='utf-8').strip()
+            except OSError:
+                continue
             if raw:
                 return raw
 
-    # Fallback for local debugging only (not persisted to disk).
-    return uuid.uuid4().hex
+    raise RuntimeError(
+        "The admin token is not configured. Start run-licensing-server.bat "
+        "or set ADMIN_TOKEN/ADMIN_TOKEN_FILE to the server's existing token."
+    )
 
 def main():
-    token = read_token()
+    import tkinter as tk
+    import webbrowser
+    from tkinter import messagebox
+
+    try:
+        token = read_token()
+    except RuntimeError as exc:
+        root = tk.Tk()
+        root.withdraw()
+        messagebox.showerror('Admin token unavailable', str(exc))
+        root.destroy()
+        return 1
+
     port = os.environ.get('PORT', '8787')
 
     root = tk.Tk()
@@ -53,6 +83,7 @@ def main():
 
     tk.Label(root, text='Paste this token on the Admin Login page to access the dashboard.', fg='#666').pack()
     root.mainloop()
+    return 0
 
 if __name__ == '__main__':
-    main()
+    raise SystemExit(main())

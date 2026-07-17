@@ -27,39 +27,9 @@ if errorlevel 1 (
 echo Current directory: %CD%
 echo.
 
-REM Ensure stale packaged backend listeners on Electron port are cleared too
-echo Checking for stale packaged backend listeners on port 52525...
-set "FOUND_PACKAGED_BACKEND_PORT=0"
-for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:"127\.0\.0\.1:52525 .*LISTENING"') do (
-    set "FOUND_PACKAGED_BACKEND_PORT=1"
-    echo Stopping packaged backend process on port 52525 ^(PID %%P^)...
-    taskkill /PID %%P /F >nul 2>&1
-)
-for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:"\[::1\]:52525 .*LISTENING"') do (
-    set "FOUND_PACKAGED_BACKEND_PORT=1"
-    echo Stopping packaged backend process on port 52525 ^(PID %%P^)...
-    taskkill /PID %%P /F >nul 2>&1
-)
-if "%FOUND_PACKAGED_BACKEND_PORT%"=="1" (
-    timeout /t 1 >nul
-)
-
-REM Ensure stale backend listeners on dev port are cleared first
-echo Checking for existing backend listeners on port 5000...
-set "FOUND_BACKEND_PORT=0"
-for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:"127\.0\.0\.1:5000 .*LISTENING"') do (
-    set "FOUND_BACKEND_PORT=1"
-    echo Stopping existing process on port 5000 ^(PID %%P^)...
-    taskkill /PID %%P /F >nul 2>&1
-)
-for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:"\[::1\]:5000 .*LISTENING"') do (
-    set "FOUND_BACKEND_PORT=1"
-    echo Stopping existing process on port 5000 ^(PID %%P^)...
-    taskkill /PID %%P /F >nul 2>&1
-)
-if "%FOUND_BACKEND_PORT%"=="1" (
-    timeout /t 1 >nul
-)
+REM Never kill an arbitrary listener. Refuse startup and identify the owner.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\assert-port-available.ps1" -Port 52525 -Purpose "browser development backend"
+if errorlevel 1 exit /b 1
 
 REM Check Python version
 echo Checking Python version...
@@ -88,13 +58,13 @@ echo Dependencies installed successfully!
 echo.
 
 echo Starting backend development server...
-echo The API will be available at http://localhost:5000
+echo The API will be available at http://127.0.0.1:52525
 echo.
 echo Press Ctrl+C to stop the server
 echo.
 
 REM Start the Flask development server
-set "HORARY_PORT=5000"
+set "HORARY_PORT=52525"
 set "FLASK_ENV=development"
 set "ALLOW_DEV_LICENSE_BYPASS=1"
 if /I "%~1"=="--strict-license" (

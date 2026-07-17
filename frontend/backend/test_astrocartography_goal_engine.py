@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -23,6 +24,34 @@ def test_goal_model_summaries_include_first_four_profiles():
     assert {"love_commitment", "money_stable_income", "career_public_profile", "home_retreat"}.issubset(ids)
     assert {"gambling_luck", "health_risk", "travel_fun", "travel_relax"}.issubset(ids)
     assert "risk_pressure" not in ids
+
+
+def test_goal_model_schema_covers_runtime_extensions():
+    schema_path = goal_models_module.GOAL_MODEL_PATH.with_name("place_goal_model.schema.json")
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    runtime_models = goal_models_module.load_goal_model_payload()["models"]
+
+    runtime_strategies = {
+        str(model.get("evaluation_strategy"))
+        for model in runtime_models
+        if model.get("evaluation_strategy")
+    }
+    schema_strategies = set(schema["properties"]["evaluation_strategy"]["enum"])
+    assert runtime_strategies <= schema_strategies
+
+    schema_top_level = set(schema["properties"])
+    assert {"atlas_search_filters", "atlas_shortlist_strategy", "atlas_relocation_prepass_limit"} <= schema_top_level
+
+    runtime_modifier_metrics = {
+        str(component.get("metric"))
+        for model in runtime_models
+        for component in (model.get("score_components") or [])
+        if isinstance(component, dict)
+        and component.get("kind") == "modifier"
+        and component.get("metric")
+    }
+    schema_modifier_metrics = set(schema["$defs"]["modifierWeight"]["properties"]["metric"]["enum"])
+    assert runtime_modifier_metrics <= schema_modifier_metrics
 
 
 def test_extract_relocation_features_maps_houses_and_angles():
@@ -289,6 +318,42 @@ def test_evaluate_goal_model_scores_love_location_from_lines_crossings_and_reloc
     assert any(item["kind"] == "modifier" for item in evaluation["contributions"])
 
 
+def test_goal_model_does_not_score_blended_lines_as_exact_crossings():
+    evaluation = evaluate_goal_model(
+        "love",
+        natal_rows=[],
+        natal_crossings=[
+            {
+                "kind": "blend",
+                "planets": ["Venus", "Moon"],
+                "label": "Venus DSC x Moon IC",
+                "distance_km": 20.0,
+            }
+        ],
+        relocation=extract_relocation_features({"planets": {}}),
+    )
+
+    assert not any(item["kind"] == "crossing" for item in evaluation["contributions"])
+
+
+def test_heuristic_models_do_not_score_blended_lines_as_exact_crossings():
+    evaluation = evaluate_goal_model(
+        "protective_places",
+        natal_rows=[],
+        natal_crossings=[
+            {
+                "kind": "blend",
+                "planets": ["Jupiter", "Venus"],
+                "label": "Jupiter ASC x Venus MC",
+                "distance_km": 20.0,
+            }
+        ],
+        relocation=extract_relocation_features({"planets": {}}),
+    )
+
+    assert not any(item["kind"] == "crossing" for item in evaluation["contributions"])
+
+
 def test_goal_model_loader_returns_expected_legacy_refs():
     model = get_goal_model("money")
     legacy_files = {item["source_file"] for item in model["legacy_refs"]}
@@ -364,8 +429,18 @@ def test_new_models_include_source_backing_refs():
     assert risk_pressure["transit_strategy"] == "ignore"
     assert risk_pressure["status"] == "deprecated"
     assert health_risk["status"] == "active"
+    assert health_risk["score_polarity"] == "higher_is_worse"
+    assert accident_prone["score_polarity"] == "higher_is_worse"
     assert travel_fun["goal_family"] == "travel"
     assert travel_relax["goal_family"] == "travel"
+
+
+def test_active_goal_summaries_expose_warning_score_polarity():
+    summaries = {item["id"]: item for item in list_goal_model_summaries()}
+
+    assert summaries["health_risk"]["score_polarity"] == "higher_is_worse"
+    assert summaries["accident_prone"]["score_polarity"] == "higher_is_worse"
+    assert summaries["gambling_luck"]["score_polarity"] == "higher_is_better"
 
 
 def test_accident_prone_goal_uses_shared_accident_pressure_heuristic():

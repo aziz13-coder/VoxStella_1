@@ -5,13 +5,14 @@
   "description": "Reverence and devotional orientation with Sagittarius/Jupiter and Pisces/Water support; 9th/12th houses emphasize faith and contemplation.",
   "confidence": "medium",
   "polarity": "positive",
-  "sources": ["Carter: Sagittarius religion/philosophy; Pisces resignation/abnegation"],
+  "sources": ["Carter: Sagittarius religion/philosophy; Pisces resignation/abnegation", "Morin: H9 religion/doctrine requires a determining planet; Jupiter supplies faith/beneficence"],
   "logic": { "base": 0,
     "boosts": [
       { "kind": "sign_group_emphasis", "group": ["Sagittarius","Pisces"], "min": 2.0, "weight": 8 },
       { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 8 },
       { "kind": "house_emphasis", "houses": [9,12], "min_total": 1, "weight": 6 },
-      { "kind": "planet_status", "planet": "Moon", "strong": true, "weight": 4 }
+      { "kind": "planet_status", "planet": "Moon", "strong": true, "weight": 4 },
+      { "kind": "planet_area", "planet": "Jupiter", "areas": ["belief"], "min": 0.45, "weight": 5 }
     ],
     "dampeners": [
       { "kind": "planet_status", "planet": "Jupiter", "afflicted": true, "weight": -8 },
@@ -20,4 +21,3 @@
     ],
     "escalators": [] }
 }
-

@@ -593,6 +593,7 @@ export default function SynastryModal({ open, onClose, snaps = [], activeSnapId 
   const [structuredPageId, setStructuredPageId] = useState('');
   const [selectedAreaBuckets, setSelectedAreaBuckets] = useState({});
   const lastEngineRef = useRef('memo');
+  const lastPairKeyRef = useRef('');
   const requestProfileA = activeEngineId === 'union_dynamics' ? profileA : '';
   const requestProfileB = activeEngineId === 'union_dynamics' ? profileB : '';
 
@@ -624,13 +625,27 @@ export default function SynastryModal({ open, onClose, snaps = [], activeSnapId 
   }, [open, activeEngineId]);
 
   useEffect(() => {
-    if (!open || !snapAId || !snapBId || snapAId === snapBId) return;
+    if (!open) {
+      lastPairKeyRef.current = '';
+      return;
+    }
+    if (!snapAId || !snapBId || snapAId === snapBId) {
+      lastPairKeyRef.current = '';
+      setData(null);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+    const pairKey = `${snapAId}::${snapBId}`;
+    const pairChanged = lastPairKeyRef.current !== pairKey;
+    lastPairKeyRef.current = pairKey;
     let alive = true;
     const controller = new AbortController();
     (async () => {
       try {
         setLoading(true);
         setError(null);
+        if (pairChanged) setData(null);
         const res = await AstroClockAPI.getSynastry({
           snapAId,
           snapBId,

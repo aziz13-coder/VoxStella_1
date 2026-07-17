@@ -5,8 +5,13 @@ This repo contains both source code and packaged build artifacts (Electron bundl
 Do not edit packaged artifacts
 
 - Never modify files under these paths (read-only/output only):
+  - `backend/build/**`
+  - `backend/dist/**`
+  - `backend/*.spec`
   - `frontend/dist-electron/**`
   - `frontend/backend/build/**`
+  - `frontend/backend/dist/**`
+  - `frontend/backend/runtime/**`
   - `frontend/dist/**`
   - `website/**` (generated site content)
   - Any `win-unpacked/**` or `resources/**` subfolders
@@ -15,8 +20,8 @@ Do not edit packaged artifacts
 Edit sources instead
 
 - Backend source lives under:
-  - `backend/**`
-  - `frontend/backend/**` (Python utilities packaged with the app)
+  - `backend/**` (canonical desktop backend source)
+  - `frontend/backend/**` (legacy/source utilities; packaging never rewrites it)
 - Frontend source lives under:
   - `frontend/src/**`
 
@@ -28,8 +33,13 @@ Verification
 Packaging
 
 - Use `package-app-new.bat` to produce packaged builds; it must always consume source files from the directories listed above and never expect manual edits inside `dist-electron`.
+- Packaging stages only the PyInstaller runtime under `frontend/backend/runtime/**`; it never ships the Python source/test mirror.
+- `frontend/backend/runtime/**` is generated staging output: build it through the packaging workflow and never edit or commit it.
 - For the desktop release workflow that bumps the version, repackages, and uploads GitHub release assets, follow `docs/electron_updates.md`.
 
-CI/Pre-commit (recommended)
+CI/Pre-commit
 
-- Add a pre-commit hook or CI check to block changes to the disallowed paths above. See `.githooks/pre-commit` for a sample script.
+- CI blocks changes to the disallowed paths above.
+- Run `powershell -ExecutionPolicy Bypass -File scripts/install-git-hooks.ps1`
+  once per clone to install the same guard as an executable local pre-commit
+  hook.

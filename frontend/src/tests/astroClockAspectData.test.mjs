@@ -22,6 +22,15 @@ describe('astroclock aspect data pipeline', () => {
 
   it('prefers the precise aspect list for standard current aspects', () => {
     const transformed = transformDashboard({
+      latitude: 51.4769,
+      longitude: -0.0005,
+      compass: {
+        azimuths: [{ planet: 'Sun', azimuth_deg: 181.3, altitude_deg: 24.5, longitude_deg: 30.2 }],
+        source: 'local_space',
+        has_altitude: true,
+      },
+      ascendant: 117.08,
+      midheaven: 12.33,
       top_aspects: [
         { planet1: 'Moon', planet2: 'Saturn', aspect: 'Conjunction', orb: 2.1 },
       ],
@@ -53,6 +62,15 @@ describe('astroclock aspect data pipeline', () => {
       orb: 0.4,
       max_orb: 8,
     });
+    expect(transformed.ascendant).toBe(117.08);
+    expect(transformed.midheaven).toBe(12.33);
+    expect(transformed.latitude).toBe(51.4769);
+    expect(transformed.longitude).toBe(-0.0005);
+    expect(transformed.compass).toMatchObject({
+      source: 'local_space',
+      has_altitude: true,
+    });
+    expect(transformed.compass.azimuths).toHaveLength(1);
     expect(transformed.planetary_aspects_precise).toHaveLength(2);
   });
 });

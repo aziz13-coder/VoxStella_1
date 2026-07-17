@@ -1,0 +1,292 @@
+{
+  "benchmark_id": "forensic_asc_ruler_placement_v1",
+  "created_at": "2026-05-22",
+  "case_selection_policy": "Uses every runnable case in the default forensic statistical benchmark corpus as of 2026-05-22. Expected and contradictory axes are inherited from the curated statistical fixtures; this ASC-ruler fixture only fixes the case list and records why each case belongs in the validation set.",
+  "primary_target": "ASC ruler house placement risk-tone context support",
+  "promotion_thresholds": {
+    "min_case_count": 24,
+    "support_rate": 0.6,
+    "contradiction_rate_max": 0.1,
+    "support_p_value_max": 0.1
+  },
+  "source_doctrine_cases": [
+    {
+      "case_id": "mcintosh_h1_immediate_scene_vicinity_doctrine",
+      "source_note": "McIntosh states that the victim ruler in the 1st can show the person has not been taken, may have voluntarily left, or that the perpetrator was in the victim's vicinity, residence, or in front of them.",
+      "asc_ruler_placement": {
+        "ruler": "Victim ruler",
+        "house": 1,
+        "label": "Immediate Surroundings",
+        "risk_tone": "mixed"
+      },
+      "expected_context_axes": [
+        "immediate_scene_or_vicinity_context"
+      ]
+    },
+    {
+      "case_id": "mcintosh_h2_trafficking_possession_doctrine",
+      "source_note": "McIntosh states that if the ruler of the victim is in the 2nd house, consider whether the person was taken for trafficking because the second house makes the person a possession in this instance.",
+      "asc_ruler_placement": {
+        "ruler": "Victim ruler",
+        "house": 2,
+        "label": "Possession Or Value Motive",
+        "risk_tone": "material"
+      },
+      "expected_context_axes": [
+        "trafficking_or_possession_context"
+      ],
+      "contradictory_context_axes": [
+        "accident_or_disaster",
+        "route_vehicle_transport"
+      ]
+    },
+    {
+      "case_id": "mcintosh_h3_communication_vehicle_short_distance_doctrine",
+      "source_note": "McIntosh states that the 3rd house can imply a communication problem, verbal argument, siblings or cousins, vehicles, and short distance.",
+      "asc_ruler_placement": {
+        "ruler": "Victim ruler",
+        "house": 3,
+        "label": "Communication Or Short-Range Movement",
+        "risk_tone": "route"
+      },
+      "expected_context_axes": [
+        "communication_vehicle_short_distance_context"
+      ]
+    },
+    {
+      "case_id": "mcintosh_h4_family_home_end_matter_doctrine",
+      "source_note": "McIntosh states that the 4th house points first toward family and is serious as the house of the end of the matter, womb and tomb.",
+      "asc_ruler_placement": {
+        "ruler": "Victim ruler",
+        "house": 4,
+        "label": "Family And End Of Matter",
+        "risk_tone": "fatal_pressure"
+      },
+      "expected_context_axes": [
+        "family_home_end_matter_context"
+      ]
+    },
+    {
+      "case_id": "mcintosh_h5_party_entertainment_doctrine",
+      "source_note": "McIntosh states that the 5th house can show the person was in a situation of partying, drinking, dancing, entertainment, or being out having fun.",
+      "asc_ruler_placement": {
+        "ruler": "Victim ruler",
+        "house": 5,
+        "label": "Entertainment Or Party Setting",
+        "risk_tone": "social"
+      },
+      "expected_context_axes": [
+        "party_entertainment_context"
+      ]
+    },
+    {
+      "case_id": "mcintosh_h6_routine_disruption_stalker_doctrine",
+      "source_note": "McIntosh states that the 6th house shows the victim doing their routine normal thing when disrupted by another person and can imply a stalker or watcher.",
+      "asc_ruler_placement": {
+        "ruler": "Victim ruler",
+        "house": 6,
+        "label": "Routine Disrupted",
+        "risk_tone": "access"
+      },
+      "expected_context_axes": [
+        "routine_disruption_stalker_context"
+      ]
+    },
+    {
+      "case_id": "mcintosh_h7_suspect_territory_doctrine",
+      "source_note": "McIntosh states that the victim ruler in the 7th puts the victim in front of the suspect and most likely on the suspect's territory or comfort zone.",
+      "asc_ruler_placement": {
+        "ruler": "Victim ruler",
+        "house": 7,
+        "label": "Suspect Territory",
+        "risk_tone": "perpetrator_contact"
+      },
+      "expected_context_axes": [
+        "suspect_territory_context"
+      ]
+    },
+    {
+      "case_id": "mcintosh_h8_death_financial_entanglement_doctrine",
+      "source_note": "McIntosh states that the 8th house immediately suggests looking for a deceased person and can also show financial disagreement, inheritance, or debts.",
+      "asc_ruler_placement": {
+        "ruler": "Victim ruler",
+        "house": 8,
+        "label": "Death Or Financial Entanglement",
+        "risk_tone": "fatal_pressure"
+      },
+      "expected_context_axes": [
+        "death_financial_entanglement_context"
+      ]
+    },
+    {
+      "case_id": "mcintosh_h9_far_distance_departure_doctrine",
+      "source_note": "McIntosh states that the 9th house shows the victim is likely far away or going further away at the point of reading the chart.",
+      "asc_ruler_placement": {
+        "ruler": "Victim ruler",
+        "house": 9,
+        "label": "Far Distance Or Departure",
+        "risk_tone": "distance"
+      },
+      "expected_context_axes": [
+        "far_distance_departure_context"
+      ]
+    },
+    {
+      "case_id": "mcintosh_h10_public_authority_witness_doctrine",
+      "source_note": "McIntosh states that the 10th house implies the story becomes public, out in the open, likely seen by a witness, and shows authorities, police, government, boss, or parents.",
+      "asc_ruler_placement": {
+        "ruler": "Victim ruler",
+        "house": 10,
+        "label": "Public Or Authority Visibility",
+        "risk_tone": "public"
+      },
+      "expected_context_axes": [
+        "public_authority_witness_context"
+      ]
+    },
+    {
+      "case_id": "mcintosh_h11_friends_social_circle_doctrine",
+      "source_note": "McIntosh states that the 11th house indicates the victim may have been surrounded by or with friends, friends may know what happened, and hopes and dreams were taken away.",
+      "asc_ruler_placement": {
+        "ruler": "Victim ruler",
+        "house": 11,
+        "label": "Friends Or Social Circle",
+        "risk_tone": "associate"
+      },
+      "expected_context_axes": [
+        "friends_social_circle_context"
+      ]
+    },
+    {
+      "case_id": "mcintosh_h12_hidden_captive_kidnapped_doctrine",
+      "source_note": "McIntosh states that the 12th house can show the victim may not be found, may be in an enclosed area, hidden and kept hidden, or kidnapped.",
+      "asc_ruler_placement": {
+        "ruler": "Victim ruler",
+        "house": 12,
+        "label": "Hidden Or Captive",
+        "risk_tone": "hidden"
+      },
+      "expected_context_axes": [
+        "hidden_captive_kidnapped_context"
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "worst_ex_geoffrey_paschel_2019_ipv_kidnapping",
+      "curation_note": "Known-partner captivity and assault case; validates whether hidden/captive placement supports abduction without forcing fatal outcome scoring."
+    },
+    {
+      "case_id": "worst_ex_alisha_canales_mcguire_2017_murder_for_hire",
+      "curation_note": "Known-partner murder-for-hire case with deception axis; validates whether route or communication placement adds context without contradicting the homicide label."
+    },
+    {
+      "case_id": "worst_ex_rosa_hill_2009_custody_family_attack",
+      "curation_note": "Custody and family violence case; validates family/associate separation because the broader chart already carries domestic and child-victim labels."
+    },
+    {
+      "case_id": "worst_ex_scott_freeman_2006_route_abduction_survivor",
+      "curation_note": "Known-partner route abduction survivor case; validates hidden/captive placement against nonfatal abduction labels."
+    },
+    {
+      "case_id": "moriah_wilson_cycling_murder",
+      "curation_note": "Known-associate homicide case; validates fatal-pressure placement against a public true-crime homicide label."
+    },
+    {
+      "case_id": "mackenzie_shirilla_the_crash",
+      "curation_note": "Vehicle crash homicide case; validates that material/value placement should not overclaim route or accident context."
+    },
+    {
+      "case_id": "elizabeth_smart_abduction",
+      "curation_note": "Child abduction survival case; included as a guardrail against turning ASC-ruler placement into automatic fatal scoring."
+    },
+    {
+      "case_id": "ajike_owens_perfect_neighbor",
+      "curation_note": "Witnessed neighbor homicide case; validates social/public witness context without domestic-partner overclaim."
+    },
+    {
+      "case_id": "jason_corbett_deadly_american_marriage",
+      "curation_note": "Domestic and family homicide case; validates whether route/communication placement remains descriptive when core family labels come from other evidence."
+    },
+    {
+      "case_id": "shannan_gilbert_lisk_911_anchor",
+      "curation_note": "Disappearance, water, and homicide-risk case; validates party/social context against missing-person and water-disappearance axes."
+    },
+    {
+      "case_id": "wre_s1e2_maribel_ramos_last_seen_roommate_homicide",
+      "curation_note": "Roommate homicide and missing-person case; validates routine/access placement against known-associate and abduction labels."
+    },
+    {
+      "case_id": "wre_s1e5_harry_bachman_welfare_check_homicide_charge",
+      "curation_note": "Family-linked homicide and route case; validates hidden placement as context without relying on it as the primary family signal."
+    },
+    {
+      "case_id": "wre_s2e2_anita_cowen_pettigrew_welfare_call_homicide",
+      "curation_note": "Roommate homicide with welfare-call anchor and water-disappearance axis; validates public/authority visibility as a descriptive witness channel."
+    },
+    {
+      "case_id": "wre_s2e4_michael_dudley_tenant_double_homicide",
+      "curation_note": "Tenant double homicide and concealment case; validates fatal-pressure placement against homicide and deception labels."
+    },
+    {
+      "case_id": "fbi_pulse_nightclub_2016_mass_shooting",
+      "curation_note": "Mass public-venue shooting with fatal outcome; validates death-house placement against homicide labels while preserving public-case controls."
+    },
+    {
+      "case_id": "fbi_dallas_protest_2016_police_ambush",
+      "curation_note": "Authority/public ambush case; validates whether associate placement falsely overclaims acquaintance context."
+    },
+    {
+      "case_id": "fbi_mukilteo_house_party_2016_ex_girlfriend",
+      "curation_note": "House-party shooting with ex-partner and friend/acquaintance labels; validates entertainment/social placement."
+    },
+    {
+      "case_id": "fbi_fort_lauderdale_airport_2017_baggage_claim",
+      "curation_note": "Airport shooting with route-transport setting; validates associate placement against a clear stranger/public transport case."
+    },
+    {
+      "case_id": "fbi_pine_kirk_care_center_2017_ex_girlfriend",
+      "curation_note": "Care-center shooting involving an ex-girlfriend; validates whether associate placement should stay weaker than intimate-partner labels."
+    },
+    {
+      "case_id": "fbi_congressional_baseball_2017_alexandria",
+      "curation_note": "Nonfatal public authority shooting; included as a guardrail against treating death-house ASC placement as automatic fatal classification."
+    },
+    {
+      "case_id": "fbi_route_91_las_vegas_2017_mass_shooting",
+      "curation_note": "Mass shooting at an entertainment venue; validates party/social placement against a fatal public-event chart."
+    },
+    {
+      "case_id": "fbi_sutherland_springs_2017_church_shooting",
+      "curation_note": "Fatal public church shooting; validates hidden placement as weak context when no missing-person label exists."
+    },
+    {
+      "case_id": "fbi_marjory_stoneman_douglas_2018_school_shooting",
+      "curation_note": "Fatal school shooting with child-victim label; validates death-house placement against homicide without adding unsupported relationship labels."
+    },
+    {
+      "case_id": "fbi_santa_fe_high_school_2018_shooting",
+      "curation_note": "Fatal school shooting with child-victim label; validates hidden placement as noncontradictory but not automatically explanatory."
+    },
+    {
+      "case_id": "fbi_capital_gazette_2018_newsroom_shooting",
+      "curation_note": "Newsroom shooting with authority/public label; validates public/authority placement."
+    },
+    {
+      "case_id": "fbi_tt_trucking_bakersfield_2018_ex_wife",
+      "curation_note": "Workplace and residence shooting involving an ex-wife; validates associate placement against intimate-partner labels."
+    },
+    {
+      "case_id": "fbi_tree_of_life_2018_synagogue_shooting",
+      "curation_note": "Fatal public worship-place shooting; validates route/communication placement as descriptive-only when no transport axis is expected."
+    },
+    {
+      "case_id": "fbi_borderline_bar_2018_thousand_oaks",
+      "curation_note": "Fatal bar shooting; validates fatal-pressure placement in an entertainment venue with strong homicide label."
+    },
+    {
+      "case_id": "fbi_mercy_hospital_chicago_2018_former_fiancee",
+      "curation_note": "Hospital shooting involving a former fiancee; validates routine/access placement against intimate-partner and workplace access labels."
+    }
+  ]
+}

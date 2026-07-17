@@ -165,6 +165,32 @@ class ForensicDominanceTests(unittest.TestCase):
         self.assertEqual(mercury["breakdown"]["motion"], -5)
         self.assertEqual(mercury["breakdown"]["aspects"], 0)
 
+    def test_compute_dominance_counts_extracted_aspect_alias_once_per_planet(self):
+        features = extract_features(
+            _dashboard(
+                [
+                    {"planet": "Sun", "longitude": 10.0, "house": 1, "sign": "Aries"},
+                    {"planet": "Moon", "longitude": 130.0, "house": 5, "sign": "Leo"},
+                ],
+                aspects=[
+                    {
+                        "planet1": "Sun",
+                        "planet2": "Moon",
+                        "aspect": "Trine",
+                        "applying": False,
+                        "orb": 1.0,
+                    },
+                ],
+            )
+        )
+
+        self.assertIn("Sun_to_Moon", features["aspects"])
+        self.assertIn("Moon_to_Sun", features["aspects"])
+
+        dominance = compute_dominance(features)
+        self.assertEqual(dominance["planets"]["Sun"]["breakdown"]["aspects"], 3)
+        self.assertEqual(dominance["planets"]["Moon"]["breakdown"]["aspects"], 3)
+
 
 if __name__ == "__main__":
     unittest.main()

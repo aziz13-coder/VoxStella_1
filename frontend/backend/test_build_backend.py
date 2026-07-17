@@ -14,5 +14,6 @@ def test_runtime_data_args_include_benchmark_tree():
     add_data_values = [args[index + 1] for index, value in enumerate(args) if value == "--add-data"]
 
     assert f"{backend_dir / 'benchmarks'};benchmarks" in add_data_values
+    assert f"{backend_dir / 'ephemeris' / 'sweph'};ephemeris/sweph" in add_data_values
     assert f"{backend_dir / 'knowledge' / 'weather'};knowledge/weather" in add_data_values
     assert len(add_data_values) == len(build_backend.RUNTIME_DATA_ENTRIES) + 1

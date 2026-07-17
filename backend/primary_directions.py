@@ -24,10 +24,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from datetime import datetime, timedelta, timezone
 import math
 
-try:
-    import swisseph as swe  # type: ignore
-except Exception:  # pragma: no cover
-    swe = None
+from swisseph_state import swisseph as swe
 
 try:
     from context_layers import compute_solar_return_timestamp  # type: ignore

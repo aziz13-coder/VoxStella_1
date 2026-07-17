@@ -5,12 +5,14 @@
   "description": "Aquarius/11th house emphasize friends and allies; discord arises when Air/Libra/Venus are afflicted.",
   "confidence": "high",
   "polarity": "positive",
-  "sources": ["Carter: Aquarius/11th = friends; Air/Libra/Venus harmony"],
+  "sources": ["Carter: Aquarius/11th = friends; Air/Libra/Venus harmony", "Morin: H11 friends/allies/support require a determining planet"],
   "logic": {
     "base": 0,
     "boosts": [
       { "kind": "sign_emphasis", "sign": "Aquarius", "min": 1.5, "weight": 10 },
-      { "kind": "house_emphasis", "houses": [11], "min_total": 1, "weight": 10 }
+      { "kind": "house_emphasis", "houses": [11], "min_total": 1, "weight": 10 },
+      { "kind": "planet_area", "planet": "Jupiter", "areas": ["friends"], "min": 0.45, "weight": 6 },
+      { "kind": "planet_area", "planet": "Venus", "areas": ["friends"], "min": 0.45, "weight": 4 }
     ],
     "dampeners": [
       { "kind": "planet_status", "planet": "Venus", "afflicted": true, "weight": -8 },
@@ -19,4 +21,3 @@
     "escalators": []
   }
 }
-

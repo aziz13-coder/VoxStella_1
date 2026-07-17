@@ -273,7 +273,7 @@ def _jd_from_iso(timestamp_iso: str) -> float:
     except Exception:
         # Fallback to 'now' in UT if parsing fails
         import datetime as _dt
-        dt = _dt.datetime.utcnow().replace(tzinfo=_dt.timezone.utc)
+        dt = _dt.datetime.now(_dt.timezone.utc)
         return swe.julday(dt.year, dt.month, dt.day, dt.hour + dt.minute / 60.0 + dt.second / 3600.0)
 
 

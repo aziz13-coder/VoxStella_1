@@ -32,6 +32,15 @@ LEGACY_PERPETUAL_PLAN_KEYWORDS = ("perpetual", "lifetime", "forever")
 PERPETUAL_LICENSE_KINDS = {"perpetual", "lifetime", "forever"}
 RENEWABLE_LICENSE_KINDS = {"subscription", "renewable", "term"}
 LOCAL_SESSION_TOKEN_TYPE = "local_license_session"
+MAX_LOCAL_SESSION_TTL_SECONDS = 5 * 60
+LICENSE_CLOCK_SKEW_SECONDS = 5 * 60
+LEGACY_OFFLINE_ACTIVATION_REVALIDATION_LIST = (
+    {
+        "lic_hash": "3e8ab1bcaafadd53d24741a9efba585be7c3866648158f7ed2d6a8098f384826",
+        "email_hash": "b1931f2f9a20b4474dd23c210861d9585b97ebb8e9ea4458b88a178f763e9c7c",
+        "device_hash": "b24b2979deaf7b3d1e3b055cd0c8e425c510fd183878ad26b91aa4e553f9709e",
+    },
+)
 
 
 class LicenseError(Exception):
@@ -72,6 +81,42 @@ def _license_requires_entitlement_refresh(payload: dict) -> bool:
         return kind != "perpetual"
 
     return not _is_perpetual_plan(payload.get("plan"))
+
+
+def _sha256_normalized(value: object) -> str:
+    text = str(value or "").strip().lower()
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _hash_matches(value: object, expected_hash: str | None) -> bool:
+    if not expected_hash:
+        return True
+    text = str(value or "").strip()
+    if not text:
+        return False
+    return hmac.compare_digest(_sha256_normalized(text), expected_hash)
+
+
+def _legacy_offline_activation_requires_online_revalidation(
+    payload: dict,
+    entries: tuple[dict, ...] | list[dict] | None = None,
+) -> bool:
+    if not isinstance(payload, dict):
+        return False
+    if _license_requires_entitlement_refresh(payload):
+        return False
+    candidates = entries if entries is not None else LEGACY_OFFLINE_ACTIVATION_REVALIDATION_LIST
+    for entry in candidates or ():
+        if not isinstance(entry, dict):
+            continue
+        if not _hash_matches(payload.get("lic"), entry.get("lic_hash")):
+            continue
+        if not _hash_matches(payload.get("device"), entry.get("device_hash")):
+            continue
+        if payload.get("email") is not None and not _hash_matches(payload.get("email"), entry.get("email_hash")):
+            continue
+        return True
+    return False
 
 
 @lru_cache()
@@ -135,6 +180,10 @@ def _verify_local_session_token(signature: bytes, payload_bytes: bytes, payload:
         if not isinstance(value, str) or not value.strip():
             raise LicenseError(f"invalid local license session claim: {field}")
 
+    license_id = str(payload.get("lic") or "").strip().lower()
+    if payload.get("paypal_pending_verification") is True or license_id.startswith("paypal-pending:"):
+        raise LicenseError("pending PayPal verification is not a valid license session")
+
     iat = payload.get("iat")
     exp = payload.get("exp")
     try:
@@ -148,10 +197,49 @@ def _verify_local_session_token(signature: bytes, payload_bytes: bytes, payload:
     from time import time
 
     now = int(time())
+    if iat_int > now + LICENSE_CLOCK_SKEW_SECONDS:
+        raise LicenseError("local license session issue time is in the future")
+    if exp_int - iat_int > MAX_LOCAL_SESSION_TTL_SECONDS:
+        raise LicenseError("local license session lifetime exceeds the maximum")
     if exp_int <= now:
         raise LicenseError("local license session expired")
 
+    verified_at = payload.get("verified_at")
+    try:
+        verified_at_int = int(verified_at)
+    except (TypeError, ValueError):
+        raise LicenseError("invalid local license session verification time")
+    if verified_at_int <= 0:
+        raise LicenseError("invalid local license session verification time")
+    if verified_at_int > now + LICENSE_CLOCK_SKEW_SECONDS:
+        raise LicenseError("local license session verification time is in the future")
+
+    if _license_requires_entitlement_refresh(payload):
+        next_verify_at = payload.get("next_verify_at")
+        try:
+            next_verify_at_int = int(next_verify_at)
+        except (TypeError, ValueError):
+            raise LicenseError("local license session entitlement boundary is missing")
+        if next_verify_at_int <= 0 or next_verify_at_int < verified_at_int:
+            raise LicenseError("local license session exceeds the entitlement boundary")
+        entitlement_exp = payload.get("entitlement_exp")
+        normalized_kind = _normalize_license_kind(payload.get("kind"))
+        if normalized_kind == "subscription" and entitlement_exp is not None:
+            try:
+                entitlement_exp_int = int(entitlement_exp)
+            except (TypeError, ValueError):
+                raise LicenseError("invalid local license session entitlement expiry")
+            if (
+                entitlement_exp_int < next_verify_at_int
+                or exp_int > entitlement_exp_int
+            ):
+                raise LicenseError("local license session exceeds the entitlement boundary")
+        elif exp_int > next_verify_at_int:
+            raise LicenseError("local license session exceeds the entitlement boundary")
+
     _enforce_device_binding(payload)
+    if _legacy_offline_activation_requires_online_revalidation(payload):
+        raise LicenseError("license entitlement refresh required")
     return payload
 
 
@@ -253,6 +341,12 @@ def verify_license_token(token: str) -> dict:
     if iat_int <= 0:
         raise LicenseError("invalid license issue time")
 
+    from time import time
+
+    now = int(time())
+    if iat_int > now + LICENSE_CLOCK_SKEW_SECONDS:
+        raise LicenseError("license issue time is in the future")
+
     verified_at = payload.get("verified_at")
     try:
         verified_at_int = int(verified_at)
@@ -260,6 +354,8 @@ def verify_license_token(token: str) -> dict:
         raise LicenseError("license entitlement refresh required")
     if verified_at_int <= 0:
         raise LicenseError("license entitlement refresh required")
+    if verified_at_int > now + LICENSE_CLOCK_SKEW_SECONDS:
+        raise LicenseError("license verification time is in the future")
 
     next_verify_at_int = None
     if _license_requires_entitlement_refresh(payload):
@@ -273,9 +369,6 @@ def verify_license_token(token: str) -> dict:
 
     exp = payload.get("exp")
     exp_int = None
-    from time import time
-
-    now = int(time())
     if exp is not None:
         try:
             exp_int = int(exp)
@@ -288,6 +381,8 @@ def verify_license_token(token: str) -> dict:
         raise LicenseError("license entitlement refresh required")
 
     _enforce_device_binding(payload)
+    if _legacy_offline_activation_requires_online_revalidation(payload):
+        raise LicenseError("license entitlement refresh required")
     return payload
 
 

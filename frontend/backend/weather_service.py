@@ -152,6 +152,8 @@ def resolve_weather_context(
     if not location:
         raise ValueError("location is required for weather analysis")
     house_system_code = request_model.house_system_code or active_clock.house_system_code
+    latitude = request_model.latitude if request_model.latitude is not None else active_clock.latitude
+    longitude = request_model.longitude if request_model.longitude is not None else active_clock.longitude
 
     chart_resolution = resolve_weather_chart_resolution(
         forecast_datetime=forecast_datetime,
@@ -159,8 +161,8 @@ def resolve_weather_context(
         timezone_name=timezone_name,
         house_system_code=house_system_code,
         bundle_resolver=bundle_resolver,
-        latitude=request_model.latitude or active_clock.latitude,
-        longitude=request_model.longitude or active_clock.longitude,
+        latitude=latitude,
+        longitude=longitude,
     )
 
     research_flags = list(
@@ -188,8 +190,8 @@ def resolve_weather_context(
             "forecast_datetime": forecast_datetime,
             "location": location,
             "timezone": timezone_name,
-            "latitude": request_model.latitude or active_clock.latitude,
-            "longitude": request_model.longitude or active_clock.longitude,
+            "latitude": latitude,
+            "longitude": longitude,
             "house_system_code": house_system_code,
         },
         chart_resolution=chart_resolution,

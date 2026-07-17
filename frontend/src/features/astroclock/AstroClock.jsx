@@ -1,5 +1,6 @@
 ﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import 'leaflet/dist/leaflet.css';
+import './forensicDossier.css';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, Polygon, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
@@ -25,13 +26,28 @@ import SynastryModal from './SynastryModal.jsx';
 import TransitsModal from './TransitsModal.jsx';
 import ElectionModal from './ElectionModal.jsx';
 import AstrocartographyModal from './AstrocartographyModal.jsx';
-import ResearchMode from './ResearchMode.jsx';
+import ChineseAstrologyPage from './ChineseAstrologyPage.jsx';
+import BirthCertificationModal from './BirthCertificationModal.jsx';
 import { transformDashboard, degString, aspectSymbol } from './transform.mjs';
+import { buildSolarConditionEntries } from './solarConditions.mjs';
+import {
+  formatDispositorSummary,
+  formatDispositorTooltip,
+  normalizeDispositorState,
+  shouldRenderDispositorSummary,
+} from './dispositorViewModel.mjs';
 import AspectAnalysisModal from './AspectAnalysisModal.jsx';
 import CompassTile from './CompassTile.jsx';
 import AsteroidsTile from './AsteroidsTile.jsx';
 import NamePromptModal from './NamePromptModal.jsx';
-import { cleanForensicDisplayText, deriveForensicReplayAxes, formatForensicDisplayLabel } from './forensicReplayAxes.mjs';
+import PremiumOfferModal from './PremiumOfferModal.jsx';
+import {
+  cleanForensicDisplayText,
+  deriveForensicReplayAxes,
+  forensicFindingMatchesAxis,
+  formatForensicDisplayLabel,
+  getForensicReplayTailoring,
+} from './forensicReplayAxes.mjs';
 import { formatForensicAspectLabels } from './forensicAspectSummary.mjs';
 import { buildAbductionCueReportLines, buildAbductionCueSummary } from './forensicAbductionCues.mjs';
 import {
@@ -43,6 +59,8 @@ import {
 } from './forensicAbductionMap.mjs';
 import {
   buildRelationshipDisplayRows,
+  collectRelationshipAspectContacts,
+  scoreForensicRelationshipLink,
   summarizeForensicRelationshipLink,
 } from './forensicRelationshipLink.mjs';
 import { summarizeForensicSurvivalSignal } from './forensicSurvivalSignal.mjs';
@@ -54,7 +72,8 @@ import {
   shouldApplyAstroClockRequest,
   writeAstroClockWarmState,
 } from './astroClockViewState.mjs';
-import { redirectToPremiumUpgrade, shouldGatePremiumFeature } from '../../utils/premiumAccess.mjs';
+import { shouldGatePremiumFeature } from '../../utils/premiumAccess.mjs';
+import { ClipboardCopy } from 'lucide-react';
 
 // Robust clipboard helper for Electron/packaged builds
 async function safeCopyText(text) {
@@ -80,13 +99,81 @@ async function safeCopyText(text) {
   }
 }
 
+function printReportHtmlInBrowser(html) {
+  return new Promise((resolve) => {
+    if (typeof document === 'undefined' || !document.body) {
+      resolve(false);
+      return;
+    }
+    const frame = document.createElement('iframe');
+    frame.setAttribute('sandbox', 'allow-modals allow-same-origin');
+    frame.setAttribute('title', 'Report print preview');
+    frame.style.position = 'fixed';
+    frame.style.width = '1px';
+    frame.style.height = '1px';
+    frame.style.opacity = '0';
+    frame.style.pointerEvents = 'none';
+    frame.style.border = '0';
+    let settled = false;
+    const finish = (printed) => {
+      if (settled) return;
+      settled = true;
+      resolve(printed);
+      setTimeout(() => {
+        try { frame.remove(); } catch (_) {}
+      }, printed ? 1000 : 0);
+    };
+    const loadTimeout = setTimeout(() => finish(false), 5000);
+    frame.addEventListener('load', () => {
+      clearTimeout(loadTimeout);
+      if (settled) return;
+      try {
+        const printWindow = frame.contentWindow;
+        if (!printWindow || typeof printWindow.print !== 'function') {
+          finish(false);
+          return;
+        }
+        printWindow.focus?.();
+        printWindow.print();
+        finish(true);
+      } catch (_) {
+        finish(false);
+      }
+    }, { once: true });
+    frame.srcdoc = String(html || '');
+    document.body.appendChild(frame);
+  });
+}
+
 function getActionErrorMessage(error, fallbackMessage) {
   const rawMessage = typeof error?.message === 'string' ? error.message.trim() : '';
   return rawMessage || fallbackMessage;
 }
 
-function getClockLoadErrorMessage(error, fallbackMessage) {
+function normalizeBackendStatus(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'checking' || normalized === 'starting' || normalized === 'loading') return 'checking';
+  if (normalized === 'offline' || normalized === 'error' || normalized === 'failed') return 'offline';
+  return 'connected';
+}
+
+function isTransientFetchError(error) {
   const rawMessage = typeof error?.message === 'string' ? error.message.trim() : '';
+  return /failed to fetch|networkerror|network request failed|load failed/i.test(rawMessage);
+}
+
+function isAbortError(error) {
+  return error?.name === 'AbortError' || /abort/i.test(String(error?.message || ''));
+}
+
+function getClockLoadErrorMessage(error, fallbackMessage, { backendStatus = 'connected' } = {}) {
+  const rawMessage = typeof error?.message === 'string' ? error.message.trim() : '';
+  if (isTransientFetchError(error)) {
+    if (backendStatus !== 'offline') {
+      return '';
+    }
+    return 'Astro Clock could not reach the local astrology engine. Try Refresh after it reconnects.';
+  }
   if (/^Request timed out after \d+s$/i.test(rawMessage)) {
     return 'Astro Clock refresh took too long. Try Refresh again.';
   }
@@ -94,6 +181,8 @@ function getClockLoadErrorMessage(error, fallbackMessage) {
 }
 
 const TIME_LOCALE = 'en-GB';
+const serifStyle = { fontFamily: 'Iowan Old Style, Palatino Linotype, Book Antiqua, Georgia, serif' };
+const monoStyle = { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace' };
 
 const PlanetSymbols = {
   Sun: '☉',
@@ -122,6 +211,32 @@ function formatHM(iso) {
   } catch { return ''; }
 }
 
+function formatControlDateLabel(rawDate) {
+  if (!rawDate) return 'Waiting';
+  try {
+    return new Intl.DateTimeFormat(TIME_LOCALE, {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    }).format(new Date(`${rawDate}T12:00:00`));
+  } catch {
+    return rawDate;
+  }
+}
+
+function extractUtcOffsetLabel(label) {
+  if (!label) return '';
+  const normalized = String(label).trim();
+  const match = normalized.match(/\((UTC[+-]\d{2}:\d{2})\)$/);
+  if (match?.[1]) {
+    return match[1].replace('UTC', '');
+  }
+  if (/^UTC[+-]\d{2}:\d{2}$/.test(normalized)) {
+    return normalized.replace('UTC', '');
+  }
+  return '';
+}
+
 function hourProgress(startIso, endIso) {
   try {
     const now = Date.now();
@@ -133,10 +248,256 @@ function hourProgress(startIso, endIso) {
 }
 
 const panelCls = 'rounded-2xl border border-zinc-200 bg-white shadow-sm p-4';
+const ASTRO_CLOCK_DEFAULT_LOCATION = 'Greenwich, UK';
+const ASTRO_CLOCK_AUTO_LOCATION_STORAGE_KEY = 'vox_stella_astro_clock_auto_location';
+const ASTRO_CLOCK_AUTO_CONTEXT_STORAGE_KEY = 'vox_stella_astro_clock_auto_context';
+const tileEyebrowCls = 'text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-400';
+const utilityPillCls = 'rounded-full border border-zinc-200 bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500 hover:bg-zinc-50';
+const subduedEmptyCls = 'rounded-2xl border border-zinc-200 bg-white px-3 py-3 text-sm text-zinc-500';
 
 const signs = ['Aries','Taurus','Gemini','Cancer','Leo','Virgo','Libra','Scorpio','Sagittarius','Capricorn','Aquarius','Pisces'];
 function signFromLon(lon=0){ const n=((Math.floor(lon/30))%12+12)%12; return signs[n]; }
 function degreeTextFromLon(lon=0){ const d=Math.floor(lon%30); const m=Math.floor(((lon%1)*60)); return `${d}°${String(m).padStart(2,'0')}'`; }
+function normalizeLocationText(value) {
+  return typeof value === 'string' && value.trim() ? value.trim() : '';
+}
+function finiteNumberOrUndefined(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : undefined;
+}
+function firstPresent(...values) {
+  for (const value of values) {
+    if (value == null) continue;
+    const text = String(value).trim();
+    if (text) return text;
+  }
+  return undefined;
+}
+function resolveIntlTimezone(value) {
+  const candidate = resolveAstroClockTimezone(undefined, firstPresent(value));
+  if (!candidate || typeof Intl === 'undefined' || !Intl.DateTimeFormat) return undefined;
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: candidate }).format(new Date());
+    return candidate;
+  } catch (_) {
+    return undefined;
+  }
+}
+function formatForensicTimestampParts(iso, timezone) {
+  if (!iso || typeof iso !== 'string') {
+    return { datePart: '', timePart: '' };
+  }
+  try {
+    const parsed = new Date(iso);
+    if (!Number.isFinite(parsed.getTime())) {
+      return { datePart: '', timePart: '' };
+    }
+    const resolvedTimezone = resolveIntlTimezone(timezone);
+    const timezoneOption = resolvedTimezone ? { timeZone: resolvedTimezone } : {};
+    return {
+      datePart: new Intl.DateTimeFormat('en-US', {
+        ...timezoneOption,
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric',
+      }).format(parsed),
+      timePart: new Intl.DateTimeFormat('en-US', {
+        ...timezoneOption,
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      }).format(parsed),
+    };
+  } catch (_) {
+    return { datePart: '', timePart: '' };
+  }
+}
+function readStoredAstroClockAutoLocation() {
+  try {
+    return normalizeLocationText(localStorage.getItem(ASTRO_CLOCK_AUTO_LOCATION_STORAGE_KEY));
+  } catch (_) {
+    return '';
+  }
+}
+function readStoredAstroClockAutoContext() {
+  try {
+    const raw = localStorage.getItem(ASTRO_CLOCK_AUTO_CONTEXT_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const location = normalizeLocationText(parsed?.location);
+    const latitude = finiteNumberOrUndefined(parsed?.latitude);
+    const longitude = finiteNumberOrUndefined(parsed?.longitude);
+    if (!location || latitude == null || longitude == null) return null;
+    return {
+      location,
+      timezone: normalizeLocationText(parsed?.timezone),
+      timezone_label: normalizeLocationText(parsed?.timezone_label),
+      latitude,
+      longitude,
+    };
+  } catch (_) {
+    return null;
+  }
+}
+const SignGlyphs = {
+  Aries: '♈︎',
+  Taurus: '♉︎',
+  Gemini: '♊︎',
+  Cancer: '♋︎',
+  Leo: '♌︎',
+  Virgo: '♍︎',
+  Libra: '♎︎',
+  Scorpio: '♏︎',
+  Sagittarius: '♐︎',
+  Capricorn: '♑︎',
+  Aquarius: '♒︎',
+  Pisces: '♓︎',
+};
+const zodiacGlyphStyle = { fontFamily: '"Noto Sans Symbols 2","Segoe UI Symbol","Apple Symbols",serif' };
+const SignRulers = {
+  Aries: 'Mars',
+  Taurus: 'Venus',
+  Gemini: 'Mercury',
+  Cancer: 'Moon',
+  Leo: 'Sun',
+  Virgo: 'Mercury',
+  Libra: 'Venus',
+  Scorpio: 'Mars',
+  Sagittarius: 'Jupiter',
+  Capricorn: 'Saturn',
+  Aquarius: 'Saturn',
+  Pisces: 'Jupiter',
+};
+const CHART_LENS_OPTIONS = [
+  { id: 'traditional', label: 'Traditional' },
+  { id: 'modern', label: '+ Modern' },
+  { id: 'bodies', label: 'Bodies' },
+];
+const CHART_TRADITIONAL_BODIES = new Set(['Sun','Moon','Mercury','Venus','Mars','Jupiter','Saturn']);
+const CHART_MODERN_OUTERS = new Set(['Uranus','Neptune','Pluto']);
+const CHART_BODY_PRIORITY = ['Sun','Moon','Mercury','Venus','Mars','Jupiter','Saturn','Uranus','Neptune','Pluto','North Node','South Node','Chiron'];
+
+function normalizeLongitude(lon) {
+  const numeric = Number(lon);
+  if (!Number.isFinite(numeric)) return null;
+  return ((numeric % 360) + 360) % 360;
+}
+
+function chartPointSummary(lon) {
+  const normalized = normalizeLongitude(lon);
+  if (normalized == null) return null;
+  const sign = signFromLon(normalized);
+  return {
+    lon: normalized,
+    sign,
+    glyph: SignGlyphs[sign] || '',
+    degreeText: degreeTextFromLon(normalized),
+    ruler: SignRulers[sign] || '',
+  };
+}
+
+function chartLensRank(name) {
+  const index = CHART_BODY_PRIORITY.indexOf(name);
+  return index === -1 ? CHART_BODY_PRIORITY.length + 1 : index;
+}
+
+function filterChartPlanetsByLens(planets, lens) {
+  const rows = Array.isArray(planets) ? planets : [];
+  return rows
+    .filter((planet) => {
+      const name = String(planet?.planet || '');
+      if (!name) return false;
+      if (lens === 'traditional') return CHART_TRADITIONAL_BODIES.has(name);
+      if (lens === 'modern') return CHART_TRADITIONAL_BODIES.has(name) || CHART_MODERN_OUTERS.has(name);
+      return true;
+    })
+    .slice()
+    .sort((left, right) => {
+      const rankDiff = chartLensRank(left?.planet) - chartLensRank(right?.planet);
+      if (rankDiff !== 0) return rankDiff;
+      return (normalizeLongitude(left?.longitude) ?? 999) - (normalizeLongitude(right?.longitude) ?? 999);
+    });
+}
+
+function mapAspectNameToWheelType(name) {
+  const normalized = String(name || '').trim().toLowerCase();
+  if (normalized === 'conjunction') return 'conj';
+  if (normalized === 'opposition') return 'opp';
+  if (normalized === 'trine') return 'trine';
+  if (normalized === 'square') return 'square';
+  if (normalized === 'sextile') return 'sextile';
+  return null;
+}
+
+function formatAspectOrb(orb) {
+  const numeric = Math.abs(Number(orb));
+  if (!Number.isFinite(numeric)) return '-';
+  return `${numeric.toFixed(1)}°`;
+}
+
+function buildWheelAspectRows(rows, visibleIds) {
+  const ids = visibleIds instanceof Set ? visibleIds : new Set();
+  return (Array.isArray(rows) ? rows : []).flatMap((row) => {
+    const type = mapAspectNameToWheelType(row?.aspect);
+    const a = String(row?.planet1 || '').trim();
+    const b = String(row?.planet2 || '').trim();
+    if (!type || !a || !b || !ids.has(a) || !ids.has(b)) return [];
+    const orb = Math.abs(Number(row?.orb));
+    if (!Number.isFinite(orb)) return [];
+    const maxOrb = Number(row?.max_orb ?? row?.allowed_orb);
+    return [{
+      a,
+      b,
+      type,
+      orb,
+      maxOrb: Number.isFinite(maxOrb) && maxOrb > 0 ? maxOrb : 8,
+      label: row?.aspect || '',
+      phase: row?.phase || '',
+      symbol: row?.symbol || aspectSymbol(row?.aspect),
+      orbText: row?.orb_text || formatAspectOrb(orb),
+    }];
+  });
+}
+
+function extractFortuneLot(lots) {
+  const source = lots?.fortune || lots?.part_of_fortune || lots?.fortune_part || null;
+  if (!source || typeof source !== 'object') return null;
+  const lon = source.lon ?? source.longitude ?? null;
+  const summary = chartPointSummary(lon);
+  if (!summary) return null;
+  return {
+    ...summary,
+    house: source.house ?? null,
+    name: source.name || 'Fortune',
+  };
+}
+
+function normalizeSectValue(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'diurnal' || normalized === 'day') return 'diurnal';
+  if (normalized === 'nocturnal' || normalized === 'night') return 'nocturnal';
+  return null;
+}
+
+function summarizeSectMeta(sect) {
+  if (!sect || typeof sect !== 'object') return null;
+  const normalized = normalizeSectValue(sect.chart_sect || sect.sect || sect.type || sect.status);
+  if (!normalized) return null;
+  const isNight = normalized === 'nocturnal';
+  return {
+    glyph: isNight ? '☽' : '☉',
+    label: isNight ? 'Night' : 'Day',
+    detail: sect.benefic_of_sect ? `Benefic: ${sect.benefic_of_sect}` : '',
+  };
+}
+
+function solarConditionAccentTone(tone) {
+  if (tone === 'cazimi') return 'text-amber-600';
+  if (tone === 'combust') return 'text-rose-600';
+  if (tone === 'under_beams') return 'text-sky-600';
+  return 'text-zinc-700';
+}
+
 function formatSurvivabilityBandLabel(value){
   const raw = String(value || '').trim();
   if (!raw) return '';
@@ -150,6 +511,49 @@ function formatSurvivabilityBandLabel(value){
   return labels[raw] || raw.replace(/_/g, ' ');
 }
 
+function formatForensicSignedScore(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return '-';
+  const rounded = Math.round(number * 100) / 100;
+  return `${rounded >= 0 ? '+' : ''}${rounded.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+}
+
+function formatForensicLocationLabel(value) {
+  const raw = normalizeLocationText(value);
+  if (!raw) return '';
+  const letters = raw.replace(/[^A-Za-z]/g, '');
+  if (!letters || letters !== letters.toLowerCase()) return raw;
+  const minorWords = new Set(['and', 'at', 'by', 'de', 'del', 'el', 'in', 'of', 'the']);
+  return raw.replace(/[A-Za-z]+(?:'[A-Za-z]+)?/g, (word, offset) => {
+    const lower = word.toLowerCase();
+    if (minorWords.has(lower) && offset > 0) return lower;
+    if (lower.length <= 3 && /(?:^|,\s*)[a-z]{2,3}(?:$|,)/.test(raw.slice(Math.max(0, offset - 2), offset + lower.length + 2))) {
+      return lower.toUpperCase();
+    }
+    return lower.charAt(0).toUpperCase() + lower.slice(1);
+  });
+}
+
+function formatLightMediationEffect(value) {
+  const raw = String(value || '').trim();
+  const labels = {
+    recovery_support: 'recovery support',
+    fatal_pressure: 'fatal pressure',
+    none: 'no mediation change',
+  };
+  return labels[raw] || raw.replace(/_/g, ' ');
+}
+
+function formatLightMediationTilt(value) {
+  const raw = String(value || '').trim();
+  const labels = {
+    recovery_mitigated: 'recovery mitigated',
+    fatal_pressure_amplified: 'fatal pressure amplified',
+    neutral: 'neutral',
+  };
+  return labels[raw] || raw.replace(/_/g, ' ');
+}
+
 function DispositorsCard({ data, includeModern }){
   // Use backend-provided dispositor chains to avoid duplicating reception logic
   const DISP = (data && data.dispositors) || {};
@@ -157,9 +561,7 @@ function DispositorsCard({ data, includeModern }){
   const modernAnchors = includeModern ? ['Uranus','Neptune','Pluto'] : [];
   const anchors = [...baseAnchors, ...modernAnchors].filter(p => DISP[p]);
 
-  const chip = (name) => (
-    <span className="px-1.5 py-0.5 rounded-full border border-zinc-200">{PlanetSymbols[name] || name}</span>
-  );
+  const planetGlyph = (name) => PlanetSymbols[name] || name || '?';
 
   // Traditional rulers for domicile check (kept in sync with backend)
   const signRuler = {
@@ -179,43 +581,39 @@ function DispositorsCard({ data, includeModern }){
   };
 
   return (
-    <div className="space-y-3 text-sm">
-      {anchors.map((anchor) => {
+    <div className="space-y-2.5 text-sm">
+      {anchors.length === 0 ? <div className="text-sm text-zinc-500">No dispositor chains available.</div> : anchors.map((anchor) => {
         const info = DISP[anchor] || {};
-        const chain = Array.isArray(info.chain) && info.chain.length ? info.chain : [anchor];
-        const finalDisp = info.final_dispositor || chain[chain.length - 1] || anchor;
+        const state = normalizeDispositorState(info, anchor);
+        const chain = state.chain;
+        const finalDisp = state.finalDispositor || chain[chain.length - 1] || anchor;
         const domAnchor = isDomicile(anchor);
         const domFinal = isDomicile(finalDisp);
-        const tooltip = (() => {
-          try {
-            const parts = chain.map((nm) => {
-              const s = planetSign(nm);
-              return `${nm}${s ? ` (${s})` : ''}`;
-            });
-            const tail = domAnchor ? ' — domicile' : (domFinal ? ' — final in domicile' : '');
-            return parts.join(' → ') + tail;
-          } catch(_) { return chain.join(' → '); }
-        })();
+        const tooltip = formatDispositorTooltip(state, planetSign);
+        const summary = formatDispositorSummary(state, { planetGlyph, domAnchor, domFinal });
+        const showSummary = summary && shouldRenderDispositorSummary(state);
         return (
-          <div key={anchor} title={tooltip} aria-label={`Dispositor chain: ${tooltip}`}>
-            {domAnchor ? (
-              <div className="flex items-center gap-2 text-xs">
-                {chip(anchor)}
-                <span className="ml-1 uppercase text-[10px] px-1 py-0.5 rounded bg-zinc-100 text-zinc-600 border border-zinc-200">dom</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1 text-xs flex-wrap">
+          <div
+            key={anchor}
+            title={tooltip}
+            aria-label={`Dispositor chain: ${tooltip}`}
+            className="border-t border-zinc-100 pt-2.5 first:border-t-0 first:pt-0"
+          >
+            <div className="flex items-center gap-2">
+              <div className="flex min-w-0 flex-wrap items-center gap-2 text-[14px] leading-none text-zinc-900">
                 {chain.map((nm, i) => (
                   <React.Fragment key={`${anchor}-${nm}-${i}`}>
-                    {chip(nm)}
-                    {i < chain.length - 1 && <span className="text-zinc-400">→</span>}
+                    <span>{planetGlyph(nm)}</span>
+                    {i < chain.length - 1 && <span className="text-zinc-300">→</span>}
                   </React.Fragment>
                 ))}
-                {domFinal && (
-                  <span className="ml-1 uppercase text-[10px] px-1 py-0.5 rounded bg-zinc-100 text-zinc-600 border border-zinc-200">dom</span>
-                )}
               </div>
-            )}
+            </div>
+            {showSummary ? (
+              <div className="mt-1 text-[11px] text-zinc-500">
+                {summary}
+              </div>
+            ) : null}
           </div>
         );
       })}
@@ -278,13 +676,35 @@ function preserveMorinPayloadForSameChart(currentData, nextData) {
 }
 
 
-const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }) => {
+const AstroClock = ({
+  darkMode,
+  setCurrentView,
+  apiStatus,
+  licenseActive = false,
+  licenseChecking = false,
+  onLicenseChanged,
+}) => {
+  const backendStatus = normalizeBackendStatus(apiStatus);
+  const backendChecking = backendStatus === 'checking';
+  const backendOffline = backendStatus === 'offline';
+  const backendReady = !backendChecking && !backendOffline;
+  const packagedRuntime = typeof window !== 'undefined' && window.IS_PACKAGED === true;
   const initialWarmStateRef = useRef(readAstroClockWarmState() || {});
   const initialWarmState = initialWarmStateRef.current;
+  const storedAutoContextRef = useRef(readStoredAstroClockAutoContext());
   const [mode, setMode] = useState(() => initialWarmState.mode || 'realtime');
   const [manualDate, setManualDate] = useState(() => initialWarmState.manualDate || '');
   const [manualTime, setManualTime] = useState(() => initialWarmState.manualTime || '');
   const [manualLocation, setManualLocation] = useState(() => initialWarmState.manualLocation || '');
+  const storedAutoLocationRef = useRef(readStoredAstroClockAutoLocation());
+  const [autoLocation, setAutoLocation] = useState(() => (
+    normalizeLocationText(storedAutoContextRef.current?.location) ||
+    (initialWarmState.mode === 'realtime' ? normalizeLocationText(initialWarmState.data?.location) : '') ||
+    (normalizeLocationText(storedAutoLocationRef.current).includes(',')
+      ? normalizeLocationText(storedAutoLocationRef.current)
+      : '') ||
+    (initialWarmState.mode !== 'realtime' ? normalizeLocationText(initialWarmState.autoLocation) : '')
+  ));
   const [activeSnapId, setActiveSnapId] = useState(() => initialWarmState.activeSnapId || '');
   const [data, setData] = useState(() => initialWarmState.data || null);
   const dataRef = useRef(initialWarmState.data || null);
@@ -293,6 +713,11 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
   const [actionError, setActionError] = useState('');
   const [clockLoadError, setClockLoadError] = useState('');
   const [includeModern, setIncludeModern] = useState(() => Boolean(initialWarmState.includeModern));
+  const [chartLens, setChartLens] = useState(() => {
+    const saved = typeof initialWarmState.chartLens === 'string' ? initialWarmState.chartLens : '';
+    if (saved === 'traditional' || saved === 'modern' || saved === 'bodies') return saved;
+    return initialWarmState.includeModern ? 'modern' : 'traditional';
+  });
   const [houseSystem, setHouseSystem] = useState(() => {
     if (typeof initialWarmState.houseSystem === 'string' && initialWarmState.houseSystem.trim()) {
       return initialWarmState.houseSystem.trim();
@@ -318,7 +743,9 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
   const [showTransits, setShowTransits] = useState(false);
   const [showElection, setShowElection] = useState(false);
   const [showAstrocartography, setShowAstrocartography] = useState(false);
-  const [showResearch, setShowResearch] = useState(false);
+  const [showChineseAstrology, setShowChineseAstrology] = useState(false);
+  const [showBirthCertification, setShowBirthCertification] = useState(false);
+  const [premiumOfferFeature, setPremiumOfferFeature] = useState('');
   const [copiedCasePrompt, setCopiedCasePrompt] = useState(false);
   const [copiedBirthPrompt, setCopiedBirthPrompt] = useState(false);
   const [copiedAssetPrompt, setCopiedAssetPrompt] = useState(false);
@@ -329,16 +756,20 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
   const [showNamePrompt, setShowNamePrompt] = useState(false);
   const [namePromptType, setNamePromptType] = useState(null); // 'natal' | 'case' | 'asset'
   const [isStreaming, setIsStreaming] = useState(false);
+  const [realtimeTransportRefreshKey, setRealtimeTransportRefreshKey] = useState(0);
   const featurePauseRef = useRef({ count: 0, resumeNeeded: false, snapshotIso: null, pausing: false, pausePromise: null });
   const modeRef = useRef(mode);
   const activeManualIsoRef = useRef(activeManualIso);
   const manualLocationRef = useRef(manualLocation);
+  const autoLocationRef = useRef(autoLocation);
+  const activeManualContextRef = useRef(null);
   const viewVersionRef = useRef(0);
   const dashboardRequestRef = useRef(0);
   const hoursRequestRef = useRef(0);
   const loadingRef = useRef(false);
   const dashboardAbortRef = useRef(null);
   const hoursAbortRef = useRef(null);
+  const modeTransitionAbortRef = useRef(null);
   const skipNextManualDashboardRefreshRef = useRef(false);
   const skipNextRealtimeBootstrapRef = useRef(false);
   const skipNextHoursRefreshRef = useRef(false);
@@ -363,8 +794,44 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
   useEffect(() => { modeRef.current = mode; }, [mode]);
   useEffect(() => { activeManualIsoRef.current = activeManualIso; }, [activeManualIso]);
   useEffect(() => { manualLocationRef.current = manualLocation; }, [manualLocation]);
+  useEffect(() => { autoLocationRef.current = autoLocation; }, [autoLocation]);
   useEffect(() => { dataRef.current = data; }, [data]);
   useEffect(() => { loadingRef.current = loading; }, [loading]);
+  useEffect(() => {
+    if (backendChecking || backendReady) {
+      setClockLoadError('');
+    }
+    if (!backendReady) {
+      closeRealtimeStream();
+    }
+  }, [backendChecking, backendReady, closeRealtimeStream]);
+  useEffect(() => {
+    try {
+      const dataLocation = normalizeLocationText(data?.location);
+      const latitude = finiteNumberOrUndefined(data?.latitude);
+      const longitude = finiteNumberOrUndefined(data?.longitude);
+      if (mode === 'realtime' && dataLocation && latitude != null && longitude != null) {
+        const nextContext = {
+          location: dataLocation,
+          timezone: resolveAstroClockTimezone(data?.timezone, data?.timezone_label) || '',
+          timezone_label: normalizeLocationText(data?.timezone_label),
+          latitude,
+          longitude,
+        };
+        storedAutoContextRef.current = nextContext;
+        localStorage.setItem(ASTRO_CLOCK_AUTO_LOCATION_STORAGE_KEY, dataLocation);
+        localStorage.setItem(ASTRO_CLOCK_AUTO_CONTEXT_STORAGE_KEY, JSON.stringify(nextContext));
+      } else if (!normalizeLocationText(autoLocation) && !dataLocation) {
+        storedAutoContextRef.current = null;
+        localStorage.removeItem(ASTRO_CLOCK_AUTO_LOCATION_STORAGE_KEY);
+        localStorage.removeItem(ASTRO_CLOCK_AUTO_CONTEXT_STORAGE_KEY);
+      }
+    } catch (_) {}
+  }, [autoLocation, data?.latitude, data?.location, data?.longitude, data?.timezone, data?.timezone_label, mode]);
+  useEffect(() => {
+    const wantsModern = chartLens !== 'traditional';
+    setIncludeModern((current) => (current === wantsModern ? current : wantsModern));
+  }, [chartLens]);
   useEffect(() => () => {
     if (dashboardAbortRef.current) {
       try { dashboardAbortRef.current.abort(); } catch (_) {}
@@ -377,15 +844,24 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
   }, []);
 
   useEffect(() => {
+    const warmAutoLocation = mode === 'realtime'
+      ? (
+        normalizeLocationText(data?.location) ||
+        normalizeLocationText(storedAutoContextRef.current?.location) ||
+        ASTRO_CLOCK_DEFAULT_LOCATION
+      )
+      : normalizeLocationText(autoLocation);
     writeAstroClockWarmState({
       mode,
       manualDate,
       manualTime,
       manualLocation,
+      autoLocation: warmAutoLocation,
       activeSnapId,
       data,
       hours,
       includeModern,
+      chartLens,
       houseSystem,
       specialDegrees,
       useMorin,
@@ -396,9 +872,11 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
   }, [
     activeManualIso,
     activeSnapId,
+    autoLocation,
     data,
     hours,
     houseSystem,
+    chartLens,
     includeModern,
     manualDate,
     manualLocation,
@@ -410,19 +888,45 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
     useMorin,
   ]);
 
-  const openNamePrompt = (type) => {
+  const openNamePrompt = useCallback((type) => {
     setNamePromptType(type);
     setShowNamePrompt(true);
-  };
+  }, []);
+
+  const getSnapContext = useCallback((snapId) => {
+    const targetId = String(snapId || '').trim();
+    if (!targetId) return null;
+    const item = (Array.isArray(snaps) ? snaps : []).find((snap) => String(snap?.id || '') === targetId);
+    if (!item) return null;
+    const dashboard = item?.dashboard && typeof item.dashboard === 'object' ? item.dashboard : {};
+    const location =
+      normalizeLocationText(item?.location) ||
+      normalizeLocationText(dashboard?.location);
+    const timezone = resolveAstroClockTimezone(
+      item?.timezone || dashboard?.timezone,
+      item?.timezone_label || dashboard?.timezone_label,
+    );
+    const latitude = finiteNumberOrUndefined(dashboard?.latitude ?? item?.latitude);
+    const longitude = finiteNumberOrUndefined(dashboard?.longitude ?? item?.longitude);
+    return {
+      id: targetId,
+      timestamp: item?.effective_datetime || dashboard?.timestamp || '',
+      location,
+      timezone,
+      latitude,
+      longitude,
+    };
+  }, [snaps]);
 
   const buildActiveChartPromptPayload = () => {
     const live = data || {};
+    const snapContext = getSnapContext(activeSnapId);
     return {
       chart_context: {
         mode: modeRef.current || mode,
         timestamp: live.timestamp || activeManualIsoRef.current || null,
-        location: live.location || manualLocationRef.current || null,
-        timezone: live.timezone || null,
+        location: snapContext?.location || live.location || autoLocationRef.current || manualLocationRef.current || null,
+        timezone: live.timezone || snapContext?.timezone || null,
         timezone_label: live.timezone_label || null,
         house_system: houseSystem || null,
       },
@@ -538,6 +1042,25 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
     return viewVersionRef.current;
   }, []);
 
+  const beginModeTransition = useCallback(() => {
+    try { modeTransitionAbortRef.current?.abort?.(); } catch (_) {}
+    try { dashboardAbortRef.current?.abort?.(); } catch (_) {}
+    try { hoursAbortRef.current?.abort?.(); } catch (_) {}
+    const controller = new AbortController();
+    modeTransitionAbortRef.current = controller;
+    return {
+      controller,
+      viewVersion: beginViewVersion(),
+    };
+  }, [beginViewVersion]);
+
+  const completeModeTransition = useCallback((controller) => {
+    if (modeTransitionAbortRef.current === controller) {
+      modeTransitionAbortRef.current = null;
+      setLoading(false);
+    }
+  }, []);
+
   const syncManualSnapshotInputs = useCallback((iso, { location, timezone } = {}) => {
     if (!iso || typeof iso !== 'string') return;
     try {
@@ -611,6 +1134,13 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
       : preserveMorinPayloadForSameChart(dataRef.current, transformed);
     dataRef.current = merged;
     setData(merged);
+    if (modeRef.current === 'realtime' && !autoLocationRef.current && merged?.location) {
+      const nextAutoLocation = normalizeLocationText(merged.location);
+      if (nextAutoLocation) {
+        autoLocationRef.current = nextAutoLocation;
+        setAutoLocation(nextAutoLocation);
+      }
+    }
     if (!manualLocationRef.current && merged?.location) {
       manualLocationRef.current = merged.location;
       setManualLocation(merged.location);
@@ -621,8 +1151,14 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
   const buildClockContext = useCallback((overrides = {}) => {
     const currentMode = modeRef.current || mode;
     const requestedMode = overrides.mode || currentMode;
-    const hasExplicitLocation = typeof overrides.location === 'string' && overrides.location.trim();
+    const explicitLocation = normalizeLocationText(overrides.location);
+    const hasExplicitLocation = Boolean(explicitLocation);
     const hasExplicitTimezone = typeof overrides.timezone === 'string' && overrides.timezone.trim();
+    const explicitLatitude = finiteNumberOrUndefined(overrides.latitude);
+    const explicitLongitude = finiteNumberOrUndefined(overrides.longitude);
+    const hasExplicitCoordinates = explicitLatitude != null && explicitLongitude != null;
+    const appliedLatitude = finiteNumberOrUndefined(data?.latitude);
+    const appliedLongitude = finiteNumberOrUndefined(data?.longitude);
     const appliedTimezone = resolveAstroClockTimezone(data?.timezone, data?.timezone_label);
     const appliedLocation =
       (typeof data?.location === 'string' && data.location.trim()) ? data.location.trim() : undefined;
@@ -630,8 +1166,13 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
       (typeof manualLocationRef.current === 'string' && manualLocationRef.current.trim())
         ? manualLocationRef.current.trim()
         : undefined;
+    const typedAutoLocation =
+      (typeof autoLocationRef.current === 'string' && autoLocationRef.current.trim())
+        ? autoLocationRef.current.trim()
+        : undefined;
+    const manualLocationForDiff = explicitLocation || typedLocation;
     const locationDiffersFromApplied =
-      !!typedLocation && !!appliedLocation && typedLocation.toLowerCase() !== appliedLocation.toLowerCase();
+      !!manualLocationForDiff && !!appliedLocation && manualLocationForDiff.toLowerCase() !== appliedLocation.toLowerCase();
     const resolvedDatetime =
       (typeof overrides.datetime === 'string' && overrides.datetime.trim())
         ? overrides.datetime.trim()
@@ -640,9 +1181,7 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
     const context = {};
     if (requestedMode === 'manual' && resolvedDatetime) {
       const resolvedLocation =
-        (typeof overrides.location === 'string' && overrides.location.trim())
-          ? overrides.location.trim()
-          : typedLocation || appliedLocation;
+        explicitLocation || typedLocation || appliedLocation;
       const resolvedTimezone =
         hasExplicitTimezone
           ? overrides.timezone.trim()
@@ -653,23 +1192,89 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
       context.datetime = resolvedDatetime;
       if (resolvedLocation) context.location = resolvedLocation;
       if (resolvedTimezone) context.timezone = resolvedTimezone;
+      if (hasExplicitCoordinates) {
+        context.latitude = explicitLatitude;
+        context.longitude = explicitLongitude;
+      } else if (!hasExplicitLocation && !typedLocation && appliedLatitude != null && appliedLongitude != null) {
+        context.latitude = appliedLatitude;
+        context.longitude = appliedLongitude;
+      }
     } else if (requestedMode === 'realtime') {
       const switchingToRealtime = currentMode !== 'realtime';
+      const realtimeRequestedLocation = explicitLocation || (switchingToRealtime ? typedAutoLocation : undefined);
       const resolvedLocation =
-        (typeof overrides.location === 'string' && overrides.location.trim())
-          ? overrides.location.trim()
-          : (switchingToRealtime ? undefined : appliedLocation);
+        realtimeRequestedLocation ||
+        (switchingToRealtime ? undefined : appliedLocation || typedAutoLocation) ||
+        ASTRO_CLOCK_DEFAULT_LOCATION;
       const resolvedTimezone =
         hasExplicitTimezone
           ? overrides.timezone.trim()
-          : (switchingToRealtime ? undefined : appliedTimezone);
+          : resolvedLocation
+            ? undefined
+            : (switchingToRealtime ? undefined : appliedTimezone);
       context.mode = 'realtime';
       if (resolvedLocation) context.location = resolvedLocation;
       if (resolvedTimezone) context.timezone = resolvedTimezone;
+      if (hasExplicitCoordinates) {
+        context.latitude = explicitLatitude;
+        context.longitude = explicitLongitude;
+      }
     }
     if (resolvedHouseSystem) context.houseSystem = resolvedHouseSystem;
     return context;
-  }, [data?.location, data?.timezone, data?.timezone_label, houseSystem, mode]);
+  }, [data?.latitude, data?.location, data?.longitude, data?.timezone, data?.timezone_label, houseSystem, mode]);
+
+  const buildAppliedClockContext = useCallback((overrides = {}) => {
+    const activeMode = overrides.mode || modeRef.current || mode;
+    const snapContext = activeMode === 'manual' ? getSnapContext(activeSnapId) : null;
+    const manualContext = activeMode === 'manual' ? activeManualContextRef.current : null;
+    const dashboardTimezone = resolveAstroClockTimezone(data?.timezone, data?.timezone_label);
+    const appliedTimezone = activeMode === 'manual' && snapContext
+      ? (snapContext.timezone || dashboardTimezone)
+      : (dashboardTimezone || snapContext?.timezone || manualContext?.timezone);
+    const dashboardLatitude = finiteNumberOrUndefined(data?.latitude);
+    const dashboardLongitude = finiteNumberOrUndefined(data?.longitude);
+    const manualLatitude = finiteNumberOrUndefined(manualContext?.latitude);
+    const manualLongitude = finiteNumberOrUndefined(manualContext?.longitude);
+    const appliedLatitude = activeMode === 'manual'
+      ? (snapContext ? (snapContext.latitude ?? dashboardLatitude) : manualLatitude)
+      : (dashboardLatitude ?? snapContext?.latitude);
+    const appliedLongitude = activeMode === 'manual'
+      ? (snapContext ? (snapContext.longitude ?? dashboardLongitude) : manualLongitude)
+      : (dashboardLongitude ?? snapContext?.longitude);
+    const dashboardLocation =
+      (typeof data?.location === 'string' && data.location.trim())
+        ? data.location.trim()
+        : '';
+    const appliedLocation =
+      snapContext?.location ||
+      dashboardLocation ||
+      (activeMode === 'manual' ? manualLocationRef.current : autoLocationRef.current);
+    return buildClockContext({
+      ...overrides,
+      mode: activeMode,
+      datetime: activeMode === 'manual'
+        ? (overrides.datetime || activeManualIsoRef.current || data?.timestamp)
+        : overrides.datetime,
+      location: overrides.location || appliedLocation,
+      timezone: overrides.timezone || appliedTimezone,
+      latitude: overrides.latitude ?? appliedLatitude,
+      longitude: overrides.longitude ?? appliedLongitude,
+      houseSystem: overrides.houseSystem || houseSystem,
+    });
+  }, [
+    buildClockContext,
+    data?.latitude,
+    data?.location,
+    data?.longitude,
+    data?.timestamp,
+    data?.timezone,
+    data?.timezone_label,
+    getSnapContext,
+    houseSystem,
+    mode,
+    activeSnapId,
+  ]);
 
   const deriveChartDateTimeParts = useCallback((iso, timezone) => {
     if (!iso || typeof iso !== 'string') return { date: '', time: '' };
@@ -707,7 +1312,7 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
     if (activeSnapId) return '';
     return findMatchingSnapId(snaps, {
       iso: activeManualIso || data?.timestamp || '',
-      location: manualLocation || data?.location || '',
+      location: data?.location || manualLocation || '',
     });
   }, [
     activeManualIso,
@@ -719,6 +1324,10 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
     snaps,
   ]);
 
+  const activeSnapContext = useMemo(() => (
+    getSnapContext(activeSnapId || inferredActiveSnapId)
+  ), [activeSnapId, getSnapContext, inferredActiveSnapId]);
+
   useEffect(() => {
     if (!activeSnapId && inferredActiveSnapId) {
       setActiveSnapId(inferredActiveSnapId);
@@ -726,21 +1335,36 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
   }, [activeSnapId, inferredActiveSnapId]);
 
   const activeTransitSeed = useMemo(() => {
-    const timezone = resolveAstroClockTimezone(data?.timezone, data?.timezone_label) || '';
+    const timezone = resolveAstroClockTimezone(data?.timezone, data?.timezone_label) || activeSnapContext?.timezone || '';
     const activeIso = activeManualIso || data?.timestamp || '';
     const derived = deriveChartDateTimeParts(activeIso, timezone);
+    const latitude = mode === 'realtime'
+      ? finiteNumberOrUndefined(data?.latitude)
+      : (activeSnapContext?.latitude ?? finiteNumberOrUndefined(activeManualContextRef.current?.latitude));
+    const longitude = mode === 'realtime'
+      ? finiteNumberOrUndefined(data?.longitude)
+      : (activeSnapContext?.longitude ?? finiteNumberOrUndefined(activeManualContextRef.current?.longitude));
     return {
       snapId: activeSnapId || inferredActiveSnapId || '',
-      date: manualDate || derived.date || '',
-      time: manualTime || derived.time || '',
-      location: (manualLocation || data?.location || '').trim(),
+      date: derived.date || manualDate || '',
+      time: derived.time || manualTime || '',
+      location: (mode === 'realtime'
+        ? data?.location || autoLocation || ''
+        : activeSnapContext?.location || data?.location || manualLocation || ''
+      ).trim(),
       timezone,
+      latitude,
+      longitude,
       houseSystem,
     };
   }, [
     activeManualIso,
     activeSnapId,
+    activeSnapContext,
+    autoLocation,
+    data?.latitude,
     data?.location,
+    data?.longitude,
     data?.timestamp,
     data?.timezone,
     data?.timezone_label,
@@ -750,9 +1374,13 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
     manualDate,
     manualLocation,
     manualTime,
+    mode,
   ]);
 
   const requestDashboard = useCallback(async (opts = {}, meta = {}) => {
+    if (!backendReady) {
+      return null;
+    }
     const requestId = ++dashboardRequestRef.current;
     const viewVersion = meta.viewVersion ?? viewVersionRef.current;
     const controller = replaceAbortController(dashboardAbortRef);
@@ -770,8 +1398,12 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
             { message: res?.error || res?.detail || res?.message },
             'Failed to load Astro Clock dashboard.',
           );
-          console.error('Failed to load Astro Clock dashboard', res);
-          setClockLoadError(message);
+          if (message && !backendChecking) {
+            console.error('Failed to load Astro Clock dashboard', res);
+            setClockLoadError(message);
+          } else {
+            setClockLoadError('');
+          }
         }
         return null;
       }
@@ -785,9 +1417,15 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
         return null;
       }
       if (isCurrentRequest()) {
-        const message = getClockLoadErrorMessage(error, 'Failed to load Astro Clock dashboard.');
-        console.error('Failed to load Astro Clock dashboard', error);
-        setClockLoadError(message);
+        const message = getClockLoadErrorMessage(error, 'Failed to load Astro Clock dashboard.', {
+          backendStatus,
+        });
+        if (message) {
+          console.error('Failed to load Astro Clock dashboard', error);
+          setClockLoadError(message);
+        } else {
+          setClockLoadError('');
+        }
       }
       return null;
     } finally {
@@ -795,9 +1433,12 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
         dashboardAbortRef.current = null;
       }
     }
-  }, [applyDashboardPayload, replaceAbortController]);
+  }, [applyDashboardPayload, backendChecking, backendReady, backendStatus, replaceAbortController]);
 
   const requestHours = useCallback(async (opts, meta = {}) => {
+    if (!backendReady) {
+      return null;
+    }
     const requestId = ++hoursRequestRef.current;
     const viewVersion = meta.viewVersion ?? viewVersionRef.current;
     const controller = replaceAbortController(hoursAbortRef);
@@ -832,7 +1473,7 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
         hoursAbortRef.current = null;
       }
     }
-  }, [replaceAbortController]);
+  }, [backendReady, replaceAbortController]);
 
   const syncClockModeAndRefresh = useCallback(async (context, meta = {}) => {
     const viewVersion = meta.viewVersion ?? viewVersionRef.current;
@@ -841,7 +1482,11 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
       : specialDegrees;
     const requestedMorin = meta.morin ?? useMorin;
     setClockLoadError('');
-    await AstroClockAPI.setMode(context);
+    const signal = meta.signal;
+    await AstroClockAPI.setMode({ ...context, signal });
+    if (signal?.aborted) {
+      throw new DOMException('Mode transition was aborted.', 'AbortError');
+    }
     const [nextDashboard, nextHours] = await Promise.all([
       requestDashboard({
         includeModern,
@@ -854,35 +1499,104 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
     return { dashboard: nextDashboard, hours: nextHours };
   }, [includeModern, requestDashboard, requestHours, specialDegrees, useMorin]);
 
-  const refreshDashboard = async () => {
+  const refreshDashboard = useCallback(async () => {
     setClockLoadError('');
     await requestDashboard({ includeModern, specialDegrees, morin: useMorin, ...buildClockContext() });
-  };
+  }, [buildClockContext, includeModern, requestDashboard, specialDegrees, useMorin]);
 
-  const cardBg = darkMode ? 'bg-gray-800/60 border-gray-700' : 'bg-white/60 border-white/80';
+  const refreshControlBar = useCallback(async () => {
+    setLoading(true);
+    setClockLoadError('');
+    setActionError('');
+    try {
+      const activeContext = modeRef.current === 'realtime'
+        ? buildClockContext({
+          mode: 'realtime',
+          location: normalizeLocationText(autoLocationRef.current) || undefined,
+        })
+        : buildClockContext();
+      if (activeContext.mode === 'realtime') {
+        const { controller, viewVersion } = beginModeTransition();
+        try {
+          closeRealtimeStream();
+          skipNextRealtimeBootstrapRef.current = true;
+          skipNextHoursRefreshRef.current = true;
+          await syncClockModeAndRefresh(activeContext, { viewVersion, signal: controller.signal });
+          setRealtimeTransportRefreshKey((value) => value + 1);
+        } finally {
+          completeModeTransition(controller);
+        }
+        return;
+      }
+      await Promise.allSettled([
+        requestDashboard({ includeModern, specialDegrees, morin: useMorin, ...activeContext }),
+        requestHours(activeContext),
+      ]);
+    } catch (error) {
+      if (!isAbortError(error)) {
+        console.error('Failed to refresh Astro Clock controls', error);
+        setClockLoadError(getActionErrorMessage(error, 'Failed to refresh Astro Clock.'));
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [
+    beginModeTransition,
+    buildClockContext,
+    closeRealtimeStream,
+    completeModeTransition,
+    includeModern,
+    requestDashboard,
+    requestHours,
+    specialDegrees,
+    syncClockModeAndRefresh,
+    useMorin,
+  ]);
+
+  const controlShellCls = darkMode
+    ? 'border border-zinc-700 bg-zinc-900/70 shadow-sm'
+    : 'border border-zinc-200 bg-white shadow-sm';
   const isProd = (import.meta && import.meta.env && import.meta.env.PROD) || false;
-  const packagedRuntime = typeof window !== 'undefined' && window.IS_PACKAGED === true;
-  const shouldRedirectToUpgrade = useCallback(() => shouldGatePremiumFeature({
+  const shouldShowPremiumOffer = useCallback(() => shouldGatePremiumFeature({
     packagedRuntime,
     licenseActive,
-  }), [packagedRuntime, licenseActive]);
+    licenseChecking,
+  }), [packagedRuntime, licenseActive, licenseChecking]);
 
-  const handleCopyForensicCasePrompt = () => openNamePrompt('case');
+  const openPremiumOffer = useCallback((featureName = 'Premium workflow') => {
+    setShowPromptMenu(false);
+    setPremiumOfferFeature(featureName);
+  }, []);
 
-  const handleCopyBirthChartPrompt = () => openNamePrompt('natal');
+  const openPremiumPrompt = useCallback((type) => {
+    if (shouldShowPremiumOffer()) {
+      openPremiumOffer('AI prompt utility');
+      return;
+    }
+    openNamePrompt(type);
+  }, [openNamePrompt, openPremiumOffer, shouldShowPremiumOffer]);
 
-  const handleCopyAssetPrompt = () => openNamePrompt('asset');
+  const handleTogglePromptMenu = useCallback(() => {
+    if (shouldShowPremiumOffer()) {
+      openPremiumOffer('AI prompt utility');
+      return;
+    }
+    setShowPromptMenu((visible) => !visible);
+  }, [openPremiumOffer, shouldShowPremiumOffer]);
+
+  const handleCopyForensicCasePrompt = () => openPremiumPrompt('case');
+
+  const handleCopyBirthChartPrompt = () => openPremiumPrompt('natal');
+
+  const handleCopyAssetPrompt = () => openPremiumPrompt('asset');
 
   // Derived state for unified prompt button "Copied" feedback
   const anyPromptCopied = copiedBirthPrompt || copiedCasePrompt || copiedAssetPrompt;
 
-  const handleOpenResearch = () => {
-    // Dev only: ignore in prod
-    if (isProd) return;
-    setShowResearch(true);
-  };
-
-  const refreshSnaps = async ({ silent = false } = {}) => {
+  const refreshSnaps = useCallback(async ({ silent = false } = {}) => {
+    if (!backendReady) {
+      return;
+    }
     setLoadingSnaps(true);
     if (!silent) setActionError('');
     try {
@@ -894,11 +1608,14 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
     } catch (error) {
       console.error('Failed to load Astro Clock snaps', error);
       if (!silent) {
-        setActionError(getActionErrorMessage(error, 'Failed to load Astro Clock snaps.'));
+        const message = isTransientFetchError(error) && !backendOffline
+          ? ''
+          : getActionErrorMessage(error, 'Failed to load Astro Clock snaps.');
+        setActionError(message);
       }
     }
     finally { setLoadingSnaps(false); }
-  };
+  }, [backendOffline, backendReady]);
 
   // Polling or SSE (realtime only; disabled while manual is pending)
   useEffect(() => {
@@ -911,6 +1628,10 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
     const skipBootstrap = skipNextRealtimeBootstrapRef.current;
     if (skipBootstrap) {
       skipNextRealtimeBootstrapRef.current = false;
+    }
+    if (!backendReady) {
+      closeRealtimeStream();
+      return () => {};
     }
     // Close any existing stream if leaving realtime or awaiting manual input
     if (mode !== 'realtime' || manualPending) {
@@ -989,7 +1710,7 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
     const start = async () => {
       if (!skipBootstrap) {
         // Ensure backend is in realtime mode before streaming/fetching
-        try { await AstroClockAPI.setMode({ mode: 'realtime', houseSystem }); } catch(_){}
+        try { await AstroClockAPI.setMode(buildClockContext({ mode: 'realtime', houseSystem })); } catch(_){}
         if (cancelled) return;
         // Get the first dashboard payload on screen before starting secondary realtime plumbing.
         await fetchRealtimeDashboard();
@@ -1004,10 +1725,11 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
       stopPolling();
       closeRealtimeStream();
     };
-  }, [buildClockContext, closeRealtimeStream, includeModern, houseSystem, specialDegrees, mode, manualPending, requestDashboard, useMorin]);
+  }, [backendReady, buildClockContext, closeRealtimeStream, includeModern, houseSystem, specialDegrees, mode, manualPending, requestDashboard, realtimeTransportRefreshKey, useMorin]);
 
   // Manual mode: refresh dashboard when includeModern toggles
   useEffect(() => {
+    if (!backendReady) return;
     if (mode !== 'manual' || manualPending) return;
     if (skipNextManualDashboardRefreshRef.current) {
       skipNextManualDashboardRefreshRef.current = false;
@@ -1016,10 +1738,11 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
     (async () => {
       await requestDashboard({ includeModern, specialDegrees, morin: useMorin, ...buildClockContext({ mode: 'manual' }) });
     })();
-  }, [buildClockContext, includeModern, specialDegrees, mode, manualPending, requestDashboard, useMorin]);
+  }, [backendReady, buildClockContext, includeModern, specialDegrees, mode, manualPending, requestDashboard, useMorin]);
 
   // Load planetary hours and keep in sync with stream payload when present; fallback to periodic refresh
   useEffect(() => {
+    if (!backendReady) return;
     if (manualPending) return;
     if (mode === 'manual' && !activeManualIso) return;
     let cancelled = false;
@@ -1035,7 +1758,7 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
     }
     const id = setInterval(fetchHours, 60000);
     return () => { cancelled = true; clearInterval(id); };
-  }, [activeManualIso, buildClockContext, manualPending, mode, requestHours]);
+  }, [activeManualIso, backendReady, buildClockContext, manualPending, mode, requestHours]);
 
   useEffect(() => {
     if (!activeManualIso || (manualDate && manualTime)) return;
@@ -1064,15 +1787,16 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
     if (!manualDate || !manualTime || loadingRef.current) return;
     setLoading(true);
     setActionError('');
+    const { controller, viewVersion } = beginModeTransition();
     try {
       setActiveSnapId('');
-      const viewVersion = beginViewVersion();
       const iso = `${manualDate}T${manualTime}:00`;
       const manualContext = buildClockContext({
         mode: 'manual',
         datetime: iso,
-        location: manualLocation || data?.location || 'Greenwich, UK',
+        location: manualLocation || data?.location || autoLocation || ASTRO_CLOCK_DEFAULT_LOCATION,
       });
+      activeManualContextRef.current = manualContext;
       closeRealtimeStream();
       skipNextManualDashboardRefreshRef.current = true;
       skipNextHoursRefreshRef.current = true;
@@ -1080,33 +1804,41 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
       activeManualIsoRef.current = iso;
       setMode('manual');
       setActiveManualIso(iso);
-      await syncClockModeAndRefresh(manualContext, { viewVersion });
+      await syncClockModeAndRefresh(manualContext, { viewVersion, signal: controller.signal });
     } catch (error) {
+      if (isAbortError(error) || controller.signal.aborted) return;
       console.error('Failed to apply Astro Clock manual mode', error);
       setActionError(getActionErrorMessage(error, 'Failed to switch Astro Clock into manual mode.'));
       throw error;
-    } finally { setLoading(false); }
+    } finally {
+      completeModeTransition(controller);
+    }
   };
 
   // Jump the main clock to a specific ISO timestamp (from Transits modal)
   const jumpToIso = useCallback(async (arg) => {
     const payload = (arg && typeof arg === 'object') ? arg : { iso: arg };
     const iso = payload.iso;
-    if (!iso || typeof iso !== 'string' || loadingRef.current) return;
+    if (!iso || typeof iso !== 'string') return;
     setLoading(true);
     setActionError('');
+    const { controller, viewVersion } = beginModeTransition();
     try {
       setActiveSnapId('');
-      const viewVersion = beginViewVersion();
       // If election provided a specific location/timezone, honor them
-      const jumpLocation = (typeof payload.location === 'string' && payload.location.trim()) ? payload.location.trim() : (manualLocation || 'Greenwich, UK');
+      const jumpLocation = (typeof payload.location === 'string' && payload.location.trim()) ? payload.location.trim() : (manualLocation || autoLocation || ASTRO_CLOCK_DEFAULT_LOCATION);
       const jumpTimezone = (typeof payload.timezone === 'string' && payload.timezone.trim()) ? payload.timezone.trim() : undefined;
+      const jumpLatitude = finiteNumberOrUndefined(payload.latitude);
+      const jumpLongitude = finiteNumberOrUndefined(payload.longitude);
       const manualContext = buildClockContext({
         mode: 'manual',
         datetime: iso,
         location: jumpLocation,
         timezone: jumpTimezone,
+        latitude: jumpLatitude,
+        longitude: jumpLongitude,
       });
+      activeManualContextRef.current = manualContext;
       syncManualSnapshotInputs(iso, { location: jumpLocation, timezone: jumpTimezone });
       closeRealtimeStream();
       skipNextManualDashboardRefreshRef.current = true;
@@ -1115,33 +1847,37 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
       activeManualIsoRef.current = iso;
       setMode('manual');
       setActiveManualIso(iso);
-      await syncClockModeAndRefresh(manualContext, { viewVersion });
+      await syncClockModeAndRefresh(manualContext, { viewVersion, signal: controller.signal });
     } catch (error) {
+      if (isAbortError(error) || controller.signal.aborted) return;
       console.error('Failed to jump Astro Clock to manual snapshot', error);
       setActionError(getActionErrorMessage(error, 'Failed to switch Astro Clock into manual mode.'));
       throw error;
     } finally {
-      setLoading(false);
+      completeModeTransition(controller);
     }
-  }, [beginViewVersion, buildClockContext, closeRealtimeStream, manualLocation, syncClockModeAndRefresh, syncManualSnapshotInputs]);
+  }, [autoLocation, beginModeTransition, buildClockContext, closeRealtimeStream, completeModeTransition, manualLocation, syncClockModeAndRefresh, syncManualSnapshotInputs]);
 
   const resumeRealtime = useCallback(async () => {
-    if (loadingRef.current) return;
     setLoading(true);
     const ref = featurePauseRef.current;
     let success = false;
-    const viewVersion = beginViewVersion();
+    const { controller, viewVersion } = beginModeTransition();
+    const realtimeContext = buildClockContext({
+      mode: 'realtime',
+      location: normalizeLocationText(autoLocationRef.current) || undefined,
+    });
     // Ensure UI state moves to realtime even if network requests fail
     modeRef.current = 'realtime';
     activeManualIsoRef.current = null;
+    activeManualContextRef.current = null;
     setActiveSnapId('');
     setMode('realtime');
     setActiveManualIso(null);
     try {
-      const realtimeContext = buildClockContext({ mode: 'realtime' });
       skipNextRealtimeBootstrapRef.current = true;
       skipNextHoursRefreshRef.current = true;
-      const { dashboard: nextDashboard } = await syncClockModeAndRefresh(realtimeContext, { viewVersion });
+      const { dashboard: nextDashboard } = await syncClockModeAndRefresh(realtimeContext, { viewVersion, signal: controller.signal });
       if (nextDashboard?.timestamp) {
         syncManualSnapshotInputs(nextDashboard.timestamp, {
           location: nextDashboard.location,
@@ -1149,8 +1885,12 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
         });
       }
       success = true;
+    } catch (error) {
+      if (isAbortError(error) || controller.signal.aborted) return;
+      console.error('Failed to resume Astro Clock realtime mode', error);
+      setActionError(getActionErrorMessage(error, 'Failed to switch Astro Clock into realtime mode.'));
     } finally {
-      setLoading(false);
+      completeModeTransition(controller);
       if (success) {
         ref.resumeNeeded = false;
         ref.snapshotIso = null;
@@ -1159,10 +1899,9 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
         if (ref.count !== 0) ref.count = 0;
       }
     }
-  }, [beginViewVersion, buildClockContext, syncClockModeAndRefresh, syncManualSnapshotInputs]);
+  }, [beginModeTransition, buildClockContext, completeModeTransition, syncClockModeAndRefresh, syncManualSnapshotInputs]);
 
   const enterManualMode = useCallback(async () => {
-    if (loadingRef.current) return;
     if (modeRef.current === 'manual' && !activeManualIsoRef.current) {
       return;
     }
@@ -1198,12 +1937,21 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
       return;
     }
     const snapshotIso = (data && data.timestamp) ? data.timestamp : new Date().toISOString();
-    const snapshotLocation = (data && data.location) ? data.location : (manualLocation || 'Greenwich, UK');
+    const snapshotLocation = (data && data.location) ? data.location : (autoLocation || manualLocation || ASTRO_CLOCK_DEFAULT_LOCATION);
+    const snapshotTimezone = resolveAstroClockTimezone(data?.timezone, data?.timezone_label);
+    const snapshotLatitude = finiteNumberOrUndefined(data?.latitude);
+    const snapshotLongitude = finiteNumberOrUndefined(data?.longitude);
     ref.pausing = true;
     ref.snapshotIso = null;
     ref.pausePromise = (async () => {
       try {
-        await jumpToIso({ iso: snapshotIso, location: snapshotLocation });
+        await jumpToIso({
+          iso: snapshotIso,
+          location: snapshotLocation,
+          timezone: snapshotTimezone,
+          latitude: snapshotLatitude,
+          longitude: snapshotLongitude,
+        });
         ref.resumeNeeded = true;
         ref.snapshotIso = snapshotIso;
       } finally {
@@ -1216,7 +1964,7 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
     } catch (err) {
       console.error('Failed to pause realtime for feature', err);
     }
-  }, [mode, data, manualLocation, jumpToIso]);
+  }, [autoLocation, mode, data, manualLocation, jumpToIso]);
 
   const resumeRealtimeAfterFeature = useCallback(async () => {
     const ref = featurePauseRef.current;
@@ -1263,8 +2011,8 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
   }, [mode, activeManualIso, resumeRealtime]);
 
   const handleOpenForensic = useCallback(async () => {
-    if (shouldRedirectToUpgrade()) {
-      redirectToPremiumUpgrade(window.electronAPI?.openExternal);
+    if (shouldShowPremiumOffer()) {
+      openPremiumOffer('Forensic');
       return;
     }
     setOpeningForensic(true);
@@ -1276,7 +2024,7 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
       setOpeningForensic(false);
       setShowForensic(true);
     }
-  }, [pauseRealtimeForFeature, shouldRedirectToUpgrade]);
+  }, [openPremiumOffer, pauseRealtimeForFeature, shouldShowPremiumOffer]);
 
   const handleCloseForensic = useCallback(() => {
     setOpeningForensic(false);
@@ -1285,8 +2033,8 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
   }, [resumeRealtimeAfterFeature]);
 
   const handleOpenTraitProfile = useCallback(async () => {
-    if (shouldRedirectToUpgrade()) {
-      redirectToPremiumUpgrade(window.electronAPI?.openExternal);
+    if (shouldShowPremiumOffer()) {
+      openPremiumOffer('Trait Profile');
       return;
     }
     try {
@@ -1296,7 +2044,7 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
     } finally {
       setShowTraits(true);
     }
-  }, [pauseRealtimeForFeature, shouldRedirectToUpgrade]);
+  }, [openPremiumOffer, pauseRealtimeForFeature, shouldShowPremiumOffer]);
 
   const handleCloseTraitProfile = useCallback(() => {
     setShowTraits(false);
@@ -1304,32 +2052,25 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
   }, [resumeRealtimeAfterFeature]);
 
   const handleOpenSynastry = useCallback(async () => {
-    if (shouldRedirectToUpgrade()) {
-      redirectToPremiumUpgrade(window.electronAPI?.openExternal);
+    if (shouldShowPremiumOffer()) {
+      openPremiumOffer('Synastry');
       return;
     }
-    try {
-      await pauseRealtimeForFeature();
-    } catch (err) {
-      console.error('Failed to pause realtime for synastry', err);
-    } finally {
-      setShowSynastry(true);
-    }
-  }, [pauseRealtimeForFeature, shouldRedirectToUpgrade]);
+    setShowSynastry(true);
+  }, [openPremiumOffer, shouldShowPremiumOffer]);
 
   const handleCloseSynastry = useCallback(() => {
     setShowSynastry(false);
-    resumeRealtimeAfterFeature().catch((err) => { console.error('Failed to resume realtime after synastry', err); });
-  }, [resumeRealtimeAfterFeature]);
+  }, []);
 
   const handleOpenTransits = useCallback(() => {
-    if (shouldRedirectToUpgrade()) {
-      redirectToPremiumUpgrade(window.electronAPI?.openExternal);
+    if (shouldShowPremiumOffer()) {
+      openPremiumOffer('Transits');
       return;
     }
     setShowTransits(true);
     pauseRealtimeForFeature().catch((err) => { console.error('Failed to pause realtime for transits', err); });
-  }, [pauseRealtimeForFeature, shouldRedirectToUpgrade]);
+  }, [openPremiumOffer, pauseRealtimeForFeature, shouldShowPremiumOffer]);
 
   const handleCloseTransits = useCallback(() => {
     setShowTransits(false);
@@ -1337,13 +2078,13 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
   }, [resumeRealtimeAfterFeature]);
 
   const handleOpenElection = useCallback(() => {
-    if (shouldRedirectToUpgrade()) {
-      redirectToPremiumUpgrade(window.electronAPI?.openExternal);
+    if (shouldShowPremiumOffer()) {
+      openPremiumOffer('Election');
       return;
     }
     setShowElection(true);
     pauseRealtimeForFeature().catch((err) => { console.error('Failed to pause realtime for election scanner', err); });
-  }, [pauseRealtimeForFeature, shouldRedirectToUpgrade]);
+  }, [openPremiumOffer, pauseRealtimeForFeature, shouldShowPremiumOffer]);
 
   const handleCloseElection = useCallback(() => {
     setShowElection(false);
@@ -1351,29 +2092,83 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
   }, [resumeRealtimeAfterFeature]);
 
   const handleOpenAstrocartography = useCallback(() => {
-    if (shouldRedirectToUpgrade()) {
-      redirectToPremiumUpgrade(window.electronAPI?.openExternal);
+    if (shouldShowPremiumOffer()) {
+      openPremiumOffer('Astrocartography');
       return;
     }
     setShowAstrocartography(true);
     pauseRealtimeForFeature().catch((err) => { console.error('Failed to pause realtime for astrocartography', err); });
-  }, [pauseRealtimeForFeature, shouldRedirectToUpgrade]);
+  }, [openPremiumOffer, pauseRealtimeForFeature, shouldShowPremiumOffer]);
 
   const handleCloseAstrocartography = useCallback(() => {
     setShowAstrocartography(false);
     resumeRealtimeAfterFeature().catch((err) => { console.error('Failed to resume realtime after astrocartography', err); });
   }, [resumeRealtimeAfterFeature]);
 
+  const handleOpenChineseAstrology = useCallback(() => {
+    if (shouldShowPremiumOffer()) {
+      openPremiumOffer('Chinese Astrology');
+      return;
+    }
+    setShowChineseAstrology(true);
+    pauseRealtimeForFeature().catch((err) => { console.error('Failed to pause realtime for Chinese Astrology', err); });
+  }, [openPremiumOffer, pauseRealtimeForFeature, shouldShowPremiumOffer]);
+
+  const handleCloseChineseAstrology = useCallback(() => {
+    setShowChineseAstrology(false);
+    resumeRealtimeAfterFeature().catch((err) => { console.error('Failed to resume realtime after Chinese Astrology', err); });
+  }, [resumeRealtimeAfterFeature]);
+
+  const handleOpenBirthCertification = useCallback(() => {
+    if (shouldShowPremiumOffer()) {
+      openPremiumOffer('Certification');
+      return;
+    }
+    setShowBirthCertification(true);
+    pauseRealtimeForFeature().catch((err) => { console.error('Failed to pause realtime for Certification', err); });
+  }, [openPremiumOffer, pauseRealtimeForFeature, shouldShowPremiumOffer]);
+
+  const handleCloseBirthCertification = useCallback(() => {
+    setShowBirthCertification(false);
+    resumeRealtimeAfterFeature().catch((err) => { console.error('Failed to resume realtime after Certification', err); });
+  }, [resumeRealtimeAfterFeature]);
+
   // Snap actions
   const doSnap = async () => {
     // Avoid window.prompt in packaged builds; generate a friendly default label
     const ts = data?.timestamp || new Date().toISOString();
-    const loc = data?.location || manualLocation || '';
+    const existingSnapContext = getSnapContext(activeSnapId);
+    const loc = existingSnapContext?.location || data?.location || autoLocation || manualLocation || '';
     const defaultLabel = `Snap ${ts.replace('T',' ').replace('Z','')}${loc? ` - ${loc}`:''}`;
     const label = defaultLabel;
     setActionError('');
     try {
-      const res = await AstroClockAPI.createSnap({ label, includeModern, specialDegrees });
+      const activeMode = modeRef.current || mode;
+      const appliedTimezone = resolveAstroClockTimezone(data?.timezone, data?.timezone_label);
+      const appliedLatitude = finiteNumberOrUndefined(data?.latitude);
+      const appliedLongitude = finiteNumberOrUndefined(data?.longitude);
+      const appliedLocation =
+        existingSnapContext?.location ||
+        data?.location ||
+        (activeMode === 'manual' ? manualLocation : autoLocation);
+      const snapContext = buildClockContext({
+        mode: activeMode,
+        datetime: activeMode === 'manual'
+          ? (activeManualIsoRef.current || data?.timestamp)
+          : undefined,
+        location: appliedLocation,
+        timezone: appliedTimezone,
+        latitude: appliedLatitude,
+        longitude: appliedLongitude,
+        houseSystem,
+      });
+      const res = await AstroClockAPI.createSnap({
+        label,
+        includeModern,
+        specialDegrees,
+        dashboard: data,
+        ...snapContext,
+      });
       const nextSnapId = String(res?.data?.id || res?.id || '');
       if (nextSnapId) setActiveSnapId(nextSnapId);
       await refreshSnaps();
@@ -1393,63 +2188,57 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
     }
   };
 
-  const handleChartLocationChange = useCallback(async (nextLocation) => {
-    const location = String(nextLocation || '').trim();
-    if (!location) return;
-    setLoading(true);
-    setActionError('');
-    try {
-      setActiveSnapId('');
-      manualLocationRef.current = location;
-      setManualLocation(location);
-      const viewVersion = beginViewVersion();
-      if (modeRef.current === 'manual' && activeManualIsoRef.current) {
-        const manualContext = buildClockContext({
-          mode: 'manual',
-          datetime: activeManualIsoRef.current,
-          location,
-        });
-        const { dashboard: nextDashboard } = await syncClockModeAndRefresh(manualContext, { viewVersion });
-        syncManualSnapshotInputs(activeManualIsoRef.current, {
-          location: nextDashboard?.location || location,
-          timezone: resolveAstroClockTimezone(nextDashboard?.timezone, nextDashboard?.timezone_label) || manualContext.timezone,
-        });
-        return;
-      }
-      const realtimeContext = buildClockContext({
-        mode: 'realtime',
-        location,
-      });
-      await syncClockModeAndRefresh(realtimeContext, { viewVersion });
-    } catch (error) {
-      console.error('Failed to update Astro Clock chart location', error);
-      setActionError(getActionErrorMessage(error, 'Failed to update the Astro Clock location.'));
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  }, [beginViewVersion, buildClockContext, syncClockModeAndRefresh, syncManualSnapshotInputs]);
-
   const loadSnap = async (snap) => {
-    if (!snap || loadingRef.current) return;
-    const iso = snap.effective_datetime;
-    const location = snap.location;
+    if (!snap) return;
     setLoading(true);
     setActionError('');
+    const { controller, viewVersion } = beginModeTransition();
     try {
-      setActiveSnapId(String(snap.id || ''));
-      const viewVersion = beginViewVersion();
-      const nextSpecialDegrees = Array.isArray(snap.special_degrees) ? snap.special_degrees : specialDegrees;
+      const snapId = String(snap.id || '');
+      setActiveSnapId(snapId);
+      let resolvedSnap = snap;
+      if (snapId) {
+        try {
+          const detail = await AstroClockAPI.getSnap(snapId, { signal: controller.signal });
+          if (controller.signal.aborted) {
+            throw new DOMException('Snap load was aborted.', 'AbortError');
+          }
+          if (detail?.success && detail?.snap) {
+            resolvedSnap = detail.snap;
+          }
+        } catch (detailError) {
+          if (isAbortError(detailError) || controller.signal.aborted) throw detailError;
+          console.warn('Failed to hydrate Astro Clock snap details before load', detailError);
+        }
+      }
+      if (controller.signal.aborted) {
+        throw new DOMException('Snap load was aborted.', 'AbortError');
+      }
+      const iso = resolvedSnap?.effective_datetime || snap.effective_datetime;
+      const location = resolvedSnap?.location || snap.location;
+      const nextSpecialDegrees = Array.isArray(resolvedSnap?.special_degrees)
+        ? resolvedSnap.special_degrees
+        : (Array.isArray(snap.special_degrees) ? snap.special_degrees : specialDegrees);
       const snapTimezone = resolveAstroClockTimezone(
-        snap?.dashboard?.timezone,
-        snap?.dashboard?.timezone_label,
+        resolvedSnap?.timezone || resolvedSnap?.dashboard?.timezone,
+        resolvedSnap?.timezone_label || resolvedSnap?.dashboard?.timezone_label,
       );
-      if (Array.isArray(snap.special_degrees)) setSpecialDegrees(snap.special_degrees);
+      const snapLatitude = Number.isFinite(Number(resolvedSnap?.dashboard?.latitude ?? resolvedSnap?.latitude))
+        ? Number(resolvedSnap?.dashboard?.latitude ?? resolvedSnap?.latitude)
+        : undefined;
+      const snapLongitude = Number.isFinite(Number(resolvedSnap?.dashboard?.longitude ?? resolvedSnap?.longitude))
+        ? Number(resolvedSnap?.dashboard?.longitude ?? resolvedSnap?.longitude)
+        : undefined;
+      if (Array.isArray(resolvedSnap?.special_degrees)) setSpecialDegrees(resolvedSnap.special_degrees);
       const manualContext = buildClockContext({
         mode: 'manual',
         datetime: iso,
         location,
+        timezone: snapTimezone,
+        latitude: snapLatitude,
+        longitude: snapLongitude,
       });
+      activeManualContextRef.current = manualContext;
       syncManualSnapshotInputs(iso, { location, timezone: snapTimezone });
       closeRealtimeStream();
       skipNextManualDashboardRefreshRef.current = true;
@@ -1460,13 +2249,17 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
       setActiveManualIso(iso);
       await syncClockModeAndRefresh(manualContext, {
         viewVersion,
+        signal: controller.signal,
         specialDegrees: nextSpecialDegrees,
       });
     } catch (error) {
+      if (isAbortError(error) || controller.signal.aborted) return;
       console.error('Failed to load Astro Clock snap', error);
       setActionError(getActionErrorMessage(error, 'Failed to load the selected snap.'));
       throw error;
-    } finally { setLoading(false); }
+    } finally {
+      completeModeTransition(controller);
+    }
   };
 
   const deleteSnap = async (id) => {
@@ -1495,7 +2288,7 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
           await AstroClockAPI.setMode(buildClockContext({
             mode: 'manual',
             datetime: iso,
-            location: manualLocation || data?.location || 'Greenwich, UK',
+            location: manualLocation || data?.location || autoLocation || ASTRO_CLOCK_DEFAULT_LOCATION,
             houseSystem: code,
           }));
         }
@@ -1511,89 +2304,371 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
     } catch(_) {}
   };
 
-  useEffect(() => { refreshSnaps({ silent: true }); }, []);
+  useEffect(() => {
+    if (!backendReady) return;
+    refreshSnaps({ silent: true });
+  }, [backendReady, refreshSnaps]);
+
+  const topBarDateValue = formatControlDateLabel(manualDate);
+  const topBarTimeValue = manualTime || '--:--';
+  const rawTopBarLocation = mode === 'realtime'
+    ? (autoLocation || data?.location || ASTRO_CLOCK_DEFAULT_LOCATION)
+    : (manualLocation || data?.location || 'Set location');
+  const topBarLocationValue = typeof rawTopBarLocation === 'string' && rawTopBarLocation.trim()
+    ? rawTopBarLocation.trim()
+    : 'Set location';
+  const activeCompassLocation = topBarLocationValue !== 'Set location' ? topBarLocationValue : undefined;
+  const activeCompassTimestamp = mode === 'manual'
+    ? (activeManualIso || data?.timestamp)
+    : data?.timestamp;
+  const topBarTimezoneLabel = formatAstroClockTimezoneLabel({
+    timestamp: data?.timestamp || activeManualIso || undefined,
+    timezone: data?.timezone,
+    timezoneLabel: data?.timezone_label,
+  });
+  const topBarUtcOffset = extractUtcOffsetLabel(topBarTimezoneLabel);
+  const topBarStatusLabel = mode === 'realtime'
+    ? 'auto'
+    : (activeManualIso ? 'snapshot' : 'draft');
+  const suppressRealtimeBackendDropBanner = mode === 'realtime' && Boolean(data);
+  const refreshButtonDisabled = loading || !backendReady || (mode === 'manual' && (!manualDate || !manualTime));
+  const applyButtonDisabled = loading || !backendReady || mode !== 'manual' || (!manualDate || !manualTime);
+  const featureActionsLocked = shouldGatePremiumFeature({ packagedRuntime, licenseActive, licenseChecking });
+  const featureActionBaseCls = 'inline-flex min-h-9 items-center justify-center rounded-full border px-3.5 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] shadow-sm transition-colors';
+  const featureActionCls = featureActionsLocked
+    ? `${featureActionBaseCls} border-red-600 bg-red-600 text-white hover:border-red-700 hover:bg-red-700 dark:border-red-500 dark:bg-red-500 dark:hover:border-red-400 dark:hover:bg-red-400`
+    : `${featureActionBaseCls} border-zinc-900 bg-zinc-900 text-white hover:border-zinc-800 hover:bg-zinc-800 dark:border-white dark:bg-white dark:text-zinc-900 dark:hover:border-zinc-200 dark:hover:bg-zinc-200`;
+  const featureActionTitle = featureActionsLocked ? 'Premium feature - unlock Vox Stella to use this workflow' : undefined;
+  const copyPromptControlCls = featureActionsLocked
+    ? 'border-red-600 bg-red-600 text-white hover:border-red-700 hover:bg-red-700 dark:border-red-500 dark:bg-red-500'
+    : darkMode
+      ? 'border-zinc-700 bg-zinc-950/60 text-zinc-100 hover:border-zinc-500 hover:bg-zinc-900'
+      : 'border-zinc-200 bg-white text-zinc-900 hover:border-zinc-400 hover:bg-zinc-50';
 
   return (
     <div className={`max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8`}>
-      <button onClick={() => setCurrentView('dashboard')} className="flex items-center text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 mb-4">
-        <span className="mr-2">←</span> Back to Dashboard
-      </button>
-      {/* Removed page title per request */}
+      <div className="mb-4 grid gap-y-3 gap-x-4 lg:gap-x-5 md:grid-cols-[minmax(200px,0.78fr)_minmax(620px,2.55fr)_minmax(300px,1.22fr)] md:items-center">
+        <button onClick={() => setCurrentView('dashboard')} className="flex items-center self-start text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 md:col-start-1 md:col-end-2">
+          <span className="mr-2">←</span> Back to Dashboard
+        </button>
+        <div className="flex flex-wrap items-center justify-start gap-2 md:col-start-2 md:col-end-4 md:justify-end">
+          <button
+            type="button"
+            className={featureActionCls}
+            style={monoStyle}
+            title={featureActionTitle}
+            onClick={handleOpenSynastry}
+          >
+            Synastry
+          </button>
+          <button
+            type="button"
+            className={featureActionCls}
+            style={monoStyle}
+            title={featureActionTitle}
+            onClick={handleOpenTraitProfile}
+          >
+            Trait Profile
+          </button>
+          <button
+            type="button"
+            className={featureActionCls}
+            style={monoStyle}
+            title={featureActionTitle}
+            onClick={handleOpenTransits}
+          >
+            Transits
+          </button>
+          <button
+            type="button"
+            className={featureActionCls}
+            style={monoStyle}
+            title={featureActionTitle}
+            onClick={handleOpenAstrocartography}
+          >
+            Astrocartography
+          </button>
+          <button
+            type="button"
+            className={featureActionCls}
+            style={monoStyle}
+            title={featureActionTitle}
+            onClick={handleOpenElection}
+          >
+            Election
+          </button>
+          <button
+            type="button"
+            className={featureActionCls}
+            style={monoStyle}
+            title={featureActionTitle}
+            onClick={handleOpenChineseAstrology}
+          >
+            Chinese Astrology
+          </button>
+          <button
+            type="button"
+            className={featureActionCls}
+            style={monoStyle}
+            title={featureActionTitle}
+            onClick={handleOpenForensic}
+          >
+            Forensic
+          </button>
+          <button
+            type="button"
+            className={featureActionCls}
+            style={monoStyle}
+            title={featureActionTitle}
+            onClick={handleOpenBirthCertification}
+          >
+            Certification
+          </button>
+        </div>
+      </div>
 
       {/* Controls */}
-      <div className={`border rounded-2xl p-4 mb-6 ${cardBg}`}>
-        <div className="flex flex-wrap items-end gap-3">
-          <div>
-            <label className="block text-xs mb-1">Mode</label>
-            <div className="inline-flex rounded overflow-hidden border">
+      <div
+        data-testid="astro-clock-control-strip"
+        className={`mb-6 w-full rounded-[24px] px-4 py-2.5 sm:px-5 md:min-w-[1152px] lg:min-w-[1160px] ${controlShellCls}`}
+      >
+        <div className="sr-only" aria-hidden="true">
+          <input
+            type="date"
+            value={manualDate}
+            onChange={e => setManualDate(e.target.value)}
+            tabIndex={-1}
+          />
+          <input
+            type="time"
+            lang="en-GB"
+            inputMode="numeric"
+            step="60"
+            placeholder="HH:MM"
+            value={manualTime}
+            onChange={e => setManualTime(e.target.value)}
+            tabIndex={-1}
+          />
+        </div>
+
+        <div className="flex flex-col gap-2.5 lg:grid lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center lg:gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5 lg:flex-nowrap lg:shrink-0">
+            <div className={`inline-flex rounded-full p-1 ${darkMode ? 'bg-zinc-900' : 'bg-zinc-100'}`}>
               <button
                 onClick={resumeRealtime}
-                disabled={loading}
-                className={`px-3 py-1 text-sm disabled:opacity-60 disabled:cursor-not-allowed ${mode==='realtime'?'bg-blue-600 text-white':'bg-gray-200 dark:bg-gray-700'}`}
-              >Realtime</button>
+                disabled={!backendReady}
+                className={`rounded-full px-3 py-[0.375rem] text-[11px] font-medium disabled:cursor-not-allowed disabled:opacity-60 ${
+                  mode === 'realtime'
+                    ? 'bg-zinc-900 text-white shadow-sm dark:bg-white dark:text-zinc-900'
+                    : darkMode
+                      ? 'text-zinc-300 hover:text-white'
+                      : 'text-zinc-600 hover:text-zinc-900'
+                }`}
+              >
+                Realtime
+              </button>
               <button
                 onClick={enterManualMode}
-                disabled={loading}
-                className={`px-3 py-1 text-sm disabled:opacity-60 disabled:cursor-not-allowed ${mode==='manual'?'bg-blue-600 text-white':'bg-gray-200 dark:bg-gray-700'}`}
-              >Manual</button>
+                disabled={!backendReady}
+                className={`rounded-full px-3 py-[0.375rem] text-[11px] font-medium disabled:cursor-not-allowed disabled:opacity-60 ${
+                  mode === 'manual'
+                    ? 'bg-zinc-900 text-white shadow-sm dark:bg-white dark:text-zinc-900'
+                    : darkMode
+                      ? 'text-zinc-300 hover:text-white'
+                      : 'text-zinc-600 hover:text-zinc-900'
+                }`}
+              >
+                Manual
+              </button>
+            </div>
+
+            <div className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[9px] font-medium capitalize ${
+              darkMode ? 'border-zinc-700 bg-zinc-950/60 text-zinc-300' : 'border-zinc-200 bg-white text-zinc-600'
+            }`}>
+              <span className={`h-2.5 w-2.5 rounded-full ${mode === 'realtime' ? 'bg-emerald-500' : 'bg-zinc-400'} ${mode === 'realtime' && isStreaming ? 'animate-pulse' : ''}`} />
+              {topBarStatusLabel}
             </div>
           </div>
-          <div>
-            <label className="block text-xs mb-1">Date</label>
-            <input type="date" value={manualDate} onChange={e=>setManualDate(e.target.value)} className="px-3 py-1 border rounded" />
+
+          <div className={`grid min-w-0 gap-2.5 sm:grid-cols-2 lg:grid-cols-[minmax(150px,0.68fr)_minmax(132px,0.46fr)_minmax(220px,1fr)] lg:border-l lg:pl-4 ${darkMode ? 'lg:border-zinc-800' : 'lg:border-zinc-200'}`}>
+            <div className="min-w-0">
+              <div className={`text-[8px] font-semibold uppercase tracking-[0.18em] ${darkMode ? 'text-zinc-500' : 'text-zinc-400'}`} style={monoStyle}>
+                Date
+              </div>
+              {mode === 'manual' ? (
+                <input
+                  id="astroclock-manual-date"
+                  type="date"
+                  value={manualDate}
+                  onChange={e => setManualDate(e.target.value)}
+                  className={`mt-1 w-full rounded-2xl border px-3 py-1.5 text-[13px] ${darkMode ? 'border-zinc-700 bg-zinc-900/70 text-zinc-100' : 'border-zinc-200 bg-white text-zinc-900'}`}
+                />
+              ) : (
+                <div className={`mt-1 text-[1.3rem] font-medium leading-none tracking-[-0.035em] ${darkMode ? 'text-zinc-100' : 'text-zinc-900'}`} style={serifStyle}>
+                  {topBarDateValue}
+                </div>
+              )}
+            </div>
+
+            <div className="min-w-0">
+              <div className={`text-[8px] font-semibold uppercase tracking-[0.18em] ${darkMode ? 'text-zinc-500' : 'text-zinc-400'}`} style={monoStyle}>
+                Time
+              </div>
+              {mode === 'manual' ? (
+                <input
+                  id="astroclock-manual-time"
+                  type="time"
+                  lang="en-GB"
+                  inputMode="numeric"
+                  step="60"
+                  placeholder="HH:MM"
+                  value={manualTime}
+                  onChange={e => setManualTime(e.target.value)}
+                  className={`mt-1 w-full rounded-2xl border px-3 py-1.5 text-[13px] ${darkMode ? 'border-zinc-700 bg-zinc-900/70 text-zinc-100' : 'border-zinc-200 bg-white text-zinc-900'}`}
+                />
+              ) : (
+                <div className={`mt-1 flex flex-wrap items-end gap-2 ${darkMode ? 'text-zinc-100' : 'text-zinc-900'}`}>
+                  <span className="text-[1.3rem] font-medium leading-none tracking-[-0.035em]" style={serifStyle}>
+                    {topBarTimeValue}
+                  </span>
+                  {topBarUtcOffset ? (
+                    <span className={`pb-0.5 text-[10px] ${darkMode ? 'text-zinc-400' : 'text-zinc-500'}`} style={monoStyle}>
+                      {topBarUtcOffset}
+                    </span>
+                  ) : null}
+                </div>
+              )}
+            </div>
+
+            <div className="min-w-0 sm:col-span-2 xl:col-span-1">
+              <div className={`text-[8px] font-semibold uppercase tracking-[0.18em] ${darkMode ? 'text-zinc-500' : 'text-zinc-400'}`} style={monoStyle}>
+                Location
+              </div>
+              {mode === 'manual' ? (
+                <input
+                  id="astroclock-manual-location"
+                  type="text"
+                  placeholder="e.g., London, UK"
+                  value={manualLocation}
+                  onChange={e => {
+                    const nextLocation = e.target.value;
+                    manualLocationRef.current = nextLocation;
+                    setManualLocation(nextLocation);
+                  }}
+                  className={`mt-1 w-full rounded-2xl border px-3 py-1.5 text-[13px] ${darkMode ? 'border-zinc-700 bg-zinc-900/70 text-zinc-100' : 'border-zinc-200 bg-white text-zinc-900'}`}
+                />
+              ) : (
+                <>
+                  <input
+                    id="astroclock-auto-location"
+                    type="text"
+                    placeholder={ASTRO_CLOCK_DEFAULT_LOCATION}
+                    value={autoLocation}
+                    onChange={e => {
+                      const nextLocation = e.target.value;
+                      autoLocationRef.current = nextLocation;
+                      setAutoLocation(nextLocation);
+                    }}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && !loadingRef.current) {
+                        e.currentTarget.blur();
+                        refreshControlBar();
+                      }
+                    }}
+                    className={`mt-1 w-full rounded-2xl border px-3 py-1.5 text-[13px] ${darkMode ? 'border-zinc-700 bg-zinc-900/70 text-zinc-100 placeholder:text-zinc-600' : 'border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-400'}`}
+                  />
+                  {topBarTimezoneLabel ? (
+                    <div className={`mt-0.5 truncate text-[9px] ${darkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                      {topBarTimezoneLabel}
+                    </div>
+                  ) : null}
+                </>
+              )}
+            </div>
           </div>
-          <div>
-            <label className="block text-xs mb-1">Time</label>
-            <input
-              type="time"
-              lang="en-GB"
-              inputMode="numeric"
-              step="60"
-              placeholder="HH:MM"
-              value={manualTime}
-              onChange={e=>setManualTime(e.target.value)}
-              className="px-3 py-1 border rounded"
-            />
+
+          <div className="flex items-center gap-3 lg:shrink-0">
+            <button
+              onClick={refreshControlBar}
+              disabled={refreshButtonDisabled}
+              className={`inline-flex min-w-[96px] items-center justify-center rounded-full border px-3.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] disabled:cursor-not-allowed ${
+                darkMode
+                  ? 'border-zinc-700 bg-zinc-950/60 text-zinc-100 disabled:border-zinc-800 disabled:bg-zinc-900 disabled:text-zinc-500'
+                  : 'border-zinc-200 bg-white text-zinc-900 disabled:border-zinc-200 disabled:bg-zinc-100 disabled:text-zinc-400'
+              }`}
+              style={monoStyle}
+            >
+              {loading && mode !== 'manual' ? 'Refreshing...' : 'Refresh'}
+            </button>
+            <button
+              onClick={applyManual}
+              disabled={applyButtonDisabled}
+              className="inline-flex min-w-[96px] items-center justify-center rounded-full bg-zinc-900 px-3.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:text-zinc-50 dark:bg-white dark:text-zinc-900 dark:disabled:bg-zinc-700 dark:disabled:text-zinc-300"
+              style={monoStyle}
+            >
+              {loading && mode === 'manual' ? 'Applying...' : 'Apply'}
+            </button>
+            <div className="relative">
+              <button
+                type="button"
+                aria-label="Copy Prompt"
+                onClick={handleTogglePromptMenu}
+                title={featureActionsLocked ? 'Premium utility - unlock Vox Stella to copy prompts' : 'Copy AI-ready prompt'}
+                className={`inline-flex h-9 w-9 items-center justify-center rounded-full border shadow-sm transition-colors ${copyPromptControlCls}`}
+              >
+                <ClipboardCopy className="h-4 w-4" aria-hidden="true" />
+                <span className="sr-only">{anyPromptCopied ? 'Copied' : 'Copy Prompt'}</span>
+              </button>
+              {showPromptMenu && (
+                <div className="absolute right-0 z-30 mt-2 w-56 rounded-lg border border-zinc-200 bg-white p-2 text-[12px] shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                  <div className="px-2 pb-1 text-[11px] font-medium text-zinc-600 dark:text-zinc-300">Choose prompt type</div>
+                  <button
+                    type="button"
+                    className="w-full rounded px-2 py-1 text-left hover:bg-zinc-100 dark:hover:bg-gray-700"
+                    onClick={()=> { setShowPromptMenu(false); handleCopyBirthChartPrompt(); }}
+                    title="Copy AI-ready natal data prompt"
+                  >
+                    Natal prompt (copy)
+                  </button>
+                  <button
+                    type="button"
+                    className="w-full rounded px-2 py-1 text-left hover:bg-zinc-100 dark:hover:bg-gray-700"
+                    onClick={()=> { setShowPromptMenu(false); handleCopyForensicCasePrompt(); }}
+                    title="Copy AI-ready case-gathering prompt"
+                  >
+                    Case prompt (copy)
+                  </button>
+                  <button
+                    type="button"
+                    className="w-full rounded px-2 py-1 text-left hover:bg-zinc-100 dark:hover:bg-gray-700"
+                    onClick={()=> { setShowPromptMenu(false); handleCopyAssetPrompt(); }}
+                    title="Copy AI-ready asset first-trade prompt"
+                  >
+                    Asset prompt (copy)
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
-          <div className="flex-1 min-w-[200px]">
-            <label className="block text-xs mb-1">Location</label>
-          <input
-            type="text"
-            placeholder="e.g., London, UK"
-            value={manualLocation}
-            onChange={e => {
-              const nextLocation = e.target.value;
-              manualLocationRef.current = nextLocation;
-              setManualLocation(nextLocation);
-            }}
-            className="w-full px-3 py-1 border rounded"
-          />
-          </div>
-          <button onClick={applyManual} disabled={loading || mode !== 'manual' || !manualDate || !manualTime} className="px-4 py-2 bg-gray-900 text-white rounded disabled:bg-gray-500">Apply</button>
-          <button
-            onClick={async()=>{
-              setLoading(true);
-              try {
-                const activeContext = buildClockContext();
-                setClockLoadError('');
-                await Promise.allSettled([
-                  requestDashboard({ includeModern, specialDegrees, morin: useMorin, ...activeContext }),
-                  requestHours(activeContext),
-                ]);
-              } catch(_){}
-              finally { setLoading(false); }
-            }}
-            className="px-4 py-2 bg-blue-600 text-white rounded"
-          >Refresh</button>
         </div>
         {actionError && (
           <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
             {actionError}
           </div>
         )}
-        {!actionError && clockLoadError && (
+        {!actionError && clockLoadError && !suppressRealtimeBackendDropBanner && (
           <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
             {clockLoadError}
+          </div>
+        )}
+        {!actionError && !clockLoadError && backendChecking && !data && (
+          <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            Astro Clock is waiting for the local astrology engine to finish starting. Data will appear automatically.
+          </div>
+        )}
+        {!actionError && !clockLoadError && backendOffline && !suppressRealtimeBackendDropBanner && (
+          <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            Astro Clock could not reach the local astrology engine. Use Refresh after it reconnects.
           </div>
         )}
       </div>
@@ -1607,7 +2682,11 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
             <div className="flex items-center justify-between mb-2">
               <h3 className="font-semibold text-sm">Receptions</h3>
             </div>
-            <ReceptionsTile dataTimestamp={data?.timestamp} receptions={data?.receptions} />
+            <ReceptionsTile
+              dataTimestamp={data?.timestamp}
+              receptions={data?.receptions}
+              clockContext={buildAppliedClockContext()}
+            />
           </section>
           {/* G) Dispositors - rectangle */}
           <section className={`${panelCls} h-auto max-h-80 md:max-h-[340px] overflow-auto`}>
@@ -1639,12 +2718,19 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
                 })();
                 const orbText = typeof hit.orb_deg === 'number' ? `${Number(hit.orb_deg).toFixed(2)}°` : `${hit.orb_deg}°`;
                 return (
-                  <div key={idx}>
-                    <div className="flex justify-between">
-                      <span>{hit.name}</span>
-                      <span className="text-zinc-600">{hit.constellation} {degreeTextFromLon(hit.star_longitude)}</span>
+                  <div key={idx} className="border-t border-zinc-100 pt-2.5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-400" style={monoStyle}>
+                          {hit.name}
+                        </div>
+                        <div className="mt-1 text-[14px] leading-5 text-zinc-900" style={serifStyle}>
+                          {hit.constellation} {degreeTextFromLon(hit.star_longitude)}
+                        </div>
+                      </div>
+                      <div className="text-[11px] text-zinc-500">{orbText}</div>
                     </div>
-                    <div className="text-xs text-zinc-500">{conjWith} ({orbText})</div>
+                    <div className="mt-1 text-[11px] text-zinc-500">{conjWith}</div>
                   </div>
                 );
               }) : <div className="text-zinc-500">No close fixed stars</div>}
@@ -1655,12 +2741,10 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
           <section className={`${panelCls} aspect-square`}>
             <div className="flex items-center justify-between mb-2">
               <h3 className="font-semibold text-sm">Arabic Lots</h3>
-              {/* Variant toggles: Death A/B, Poison V1/V2, Plane V1/V2 */}
             </div>
             <ArabicLotsPanel data={data} />
           </section>
 
-          {/* Sect - square */}
           <section className={`${panelCls} aspect-square`}>
             <div className="flex items-center justify-between mb-2">
               <h3 className="font-semibold text-sm">Sect</h3>
@@ -1679,201 +2763,77 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
               specialDegrees={specialDegrees}
               onApplyDegrees={(tokens)=> { setSpecialDegrees(tokens || []); }}
               onClearDegrees={()=> { setSpecialDegrees([]); }}
+              pointsContext={buildClockContext()}
+              detailsLocked={featureActionsLocked}
+              onDetailsLocked={() => openPremiumOffer('Degree Hits')}
+              detailsLockedTitle={featureActionTitle}
             />
           </section>
           <section>
             <AlmutenTile almutens={data?.almutens} />
           </section>
-          {/* (Compass Bearings removed from left column per layout) */}
 
         </div>
 
-          {/* (moved Current Cusps under Positions + Dignity in right column) */}
-
         {/* Center column (col 2) */}
         <div className="order-4 md:[grid-column:2] md:[grid-row:1] space-y-4 lg:space-y-6">
-          {/* Action buttons row: Trait Profile, Forensic, Prompt menu */}
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className="px-1.5 py-0.5 rounded-lg border text-[11px]
-                         bg-white/70 hover:bg-white/90 text-gray-800 border-gray-300
-                         dark:bg-gray-700/60 dark:hover:bg-gray-700/80 dark:text-gray-100 dark:border-gray-700"
-              onClick={handleOpenSynastry}
-            >
-              Synastry
-            </button>
-            <button
-              type="button"
-              className="px-1.5 py-0.5 rounded-lg border text-[11px]
-                         bg-white/70 hover:bg-white/90 text-gray-800 border-gray-300
-                         dark:bg-gray-700/60 dark:hover:bg-gray-700/80 dark:text-gray-100 dark:border-gray-700"
-              onClick={handleOpenTraitProfile}
-            >
-              Trait Profile
-            </button>
-            <button
-              type="button"
-              className="px-1.5 py-0.5 rounded-lg border text-[11px]
-                         bg-white/70 hover:bg-white/90 text-gray-800 border-gray-300
-                         dark:bg-gray-700/60 dark:hover:bg-gray-700/80 dark:text-gray-100 dark:border-gray-700"
-              onClick={handleOpenTransits}
-            >
-              Transits
-            </button>
-            <button
-              type="button"
-              className="px-1.5 py-0.5 rounded-lg border text-[11px]
-                         bg-white/70 hover:bg-white/90 text-gray-800 border-gray-300
-                         dark:bg-gray-700/60 dark:hover:bg-gray-700/80 dark:text-gray-100 dark:border-gray-700"
-              onClick={handleOpenAstrocartography}
-            >
-              Astrocartography
-            </button>
-            <button
-              type="button"
-              className="px-1.5 py-0.5 rounded-lg border text-[11px]
-                         bg-white/70 hover:bg-white/90 text-gray-800 border-gray-300
-                         dark:bg-gray-700/60 dark:hover:bg-gray-700/80 dark:text-gray-100 dark:border-gray-700"
-              onClick={handleOpenElection}
-            >
-              Election
-            </button>
-            <button
-              type="button"
-              className="px-1.5 py-0.5 rounded-lg border text-[11px]
-                         bg-white/70 hover:bg-white/90 text-gray-800 border-gray-300
-                         dark:bg-gray-700/60 dark:hover:bg-gray-700/80 dark:text-gray-100 dark:border-gray-700"
-              onClick={handleOpenForensic}
-            >
-              Forensic
-            </button>
-            {/* Unified Prompt button with dropdown */}
-            <div className="relative">
-              <button
-                type="button"
-                className={`px-1.5 py-0.5 rounded-lg border text-[11px] transition-colors min-w-[120px]
-                           ${anyPromptCopied
-                             ? 'bg-gray-800 text-white border-gray-800'
-                             : 'bg-white/70 hover:bg-white/90 text-gray-800 border-gray-300 dark:bg-gray-700/60 dark:hover:bg-gray-700/80 dark:text-gray-100 dark:border-gray-700'}`}
-                onClick={()=> setShowPromptMenu(v=>!v)}
-                title="Copy AI-ready prompt"
-              >
-                {anyPromptCopied ? 'Copied' : 'Copy Prompt ▾'}
-              </button>
-              {showPromptMenu && (
-                <div className="absolute z-10 mt-1 w-56 rounded-lg border bg-white shadow p-2 text-[12px] dark:bg-gray-800 dark:border-gray-700">
-                  <div className="px-2 pb-1 text-[11px] font-medium text-zinc-600 dark:text-zinc-300">Choose prompt type</div>
-                  <button
-                    type="button"
-                    className="w-full text-left px-2 py-1 rounded hover:bg-zinc-100 dark:hover:bg-gray-700"
-                    onClick={()=> { setShowPromptMenu(false); handleCopyBirthChartPrompt(); }}
-                    title="Copy AI-ready natal data prompt"
-                  >
-                    Natal prompt (copy)
-                  </button>
-                  <button
-                    type="button"
-                    className="w-full text-left px-2 py-1 rounded hover:bg-zinc-100 dark:hover:bg-gray-700"
-                    onClick={()=> { setShowPromptMenu(false); handleCopyForensicCasePrompt(); }}
-                    title="Copy AI-ready case-gathering prompt"
-                  >
-                    Case prompt (copy)
-                  </button>
-                  <button
-                    type="button"
-                    className="w-full text-left px-2 py-1 rounded hover:bg-zinc-100 dark:hover:bg-gray-700"
-                    onClick={()=> { setShowPromptMenu(false); handleCopyAssetPrompt(); }}
-                    title="Copy AI-ready asset first-trade prompt"
-                  >
-                    Asset prompt (copy)
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
           {/* A) Solar Conditions - rectangle with chips (Morin-aware) */}
           <section className={panelCls}>
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                {!isProd && (
-                  <button
-                    type="button"
-                    className="px-2 py-0.5 rounded border border-zinc-300 hover:bg-zinc-50 text-[11px]"
-                    onClick={handleOpenResearch}
-                    title="Open Research Mode (Dev)"
-                  >
-                    Research
-                  </button>
-                )}
-                <h3 className="font-semibold text-sm">Solar Conditions</h3>
+                <div>
+                  <div className={tileEyebrowCls} style={monoStyle}>Solar State</div>
+                  <h3 className="mt-1 font-semibold text-sm">Solar Conditions</h3>
+                </div>
               </div>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {useMorin ? (
-                Array.isArray(data?.morin_combustion) && data.morin_combustion.length ? (
-                  data.morin_combustion.map((it, idx) => (
-                    <span key={`mc-${idx}`} className={`text-xs rounded-full px-2 py-1 border ${it.status==='cazimi'?'border-amber-300 bg-amber-50': it.status==='combust'?'border-rose-300 bg-rose-50': it.status==='under_beams'?'border-sky-300 bg-sky-50':'border-zinc-300 bg-zinc-50'}`} title={`${it.status} · ${Number(it.distance_deg||0).toFixed(2)}°`}>
-                      <span className="mr-1">{PlanetSymbols[it.planet] || it.planet}</span>
-                      {it.status.replace('_',' ')} · {Number(it.distance_deg||0).toFixed(2)}°
-                    </span>
-                  ))
-                ) : <span className="text-xs text-zinc-500">No solar data (Morin)</span>
-              ) : (
-                ['cazimi','combustion','under_beams']
-                  .flatMap(g => (data?.solar_conditions?.[g]||[]).map((it, idx)=> ({...it, group:g, idx: `${g}-${idx}`})))
-                  .map(item => {
-                    const label = (() => {
-                      const base = item.group==='cazimi' ? 'Cazimi' : item.group==='combustion' ? 'Combust' : 'Under Beams';
-                      if (item.group === 'combustion' && typeof item.phase === 'string' && item.phase) {
-                        const ph = item.phase.charAt(0).toUpperCase() + item.phase.slice(1);
-                        return `${base} (${ph})`;
-                      }
-                      if (item.group === 'under_beams' && typeof item.phase === 'string' && item.phase) {
-                        const ph = item.phase.charAt(0).toUpperCase() + item.phase.slice(1);
-                        return `${base} (${ph})`;
-                      }
-                      return base;
-                    })();
-                    const hours = (() => {
-                      const t = Number(item.approx_hours_to_conjunction);
-                      const s = Number(item.approx_hours_since_conjunction);
-                      if (isFinite(t)) return `In ~${Math.round(t)}h`;
-                      if (isFinite(s)) return `Since ~${Math.round(s)}h`;
-                      return null;
-                    })();
-                    const title = [
-                      (item.distance_from_sun!=null)? `Elongation: ${Number(item.distance_from_sun).toFixed(2)}°` : null,
-                      (typeof item.relative_speed_deg_per_day === 'number') ? `Rel speed: ${item.relative_speed_deg_per_day.toFixed(2)}°/day` : null,
-                      hours,
-                    ].filter(Boolean).join(' • ');
-                    return (
-                      <span key={item.idx} className="text-xs rounded-full border border-zinc-200 bg-white px-2 py-1" title={title}>
-                        <span className="mr-1">{PlanetSymbols[item.planet] || item.planet}</span>
-                        {label} · {(item.distance_from_sun!=null)? `${Number(item.distance_from_sun).toFixed(2)}°` : '-'}
-                      </span>
-                    );
-                  })
-              )}
-            </div>
+            {(() => {
+              const solarEntries = buildSolarConditionEntries(data, useMorin);
+              if (!solarEntries.length) {
+                return (
+                  <div className="mt-3 border-t border-zinc-100 pt-3 text-sm text-zinc-500">
+                    No solar conditions are active in the current scope.
+                  </div>
+                );
+              }
+              return (
+                <div className="mt-3 border-t border-zinc-100 pt-3">
+                  <div className="grid gap-x-6 gap-y-3 md:grid-cols-3">
+                    {solarEntries.map((entry) => (
+                      <div key={entry.key} className="flex min-w-0 items-start gap-3 border-b border-zinc-100 pb-3">
+                        <div
+                          className={`inline-flex h-7 w-7 shrink-0 items-center justify-center text-[16px] leading-none ${solarConditionAccentTone(entry.tone)}`}
+                          style={{ fontFamily: "'Segoe UI Symbol', 'Noto Sans Symbols 2', 'Arial Unicode MS', sans-serif" }}
+                        >
+                          {PlanetSymbols[entry.planet] || entry.planet || '☉'}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          {entry.label ? (
+                            <div className="text-[15px] leading-5 text-zinc-900" style={serifStyle}>
+                              {entry.label}
+                            </div>
+                          ) : null}
+                          <div className={`${entry.label ? 'mt-1' : 'mt-0.5'} text-[12px] text-zinc-600`}>{entry.detail}</div>
+                          {entry.meta ? (
+                            <div className="mt-1 text-[10px] text-zinc-500" style={monoStyle}>{entry.meta}</div>
+                          ) : null}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
           </section>
 
           {/* B) Chart - square mock with Hour-of-Day mini ring */}
           <section className="order-5 md:[grid-column:2] md:[grid-row:2]">
             <ChartMock
-              hours={hours}
               data={data}
-              includeModern={includeModern}
-              onToggleModern={()=> setIncludeModern(v=>!v)}
-              onRefresh={refreshDashboard}
-              onLocationChange={handleChartLocationChange}
+              chartLens={chartLens}
+              onChartLensChange={setChartLens}
               onSnap={doSnap}
               snapDisabled={manualPending}
-              mode={mode}
-              manualIso={activeManualIso}
-              onForensic={handleOpenForensic}
-              showForensicButton={false}
-              onCasePrompt={handleCopyForensicCasePrompt}
               houseSystem={houseSystem}
               onHouseSystemChange={async (code) => { await (async () => handleHouseSystemChange(code))(); }}
             />
@@ -1921,47 +2881,82 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
           </section>
           {/* Current Cusps - moved up to row 3 */}
           <section className={`md:[grid-column:3] md:[grid-row:3] ${panelCls}`}>
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="font-semibold text-sm">Current Cusps</h3>
-            </div>
-            <div className="text-sm overflow-auto max-h-72 pr-1">
-              <div className="grid grid-cols-4 text-xs text-zinc-500 pb-1 border-b border-zinc-200">
-                <div>House</div><div>Degree</div><div>Sign</div><div>Ruler</div>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-400" style={monoStyle}>
+                  House Sequence
+                </div>
+                <h3 className="mt-1 font-semibold text-sm">Current Cusps</h3>
               </div>
-          {(data?.house_cusps||[]).slice(0,12).map((lon, i)=> (
-            <div key={i} className="grid grid-cols-4 py-1 text-sm border-b border-zinc-100 last:border-0">
-              <div>H{i+1}</div>
-              <div>{degreeTextFromLon(lon)}</div>
-              <div>{signFromLon(lon)}</div>
-              <div>{data?.house_rulers?.[String(i+1)] || '-'}</div>
+              <div className="text-[10px] uppercase tracking-[0.18em] text-zinc-400" style={monoStyle}>
+                H · Deg · Sign · Ruler
+              </div>
             </div>
-          ))}
-        </div>
-      </section>
+            <div className="mt-3 overflow-auto max-h-72 pr-1">
+              <div className="space-y-2">
+                {(data?.house_cusps||[]).slice(0,12).map((lon, i)=> (
+                  <div key={i} className="rounded-2xl border border-zinc-100 bg-white px-3 py-2.5">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 shrink-0 text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-400" style={monoStyle}>
+                        H{i+1}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[14px] leading-5 text-zinc-900" style={serifStyle}>
+                          {degreeTextFromLon(lon)} {signFromLon(lon)}
+                        </div>
+                        <div className="mt-0.5 text-[11px] text-zinc-500">
+                          Ruler: {data?.house_rulers?.[String(i+1)] || '-'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
 
       {/* Cusp Aspects - tight 1° aspects of cusps to planets */}
       <section className={`md:[grid-column:3] md:[grid-row:4] ${panelCls}`}>
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="font-semibold text-sm">Cusp Aspects</h3>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-400" style={monoStyle}>
+              Angular Contacts
+            </div>
+            <h3 className="mt-1 font-semibold text-sm">Cusp Aspects</h3>
+          </div>
+          <div className="text-[10px] uppercase tracking-[0.18em] text-zinc-400" style={monoStyle}>
+            ≤ 1° orb
+          </div>
         </div>
-        {/* Filter bar */}
-        <div className="mb-2 flex items-center gap-2 flex-wrap">
-          {/* Aspect type chips (order: All, Conj only, Hard) */}
-          <div className="flex items-center gap-1">
+        <div className="mt-3 space-y-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-white p-1">
             {['all','conj','hard'].map(mode => (
-              <button key={mode} type="button" className={`px-2 py-0.5 rounded-full border text-[11px] ${cuspAspectMode===mode? 'bg-zinc-800 text-white border-zinc-800' : ''}`} onClick={()=> setCuspAspectMode(mode)}>
+              <button
+                key={mode}
+                type="button"
+                className={`rounded-full px-2.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] ${
+                  cuspAspectMode===mode ? 'bg-zinc-900 text-white' : 'text-zinc-500'
+                }`}
+                style={monoStyle}
+                onClick={()=> setCuspAspectMode(mode)}
+              >
                 {mode==='hard'? 'Hard' : mode==='all'? 'All' : 'Conj only'}
               </button>
             ))}
-          </div>
-          {/* Cusps dropdown */}
-          <div className="relative">
-            <button type="button" className="px-2 py-0.5 rounded-full border text-[11px]" onClick={()=> setShowCuspMenu(v=>!v)}>
+            </div>
+            <div className="relative">
+            <button
+              type="button"
+              className="rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-zinc-500"
+              style={monoStyle}
+              onClick={()=> setShowCuspMenu(v=>!v)}
+            >
               Cusps ({cuspSelected.size})
             </button>
             {showCuspMenu && (
-              <div className="absolute z-10 mt-1 w-56 rounded-lg border bg-white shadow p-2 text-[12px]">
-                <div className="mb-1 font-medium text-[12px]">Angular</div>
+              <div className="absolute z-10 mt-1 w-56 rounded-2xl border border-zinc-200 bg-white p-3 shadow-lg text-[12px]">
+                <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-400" style={monoStyle}>Angular</div>
                 <div className="flex items-center gap-2 mb-1">
                   {[...ANGULAR_SET].map(k=> (
                     <label key={k} className="flex items-center gap-1">
@@ -1969,7 +2964,7 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
                     </label>
                   ))}
                 </div>
-                <div className="mb-1 font-medium text-[12px]">Succedent</div>
+                <div className="mb-1 mt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-400" style={monoStyle}>Succedent</div>
                 <div className="flex items-center gap-2 mb-1">
                   {[...SUCCEDENT_SET].map(k=> (
                     <label key={k} className="flex items-center gap-1">
@@ -1977,7 +2972,7 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
                     </label>
                   ))}
                 </div>
-                <div className="mb-1 font-medium text-[12px]">Cadent</div>
+                <div className="mb-1 mt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-400" style={monoStyle}>Cadent</div>
                 <div className="flex items-center gap-2 mb-2">
                   {[...CADENT_SET].map(k=> (
                     <label key={k} className="flex items-center gap-1">
@@ -1986,24 +2981,32 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
                   ))}
                 </div>
                 <div className="flex items-center justify-between">
-                  <button type="button" className="px-2 py-0.5 rounded border" onClick={setAllCusps}>All</button>
-                  <button type="button" className="px-2 py-0.5 rounded border" onClick={clearCusps}>None</button>
-                  <button type="button" className="px-2 py-0.5 rounded border" onClick={()=> setShowCuspMenu(false)}>Close</button>
+                  <button type="button" className="rounded-full border border-zinc-200 px-2.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-zinc-500" style={monoStyle} onClick={setAllCusps}>All</button>
+                  <button type="button" className="rounded-full border border-zinc-200 px-2.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-zinc-500" style={monoStyle} onClick={clearCusps}>None</button>
+                  <button type="button" className="rounded-full border border-zinc-200 px-2.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-zinc-500" style={monoStyle} onClick={()=> setShowCuspMenu(false)}>Close</button>
                 </div>
               </div>
             )}
-          </div>
-          {/* Phase chips */}
-          <div className="flex items-center gap-1">
+            </div>
+            <div className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-white p-1">
             {['any','applying','separating'].map(ph => (
-              <button key={ph} type="button" className={`px-2 py-0.5 rounded-full border text-[11px] ${cuspPhase===ph? 'bg-zinc-800 text-white border-zinc-800' : ''}`} onClick={()=> setCuspPhase(ph)}>
-                {ph.charAt(0).toUpperCase()+ph.slice(1)}
+              <button
+                key={ph}
+                type="button"
+                className={`rounded-full px-2.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] ${
+                  cuspPhase===ph ? 'bg-zinc-900 text-white' : 'text-zinc-500'
+                }`}
+                style={monoStyle}
+                onClick={()=> setCuspPhase(ph)}
+              >
+                {ph}
               </button>
             ))}
+            </div>
+            <div className="flex-1" />
           </div>
-          <div className="flex-1" />
         </div>
-        <div className="astro-scroll-shell max-h-72" onClick={()=> setShowCuspMenu(false)}>
+        <div className="mt-3 astro-scroll-shell max-h-72" onClick={()=> setShowCuspMenu(false)}>
           <div className="astro-scroll space-y-3 max-h-72">
             {(() => {
               const src = data?.cusp_aspects || {};
@@ -2033,8 +3036,15 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
               // Keep backend ordering (by orb, hard first). No user sort.
               if (list.length === 0) continue;
               rows.push(
-                <div key={k}>
-                  <div className="font-medium text-[12px] mb-1">{k}</div>
+                <div key={k} className="border-t border-zinc-100 pt-3">
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-400" style={monoStyle}>
+                      {k}
+                    </div>
+                    <div className="text-[10px] text-zinc-400" style={monoStyle}>
+                      {list.length} hit{list.length === 1 ? '' : 's'}
+                    </div>
+                  </div>
                   <ul className="space-y-2">
                     {list.slice(0, 16).map((it, idx) => {
                       const orb = (it?.orb != null) ? `${Number(it.orb).toFixed(2)}°` : '-';
@@ -2047,7 +3057,7 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
                       return (
                         <li
                           key={`${k}-${idx}`}
-                          className="rounded-xl border border-zinc-100 bg-zinc-50/70 p-2.5"
+                          className="border-t border-zinc-100 pt-2.5"
                           title={originTitle}
                         >
                           <div className="flex items-start gap-2">
@@ -2055,7 +3065,7 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
                               {PlanetSymbols[it.planet] || it.planet}
                             </span>
                             <div className="min-w-0 flex-1">
-                              <div className="break-words text-[12px] font-medium leading-5 text-zinc-800">
+                              <div className="break-words text-[13px] leading-5 text-zinc-900" style={serifStyle}>
                                 {label}
                               </div>
                               {originTitle && (
@@ -2065,9 +3075,20 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
                               )}
                               <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-zinc-500">
                                 <span className="tabular-nums">{orb}</span>
-                                {phase && <span>{phase}</span>}
-                                {dex && <span className="rounded border border-zinc-200 bg-white px-1.5 py-0.5 text-zinc-700">{dex}</span>}
-                                {band && <span className="rounded border border-zinc-200 bg-white px-1.5 py-0.5 text-zinc-700">{band}</span>}
+                                {phase && (
+                                  <span
+                                    className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] ${
+                                      String(phase).toLowerCase() === 'applying'
+                                        ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
+                                        : 'border border-zinc-200 bg-white text-zinc-500'
+                                    }`}
+                                    style={monoStyle}
+                                  >
+                                    {phase}
+                                  </span>
+                                )}
+                                {dex && <span className="rounded-full border border-zinc-200 bg-white px-1.5 py-0.5 text-[9px] text-zinc-500" style={monoStyle}>{dex}</span>}
+                                {band && <span className="rounded-full border border-zinc-200 bg-white px-1.5 py-0.5 text-[9px] text-zinc-500" style={monoStyle}>{band}</span>}
                               </div>
                             </div>
                           </div>
@@ -2088,15 +3109,33 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
         </div>
       </section>
 
-      {/* Compass Bearings (planets only) */}
       <section className={`md:[grid-column:3] md:[grid-row:5]`}>
         <CompassTile
           includeModern={includeModern}
-          timestamp={data?.timestamp}
+          timestamp={activeCompassTimestamp}
           mode={mode}
-          location={data?.location}
+          location={activeCompassLocation}
+          timezone={mode === 'manual'
+            ? (activeSnapContext?.timezone || resolveAstroClockTimezone(data?.timezone, data?.timezone_label))
+            : resolveAstroClockTimezone(data?.timezone, data?.timezone_label)}
+          latitude={mode === 'manual'
+            ? (activeSnapContext?.latitude ?? finiteNumberOrUndefined(activeManualContextRef.current?.latitude))
+            : data?.latitude}
+          longitude={mode === 'manual'
+            ? (activeSnapContext?.longitude ?? finiteNumberOrUndefined(activeManualContextRef.current?.longitude))
+            : data?.longitude}
+          houseSystem={houseSystem}
+          initialData={data?.compass}
           planets={data?.planets}
           houseCusps={data?.house_cusps}
+          snaps={snaps}
+          activeSnapId={activeSnapId || inferredActiveSnapId || ''}
+          loadingSnaps={loadingSnaps}
+          snapsLoaded={snapsLoaded}
+          onRefreshSnaps={refreshSnaps}
+          directional3dLocked={featureActionsLocked}
+          onDirectional3dLocked={() => openPremiumOffer('Directional 3D')}
+          directional3dLockedTitle={featureActionTitle}
         />
       </section>
       <section className={`md:[grid-column:3] md:[grid-row:6]`}>
@@ -2105,7 +3144,6 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
         </div>
       </div>
 
-      {/* old bottom-row tiles removed per new layout spec */}
       {openingForensic && !showForensic && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
           <div
@@ -2127,7 +3165,7 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
                   className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium ${
                     darkMode
                       ? 'border-zinc-700 bg-zinc-800 text-zinc-300'
-                      : 'border-zinc-200 bg-zinc-50 text-zinc-600'
+                      : 'border-zinc-200 bg-white text-zinc-600'
                   }`}
                 >
                   Preparing
@@ -2146,11 +3184,46 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
       {showForensic && (
         <ForensicDashboard
           onClose={handleCloseForensic}
-          clockContext={buildClockContext()}
+          clockContext={buildAppliedClockContext()}
+          snaps={snaps}
+          activeSnapId={activeSnapId || inferredActiveSnapId || ''}
+          loadingSnaps={loadingSnaps}
+          snapsLoaded={snapsLoaded}
+          onRefreshSnaps={refreshSnaps}
         />
       )}
-      {!isProd && showResearch && (
-        <ResearchMode onClose={()=> setShowResearch(false)} />
+      {showChineseAstrology && (
+        <ChineseAstrologyPage
+          onClose={handleCloseChineseAstrology}
+          snaps={snaps}
+          activeSnapId={activeSnapId || inferredActiveSnapId || ''}
+          loadingSnaps={loadingSnaps}
+          snapsLoaded={snapsLoaded}
+          onRefreshSnaps={refreshSnaps}
+        />
+      )}
+      {showBirthCertification && (
+        <BirthCertificationModal
+          open={showBirthCertification}
+          onClose={handleCloseBirthCertification}
+          mode={mode}
+          manualIso={activeManualIso}
+          manualLocation={activeSnapContext?.location || data?.location || manualLocation || autoLocation}
+          timezone={data?.timezone || activeSnapContext?.timezone || null}
+          latitude={mode === 'manual'
+            ? (activeSnapContext?.latitude ?? finiteNumberOrUndefined(activeManualContextRef.current?.latitude))
+            : (activeSnapContext?.latitude ?? finiteNumberOrUndefined(data?.latitude))}
+          longitude={mode === 'manual'
+            ? (activeSnapContext?.longitude ?? finiteNumberOrUndefined(activeManualContextRef.current?.longitude))
+            : (activeSnapContext?.longitude ?? finiteNumberOrUndefined(data?.longitude))}
+          houseSystem={houseSystem}
+          chartSnapshot={data}
+          snaps={snaps}
+          activeSnapId={activeSnapId || inferredActiveSnapId || ''}
+          loadingSnaps={loadingSnaps}
+          snapsLoaded={snapsLoaded}
+          onRefreshSnaps={refreshSnaps}
+        />
       )}
         {showTraits && (
           <TraitProfileModal
@@ -2158,11 +3231,22 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
             specialDegrees={specialDegrees}
             mode={mode}
             manualIso={activeManualIso}
-            manualLocation={data?.location || manualLocation}
-            timezone={data?.timezone || null}
+            manualLocation={activeSnapContext?.location || data?.location || manualLocation}
+            timezone={data?.timezone || activeSnapContext?.timezone || null}
+            latitude={mode === 'manual'
+              ? (activeSnapContext?.latitude ?? finiteNumberOrUndefined(activeManualContextRef.current?.latitude))
+              : (activeSnapContext?.latitude ?? finiteNumberOrUndefined(data?.latitude))}
+            longitude={mode === 'manual'
+              ? (activeSnapContext?.longitude ?? finiteNumberOrUndefined(activeManualContextRef.current?.longitude))
+              : (activeSnapContext?.longitude ?? finiteNumberOrUndefined(data?.longitude))}
             houseSystem={houseSystem}
             chartSnapshot={data}
             fixedStarHits={Array.isArray(data?.fixed_star_hits) ? data.fixed_star_hits : []}
+            snaps={snaps}
+            activeSnapId={activeSnapId || inferredActiveSnapId || ''}
+            loadingSnaps={loadingSnaps}
+            snapsLoaded={snapsLoaded}
+            onRefreshSnaps={refreshSnaps}
           />
         )}
       {showSynastry && (
@@ -2188,6 +3272,8 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
           onClose={handleCloseElection}
           onJumpToTime={jumpToIso}
           defaultHouseSystem={houseSystem}
+          snaps={snaps}
+          activeSnapId={activeSnapId || inferredActiveSnapId || ''}
         />
       )}
       {showAstrocartography && (
@@ -2201,6 +3287,12 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
           onCreateSnap={doSnap}
         />
       )}
+      <PremiumOfferModal
+        open={Boolean(premiumOfferFeature)}
+        featureName={premiumOfferFeature}
+        onClose={() => setPremiumOfferFeature('')}
+        onActivated={onLicenseChanged}
+      />
       {showNamePrompt && (
         <NamePromptModal
           open={showNamePrompt}
@@ -2215,14 +3307,76 @@ const AstroClock = ({ darkMode, setCurrentView, apiStatus, licenseActive=false }
 
 export default AstroClock;
 
-function ForensicDashboard({ onClose, clockContext }){
+function forensicSnapDashboard(snap) {
+  return snap?.dashboard && typeof snap.dashboard === 'object' ? snap.dashboard : {};
+}
+
+function forensicSnapCoordinates(snap) {
+  const dashboard = forensicSnapDashboard(snap);
+  const latitude = finiteNumberOrUndefined(
+    snap?.latitude ?? dashboard?.latitude ?? snap?.coordinates?.latitude ?? snap?.coordinates?.lat ?? snap?.chart_snapshot?.latitude,
+  );
+  const longitude = finiteNumberOrUndefined(
+    snap?.longitude ?? dashboard?.longitude ?? snap?.coordinates?.longitude ?? snap?.coordinates?.lon ?? snap?.coordinates?.lng ?? snap?.chart_snapshot?.longitude,
+  );
+  return { latitude, longitude };
+}
+
+function getForensicSnapMetaParts(snap) {
+  const dashboard = forensicSnapDashboard(snap);
+  const label = firstPresent(snap?.label, snap?.id, 'Untitled snap') || 'Untitled snap';
+  const iso = firstPresent(snap?.effective_datetime, dashboard?.timestamp, snap?.datetime, snap?.timestamp);
+  const location = firstPresent(snap?.location, dashboard?.location);
+  const timezone = firstPresent(snap?.timezone, dashboard?.timezone, snap?.timezone_label, dashboard?.timezone_label);
+  const displayParts = formatForensicTimestampParts(iso, timezone);
+  const datePart = displayParts.datePart;
+  const timePart = displayParts.timePart;
+  return { label, datePart, timePart, location, timezone, iso };
+}
+
+function formatForensicSnapLabel(snap) {
+  const parts = getForensicSnapMetaParts(snap);
+  return [parts.label, parts.datePart, parts.timePart, parts.location].filter(Boolean).join(' | ');
+}
+
+function snapToForensicClockContext(snap, houseSystem) {
+  if (!snap) return null;
+  const dashboard = forensicSnapDashboard(snap);
+  const datetime = firstPresent(snap?.effective_datetime, dashboard?.timestamp, snap?.datetime, snap?.timestamp);
+  const location = firstPresent(snap?.location, dashboard?.location);
+  const timezone = firstPresent(snap?.timezone, dashboard?.timezone, snap?.timezone_label, dashboard?.timezone_label);
+  const selectedHouseSystem = firstPresent(houseSystem, snap?.house_system_code, dashboard?.house_system_code, snap?.house_system, dashboard?.house_system);
+  const { latitude, longitude } = forensicSnapCoordinates(snap);
+  if (!datetime) return null;
+  return {
+    mode: 'manual',
+    datetime,
+    location,
+    timezone,
+    houseSystem: selectedHouseSystem,
+    latitude,
+    longitude,
+  };
+}
+
+function ForensicDashboard({
+  onClose,
+  clockContext,
+  snaps = [],
+  activeSnapId = '',
+  loadingSnaps = false,
+  snapsLoaded = true,
+  onRefreshSnaps,
+}){
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [features, setFeatures] = useState(null);
+  const [forensicError, setForensicError] = useState('');
   const [viability, setViability] = useState({ asc_desc: null, correlation: null, angular: null, logic: null });
   const [caseType, setCaseType] = useState('general'); // general|child|adult_female
   const [abductionMode, setAbductionMode] = useState(false);
   const [includeRaw, setIncludeRaw] = useState(false);
+  const [forensicTab, setForensicTab] = useState('findings');
   const [copiedBrief, setCopiedBrief] = useState(false);
   const [originLat, setOriginLat] = useState('');
   const [originLon, setOriginLon] = useState('');
@@ -2234,11 +3388,94 @@ function ForensicDashboard({ onClose, clockContext }){
   const [showBackAz, setShowBackAz] = useState(false);
   const [flipSubHorizon, setFlipSubHorizon] = useState(false);
   const [expandedFindingIndex, setExpandedFindingIndex] = useState(null);
-  const forensicClockContext = useMemo(() => ({ ...(clockContext || {}) }), [JSON.stringify(clockContext || {})]);
+  const forensicRequestSeqRef = useRef(0);
+  const forensicClockContextKey = JSON.stringify(clockContext || {});
+  const forensicClockContext = useMemo(() => ({ ...(clockContext || {}) }), [forensicClockContextKey]);
+  const snapOptions = useMemo(() => (Array.isArray(snaps) ? snaps : []).filter((snap) => snap?.id), [snaps]);
+  const [chartSource, setChartSource] = useState('current');
+  const [selectedSnapId, setSelectedSnapId] = useState(activeSnapId || '');
+  const selectedSnap = useMemo(
+    () => snapOptions.find((snap) => String(snap?.id || '') === String(selectedSnapId || '')) || null,
+    [snapOptions, selectedSnapId],
+  );
+  const selectedSnapContext = useMemo(() => (
+    chartSource === 'snap'
+      ? snapToForensicClockContext(selectedSnap, forensicClockContext.houseSystem || forensicClockContext.house_system_code)
+      : null
+  ), [chartSource, selectedSnap, forensicClockContext.houseSystem, forensicClockContext.house_system_code]);
+  const effectiveForensicClockContext = useMemo(() => (
+    chartSource === 'snap' && selectedSnapContext ? selectedSnapContext : forensicClockContext
+  ), [chartSource, selectedSnapContext, forensicClockContext]);
+  const snapSelectionMessage = useMemo(() => {
+    if (chartSource !== 'snap') return '';
+    if (loadingSnaps) return 'Loading saved snaps...';
+    if (!snapOptions.length) return 'No saved snaps are available yet.';
+    if (!selectedSnap) return 'Choose a saved snap.';
+    if (!selectedSnapContext) return 'Selected snap is missing date/time context.';
+    return '';
+  }, [chartSource, loadingSnaps, selectedSnap, selectedSnapContext, snapOptions.length]);
+  const forensicContextReady = chartSource !== 'snap' || Boolean(selectedSnapContext);
   const rawFindings = useMemo(() => (
     Array.isArray(data?.findings) ? data.findings.filter((finding) => finding && typeof finding === 'object') : []
   ), [data?.findings]);
   const replayAxes = useMemo(() => deriveForensicReplayAxes(data || {}), [data]);
+  const replayTailoring = useMemo(() => getForensicReplayTailoring(data || {}), [data]);
+  const topFindings = useMemo(() => {
+    if (!rawFindings.length) return [];
+    const weighted = rawFindings
+      .map((finding, index) => ({
+        finding,
+        index,
+        weight: Number(finding?.weight),
+        displayWeight: (() => {
+          const base = Number(finding?.weight);
+          if (!Number.isFinite(base)) return Number.NaN;
+          let score = base;
+          if (replayTailoring.domesticFatalContext) {
+            if (forensicFindingMatchesAxis(finding, 'abduction_missing_person')) score -= 100;
+            if (forensicFindingMatchesAxis(finding, 'water_disappearance_or_drowning')) score -= 100;
+            if (
+              forensicFindingMatchesAxis(finding, 'violence_homicide') ||
+              forensicFindingMatchesAxis(finding, 'family_involvement') ||
+              forensicFindingMatchesAxis(finding, 'domestic_partner_involvement')
+            ) {
+              score += 20;
+            }
+          }
+          if (replayTailoring.fatalPressureDominant && forensicFindingMatchesAxis(finding, 'violence_homicide')) {
+            score += 10;
+          }
+          if (replayTailoring.childContext && forensicFindingMatchesAxis(finding, 'child_victim')) {
+            score += 8;
+          }
+          return score;
+        })(),
+      }))
+      .filter((item) => Number.isFinite(item.displayWeight) && item.displayWeight > -50);
+    if (weighted.length) {
+      return [...weighted]
+        .sort((a, b) => (b.displayWeight - a.displayWeight) || (b.weight - a.weight) || (a.index - b.index))
+        .slice(0, 6)
+        .map((item) => item.finding);
+    }
+    const selected = [];
+    const selectedIndexes = new Set();
+    replayAxes.forEach((axis) => {
+      const index = rawFindings.findIndex((finding, idx) => (
+        !selectedIndexes.has(idx) && forensicFindingMatchesAxis(finding, axis)
+      ));
+      if (index >= 0) {
+        selectedIndexes.add(index);
+        selected.push(rawFindings[index]);
+      }
+    });
+    rawFindings.forEach((finding, index) => {
+      if (selected.length >= 6 || selectedIndexes.has(index)) return;
+      selectedIndexes.add(index);
+      selected.push(finding);
+    });
+    return selected;
+  }, [rawFindings, replayAxes, replayTailoring]);
   const categoryEntries = useMemo(() => (
     data?.categories && typeof data.categories === 'object'
       ? Object.entries(data.categories).sort((a, b) => String(a[0]).localeCompare(String(b[0])))
@@ -2246,12 +3483,42 @@ function ForensicDashboard({ onClose, clockContext }){
   ), [data?.categories]);
 
   useEffect(() => {
+    if (activeSnapId) {
+      setSelectedSnapId(String(activeSnapId));
+    }
+  }, [activeSnapId]);
+
+  useEffect(() => {
+    if (chartSource === 'snap' && !selectedSnapId && snapOptions.length) {
+      setSelectedSnapId(String(snapOptions[0].id || ''));
+    }
+  }, [chartSource, selectedSnapId, snapOptions]);
+
+  useEffect(() => {
+    if (typeof onRefreshSnaps !== 'function') return;
+    if (snapsLoaded && snapOptions.length) return;
+    onRefreshSnaps({ silent: true });
+  }, [onRefreshSnaps, snapsLoaded, snapOptions.length]);
+
+  useEffect(() => {
     setExpandedFindingIndex(null);
   }, [data?.timestamp, rawFindings.length]);
 
+  useEffect(() => {
+    if (includeRaw) setForensicTab('raw');
+  }, [includeRaw]);
+
   const fetchForensic = useCallback(async (optsExtra={}) => {
+    const requestSeq = forensicRequestSeqRef.current + 1;
+    forensicRequestSeqRef.current = requestSeq;
+    if (!forensicContextReady) {
+      setAbdMsg(snapSelectionMessage);
+      setForensicError('');
+      return null;
+    }
     try {
-      const opts = { ...forensicClockContext, caseType };
+      setForensicError('');
+      const opts = { ...effectiveForensicClockContext, caseType };
       if (optsExtra && optsExtra.abduction) {
         opts.abduction = true;
         if (optsExtra.origin) opts.origin = optsExtra.origin;
@@ -2259,20 +3526,56 @@ function ForensicDashboard({ onClose, clockContext }){
         if (optsExtra.corridor_deg != null) opts.corridor_deg = optsExtra.corridor_deg;
       }
       const res = await AstroClockAPI.getForensic(opts);
+      if (requestSeq !== forensicRequestSeqRef.current) return null;
       if (res?.success) {
         setData(res);
         setFeatures(res.features || null);
-        setAbdMsg(optsExtra && optsExtra.abduction ? 'Abduction map fetched.' : '');
+        if (optsExtra && optsExtra.abduction) {
+          const mapError = res.abduction_map_error ? `: ${res.abduction_map_error}` : '.';
+          setAbdMsg(res.abduction_map ? 'Abduction map fetched.' : `Abduction map unavailable${mapError}`);
+        } else {
+          setAbdMsg('');
+        }
+      } else {
+        const message = `Forensic dossier unavailable: ${String(res?.error || res?.detail || 'unknown error')}`;
+        setForensicError(message);
+        if (!(optsExtra && optsExtra.abduction)) {
+          setData(null);
+          setFeatures(null);
+        }
       }
+      return res;
     } catch(err){
-      console.error('Abduction fetch failed:', err);
-      try { setAbdMsg(`Abduction fetch failed: ${String(err?.message||err)} (API ${window.API_BASE_URL||'unknown'})`); } catch(_){ setAbdMsg('Abduction fetch failed.'); }
+      if (requestSeq !== forensicRequestSeqRef.current) return null;
+      const isAbductionFetch = Boolean(optsExtra && optsExtra.abduction);
+      const label = isAbductionFetch ? 'Abduction map' : 'Forensic dossier';
+      const message = `${label} fetch failed: ${String(err?.message||err)} (API ${window.API_BASE_URL||'unknown'})`;
+      console.error(`${label} fetch failed:`, err);
+      setForensicError(message);
+      if (!isAbductionFetch) {
+        setData(null);
+        setFeatures(null);
+        setAbdMsg('');
+      } else {
+        try { setAbdMsg(message); } catch(_){ setAbdMsg('Abduction map fetch failed.'); }
+      }
       throw err;
     }
-  }, [forensicClockContext, caseType]);
+  }, [caseType, effectiveForensicClockContext, forensicContextReady, snapSelectionMessage]);
 
   useEffect(() => {
     let cancelled = false;
+    if (!forensicContextReady) {
+      setData(null);
+      setFeatures(null);
+      setForensicError('');
+      setAbdMsg(snapSelectionMessage);
+      setLoading(Boolean(loadingSnaps));
+      return () => {
+        cancelled = true;
+        forensicRequestSeqRef.current += 1;
+      };
+    }
     setLoading(true);
     (async () => {
       try {
@@ -2280,8 +3583,11 @@ function ForensicDashboard({ onClose, clockContext }){
       } catch {}
       finally { if (!cancelled) setLoading(false); }
     })();
-    return () => { cancelled = true; };
-  }, [fetchForensic]);
+    return () => {
+      cancelled = true;
+      forensicRequestSeqRef.current += 1;
+    };
+  }, [fetchForensic, forensicContextReady, loadingSnaps, snapSelectionMessage]);
 
   function buildAIBrief(includeRawValues){
     try {
@@ -2491,41 +3797,42 @@ function ForensicDashboard({ onClose, clockContext }){
         const ascStars = (starRel?.asc_ruler||[]).map(h=> h?.name).filter(Boolean);
         const dscStars = (starRel?.dsc_ruler||[]).map(h=> h?.name).filter(Boolean);
 
-        // Scoring
-        let score = 0; const reasons = [];
-        // House crossovers scoring
-        if (victimHouse===7) { score+=2; reasons.push('Victim ruler in 7th (+2)'); }
-        if (perpHouse===1) { score+=2; reasons.push('Perp ruler in 1st (+2)'); }
-        if (perpHouse===7) { score+=1; reasons.push('Perp ruler in 7th (+1)'); }
-        if (sameHouse) { score+=2; reasons.push('Both rulers in same house (+2)'); }
-        { const angSet = new Set([1,4,7,10]); if (angSet.has(Number(victimHouse)) && angSet.has(Number(perpHouse))) { score+=1; reasons.push('Both rulers angular (+1)'); } }
-        if (directVictRulesPerp) { score+=3; reasons.push('Victim ruler rules perpetrator sign'); }
-        if (directPerpRulesVict) { score+=3; reasons.push('Perp ruler rules victim sign'); }
-        if (isMutual) { score+=4; reasons.push('Mutual reception'); }
-        if (level3) { score+=2; reasons.push('Shared triplicity'); }
-        if (level4_victim_in_exalt_of_perp) { score+=2; reasons.push('Victim in exaltation of perpetrator'); }
-        if (level4_perp_in_exalt_of_victim) { score+=2; reasons.push('Perp in exaltation of victim'); }
-        if (level4_victim_in_fall_of_perp) { score+=1; reasons.push('Victim in fall of perpetrator'); }
-        if (level4_perp_in_fall_of_victim) { score+=1; reasons.push('Perp in fall of victim'); }
-        if (uni.some(u=> (u.receiving===firstRuler && u.received===seventhRuler) || (u.receiving===seventhRuler && u.received===firstRuler))) { score+=1; reasons.push('Directional reception'); }
-        // Add a modest score only when BOTH rulers are in 4th or BOTH in 10th
-        if (critSameFamily) { score+=1; reasons.push('Family same-house (4 or 10)'); }
-        // Translation/Collection of light strengthens linkage
-        if (lm?.translation) { score+=1; reasons.push('Translation of light'); }
-        else if (lm?.collection) { score+=1; reasons.push('Collection of light'); }
-        if (h7Planets.includes('Venus') || h7Planets.includes('Mars')) { score+=1; reasons.push('7th-house indicator'); }
-        if (aspType){
-          const easy=['conjunction','trine','sextile']; const hard=['square','opposition'];
-          if (easy.includes(aspType)) { score+=2; reasons.push('Harmonious aspect'); }
-          else if (hard.includes(aspType)) { score+=1; reasons.push('Stressful aspect'); }
-          if (a?.applying === true) { score+=1; reasons.push('Applying aspect'); }
-        }
-        if (dVict===0||dVict===15||dVict===29||dPerp===0||dPerp===15||dPerp===29) { score+=1; reasons.push('Critical degree'); }
         const violentStars = new Set(['Algol','Antares']); const protectStars = new Set(['Spica']);
         const hasViolent = [...ascStars, ...dscStars].some(n=> violentStars.has(n));
         const hasProtect = [...ascStars, ...dscStars].some(n=> protectStars.has(n));
-        if (hasViolent) { score+=2; reasons.push('Violent fixed star'); }
-        if (hasProtect) { score+=1; reasons.push('Protective fixed star'); }
+        const moonDispositorTiesPerp = Boolean(f?.moon?.dispositor_to_seventh_ruler_type);
+        const moonDispositorHardContact = Boolean(f?.moon?.dispositor_to_seventh_ruler_hard);
+        const moonDispositorCue = moonDispositorTiesPerp
+          ? `Moon dispositor ${f?.moon?.dispositor || 'ruler'} ${f?.moon?.dispositor_to_seventh_ruler_type || 'contacts'} ${seventhRuler || '7th ruler'}`
+          : null;
+        const relationshipScore = scoreForensicRelationshipLink({
+          victimHouse,
+          perpHouse,
+          sameHouse,
+          directVictRulesPerp,
+          directPerpRulesVict,
+          isMutual,
+          level3,
+          level4VictimInExaltOfPerp: level4_victim_in_exalt_of_perp,
+          level4PerpInExaltOfVictim: level4_perp_in_exalt_of_victim,
+          level4VictimInFallOfPerp: level4_victim_in_fall_of_perp,
+          level4PerpInFallOfVictim: level4_perp_in_fall_of_victim,
+          directionalReception: uni.some(u=> (u.receiving===firstRuler && u.received===seventhRuler) || (u.receiving===seventhRuler && u.received===firstRuler)),
+          level5Terms: level5_terms,
+          criticalFamilyHouse: critSameFamily,
+          lightMediation: lm,
+          seventhHousePlanets: h7Planets,
+          aspectType: aspType,
+          aspect: a,
+          criticalDegree: dVict===0||dVict===15||dVict===29||dPerp===0||dPerp===15||dPerp===29,
+          hasViolentStar: hasViolent,
+          hasProtectiveStar: hasProtect,
+          moonDispositorTiesPerp,
+          moonDispositorHardContact,
+          victimSignificators: [firstRuler, 'Moon'].filter(Boolean),
+          perpetratorSignificators: [seventhRuler].filter(Boolean),
+        });
+        const score = relationshipScore.score;
         const relationshipSummary = summarizeForensicRelationshipLink({
           score,
           victimHouse,
@@ -2556,7 +3863,7 @@ function ForensicDashboard({ onClose, clockContext }){
           houseConnections: (bothIn4 || bothIn10)
             ? ['shared family-house placement (4th/10th)']
             : houseFlags.concat(crit),
-          traditionalCues: trad,
+          traditionalCues: moonDispositorCue ? trad.concat(moonDispositorCue) : trad,
           aspectTies: aspectFlags,
           degreeStarCues: degFlags2.concat([
             ascStars.length? `ASC ruler on ${ascStars.join('/')}`: null,
@@ -2626,14 +3933,34 @@ function ForensicDashboard({ onClose, clockContext }){
     } catch(e){ return ''; }
   }
 
-  const card = (title, body) => (
-    <section className={panelCls}>
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="font-semibold text-sm">{title}</h3>
+  const card = (title, body) => {
+    const forensicSectionMeta = {
+      'Verdict': { kicker: '§1', meta: 'Signal summary' },
+      'Directional Findings': { kicker: '§2', meta: `${replayAxes.length} primary axes · ${rawFindings.length} findings` },
+      'Outcome Determination': { kicker: '§3', meta: 'IC and 4th-house matrix' },
+      'Victim Analysis': { kicker: '§4', meta: activeCaseTypeLabel },
+      'Perpetrator Analysis': { kicker: '§5', meta: '7th-house and behavioral signals' },
+      'Relationship Signals': { kicker: '§6', meta: relationshipSnapshot.relationshipType || 'Connection matrix' },
+      'Witness & Accomplice Detection': { kicker: '§7', meta: 'Witness pool' },
+      'Deception Configuration': { kicker: '§8', meta: 'Coverup and mute signatures' },
+      'Abduction Cues': { kicker: '§9', meta: 'Optional local-space cues' },
+      'Abduction Map': { kicker: '§10', meta: 'Directional map' },
+      'Raw Evidence': { kicker: '§11', meta: 'Audit payload' },
+    };
+    const meta = forensicSectionMeta[title] || { kicker: 'Forensic Report', meta: '' };
+    return (
+    <section className="forensic-dossier-card">
+      <div className="forensic-dossier-card-head mb-4">
+        <div>
+          <div className="forensic-dossier-card-kicker">{meta.kicker}</div>
+          <h3 className="forensic-dossier-card-title">{title}</h3>
+        </div>
+        {meta.meta ? <div className="forensic-dossier-card-meta">{meta.meta}</div> : null}
       </div>
       {body}
     </section>
-  );
+    );
+  };
 
   const ascSign = (() => {
     try {
@@ -2655,12 +3982,18 @@ function ForensicDashboard({ onClose, clockContext }){
       const ts = new Date().toLocaleString();
       const dash = data || {};
       const f = features || {};
+      const h = (value) => String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
       // Case header fields
       const caseHeader = (() => {
         const parts = [];
-        if (dash?.timestamp) parts.push(`Time: ${new Date(dash.timestamp).toLocaleString()}`);
-        if (dash?.location) parts.push(`Location: ${dash.location}`);
-        if (dash?.timezone_label) parts.push(`TZ: ${dash.timezone_label}`);
+        if (dash?.timestamp) parts.push(`Time: ${h(new Date(dash.timestamp).toLocaleString())}`);
+        if (dash?.location) parts.push(`Location: ${h(dash.location)}`);
+        if (dash?.timezone_label) parts.push(`TZ: ${h(dash.timezone_label)}`);
         return parts.join(' · ');
       })();
       const svg = (() => {
@@ -2710,7 +4043,7 @@ function ForensicDashboard({ onClose, clockContext }){
               ${getAbductionLegendEntries().map((entry, i)=>{
                 const r = entry.role;
                 const s=roleStyle(r); const y= (i+1)*14;
-                return `<g transform=\"translate(0,${y})\"><line x1=\"0\" y1=\"-4\" x2=\"22\" y2=\"-4\" stroke=\"${s.color}\" stroke-width=\"2\" ${s.dash?`stroke-dasharray=\"${s.dash}\"`:''} /><text x=\"26\" y=\"0\">${entry.legendLabel}</text></g>`;
+                return `<g transform=\"translate(0,${y})\"><line x1=\"0\" y1=\"-4\" x2=\"22\" y2=\"-4\" stroke=\"${s.color}\" stroke-width=\"2\" ${s.dash?`stroke-dasharray=\"${s.dash}\"`:''} /><text x=\"26\" y=\"0\">${h(entry.legendLabel)}</text></g>`;
               }).join('')}
             </g>`;
           return `<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"${size}\" height=\"${size}\" viewBox=\"0 0 ${size} ${size}\"><rect x=\"0\" y=\"0\" width=\"${size}\" height=\"${size}\" fill=\"#ffffff\" />${ringsSvg}${originDot}${lines}${legend}</svg>`;
@@ -2738,7 +4071,7 @@ function ForensicDashboard({ onClose, clockContext }){
             const az = (b?.azimuth_deg!=null)? `${Number(b.azimuth_deg).toFixed(1)}°` : '-';
             const alt = (b?.altitude_deg!=null)? `${Number(b.altitude_deg).toFixed(1)}°` : '-';
             const w = (b?.weight!=null)? Number(b.weight).toFixed(2) : '-';
-            return `<tr><td>${formatAbductionBearingRoleLabel(b)}</td><td>${b.planet||'-'}</td><td style=\"text-align:right\">${az}</td><td style=\"text-align:right\">${alt}</td><td>${house} ${sign}</td><td style=\"text-align:right\">${w}</td></tr>`;
+            return `<tr><td>${h(formatAbductionBearingRoleLabel(b))}</td><td>${h(b.planet||'-')}</td><td style=\"text-align:right\">${h(az)}</td><td style=\"text-align:right\">${h(alt)}</td><td>${h(`${house} ${sign}`)}</td><td style=\"text-align:right\">${h(w)}</td></tr>`;
           }).join('');
           return rows ? `<h2>Abduction Bearings</h2><table class=\"tbl\"><thead><tr><th>Role</th><th>Planet</th><th>Az</th><th>Alt</th><th>Pos</th><th>W</th></tr></thead><tbody>${rows}</tbody></table>` : '';
         } catch { return ''; }
@@ -2766,11 +4099,11 @@ function ForensicDashboard({ onClose, clockContext }){
             .map(x=> `${x.type} ${x.other}${x.applying? ' (app)':''}`);
           return `<h2>Victim Analysis</h2>
             <table class=\"tbl\"><tbody>
-              <tr><td>ASC Sign</td><td>${ascSign}</td></tr>
-              <tr><td>Primary Ruler</td><td>${firstRuler||'-'}</td></tr>
-              <tr><td>Co‑rulers</td><td>${co.join(', ')}</td></tr>
-              <tr><td>Moon</td><td>${mSign} ${mDeg} (H${mHouse}) · VoC ${voc? 'Yes':'No'} · Via combusta ${via? 'Yes':'No'}</td></tr>
-              <tr><td>Danger (malefics)</td><td>${mal.length? mal.join(' · '): '-'}</td></tr>
+              <tr><td>ASC Sign</td><td>${h(ascSign)}</td></tr>
+              <tr><td>Primary Ruler</td><td>${h(firstRuler||'-')}</td></tr>
+              <tr><td>Co‑rulers</td><td>${h(co.join(', '))}</td></tr>
+              <tr><td>Moon</td><td>${h(`${mSign} ${mDeg} (H${mHouse}) · VoC ${voc? 'Yes':'No'} · Via combusta ${via? 'Yes':'No'}`)}</td></tr>
+              <tr><td>Danger (malefics)</td><td>${h(mal.length? mal.join(' · '): '-')}</td></tr>
             </tbody></table>`;
         } catch { return ''; }
       })();
@@ -2796,12 +4129,12 @@ function ForensicDashboard({ onClose, clockContext }){
           const aspectBucket = (planet) => formatForensicAspectLabels(collectBy(planet));
           return `<h2>Perpetrator Signals</h2>
             <table class=\"tbl\"><tbody>
-              <tr><td>7th-house cusp</td><td>${cusp7Sign} ${cusp7Deg} | ruler ${seventhRuler||'-'}</td></tr>
-              <tr><td>7th-house co-signifiers</td><td>${h7List.length? h7List.join(', '): '-'}</td></tr>
-              <tr><td>Ruler placement</td><td>${sign} ${deg} (H${house})</td></tr>
-              <tr><td>Dignity</td><td>${dignFlags.join(', ') || '-'}</td></tr>
-              <tr><td>State</td><td>${r?.retrograde? 'Retrograde':'Direct'}${inSolar('cazimi', seventhRuler)? ' | Cazimi':''}${inSolar('combustion', seventhRuler)? ' | Combust':''}${inSolar('under_beams', seventhRuler)? ' | Under beams':''}</td></tr>
-              <tr><td>Malefic/benefic contacts</td><td>Saturn: ${aspectBucket('Saturn')} | Mars: ${aspectBucket('Mars')} | Jupiter: ${aspectBucket('Jupiter')} | Venus: ${aspectBucket('Venus')}</td></tr>
+              <tr><td>7th-house cusp</td><td>${h(`${cusp7Sign} ${cusp7Deg} | ruler ${seventhRuler||'-'}`)}</td></tr>
+              <tr><td>7th-house co-signifiers</td><td>${h(h7List.length? h7List.join(', '): '-')}</td></tr>
+              <tr><td>Ruler placement</td><td>${h(`${sign} ${deg} (H${house})`)}</td></tr>
+              <tr><td>Dignity</td><td>${h(dignFlags.join(', ') || '-')}</td></tr>
+              <tr><td>State</td><td>${h(`${r?.retrograde? 'Retrograde':'Direct'}${inSolar('cazimi', seventhRuler)? ' | Cazimi':''}${inSolar('combustion', seventhRuler)? ' | Combust':''}${inSolar('under_beams', seventhRuler)? ' | Under beams':''}`)}</td></tr>
+              <tr><td>Malefic/benefic contacts</td><td>${h(`Saturn: ${aspectBucket('Saturn')} | Mars: ${aspectBucket('Mars')} | Jupiter: ${aspectBucket('Jupiter')} | Venus: ${aspectBucket('Venus')}`)}</td></tr>
             </tbody></table>`;
         } catch { return ''; }
       })();
@@ -2880,7 +4213,7 @@ function ForensicDashboard({ onClose, clockContext }){
             `House overlap: ${relationshipRows.houseOverlap}`,
             `Aspect ties: ${relationshipRows.aspectTies}`,
           ];
-          return `<h2>Relationship Signals</h2><div class=\"text\">${lines.map(l=> `<div>${l}</div>`).join('')}</div>`;
+          return `<h2>Relationship Signals</h2><div class=\"text\">${lines.map(l=> `<div>${h(l)}</div>`).join('')}</div>`;
         } catch { return ''; }
       })();
 
@@ -2894,10 +4227,10 @@ function ForensicDashboard({ onClose, clockContext }){
           const hidden = [...houseList(6), ...houseList(12)];
           return `<h2>Witness & Accomplice</h2>
             <table class=\"tbl\"><tbody>
-              <tr><td>Mercury (witness)</td><td>H${mercuryHouse}</td></tr>
-              <tr><td>3rd (neighbors/local)</td><td>${witnesses.join(', ')||'-'}</td></tr>
-              <tr><td>11th (associates)</td><td>${associates.join(', ')||'-'}</td></tr>
-              <tr><td>6th/12th (hidden)</td><td>${hidden.join(', ')||'-'}</td></tr>
+              <tr><td>Mercury (witness)</td><td>${h(`H${mercuryHouse}`)}</td></tr>
+              <tr><td>3rd (neighbors/local)</td><td>${h(witnesses.join(', ')||'-')}</td></tr>
+              <tr><td>11th (associates)</td><td>${h(associates.join(', ')||'-')}</td></tr>
+              <tr><td>6th/12th (hidden)</td><td>${h(hidden.join(', ')||'-')}</td></tr>
             </tbody></table>`;
         } catch { return ''; }
       })();
@@ -2918,9 +4251,9 @@ function ForensicDashboard({ onClose, clockContext }){
           const in4All = Object.entries(planets).filter(([,p])=> p?.house===4).map(([n])=> n);
           return `<h2>Final outcome determination</h2>
             <table class=\"tbl\"><tbody>
-              <tr><td>IC</td><td>${cusp4Sign} ${icDeg}${icExpl? ` - ${icExpl}`:''}</td></tr>
-              <tr><td>IC ruler</td><td>${ruler4||'-'}${ruler4House? ` in H${ruler4House}`:''}${icRulerExpl? ` - ${icRulerExpl}`:''}</td></tr>
-              <tr><td>Planets in 4th</td><td>${in4All.join(', ')||'-'}</td></tr>
+              <tr><td>IC</td><td>${h(`${cusp4Sign} ${icDeg}${icExpl? ` - ${icExpl}`:''}`)}</td></tr>
+              <tr><td>IC ruler</td><td>${h(`${ruler4||'-'}${ruler4House? ` in H${ruler4House}`:''}${icRulerExpl? ` - ${icRulerExpl}`:''}`)}</td></tr>
+              <tr><td>Planets in 4th</td><td>${h(in4All.join(', ')||'-')}</td></tr>
             </tbody></table>`;
         } catch { return ''; }
       })();
@@ -2939,11 +4272,11 @@ function ForensicDashboard({ onClose, clockContext }){
         .tbl thead { background: #f8fafc; }
         .text div { margin: 4px 0; }
       `;
-      const safeBrief = brief ? brief.replace(/</g,'&lt;') : '-';
+      const safeBrief = brief ? h(brief) : '-';
       return `<!doctype html><html><head><meta charset=\"utf-8\" /><title>Forensic Report</title><style>${css}</style></head>
         <body><div class=\"container\">
           <h1>Forensic Report</h1>
-          <div class=\"muted\">Generated ${ts}${caseHeader? ` · ${caseHeader}`:''}</div>
+          <div class=\"muted\">Generated ${h(ts)}${caseHeader? ` · ${caseHeader}`:''}</div>
           <div class=\"sep\"></div>
           <h2>Summary</h2>
           <pre>${safeBrief}</pre>
@@ -2995,144 +4328,810 @@ function ForensicDashboard({ onClose, clockContext }){
   const survival = (() => {
     return summarizeForensicSurvivalSignal({ forensicResult: data });
   })();
+  const relationshipSnapshot = (() => {
+    try {
+      const rulers = features?.house_rulers || {};
+      const firstRuler = features?.houses?.first_ruler || rulers['1'] || rulers[1] || null;
+      const seventhRuler = features?.houses?.seventh_ruler || rulers['7'] || rulers[7] || null;
+      const planets = features?.planets || {};
+      const victimHouse = firstRuler ? planets?.[firstRuler]?.house : null;
+      const perpHouse = seventhRuler ? planets?.[seventhRuler]?.house : null;
+      const seventhHousePlanets = Object.entries(planets)
+        .filter(([, planet]) => Number(planet?.house) === 7)
+        .map(([name]) => name);
+      const mutual = Array.isArray(data?.receptions?.mutual) ? data.receptions.mutual : [];
+      const isMutual = mutual.some((item) => (
+        (item?.p1 === firstRuler && item?.p2 === seventhRuler) ||
+        (item?.p1 === seventhRuler && item?.p2 === firstRuler)
+      ));
+      return summarizeForensicRelationshipLink({
+        score: 0,
+        victimHouse,
+        perpHouse,
+        seventhHousePlanets,
+        isMutual,
+        forensicResult: data || {},
+      });
+    } catch {
+      return summarizeForensicRelationshipLink({ forensicResult: data || {} });
+    }
+  })();
+  const relationshipInsight = useMemo(() => {
+    try {
+      const rulers = features?.house_rulers || {};
+      const firstRuler = features?.houses?.first_ruler || rulers['1'] || rulers[1] || null;
+      const seventhRuler = features?.houses?.seventh_ruler || rulers['7'] || rulers[7] || null;
+      const planets = features?.planets || {};
+      const firstInfo = firstRuler ? planets?.[firstRuler] || {} : {};
+      const seventhInfo = seventhRuler ? planets?.[seventhRuler] || {} : {};
+      const signRulers = {
+        Aries: 'Mars',
+        Taurus: 'Venus',
+        Gemini: 'Mercury',
+        Cancer: 'Moon',
+        Leo: 'Sun',
+        Virgo: 'Mercury',
+        Libra: 'Venus',
+        Scorpio: 'Mars',
+        Sagittarius: 'Jupiter',
+        Capricorn: 'Saturn',
+        Aquarius: 'Saturn',
+        Pisces: 'Jupiter',
+      };
+      const triOf = (sign) => {
+        if (['Aries','Leo','Sagittarius'].includes(sign)) return 'Fire';
+        if (['Taurus','Virgo','Capricorn'].includes(sign)) return 'Earth';
+        if (['Gemini','Libra','Aquarius'].includes(sign)) return 'Air';
+        if (['Cancer','Scorpio','Pisces'].includes(sign)) return 'Water';
+        return null;
+      };
+      const signs = ['Aries','Taurus','Gemini','Cancer','Leo','Virgo','Libra','Scorpio','Sagittarius','Capricorn','Aquarius','Pisces'];
+      const oppositeSign = (sign) => {
+        const index = signs.indexOf(sign);
+        return index >= 0 ? signs[(index + 6) % 12] : null;
+      };
+      const exaltation = { Sun:'Aries', Moon:'Taurus', Mercury:'Virgo', Venus:'Pisces', Mars:'Capricorn', Jupiter:'Cancer', Saturn:'Libra' };
+      const aspects = features?.aspects || {};
+      const aspectTo = (target) => collectRelationshipAspectContacts({
+        aspects,
+        source: seventhRuler,
+        target,
+        applyingLabel: ' applying',
+      });
+      const directAspect = aspects?.[`${firstRuler}_to_${seventhRuler}`] || aspects?.[`${seventhRuler}_to_${firstRuler}`] || null;
+      const recData = data?.receptions || {};
+      const mutual = Array.isArray(recData.mutual) ? recData.mutual : [];
+      const uni = Array.isArray(recData.top_unilateral) ? recData.top_unilateral : [];
+      const seventhHousePlanets = Object.entries(planets)
+        .filter(([, planet]) => Number(planet?.house) === 7)
+        .map(([name]) => name);
+      const victimHouse = firstInfo?.house;
+      const perpHouse = seventhInfo?.house;
+      const sameHouse = victimHouse != null && perpHouse != null && Number(victimHouse) === Number(perpHouse);
+      const isMutual = mutual.some((item) => (
+        (item?.p1 === firstRuler && item?.p2 === seventhRuler) ||
+        (item?.p1 === seventhRuler && item?.p2 === firstRuler)
+      ));
+      const directVictRulesPerp = Boolean(firstInfo?.sign && seventhInfo?.sign && signRulers[seventhInfo.sign] === firstRuler);
+      const directPerpRulesVict = Boolean(firstInfo?.sign && seventhInfo?.sign && signRulers[firstInfo.sign] === seventhRuler);
+      const level3 = Boolean(firstInfo?.sign && seventhInfo?.sign && triOf(firstInfo.sign) === triOf(seventhInfo.sign));
+      const level4VictimInExaltOfPerp = Boolean(firstInfo?.sign && firstInfo.sign === exaltation[seventhRuler]);
+      const level4PerpInExaltOfVictim = Boolean(seventhInfo?.sign && seventhInfo.sign === exaltation[firstRuler]);
+      const level4VictimInFallOfPerp = Boolean(firstInfo?.sign && firstInfo.sign === oppositeSign(exaltation[seventhRuler]));
+      const level4PerpInFallOfVictim = Boolean(seventhInfo?.sign && seventhInfo.sign === oppositeSign(exaltation[firstRuler]));
+      const isRulerReception = (item) => (
+        (item?.receiving === firstRuler && item?.received === seventhRuler) ||
+        (item?.receiving === seventhRuler && item?.received === firstRuler)
+      );
+      const directionalReception = uni.some(isRulerReception);
+      const level5Terms = uni.some((item) => (
+        isRulerReception(item) &&
+        (item?.dignities || []).includes('term')
+      ));
+      const criticalFamilyHouse = (
+        (Number(victimHouse) === 4 && Number(perpHouse) === 4) ||
+        (Number(victimHouse) === 10 && Number(perpHouse) === 10)
+      );
+      const degreeInt = (name) => {
+        const degree = planets?.[name]?.degree_in_sign;
+        return typeof degree === 'number' ? Math.round(degree) : null;
+      };
+      const victimDegree = degreeInt(firstRuler);
+      const perpDegree = degreeInt(seventhRuler);
+      const degreeStarCues = [
+        victimDegree === 0 ? '0 degree new situation (victim)' : null,
+        perpDegree === 0 ? '0 degree new situation (perpetrator)' : null,
+        victimDegree === 15 ? '15 degree marker (victim)' : null,
+        perpDegree === 15 ? '15 degree marker (perpetrator)' : null,
+        victimDegree === 29 ? '29 degree crisis (victim)' : null,
+        perpDegree === 29 ? '29 degree crisis (perpetrator)' : null,
+      ].filter(Boolean);
+      const starHits = data?.relationship_star_hits || {};
+      const starNames = (hits) => (Array.isArray(hits) ? hits.map((hit) => hit?.name).filter(Boolean) : []);
+      const ascStars = starNames(starHits.asc_ruler);
+      const dscStars = starNames(starHits.dsc_ruler);
+      if (ascStars.length) degreeStarCues.push(`ASC ruler on ${ascStars.join('/')}`);
+      if (dscStars.length) degreeStarCues.push(`DSC ruler on ${dscStars.join('/')}`);
+      const violentStars = new Set(['Algol', 'Antares']);
+      const protectiveStars = new Set(['Spica']);
+      const hasViolentStar = [...ascStars, ...dscStars].some((name) => violentStars.has(name));
+      const hasProtectiveStar = [...ascStars, ...dscStars].some((name) => protectiveStars.has(name));
+      const moonDispositorTiesPerp = Boolean(features?.moon?.dispositor_to_seventh_ruler_type);
+      const moonDispositorHardContact = Boolean(features?.moon?.dispositor_to_seventh_ruler_hard);
+      const moonDispositorCue = moonDispositorTiesPerp
+        ? `Moon dispositor ${features?.moon?.dispositor || 'ruler'} ${features?.moon?.dispositor_to_seventh_ruler_type || 'contacts'} ${seventhRuler || '7th ruler'}`
+        : null;
+      const relationshipScore = scoreForensicRelationshipLink({
+        victimHouse,
+        perpHouse,
+        sameHouse,
+        directVictRulesPerp,
+        directPerpRulesVict,
+        isMutual,
+        level3,
+        level4VictimInExaltOfPerp,
+        level4PerpInExaltOfVictim,
+        level4VictimInFallOfPerp,
+        level4PerpInFallOfVictim,
+        directionalReception,
+        level5Terms,
+        criticalFamilyHouse,
+        lightMediation: data?.light_mediation,
+        seventhHousePlanets,
+        aspectType: directAspect?.type,
+        aspect: directAspect,
+        criticalDegree: degreeStarCues.some((cue) => /degree|crisis|marker/i.test(cue)),
+        hasViolentStar,
+        hasProtectiveStar,
+        moonDispositorTiesPerp,
+        moonDispositorHardContact,
+        victimSignificators: [firstRuler, 'Moon'].filter(Boolean),
+        perpetratorSignificators: [seventhRuler].filter(Boolean),
+      });
+      const summary = summarizeForensicRelationshipLink({
+        score: relationshipScore.score,
+        victimHouse,
+        perpHouse,
+        seventhHousePlanets,
+        isMutual,
+        forensicResult: data || {},
+      });
+      const houseConnections = [
+        victimHouse != null ? `victim ruler in H${victimHouse}` : null,
+        perpHouse != null ? `perpetrator ruler in H${perpHouse}` : null,
+        sameHouse ? 'both rulers in same house' : null,
+        criticalFamilyHouse ? 'shared family-house placement' : null,
+      ].filter(Boolean);
+      const rows = buildRelationshipDisplayRows({
+        firstRuler,
+        moonContacts: aspectTo('Moon'),
+        ascRulerContacts: aspectTo(firstRuler),
+        directVictRulesPerp,
+        directPerpRulesVict,
+        isMutual,
+        level3,
+        exaltationFallFlags: [
+          level4VictimInExaltOfPerp ? 'victim in exaltation of perpetrator' : null,
+          level4PerpInExaltOfVictim ? 'perpetrator in exaltation of victim' : null,
+          level4VictimInFallOfPerp ? 'victim in fall of perpetrator' : null,
+          level4PerpInFallOfVictim ? 'perpetrator in fall of victim' : null,
+        ].filter(Boolean),
+        level5Terms,
+        houseConnections,
+        traditionalCues: [
+          seventhHousePlanets.length ? `7th-house planets: ${seventhHousePlanets.join(', ')}` : null,
+          moonDispositorCue,
+        ].filter(Boolean),
+        aspectTies: directAspect ? [`${directAspect.type || 'contact'} between rulers${directAspect.applying === true ? ' applying' : ''}`] : ['no direct ruler aspect'],
+        degreeStarCues,
+        score: relationshipScore.score,
+        relationshipType: summary.relationshipType,
+        confidence: summary.confidence,
+      });
+      return {
+        rows,
+        score: relationshipScore.score,
+        reasons: relationshipScore.reasons,
+        summary,
+      };
+    } catch {
+      return {
+        rows: null,
+        score: 0,
+        reasons: [],
+        summary: relationshipSnapshot,
+      };
+    }
+  }, [data, features, relationshipSnapshot]);
+  const fatalPressureDominant = Boolean(
+    survival.fatalOverride ||
+    survival.outcomeBand === 'fatal_pressure_dominant' ||
+    /fatal pressure/i.test(String(survival.note || ''))
+  );
+  const survivabilitySummaryText = [
+    `Survivability signal: ${survival.level || '-'}`,
+    typeof survival.score === 'number' ? `(${survival.score >= 0 ? '+' : ''}${survival.score})` : null,
+    survival.outcomeBand ? formatSurvivabilityBandLabel(survival.outcomeBand) : null,
+    fatalPressureDominant ? '(fatal pressure dominates)' : null,
+  ].filter(Boolean).join(' ');
+  const survivalBreakdown = survival.breakdown || {};
+  const lightMediationImpact = survival.lightMediationImpact && typeof survival.lightMediationImpact === 'object'
+    ? survival.lightMediationImpact
+    : null;
+  const showLightMediationImpact = Boolean(
+    lightMediationImpact &&
+    (
+      lightMediationImpact.effect ||
+      lightMediationImpact.score_delta ||
+      lightMediationImpact.light_mediation_score
+    ) &&
+    lightMediationImpact.effect !== 'none'
+  );
+  const lightMediationImpactTone = lightMediationImpact?.effect === 'fatal_pressure' ? 'is-rose' : 'is-teal';
+  const categoryCount = (name) => Number(data?.categories?.[name] || 0);
+  const clampMetric = (value, min = 0, max = 100) => Math.max(min, Math.min(max, Number(value) || 0));
+  const fatalPressureValue = Number(survivalBreakdown?.fatal_pressure || 0);
+  const dangerValue = Number(survivalBreakdown?.danger || 0);
+  const violenceIndex = Math.round(clampMetric((categoryCount('Violence') * 12) + (dangerValue * 8) + (fatalPressureValue * 3), 0, 99));
+  const deceptionIndex = Math.round(clampMetric((categoryCount('Deception') * 8) + (categoryCount('Stressors') * 3), 0, 99));
+  const caseSignalScore = Math.round(clampMetric(
+    (fatalPressureValue * 8.5) +
+    (dangerValue * 7) +
+    (categoryCount('Violence') * 6) +
+    (categoryCount('Deception') * 3) +
+    (fatalPressureDominant ? 10 : 0),
+    0,
+    100,
+  ));
+  const survivabilityPercent = Math.round(clampMetric(
+    Number.isFinite(Number(survival.score)) ? 50 + (Number(survival.score) * 6) : 50,
+    5,
+    95,
+  ));
+  const survivalToneClass = survival.level === 'Lower' ? 'is-rose' : survival.level === 'Higher' ? 'is-teal' : 'is-amber';
+  const outcomeBandLabel = survival.outcomeBand ? formatSurvivabilityBandLabel(survival.outcomeBand) : 'Pending';
+  const caseTypeOptions = [
+    { value: 'general', label: 'General' },
+    { value: 'adult_female', label: 'Adult Female' },
+    { value: 'child', label: 'Child' },
+  ];
+  const forensicTabs = [
+    { id: 'findings', label: 'Findings', count: rawFindings.length || null },
+    { id: 'victim', label: 'Victim' },
+    { id: 'perpetrator', label: 'Perpetrator' },
+    { id: 'relationship', label: 'Relationship' },
+    { id: 'witnesses', label: 'Witnesses', count: categoryCount('Witness') || null },
+    { id: 'deception', label: 'Deception', count: categoryCount('Deception') || null },
+    { id: 'abduction', label: 'Abduction' },
+    { id: 'raw', label: 'Raw Evidence' },
+  ];
+  const showForensicSection = (...ids) => ids.includes(forensicTab);
+  const caseTimestamp = data?.timestamp || effectiveForensicClockContext.datetime || '';
+  const caseLocation = data?.location || effectiveForensicClockContext.location || 'Current chart';
+  const caseTimezoneName =
+    resolveAstroClockTimezone(data?.timezone, data?.timezone_label) ||
+    resolveAstroClockTimezone(
+      effectiveForensicClockContext.timezone,
+      effectiveForensicClockContext.timezone_label,
+    );
+  const caseTimezone = data?.timezone_label || data?.timezone || effectiveForensicClockContext.timezone || '';
+  const caseMode = effectiveForensicClockContext.mode || 'current';
+  const caseHouseSystem = effectiveForensicClockContext.houseSystem || effectiveForensicClockContext.house_system_code || '';
+  const caseTimestampParts = formatForensicTimestampParts(caseTimestamp, caseTimezoneName || caseTimezone);
+  const caseDateLabel = caseTimestampParts.datePart || 'Date pending';
+  const caseTimeLabel = caseTimestampParts.timePart || 'Time pending';
+  const caseLocationLabel = formatForensicLocationLabel(caseLocation);
+  const chartSourceLabel = chartSource === 'snap' ? 'Saved Snap' : 'Current Chart';
+  const selectedSnapParts = getForensicSnapMetaParts(selectedSnap);
+  const caseScopeLabel = `${chartSourceLabel} · Traditional + Modern${caseHouseSystem ? ` · ${caseHouseSystem}` : ''}`;
+  const activeCaseTypeLabel = caseTypeOptions.find((option) => option.value === caseType)?.label || caseType;
+  const hasSnapOptions = snapOptions.length > 0;
+  const switchForensicToSnap = () => {
+    setChartSource('snap');
+    if (!selectedSnapId && hasSnapOptions) setSelectedSnapId(String(snapOptions[0].id || ''));
+  };
+  const rawControlActive = includeRaw || forensicTab === 'raw';
+  const ascRulerPlacement = (
+    data?.asc_ruler_placement && typeof data.asc_ruler_placement === 'object'
+      ? data.asc_ruler_placement
+      : (features?.asc_ruler_placement && typeof features.asc_ruler_placement === 'object' ? features.asc_ruler_placement : {})
+  );
+  const ascRulerPlacementCues = Array.isArray(ascRulerPlacement?.cues) ? ascRulerPlacement.cues.filter(Boolean) : [];
+  const rawEvidenceGroups = [
+    {
+      title: 'Case Context',
+      payload: {
+        timestamp: data?.timestamp || effectiveForensicClockContext.datetime,
+        location: data?.location || effectiveForensicClockContext.location,
+        timezone: data?.timezone_label || data?.timezone || effectiveForensicClockContext.timezone,
+        case_type: caseType,
+        chart_source: chartSource,
+        snap_id: chartSource === 'snap' ? selectedSnapId : undefined,
+        mode: caseMode,
+        house_system: caseHouseSystem,
+      },
+    },
+    {
+      title: 'Case Signals',
+      payload: {
+        categories: data?.categories,
+        axes: replayAxes,
+        findings: rawFindings,
+      },
+    },
+    {
+      title: 'Chart Features',
+      payload: features,
+    },
+    {
+      title: 'Relationship & Survivability',
+      payload: {
+        dominance: data?.dominance,
+        survivability: data?.survivability,
+        receptions: data?.receptions,
+        light_mediation: data?.light_mediation,
+        relationship_status: data?.relationship_status,
+        relationship_star_hits: data?.relationship_star_hits,
+      },
+    },
+    {
+      title: 'Abduction Map',
+      payload: {
+        abduction_map: data?.abduction_map,
+        abduction_map_error: data?.abduction_map_error,
+      },
+    },
+  ];
+  const formatFindingEvidenceKey = (key) => String(key || '')
+    .split('.')
+    .filter(Boolean)
+    .map((part) => formatForensicDisplayLabel(part))
+    .join(' / ');
+  const formatFindingEvidenceValue = (value, depth = 0) => {
+    if (value == null || value === '') return '-';
+    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+    if (typeof value === 'number') return Number.isFinite(value) ? String(value) : '-';
+    if (Array.isArray(value)) {
+      if (!value.length) return '-';
+      const parts = value
+        .slice(0, 4)
+        .map((item) => formatFindingEvidenceValue(item, depth + 1))
+        .filter((part) => part && part !== '-');
+      if (value.length > 4) parts.push(`+${value.length - 4} more`);
+      return parts.join(' | ') || '-';
+    }
+    if (typeof value === 'object') {
+      if (depth > 1) {
+        try {
+          return cleanForensicDisplayText(JSON.stringify(value));
+        } catch (_) {
+          return '-';
+        }
+      }
+      const entries = Object.entries(value);
+      if (!entries.length) return '-';
+      const parts = entries
+        .slice(0, 4)
+        .map(([key, item]) => `${formatForensicDisplayLabel(key)}: ${formatFindingEvidenceValue(item, depth + 1)}`)
+        .filter(Boolean);
+      if (entries.length > 4) parts.push(`+${entries.length - 4} more`);
+      return parts.join(' | ') || '-';
+    }
+    return cleanForensicDisplayText(value);
+  };
+  const buildFindingEvidenceRows = (finding) => (
+    Object.entries(finding?.evidence && typeof finding.evidence === 'object' ? finding.evidence : {})
+      .map(([key, value]) => ({
+        key: formatFindingEvidenceKey(key),
+        value: formatFindingEvidenceValue(value),
+      }))
+      .filter((row) => row.key && row.value && row.value !== '-')
+      .slice(0, 5)
+  );
+  const getFindingToneClass = (finding) => {
+    const blob = `${finding?.category || ''} ${finding?.title || ''}`.toLowerCase();
+    if (/violence|homicide|death|malefic|stress|headwind|danger|fatal/.test(blob)) return 'is-rose';
+    if (/deception|abduction|missing|water|drowning|child|children|accident|disaster/.test(blob)) return 'is-amber';
+    if (/public|authority|family|household|relationship|associate|witness/.test(blob)) return 'is-teal';
+    return '';
+  };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-start justify-center p-4 overflow-auto">
-      {/* Floating close button for the entire overlay */}
-      <div className="absolute top-4 right-4">
-        <div role="button" tabIndex={0} onClick={onClose}
-             onKeyDown={(e)=>{ if (e.key==='Enter' || e.key===' ') { e.preventDefault(); onClose?.(); } }}
-             className="text-[11px] px-2 py-0.5 border rounded bg-white/90 hover:bg-white cursor-pointer select-none shadow">Close</div>
-      </div>
-      <div className="w-full max-w-5xl space-y-4">
+    <div className="forensic-dossier-overlay">
+      <div className="forensic-dossier forensic-dossier-shell">
+        <div className="forensic-dossier-topbar">
+          <div className="forensic-dossier-brand">
+            <div className="forensic-dossier-mark">∞</div>
+            <div>
+              <div className="forensic-dossier-breadcrumb">
+                <span>ASTRO CLOCK</span>
+                <span>/</span>
+                <strong>FORENSIC</strong>
+              </div>
+            </div>
+          </div>
+          <div className="forensic-dossier-top-actions">
+            <span><span className="forensic-dossier-live-dot" />{loading ? 'Syncing' : 'Live dossier'}</span>
+            <button type="button" className="forensic-dossier-close" onClick={onClose}>Close</button>
+          </div>
+        </div>
 
-        {card('Directional Findings', (
+        <div className="forensic-dossier-context">
+          <div className="forensic-dossier-case-main">
+            <div className="forensic-dossier-label">Case Snapshot</div>
+            <div className="forensic-dossier-title"><span className="forensic-dossier-title-dot" />{caseLocationLabel}</div>
+            <div className="forensic-dossier-meta">
+              <span>{caseDateLabel}</span>
+              <span className="forensic-dossier-divider">·</span>
+              <span>{caseTimeLabel}</span>
+              <span className="forensic-dossier-divider">·</span>
+              <span>{caseLocationLabel}</span>
+              {caseTimezone && <><span className="forensic-dossier-divider">·</span><span>{caseTimezone}</span></>}
+            </div>
+          </div>
+          <div className="forensic-dossier-scope">
+            <div className="forensic-dossier-label">Chart Scope</div>
+            <div className="forensic-dossier-scope-title">{caseScopeLabel}</div>
+            <div className="forensic-dossier-meta forensic-dossier-meta-right">
+              <span>{String(caseMode).replace(/_/g, ' ')}</span>
+              <span className="forensic-dossier-divider">·</span>
+              <span>{rawFindings.length} findings</span>
+              <span className="forensic-dossier-divider">·</span>
+              <span>{replayAxes.length} axes</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="forensic-dossier-controls">
+          <div className="forensic-dossier-control-group forensic-dossier-source-group">
+            <span className="forensic-dossier-label mb-0 mr-1">Chart Source</span>
+            <button
+              type="button"
+              aria-pressed={chartSource === 'current'}
+              className={`forensic-dossier-pill ${chartSource === 'current' ? 'is-active' : ''}`}
+              onClick={() => setChartSource('current')}
+            >
+              Current Chart
+            </button>
+            <button
+              type="button"
+              aria-pressed={chartSource === 'snap'}
+              className={`forensic-dossier-pill ${chartSource === 'snap' ? 'is-active' : ''}`}
+              onClick={switchForensicToSnap}
+            >
+              Saved Snap
+            </button>
+            <select
+              aria-label="Forensic saved snap"
+              value={selectedSnapId}
+              onChange={(event) => {
+                setSelectedSnapId(event.target.value);
+                setChartSource('snap');
+              }}
+              disabled={loadingSnaps || !hasSnapOptions}
+              className="forensic-dossier-snap-select"
+            >
+              <option value="">{loadingSnaps ? 'Loading saved snaps...' : 'Select a saved snap'}</option>
+              {snapOptions.map((snap) => (
+                <option key={snap.id} value={snap.id}>{formatForensicSnapLabel(snap)}</option>
+              ))}
+            </select>
+            {typeof onRefreshSnaps === 'function' ? (
+              <button
+                type="button"
+                className="forensic-dossier-action"
+                onClick={() => onRefreshSnaps({ silent: true })}
+                disabled={loadingSnaps}
+              >
+                {loadingSnaps ? 'Loading' : 'Refresh'}
+              </button>
+            ) : null}
+            {chartSource === 'snap' && selectedSnap ? (
+              <span className="forensic-dossier-source-note">
+                {selectedSnapParts.label}
+                {selectedSnapParts.location ? ` / ${selectedSnapParts.location}` : ''}
+              </span>
+            ) : null}
+            {chartSource === 'snap' && snapSelectionMessage && (!selectedSnap || !selectedSnapContext) ? (
+              <span className="forensic-dossier-source-note is-muted">{snapSelectionMessage}</span>
+            ) : null}
+          </div>
+          <div className="forensic-dossier-control-group forensic-dossier-case-type-group">
+            <span className="forensic-dossier-label mb-0 mr-1">Case Type</span>
+            {caseTypeOptions.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={caseType === option.value}
+                className={`forensic-dossier-pill ${caseType === option.value ? 'is-active' : ''}`}
+                onClick={() => setCaseType(option.value)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <div className="forensic-dossier-action-group">
+            <button
+              type="button"
+              aria-pressed={rawControlActive}
+              className={`forensic-dossier-action ${rawControlActive ? 'is-active' : ''}`}
+              onClick={() => {
+                const next = !includeRaw;
+                setIncludeRaw(next);
+                setForensicTab(next ? 'raw' : (forensicTab === 'raw' ? 'findings' : forensicTab));
+              }}
+            >
+              Raw
+            </button>
+            <button
+              type="button"
+              aria-pressed={abductionMode}
+              className={`forensic-dossier-action ${abductionMode ? 'is-active' : ''}`}
+              onClick={() => {
+                const next = !abductionMode;
+                setAbductionMode(next);
+                setForensicTab(next ? 'abduction' : 'findings');
+              }}
+            >
+              Abduction View
+            </button>
+            <button
+              type="button"
+              className={`forensic-dossier-action ${copiedBrief ? 'is-active' : 'is-accent'}`}
+              onClick={async () => {
+                try {
+                  const txt = buildAIBrief(includeRaw);
+                  await navigator.clipboard.writeText(txt);
+                  setCopiedBrief(true);
+                  setTimeout(()=> setCopiedBrief(false), 2000);
+                } catch(_){/*noop*/}
+              }}
+            >
+              {copiedBrief ? 'Copied' : 'AI Brief · Copy'}
+            </button>
+            <button
+              type="button"
+              className="forensic-dossier-action is-solid"
+              onClick={async ()=>{
+                try {
+                  const html = buildReportHTML();
+                  const electronExporter = window.electronAPI?.exportReport;
+                  if (typeof electronExporter === 'function') {
+                    const res = await electronExporter({ html, pageSize: 'A4' });
+                    if (res?.ok) { setAbdMsg(`Report saved: ${res.path}`); return; }
+                    setAbdMsg(`Export failed: ${res?.error || 'Unable to create PDF'}`);
+                    return;
+                  }
+                  const printed = await printReportHtmlInBrowser(html);
+                  if (printed) {
+                    setAbdMsg('Opened browser print dialog - choose "Save as PDF"');
+                  } else {
+                    setAbdMsg('Unable to open print dialog');
+                  }
+                } catch (e) { console.warn('Export error', e); }
+              }}
+            >
+              Export PDF
+            </button>
+          </div>
+        </div>
+        {abdMsg && (
+          <div className="mt-2 text-[11px] text-zinc-600" role="status" aria-live="polite">
+            {abdMsg}
+          </div>
+        )}
+
+        <div className="forensic-dossier-tabs" role="tablist" aria-label="Forensic sections">
+          {forensicTabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={forensicTab === tab.id}
+              className={`forensic-dossier-tab ${forensicTab === tab.id ? 'is-active' : ''}`}
+              onClick={() => setForensicTab(tab.id)}
+            >
+              {tab.label}
+              {tab.count != null && <span className="forensic-dossier-count">{tab.count}</span>}
+            </button>
+          ))}
+        </div>
+
+        <div className="forensic-dossier-content">
+
+        {forensicError && card('Forensic Error', (
+          <div role="alert" className="text-sm text-rose-700">
+            {forensicError}
+          </div>
+        ))}
+
+        {showForensicSection('findings') && card('Verdict', (
+          loading ? <div className="text-sm text-zinc-500">Loading…</div> : (
+            <div className="forensic-dossier-verdict">
+              <div className="forensic-dossier-verdict-lead">
+                <div className="forensic-dossier-label mb-1">Case Signal</div>
+                <div className={`forensic-dossier-score ${survivalToneClass}`}>
+                  <span>{caseSignalScore}</span>
+                  <small>/100 pressure</small>
+                </div>
+                <div className={`forensic-dossier-scale ${survivalToneClass}`} aria-hidden="true">
+                  <span style={{ width: `${caseSignalScore}%` }} />
+                </div>
+                <div className="forensic-dossier-scale-labels">
+                  <span>Low</span>
+                  <span>Pressure</span>
+                </div>
+                <div className="forensic-dossier-card-note">
+                  <span className="sr-only">{survivabilitySummaryText}</span>
+                  {[outcomeBandLabel, survival.level ? `${survival.level} survivability` : null, fatalPressureDominant ? 'fatal pressure dominates' : null, survival.note].filter(Boolean).join(' · ') || 'Awaiting survivability signal.'}
+                </div>
+              </div>
+
+              <div className="forensic-dossier-verdict-body">
+                <div className="forensic-dossier-label mb-2">Relationship Signature</div>
+                <h4 className="forensic-dossier-verdict-title">{relationshipInsight?.summary?.relationshipType || relationshipSnapshot.relationshipType}</h4>
+                <div className="forensic-dossier-index-grid">
+                  <div className="forensic-dossier-index-card">
+                    <div className="forensic-dossier-label">Violence Index</div>
+                    <div className="forensic-dossier-stat-value is-rose">+{violenceIndex}</div>
+                    <div className="forensic-dossier-stat-line is-rose" />
+                  </div>
+                  <div className="forensic-dossier-index-card">
+                    <div className="forensic-dossier-label">Deception Index</div>
+                    <div className="forensic-dossier-stat-value is-amber">+{deceptionIndex}</div>
+                    <div className="forensic-dossier-stat-line is-amber" />
+                  </div>
+                  <div className="forensic-dossier-index-card">
+                    <div className="forensic-dossier-label">Survivability</div>
+                    <div className={`forensic-dossier-stat-value ${survivalToneClass}`}>{survivabilityPercent}%</div>
+                    <div className={`forensic-dossier-stat-line ${survivalToneClass}`} />
+                  </div>
+                </div>
+                {showLightMediationImpact ? (
+                  <div className="forensic-dossier-light-impact">
+                    <div className="forensic-dossier-light-impact-head">
+                      <div>
+                        <div className="forensic-dossier-label">Light Mediation Impact</div>
+                      </div>
+                      <div className={`forensic-dossier-light-impact-score ${lightMediationImpactTone}`}>
+                        {formatForensicSignedScore(lightMediationImpact.score_delta)}
+                      </div>
+                    </div>
+                    <div className="forensic-dossier-light-impact-grid">
+                      <div>
+                        <span>Effect</span>
+                        <strong>
+                          {`${formatForensicSignedScore(lightMediationImpact.light_mediation_score ?? lightMediationImpact.score_delta)} ${formatLightMediationEffect(lightMediationImpact.effect)}`}
+                        </strong>
+                      </div>
+                      {lightMediationImpact.tilt ? (
+                        <div>
+                          <span>Tilt</span>
+                          <strong>{formatLightMediationTilt(lightMediationImpact.tilt)}</strong>
+                        </div>
+                      ) : null}
+                      <div>
+                        <span>Baseline</span>
+                        <strong>
+                          {[
+                            `Without light mediation: ${formatForensicSignedScore(lightMediationImpact.score_without_light_mediation)}`,
+                            lightMediationImpact.level_without_light_mediation,
+                            lightMediationImpact.outcome_band_without_light_mediation
+                              ? formatSurvivabilityBandLabel(lightMediationImpact.outcome_band_without_light_mediation)
+                              : null,
+                          ].filter(Boolean).join(' · ')}
+                        </strong>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          )
+        ))}
+
+        {showForensicSection('findings') && card('Directional Findings', (
           loading ? <div className="text-sm text-zinc-500">Loading…</div> : (
             <div className="text-sm space-y-3">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="border rounded p-2">
+                <div className="forensic-dossier-panel">
                   <div className="font-medium mb-1">Case Axes</div>
-                  <div className="flex flex-wrap gap-1">
+                  <div className="forensic-dossier-card-subtitle">Primary case-axis signals found in the scan.</div>
+                  <div className="forensic-dossier-chip-row">
                     {replayAxes.length ? replayAxes.map((axis) => (
-                      <span key={axis} className="text-[11px] px-2 py-0.5 rounded border border-zinc-300 bg-zinc-50">
+                      <span key={axis} className="forensic-dossier-chip is-teal">
+                        <span className="forensic-dossier-chip-dot" />
                         {formatForensicDisplayLabel(axis)}
                       </span>
                     )) : <span className="text-xs text-zinc-500">-</span>}
                   </div>
                 </div>
-                <div className="border rounded p-2">
-                  <div className="font-medium mb-1">Engine Categories</div>
-                  <div className="flex flex-wrap gap-1">
+                <div className="forensic-dossier-panel">
+                  <div className="font-medium mb-1">Finding Groups</div>
+                  <div className="forensic-dossier-card-subtitle">How the scan grouped the active findings.</div>
+                  <div className="forensic-dossier-chip-row">
                     {categoryEntries.length ? categoryEntries.map(([name, count]) => (
-                      <span key={name} className="text-[11px] px-2 py-0.5 rounded border border-zinc-300 bg-white">
-                        {name}: {count}
+                      <span key={name} className="forensic-dossier-chip">
+                        <span className="forensic-dossier-chip-dot" />
+                        {`${name}: ${count}`}
                       </span>
                     )) : <span className="text-xs text-zinc-500">-</span>}
                   </div>
                 </div>
-                <div className="border rounded p-2 md:col-span-2">
-                  <div className="font-medium mb-1">Top Findings</div>
-                  <div className="flex flex-wrap gap-1">
-                    {rawFindings.length ? rawFindings.slice(0, 8).map((finding, idx) => (
-                      <span
-                        key={`${finding?.title || 'finding'}-${idx}`}
-                        className="max-w-full min-w-0 whitespace-normal break-words text-[11px] leading-snug px-2 py-0.5 rounded border border-zinc-300 bg-white"
-                      >
-                        {cleanForensicDisplayText(finding?.title || '-')}
-                      </span>
-                    )) : <span className="text-xs text-zinc-500">-</span>}
-                  </div>
-                </div>
-                <div className="border rounded p-2 md:col-span-2">
+                <div className="forensic-dossier-panel md:col-span-2">
                   <div className="font-medium mb-1">Finding Notes</div>
-                  <div className="space-y-2">
-                    {rawFindings.length ? rawFindings.slice(0, 8).map((finding, idx) => {
+                  <div className="forensic-dossier-card-subtitle">Key findings with supporting chart details.</div>
+                  {topFindings.length ? (
+                    <ul className="forensic-dossier-finding-list">
+                    {topFindings.map((finding, idx) => {
                       const title = cleanForensicDisplayText(finding?.title || '-');
                       const rationale = cleanForensicDisplayText(finding?.rationale || '');
                       const isOpen = expandedFindingIndex === idx;
+                      const category = cleanForensicDisplayText(finding?.category || 'Uncategorized');
+                      const weight = Number(finding?.weight);
+                      const weightLabel = Number.isFinite(weight) ? String(weight) : null;
+                      const toneClass = getFindingToneClass(finding);
+                      const evidenceRows = buildFindingEvidenceRows(finding);
+                      const panelId = `forensic-finding-${idx}`;
                       return (
-                        <div key={`${title}-${idx}`} className="rounded border border-zinc-200 bg-white">
+                        <li key={`${title}-${idx}`} className={`forensic-dossier-finding-row ${isOpen ? 'is-open' : ''}`}>
                           <button
                             type="button"
                             aria-expanded={isOpen ? 'true' : 'false'}
+                            aria-controls={panelId}
                             onClick={() => setExpandedFindingIndex(isOpen ? null : idx)}
-                            className="w-full min-w-0 flex items-start gap-2 px-2 py-1.5 text-left hover:bg-zinc-50"
+                            className="forensic-dossier-finding-head"
                           >
-                            <span className="inline-block w-4 shrink-0 text-[11px] text-zinc-500">{isOpen ? '▾' : '▸'}</span>
-                            <span className="min-w-0 whitespace-normal break-words text-[11px] leading-snug text-zinc-800">{title}</span>
+                            <span className="forensic-dossier-finding-head-main">
+                              <span className="forensic-dossier-note-number">{String(idx + 1).padStart(2, '0')}</span>
+                              <span className="forensic-dossier-finding-title">{title}</span>
+                            </span>
+                            <span className="forensic-dossier-finding-right">
+                              <span className={`forensic-dossier-finding-tag ${toneClass}`}>{category}</span>
+                              {weightLabel ? <span className="forensic-dossier-finding-weight">Weight {weightLabel}</span> : null}
+                              <span className="forensic-dossier-finding-chev" aria-hidden="true">&gt;</span>
+                            </span>
                           </button>
                           {isOpen && (
-                            <div className="border-t border-zinc-200 px-6 py-2 whitespace-normal break-words text-[11px] leading-snug text-zinc-600">
-                              {rationale || 'No rationale supplied.'}
+                            <div id={panelId} className="forensic-dossier-finding-body">
+                              <p className="forensic-dossier-finding-copy">{rationale || 'No rationale supplied.'}</p>
+                              {evidenceRows.length ? (
+                                <div className="forensic-dossier-finding-data">
+                                  {evidenceRows.map((row) => (
+                                    <div key={row.key} className="forensic-dossier-finding-data-row">
+                                      <span className="forensic-dossier-finding-key">{row.key}</span>
+                                      <span className="forensic-dossier-finding-value">{row.value}</span>
+                                      <span className={`forensic-dossier-finding-tag ${toneClass}`}>Evidence</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : null}
                             </div>
                           )}
-                        </div>
+                        </li>
                       );
-                    }) : <div className="text-xs text-zinc-500">-</div>}
-                  </div>
+                    })}
+                    </ul>
+                  ) : <div className="text-xs text-zinc-500">-</div>}
                 </div>
               </div>
             </div>
           )
         ))}
 
-        {card('Victim Analysis', (
+        {showForensicSection('victim') && card('Victim Analysis', (
           loading ? <div className="text-sm text-zinc-500">Loading…</div> : (
             <div className="text-sm space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-[11px]">
-                  <span className="px-2 py-0.5 border rounded">Asc Sign: {ascSign || '-'}</span>
-                  <span className="px-2 py-0.5 border rounded">Primary Ruler: {primaryRuler || '-'}</span>
-                  <span className="px-2 py-0.5 border rounded">Co-Rulers: {coRulers.join(', ')}</span>
-                  <select value={caseType} onChange={e=>setCaseType(e.target.value)} className="px-2 py-0.5 border rounded">
-                    <option value="general">General</option>
-                    <option value="child">Child case</option>
-                    <option value="adult_female">Adult female</option>
-                  </select>
-                </div>
-                <div role="button" tabIndex={0}
-                     onClick={()=> setAbductionMode(v=>!v)}
-                     onKeyDown={(e)=>{ if (e.key==='Enter' || e.key===' '){ e.preventDefault(); setAbductionMode(v=>!v);} }}
-                     className={`text-[11px] px-2 py-0.5 border rounded cursor-pointer select-none ${abductionMode? 'bg-zinc-900 text-white':'bg-white'}`}>Abduction View</div>
-                <label className="flex items-center gap-1 text-[11px] ml-2">
-                  <input type="checkbox" checked={includeRaw} onChange={e=>setIncludeRaw(e.target.checked)} />
-                  <span>RAW</span>
-                </label>
-                <div role="button" tabIndex={0}
-                     onClick={async ()=> { try { const txt = buildAIBrief(includeRaw); await navigator.clipboard.writeText(txt); setCopiedBrief(true); setTimeout(()=> setCopiedBrief(false), 2000);} catch(_){/*noop*/} }}
-                     onKeyDown={async (e)=>{ if (e.key==='Enter' || e.key===' ') { e.preventDefault(); try { const txt = buildAIBrief(includeRaw); await navigator.clipboard.writeText(txt); setCopiedBrief(true); setTimeout(()=> setCopiedBrief(false), 2000);} catch(_){/*noop*/} } }}
-                     className={`text-[11px] px-2 py-0.5 border rounded cursor-pointer select-none ${copiedBrief? 'bg-zinc-900 text-white':'bg-white'}`}>{copiedBrief? 'Copied' : 'AI Brief (Copy)'}</div>
-                <button
-                  type="button"
-                  className="text-[11px] px-2 py-0.5 border rounded bg-white hover:bg-zinc-50"
-                  onClick={async ()=>{
-                    try {
-                      const html = buildReportHTML();
-                      if (window.electronAPI?.exportReport) {
-                        const res = await window.electronAPI.exportReport({ html, pageSize: 'A4' });
-                        if (res?.ok) { setAbdMsg(`Report saved: ${res.path}`); }
-                        else { console.warn('Export failed:', res?.error); setAbdMsg('Export failed - trying browser print…'); }
-                      }
-                      if (!window.electronAPI?.exportReport) {
-                        // Fallback: open in new tab and trigger print dialog
-                        const w = window.open('', '_blank');
-                        if (w && w.document) {
-                          w.document.write(html);
-                          w.document.close();
-                          setTimeout(()=> { try { w.focus(); w.print(); } catch(_){} }, 250);
-                          setAbdMsg('Opened browser print dialog - choose "Save as PDF"');
-                        } else {
-                          setAbdMsg('Unable to open print dialog');
-                        }
-                      }
-                    } catch (e) { console.warn('Export error', e); }
-                  }}
-                >Export PDF</button>
+              <div className="forensic-dossier-section-strip">
+                <span>Asc Sign: {ascSign || '-'}</span>
+                <span>Primary Ruler: {primaryRuler || '-'}</span>
+                <span>Co-Rulers: {coRulers.join(', ')}</span>
+                <span>Case Type: {activeCaseTypeLabel}</span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="border rounded p-2">
                   <div className="font-medium mb-1">Victim Identification</div>
-                  <div className="text-xs text-zinc-600">Primary ruler and co-rulers per case profile.</div>
+                  <div className="text-xs text-zinc-600">Selected significators for this case type.</div>
                   <div className="mt-1 text-xs">Angular rulers: {[primaryRuler, ...coRulers].filter(Boolean).filter((p)=>Boolean(features?.planets?.[p]?.angular)).join(', ') || '-'}</div>
                   <div className="mt-1 text-xs">Primary ruler dominance: {(() => { const d = domInfo(primaryRuler); return d ? `${d.score} (${d.level})` : '-'; })()}</div>
                   {(() => {
@@ -3170,7 +5169,20 @@ function ForensicDashboard({ onClose, clockContext }){
                   <div className="font-medium mb-1">Victim Location Matrix</div>
                   <ul className="text-xs list-disc ml-4 space-y-1">
                     <li>1st House: immediate surroundings (ASC sign {ascSign || '-'}).</li>
-                    <li>Angular houses: indicate victim’s control level (angular rulers listed above).</li>
+                    {ascRulerPlacement?.ruler || ascRulerPlacement?.house ? (
+                      <li>
+                        ASC-ruler placement:{' '}
+                        <span className="font-semibold">
+                          {[ascRulerPlacement.ruler, ascRulerPlacement.house ? `in H${ascRulerPlacement.house}` : null].filter(Boolean).join(' ')}
+                        </span>
+                        {ascRulerPlacement.label ? <span> · {ascRulerPlacement.label}</span> : null}
+                        {ascRulerPlacement.summary ? <span> · {ascRulerPlacement.summary}</span> : null}
+                      </li>
+                    ) : null}
+                    {ascRulerPlacementCues.length ? (
+                      <li>McIntosh cues: {ascRulerPlacementCues.join(' · ')}</li>
+                    ) : null}
+                    <li>Angular placements: immediacy, visibility, and direct contact.</li>
                     <li>Victim significators: {Array.isArray(survival.victimSignificators) && survival.victimSignificators.length ? survival.victimSignificators.join(' · ') : [primaryRuler, ...coRulers].filter(Boolean).join(' · ') || '-'}</li>
                       <li>
                         Survivability signal:{' '}
@@ -3188,7 +5200,7 @@ function ForensicDashboard({ onClose, clockContext }){
                             const recoverySupport = Number(survival.breakdown.recovery_support || 0);
                             return (
                               <>
-                          Basis: vitality {survival.breakdown.vitality >= 0 ? '+' : ''}{survival.breakdown.vitality} ·
+                          Score basis: vitality {survival.breakdown.vitality >= 0 ? '+' : ''}{survival.breakdown.vitality} ·
                           accidental {accidental >= 0 ? '+' : ''}{accidental} ·
                           support {survival.breakdown.support >= 0 ? '+' : ''}{survival.breakdown.support} ·
                           recovery support {recoverySupport >= 0 ? '+' : ''}{recoverySupport} ·
@@ -3216,27 +5228,27 @@ function ForensicDashboard({ onClose, clockContext }){
             </div>
           )
         ))}
-        {abductionMode && card('Abduction Cues', (
+        {showForensicSection('abduction') && card('Abduction Cues', (
           loading ? <div className="text-sm text-zinc-500">Loading…</div> : (
             <div className="text-sm space-y-3">
               {/* Origin input and fetch controls */}
               <div className="text-[11px] text-zinc-600">
                 Use the last known point, seizure point, or reporting origin as the map anchor.
               </div>
-              <div className="flex items-end gap-2 text-xs">
-                <div>
-                  <div className="text-[11px] text-zinc-600">Origin Latitude</div>
-                  <input value={originLat} onChange={e=>setOriginLat(e.target.value)} className="px-2 py-1 border rounded w-40" placeholder="e.g., 40.7608" inputMode="decimal" />
-                </div>
-                <div>
-                  <div className="text-[11px] text-zinc-600">Origin Longitude</div>
-                  <input value={originLon} onChange={e=>setOriginLon(e.target.value)} className="px-2 py-1 border rounded w-40" placeholder="e.g., -111.8910" inputMode="decimal" />
-                </div>
-                <button type="button" className={`px-2 py-1 rounded border ${fetchingAbd? 'bg-zinc-200':'hover:bg-zinc-50'}`} onClick={async()=>{
+              <div className="forensic-dossier-field-grid">
+                <label className="forensic-dossier-field">
+                  <span>Origin Latitude</span>
+                  <input value={originLat} onChange={e=>setOriginLat(e.target.value)} className="forensic-dossier-input" placeholder="e.g., 40.7608" inputMode="decimal" />
+                </label>
+                <label className="forensic-dossier-field">
+                  <span>Origin Longitude</span>
+                  <input value={originLon} onChange={e=>setOriginLon(e.target.value)} className="forensic-dossier-input" placeholder="e.g., -111.8910" inputMode="decimal" />
+                </label>
+                <button type="button" disabled={fetchingAbd} className={`forensic-dossier-action ${fetchingAbd ? 'is-active' : ''}`} onClick={async()=>{
                   const latStr = normalizeCoordinateInput(originLat); const lonStr = normalizeCoordinateInput(originLon);
                   const lat = parseFloat(latStr); const lon = parseFloat(lonStr);
                   if (!isFinite(lat)||!isFinite(lon)) { setAbdMsg('Invalid coordinates. Example: 40.7608, -111.8910'); return; }
-                  console.log('[Abduction] Fetch click with origin:', lat, lon);
+                  setAbductionMode(true);
                   setFetchingAbd(true);
                   setAbdMsg('Fetching abduction map…');
                   try { await fetchForensic({ abduction: true, origin: `${lat},${lon}`, line_zones: true }); }
@@ -3244,8 +5256,6 @@ function ForensicDashboard({ onClose, clockContext }){
                   finally { setFetchingAbd(false); }
                 }}>{fetchingAbd? 'Fetching…':'Load Abduction Map'}</button>
               </div>
-              {abdMsg && <div className="text-[11px] text-zinc-600">{abdMsg}</div>}
-
               {(() => {
                 try {
                   const summary = buildAbductionCueSummary({ data, features });
@@ -3278,7 +5288,6 @@ function ForensicDashboard({ onClose, clockContext }){
                             <div className="text-xs">Context modifiers: {summary.modifiers.join(' · ')}</div>
                           )}
                         </div>
-                      {/* Combo Matches panel removed per request */}
                     </div>
                   );
                 } catch(_) { return <div className="text-xs text-zinc-500">Unavailable</div>; }
@@ -3287,7 +5296,7 @@ function ForensicDashboard({ onClose, clockContext }){
           )
         ))}
 
-        {abductionMode && card('Abduction Map', (
+        {showForensicSection('abduction') && card('Abduction Map', (
           (() => {
             const abd = data?.abduction_map || {};
             const origin = abd.origin || {};
@@ -3377,7 +5386,6 @@ function ForensicDashboard({ onClose, clockContext }){
                         );
                       });
                     })()}
-                    {/* Zones removed */}
                   </MapContainer>
                   <div className="absolute top-2 right-2 z-[1001] pointer-events-none bg-white/90 backdrop-blur rounded border px-2 py-1 text-[11px] space-y-0.5 shadow">
                     {(() => { try {
@@ -3483,7 +5491,7 @@ function ForensicDashboard({ onClose, clockContext }){
                       const azNum = (b?.azimuth_deg!=null)? Number(b.azimuth_deg) : null;
                       const az = (azNum!=null)? `${azNum.toFixed(1)}°` : '-';
                       const alt = (b?.altitude_deg!=null)? `${Number(b.altitude_deg).toFixed(1)}°` : '-';
-                      const w = (b?.weight!=null)? Number(b.weight).toFixed(2) : '-';
+                      const weight = (b?.weight!=null)? Number(b.weight).toFixed(2) : '-';
                       const dms = dmsCard4(azNum);
                       const qns = dmsNS(azNum);
                       let extra = null;
@@ -3494,7 +5502,7 @@ function ForensicDashboard({ onClose, clockContext }){
                         const backDec = (back!=null)? `${back.toFixed(1)}°` : '-';
                         extra = <> · back 180° {backDec} · {backDms} · NS {backQns}</>;
                       }
-                      return <li key={i}>{formatAbductionBearingRoleLabel(b)}: {b.planet} - {az} (alt {alt}) · {house} {sign} · w={w} · {dms} · NS {qns}{extra}</li>;
+                      return <li key={i}>{formatAbductionBearingRoleLabel(b)}: {b.planet} - {az} (alt {alt}) · {house} {sign} · weight {weight} · {dms} · NS {qns}{extra}</li>;
                     });
                     return (
                       <ul className="list-disc ml-4 space-y-0.5">{items.length? items : <li>-</li>}</ul>
@@ -3506,7 +5514,7 @@ function ForensicDashboard({ onClose, clockContext }){
           })()
         ))}
 
-        {card('Perpetrator Analysis', (
+        {showForensicSection('perpetrator') && card('Perpetrator Analysis', (
           loading ? <div className="text-sm text-zinc-500">Loading…</div> : (
             <div className="text-sm space-y-3">
               {(() => {
@@ -3625,37 +5633,16 @@ function ForensicDashboard({ onClose, clockContext }){
                 })();
                 const aspectTo = (target) => {
                   if (!target) return [];
-                  const out = [];
-                  Object.entries(asp).forEach(([k,v])=>{
-                    if (!v) return;
-                    if (k === `${seventhRuler}_to_${target}` || k === `${target}_to_${seventhRuler}`) {
-                      out.push(`${v.type||''}${v.applying? ' (app)': ''}`);
-                    }
+                  return collectRelationshipAspectContacts({
+                    aspects: asp,
+                    source: seventhRuler,
+                    target,
+                    applyingLabel: ' (app)',
                   });
-                  return out;
                 };
-                const chainFrom = (planet) => {
-                  try {
-                    if (!planet) return [];
-                    const sr = { Aries:'Mars', Taurus:'Venus', Gemini:'Mercury', Cancer:'Moon', Leo:'Sun', Virgo:'Mercury', Libra:'Venus', Scorpio:'Mars', Sagittarius:'Jupiter', Capricorn:'Saturn', Aquarius:'Saturn', Pisces:'Jupiter' };
-                    const seen = new Set([planet]);
-                    const chain = [planet];
-                    let current = planet;
-                    for (let i=0;i<8;i++) {
-                      const info = features?.planets?.[current];
-                      const s = info?.sign; if (!s) break;
-                      const disp = sr[s]; if (!disp) break;
-                      // Stop before adding if it would duplicate/self-dispose
-                      if (seen.has(disp)) break;
-                      chain.push(disp);
-                      seen.add(disp);
-                      current = disp;
-                    }
-                    return chain;
-                  } catch { return [planet]; }
-                };
-                const dispChain = chainFrom(seventhRuler);
-                const mutualReception = (dispChain.length>=3 && dispChain[2]===dispChain[0]) || false;
+                const dispositorState = normalizeDispositorState(data?.dispositors?.[seventhRuler], seventhRuler);
+                const dispChain = dispositorState.chain;
+                const mutualReception = Boolean(dispositorState.mutualReception);
                 const lm = data?.light_mediation || {};
                 const translOrCollect = (() => {
                   try {
@@ -3805,7 +5792,7 @@ function ForensicDashboard({ onClose, clockContext }){
                           );
                         } catch(_) { return null; }
                       })()}
-                      <div className="text-xs mt-1">Derived from the 7th: money H{derived.money.house}{derived.money.planets.length? ` -> ${derived.money.planets.join(', ')}`: ''} | home H{derived.home.house}{derived.home.planets.length? ` -> ${derived.home.planets.join(', ')}`: ''} | route/vehicle H{derived.comms.house}{derived.comms.planets.length? ` -> ${derived.comms.planets.join(', ')}`: ''} | friends H{derived.friends.house}{derived.friends.planets.length? ` -> ${derived.friends.planets.join(', ')}`: ''}</div>
+                      <div className="text-xs mt-1">Derived-house links: money H{derived.money.house}{derived.money.planets.length? ` -> ${derived.money.planets.join(', ')}`: ''} | home H{derived.home.house}{derived.home.planets.length? ` -> ${derived.home.planets.join(', ')}`: ''} | route/vehicle H{derived.comms.house}{derived.comms.planets.length? ` -> ${derived.comms.planets.join(', ')}`: ''} | friends H{derived.friends.house}{derived.friends.planets.length? ` -> ${derived.friends.planets.join(', ')}`: ''}</div>
                     </div>
                     <div className="border rounded p-2">
                       <div className="font-medium mb-1">Behavioral Signals</div>
@@ -3927,11 +5914,11 @@ function ForensicDashboard({ onClose, clockContext }){
                               if (victimHouse===4||victimHouse===10) houseFlags.push('Victim ruler in 4th/10th');
                               if (victimHouse===8) houseFlags.push('Victim ruler in 8th (shared resources/intimate)');
                               if (victimHouse===12) houseFlags.push('Victim ruler in 12th (hidden/secret)');
-                              if (perpHouse===1) houseFlags.push('Perp ruler in 1st (immediate proximity)');
-                              if (perpHouse===4||perpHouse===10) houseFlags.push('Perp ruler in 4th/10th');
-                              if (perpHouse===6) houseFlags.push('Perp ruler in 6th (service/subordinate)');
-                              if (perpHouse===11) houseFlags.push('Perp ruler in 11th (friend/associate)');
-                              if (perpHouse===7) houseFlags.push('Perp ruler in 7th (in own domain)');
+                              if (perpHouse===1) houseFlags.push('Perpetrator ruler in 1st (immediate proximity)');
+                              if (perpHouse===4||perpHouse===10) houseFlags.push('Perpetrator ruler in 4th/10th');
+                              if (perpHouse===6) houseFlags.push('Perpetrator ruler in 6th (service/subordinate)');
+                              if (perpHouse===11) houseFlags.push('Perpetrator ruler in 11th (friend/associate)');
+                              if (perpHouse===7) houseFlags.push('Perpetrator ruler in 7th (own domain)');
                               const sameHouse = (victimHouse!=null && perpHouse!=null && victimHouse===perpHouse);
                               if (sameHouse) houseFlags.push('Both rulers in same house (entanglement)');
                               // Critical combinations + scoring for crossovers
@@ -3976,7 +5963,7 @@ function ForensicDashboard({ onClose, clockContext }){
                               const degFlags = [];
                               const mark = (lab,cond)=> { if (cond) degFlags.push(lab); };
                               mark('0° new situation (victim)', dVict===0);
-                              mark('0° new situation (perp)', dPerp===0);
+                              mark('0° new situation (perpetrator)', dPerp===0);
                               mark('15° assassination degree (victim)', dVict===15);
                               mark('15° assassination degree (perp)', dPerp===15);
                               mark('29° crisis (victim)', dVict===29);
@@ -3990,33 +5977,43 @@ function ForensicDashboard({ onClose, clockContext }){
                               if (ascStars.length) starFlags.push(`ASC ruler on ${ascStars.join('/')}`);
                               if (dscStars.length) starFlags.push(`DSC ruler on ${dscStars.join('/')}`);
 
-                              // Scoring
-                              let score = 0; const reasons = [];
-                              // House crossover scoring (applied first)
-                              if (victimHouse===7) { score+=2; reasons.push('Victim ruler in 7th (+2)'); }
-                              if (perpHouse===1) { score+=2; reasons.push('Perp ruler in 1st (+2)'); }
-                              if (perpHouse===7) { score+=1; reasons.push('Perp ruler in 7th (+1)'); }
-                              if (sameHouse) { score+=2; reasons.push('Both rulers in same house (+2)'); }
-                              { const angSet = new Set([1,4,7,10]); if (angSet.has(Number(victimHouse)) && angSet.has(Number(perpHouse))) { score+=1; reasons.push('Both rulers angular (+1)'); } }
-                              if (level1.directVictRulesPerp) { score+=3; reasons.push('Victim ruler rules perpetrator sign'); }
-                              if (level1.directPerpRulesVict) { score+=3; reasons.push('Perp ruler rules victim sign'); }
-                              if (isMutual) { score+=4; reasons.push('Mutual reception'); }
-                              if (level3) { score+=2; reasons.push('Shared triplicity'); }
-                              if (level4_victim_in_exalt_of_perp) { score+=2; reasons.push('Victim in exaltation of perpetrator'); }
-                              if (level4_perp_in_exalt_of_victim) { score+=2; reasons.push('Perp in exaltation of victim'); }
-                              if (level4_victim_in_fall_of_perp) { score+=1; reasons.push('Victim in fall of perpetrator'); }
-                              if (level4_perp_in_fall_of_victim) { score+=1; reasons.push('Perp in fall of victim'); }
-                              if (level5_terms) { score+=1; reasons.push('Terms/bounds connection'); }
-                              if (crit.length) { score+=2; reasons.push('Critical house combination'); }
-                              if (trad.some(t=> t.includes('7th'))) { score+=1; reasons.push('7th-house traditional indicator'); }
-                              if (aspType){ const easy=['conjunction','trine','sextile']; const hard=['square','opposition']; if (easy.includes(aspType)) { score+=2; reasons.push('Harmonious aspect'); } else if (hard.includes(aspType)) { score+=1; reasons.push('Stressful aspect (known)'); } }
-                              if (dVict===0||dVict===15||dVict===29||dPerp===0||dPerp===15||dPerp===29) { score+=1; reasons.push('Critical degree'); }
                               const violentStars = new Set(['Algol','Antares']);
                               const protectStars = new Set(['Spica']);
                               const hasViolent = [...ascStars, ...dscStars].some(n=> violentStars.has(n));
                               const hasProtect = [...ascStars, ...dscStars].some(n=> protectStars.has(n));
-                              if (hasViolent) { score+=2; reasons.push('Violent fixed star on significator'); }
-                              if (hasProtect) { score+=1; reasons.push('Protective fixed star on significator'); }
+                              const moonDispositorTiesPerp = Boolean(f?.moon?.dispositor_to_seventh_ruler_type);
+                              const moonDispositorHardContact = Boolean(f?.moon?.dispositor_to_seventh_ruler_hard);
+                              const moonDispositorCue = moonDispositorTiesPerp
+                                ? `Moon dispositor ${f?.moon?.dispositor || 'ruler'} ${f?.moon?.dispositor_to_seventh_ruler_type || 'contacts'} ${seventhRuler || '7th ruler'}`
+                                : null;
+                              const relationshipScore = scoreForensicRelationshipLink({
+                                victimHouse,
+                                perpHouse,
+                                sameHouse,
+                                directVictRulesPerp: level1.directVictRulesPerp,
+                                directPerpRulesVict: level1.directPerpRulesVict,
+                                isMutual,
+                                level3,
+                                level4VictimInExaltOfPerp: level4_victim_in_exalt_of_perp,
+                                level4PerpInExaltOfVictim: level4_perp_in_exalt_of_victim,
+                                level4VictimInFallOfPerp: level4_victim_in_fall_of_perp,
+                                level4PerpInFallOfVictim: level4_perp_in_fall_of_victim,
+                                directionalReception: uni.some(u=> (u.receiving===firstRuler && u.received===seventhRuler) || (u.receiving===seventhRuler && u.received===firstRuler)),
+                                level5Terms: level5_terms,
+                                criticalFamilyHouse: crit.includes('Both rulers in same family house (4 or 10)'),
+                                lightMediation: lm,
+                                seventhHousePlanets: h7List,
+                                aspectType: aspType,
+                                aspect: a,
+                                criticalDegree: dVict===0||dVict===15||dVict===29||dPerp===0||dPerp===15||dPerp===29,
+                                hasViolentStar: hasViolent,
+                                hasProtectiveStar: hasProtect,
+                                moonDispositorTiesPerp,
+                                moonDispositorHardContact,
+                                victimSignificators: [firstRuler, 'Moon'].filter(Boolean),
+                                perpetratorSignificators: [seventhRuler].filter(Boolean),
+                              });
+                              const score = relationshipScore.score;
 
                               const relationshipSummary = summarizeForensicRelationshipLink({
                                 score,
@@ -4046,7 +6043,7 @@ function ForensicDashboard({ onClose, clockContext }){
                                 houseConnections: (bothIn4 || bothIn10)
                                   ? ['shared family-house placement (4th/10th)']
                                   : houseFlags.concat(crit),
-                                traditionalCues: trad,
+                                traditionalCues: moonDispositorCue ? trad.concat(moonDispositorCue) : trad,
                                 aspectTies: aspectFlags,
                                 degreeStarCues: degFlags.concat(starFlags),
                                 score,
@@ -4083,7 +6080,53 @@ function ForensicDashboard({ onClose, clockContext }){
           )
         ))}
 
-        {card('Witness & Accomplice Detection', (
+        {showForensicSection('relationship') && card('Relationship Signals', (
+          loading ? <div className="text-sm text-zinc-500">Loading…</div> : (
+            <div className="text-sm space-y-3">
+              <div className="forensic-dossier-verdict">
+                <div className="forensic-dossier-verdict-lead">
+                  <div className="forensic-dossier-label mb-1">Relationship Score</div>
+                  <div className="forensic-dossier-score is-teal">
+                    <span>{relationshipInsight?.score ?? 0}</span>
+                    <small>{relationshipInsight?.summary?.confidence || relationshipSnapshot.confidence} confidence</small>
+                  </div>
+                  <div className="forensic-dossier-card-note">
+                    {relationshipInsight?.summary?.relationshipType || relationshipSnapshot.relationshipType}
+                  </div>
+                </div>
+                <div className="forensic-dossier-panel">
+                  <div className="font-medium mb-1">Connection Summary</div>
+                  <div className="text-xs space-y-1">
+                    <div>Contact: {relationshipInsight?.rows?.contactSignals || '-'}</div>
+                    <div>Rulership: {relationshipInsight?.rows?.rulershipLinks || '-'}</div>
+                    <div>Mutual reception: {relationshipInsight?.rows?.mutualReception || '-'}</div>
+                    <div>Triplicity: {relationshipInsight?.rows?.sharedTriplicity || '-'}</div>
+                    <div>Exaltation/fall: {relationshipInsight?.rows?.exaltationFallTies || '-'}</div>
+                    <div>Terms/bounds: {relationshipInsight?.rows?.termBoundsTies || '-'}</div>
+                    <div>House overlap: {relationshipInsight?.rows?.houseOverlap || '-'}</div>
+                    <div>Traditional cues: {relationshipInsight?.rows?.traditionalCues || '-'}</div>
+                    <div>Aspects: {relationshipInsight?.rows?.aspectTies || '-'}</div>
+                    <div>Degree/star cues: {relationshipInsight?.rows?.degreeStarCues || '-'}</div>
+                    <div className="font-medium mt-1">Summary: {relationshipInsight?.rows?.connectionSummary || '-'}</div>
+                  </div>
+                </div>
+              </div>
+              <div className="forensic-dossier-panel">
+                <div className="font-medium mb-1">Supporting Signals</div>
+                <div className="forensic-dossier-chip-row">
+                  {relationshipInsight?.reasons?.length ? relationshipInsight.reasons.map((reason, index) => (
+                    <span key={`${reason}-${index}`} className="forensic-dossier-chip is-teal">
+                      <span className="forensic-dossier-chip-dot" />
+                      {reason}
+                    </span>
+                  )) : <span className="text-xs text-zinc-500">No strong relationship indicators were found.</span>}
+                </div>
+              </div>
+            </div>
+          )
+        ))}
+
+        {showForensicSection('witnesses') && card('Witness & Accomplice Detection', (
           loading ? <div className="text-sm text-zinc-500">Loading…</div> : (
             <div className="text-sm space-y-3">
               {(() => {
@@ -4119,9 +6162,9 @@ function ForensicDashboard({ onClose, clockContext }){
                 return (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div className="border rounded p-2">
-                      <div className="font-medium mb-1">Additional Entities</div>
+                      <div className="font-medium mb-1">Additional People</div>
                       <ul className="text-xs list-disc ml-4 space-y-1">
-                        <li>Mercury (witness/sibling): H{mercuryHouse}{(() => { const q=planetQualifiers('Mercury'); return q.length? ` - ${q.join(' · ')}` : ''; })()}</li>
+                        <li>Mercury witness/sibling marker: H{mercuryHouse}{(() => { const q=planetQualifiers('Mercury'); return q.length? ` - ${q.join(' · ')}` : ''; })()}</li>
                         <li>3rd House (neighbors/local): {(() => { const arr = houseList(3); const out = arr.map(p=> { const q=planetQualifiers(p); return q.length? `${p} - ${q.join(' · ')}`: p; }); return out.length? out.join(', '): '-'; })()}</li>
                         <li>11th House (friends/associates): {(() => { const out = associates.map(p=> { const q=planetQualifiers(p); return q.length? `${p} - ${q.join(' · ')}`: p; }); return out.length? out.join(', '): '-'; })()}</li>
                         <li>6th/12th (hidden enemies): {(() => { const out = hidden.map(p=> { const q=planetQualifiers(p); return q.length? `${p} - ${q.join(' · ')}`: p; }); return out.length? out.join(', '): '-'; })()}</li>
@@ -4129,7 +6172,7 @@ function ForensicDashboard({ onClose, clockContext }){
                       </ul>
                     </div>
                     <div className="border rounded p-2">
-                      <div className="font-medium mb-1">Witness List</div>
+                      <div className="font-medium mb-1">Witness Markers</div>
                       <div className="text-xs">{witnesses.join(', ') || '-'}</div>
                       {(() => {
                         try {
@@ -4149,7 +6192,7 @@ function ForensicDashboard({ onClose, clockContext }){
           )
         ))}
 
-        {card('Deception Configuration', (
+        {showForensicSection('deception') && card('Deception Configuration', (
           loading ? <div className="text-sm text-zinc-500">Loading…</div> : (
             <div className="text-sm">
               {(() => {
@@ -4255,7 +6298,7 @@ function ForensicDashboard({ onClose, clockContext }){
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div className="border rounded p-2">
                         <div className="flex items-center gap-2 mb-1">
-                          <div className="font-medium">Score & Level</div>
+                          <div className="font-medium">Deception Level</div>
                           {(() => {
                             const col = (lvl==='Critical')? '#DC2626' : (lvl==='High')? '#F97316' : (lvl==='Medium')? '#F59E0B' : '#10B981';
                             const hatch = `repeating-linear-gradient(45deg, ${col} 0, ${col} 2px, rgba(255,255,255,0.25) 2px, rgba(255,255,255,0.25) 4px)`;
@@ -4270,15 +6313,14 @@ function ForensicDashboard({ onClose, clockContext }){
                             );
                           })()}
                         </div>
-                        <div className="text-xs">Deception score: <span className="font-semibold">{adjusted}</span> - <span className="font-semibold">{lvl}</span> <span className="text-[10px] text-zinc-500">(raw {score}{truth? ` − ${truth} truth`: ''})</span></div>
-                        <div className="text-[11px] text-zinc-600">Higher scores = more indicators for staged/hidden narratives.</div>
+                        <div className="text-xs">Deception level: <span className="font-semibold">{lvl}</span> <span className="text-zinc-500">({adjusted})</span></div>
                       </div>
                       <div className="border rounded p-2">
-                        <div className="font-medium mb-1">Key Indicators</div>
+                        <div className="font-medium mb-1">Key Signals</div>
                         <div className="text-xs">{show.length? show.join(' · ') : '-'}</div>
                       </div>
                       <div className="border rounded p-2 md:col-span-2">
-                        <div className="font-medium mb-1">Indicator Keywords</div>
+                        <div className="font-medium mb-1">Signal Notes</div>
                         <div className="text-[11px] whitespace-pre-line">{keywordLines.length? keywordLines.join('\n') : '-'}</div>
                       </div>
                     </div>
@@ -4291,7 +6333,7 @@ function ForensicDashboard({ onClose, clockContext }){
           )
         ))}
 
-        {card('Final outcome determination', (
+        {showForensicSection('findings') && card('Outcome Determination', (
           loading ? <div className="text-sm text-zinc-500">Loading…</div> : (
             <div className="text-sm space-y-3">
               {(() => {
@@ -4364,9 +6406,10 @@ function ForensicDashboard({ onClose, clockContext }){
                   } catch(_) { return []; }
                 })();
                 return (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="border rounded p-2">
+                  <div className="forensic-dossier-outcome-grid">
+                    <div className="forensic-dossier-panel">
                       <div className="font-medium mb-1">Primary Analysis Points</div>
+                      <div className="forensic-dossier-card-subtitle">4th-house resolution indicators.</div>
                       <ul className="text-xs list-disc ml-4 space-y-1">
                         <li>4th House Cusp Sign {'->'} {cusp4Sign}{icExpl? ` - ${icExpl}`: ''}</li>
                         <li>4th House Ruler Placement {'->'} {ruler4 ? `${ruler4} in H${ruler4House ?? '-'}` : '-'}{icRulerExpl? ` - ${icRulerExpl}`: ''}</li>
@@ -4375,11 +6418,11 @@ function ForensicDashboard({ onClose, clockContext }){
                         <li>Aspects influencing 4th House (ruler/occupants) {'->'} {infl.length? infl.join(' · ') : '-'}</li>
                       </ul>
                     </div>
-                    <div className="border rounded p-2">
-                      <div className="font-medium mb-1">Outcome Classification Matrix</div>
+                    <div className="forensic-dossier-panel">
+                      <div className="font-medium mb-1">Resolution Pattern</div>
                       <div className="space-y-1">
                         {outcomeTags.map((t, i)=> (
-                          <div key={i} className={`text-xs px-2 py-1 rounded border ${t.ok? 'border-emerald-300 bg-emerald-50' : 'border-zinc-200'}`}>
+                          <div key={i} className={`forensic-dossier-outcome-row ${t.ok ? 'is-active' : ''}`}>
                             {t.label}{t.extra? ` - ${t.extra}`:''}
                           </div>
                         ))}
@@ -4391,7 +6434,30 @@ function ForensicDashboard({ onClose, clockContext }){
             </div>
           )
         ))}
+        {showForensicSection('raw') && card('Raw Evidence', (
+          loading ? <div className="forensic-dossier-loading">Loading…</div> : (
+            <div className="space-y-3">
+              <div className="forensic-dossier-empty">
+                Detailed case data for review. Expand any group to inspect the underlying fields.
+              </div>
+              <div className="forensic-dossier-raw-accordion">
+                {rawEvidenceGroups.map((group, index) => (
+                  <details key={group.title} open={index === 0}>
+                    <summary>
+                      <span>{group.title}</span>
+                      <span className="forensic-dossier-raw-count">
+                        {Array.isArray(group.payload) ? group.payload.length : Object.keys(group.payload || {}).length} items
+                      </span>
+                    </summary>
+                    <pre className="forensic-dossier-raw">{JSON.stringify(group.payload, null, 2)}</pre>
+                  </details>
+                ))}
+              </div>
+            </div>
+          )
+        ))}
       </div>
+    </div>
     </div>
   );
 }
@@ -4414,18 +6480,18 @@ function ArabicLotsPanel({ data }){
   push(planeVar==='V1'?'plane_v1':'plane_v2', `Plane ${planeVar}`);
   return (
     <div className="text-sm h-full flex flex-col">
-      {/* In-tile vertical expander with arrow on LEFT */}
-      <div className="mb-2">
+      <div className="rounded-2xl border border-zinc-200 bg-white p-3">
         <button
           type="button"
           onClick={()=> setShowOptions(v=>!v)}
-          className="w-full text-left flex items-center gap-2 text-[11px] text-zinc-700 hover:text-zinc-900"
+          className="w-full text-left flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500 hover:text-zinc-900"
+          style={monoStyle}
         >
           <span className="inline-block w-4">{showOptions ? '▾' : '▸'}</span>
           <span>Formula Options</span>
         </button>
         {showOptions && (
-          <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px]">
+          <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px]">
             <div className="flex items-center gap-1">
               <span>Death</span>
               <button onClick={()=>setDeathVar('A')} className={`px-1.5 py-0.5 rounded border ${deathVar==='A'?'border-zinc-800':'border-zinc-300'}`}>A</button>
@@ -4444,17 +6510,26 @@ function ArabicLotsPanel({ data }){
           </div>
         )}
       </div>
-      <div className="astro-scroll-shell flex-1">
+      <div className="astro-scroll-shell mt-3 flex-1">
         <div className="astro-scroll space-y-2">
           {rows.length===0 ? (
             <div className="text-zinc-500">No lots</div>
           ) : rows.map((r, idx)=> (
-            <div key={idx}>
-              <div className="flex justify-between">
-                <span className="font-medium">{r.label}</span>
-                <span className="text-zinc-600">{degreeTextFromLon(r.x.lon)} {signFromLon(r.x.lon)}</span>
+            <div key={idx} className="rounded-2xl border border-zinc-100 bg-white px-3 py-2.5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-400" style={monoStyle}>
+                    {r.label}
+                  </div>
+                  <div className="mt-1 text-[15px] leading-5 text-zinc-900" style={serifStyle}>
+                    {degreeTextFromLon(r.x.lon)} {signFromLon(r.x.lon)}
+                  </div>
+                </div>
+                <div className="text-right text-[11px] text-zinc-500">
+                  H{r.x.house ?? '-'}
+                </div>
               </div>
-              <div className="text-xs text-zinc-600">H{r.x.house ?? '-'} · Ruler: {r.x.ruler}</div>
+              <div className="mt-1 text-[11px] text-zinc-500">Ruler: {r.x.ruler}</div>
             </div>
           ))}
         </div>
@@ -4468,9 +6543,12 @@ function SectPanel({ data }) {
   if (!sect) {
     return <div className="text-sm text-zinc-500">No sect data</div>;
   }
-  const chipsCls = 'text-xs rounded-full border border-zinc-200 bg-white px-2 py-1';
   const nice = (x)=> (x==null||x===undefined? '-' : String(x));
-  const isDay = sect.chart_sect === 'diurnal';
+  const normalizedSect = normalizeSectValue(sect.chart_sect || sect.sect || sect.type || sect.status);
+  if (!normalizedSect) {
+    return <div className="text-sm text-zinc-500">No sect data</div>;
+  }
+  const isDay = normalizedSect === 'diurnal';
   const chartLabel = isDay ? 'Day' : 'Night';
   const mercuryLabel = (()=>{
     if (!sect.mercury_phase) return 'Mercury - -';
@@ -4479,36 +6557,56 @@ function SectPanel({ data }) {
   })();
   const rows = (sect.planets||[]).filter(p=> p && p.planet).map(p=> ({
     name: p.planet,
-    inSect: p.in_sect === true,
+    sectState: p.in_sect === true ? 'in' : p.in_sect === false ? 'out' : 'unknown',
     hayz: !!p.hayz,
     polMatch: p.sign_polarity_match === true,
     hemMatch: p.hemisphere_match === true,
   }));
   return (
     <div className="flex flex-col">
-      <div className="space-x-2 space-y-2 flex flex-wrap items-center mb-2">
-        <span className={chipsCls}>{chartLabel} · Sect light {PlanetSymbols[sect.sect_light] || sect.sect_light}</span>
-        <span className={chipsCls}>Malefic of sect {PlanetSymbols[sect.malefic_of_sect] || sect.malefic_of_sect}</span>
-        <span className={chipsCls}>Benefic of sect {PlanetSymbols[sect.benefic_of_sect] || sect.benefic_of_sect}</span>
-        <span className={chipsCls}>{mercuryLabel}</span>
+      <div className="border-b border-zinc-100 pb-3">
+        <div className="text-[1rem] leading-tight text-zinc-900" style={serifStyle}>
+          {chartLabel} · {PlanetSymbols[sect.sect_light] || sect.sect_light}
+        </div>
+        <div className="mt-1 text-[11px] text-zinc-500">{mercuryLabel}</div>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div className="min-w-0">
+            <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-zinc-400" style={monoStyle}>Malefic</div>
+            <div className="mt-1 text-[14px] text-zinc-900" style={serifStyle}>{PlanetSymbols[sect.malefic_of_sect] || sect.malefic_of_sect}</div>
+          </div>
+          <div className="min-w-0 sm:border-l sm:border-zinc-100 sm:pl-4">
+            <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-zinc-400" style={monoStyle}>Benefic</div>
+            <div className="mt-1 text-[14px] text-zinc-900" style={serifStyle}>{PlanetSymbols[sect.benefic_of_sect] || sect.benefic_of_sect}</div>
+          </div>
+        </div>
       </div>
-      {/* explanatory text removed per request */}
-      <div>
+      <div className="mt-3">
         {rows.length === 0 ? (
           <div className="text-sm text-zinc-500">No planets listed</div>
         ) : (
-          <div className="space-y-1">
+          <div className="space-y-2">
             {rows.map((r, i)=> (
-              <div key={i} className="flex items-center justify-between border-b border-zinc-100 py-1 last:border-0">
+              <div key={i} className="border-t border-zinc-100 pt-2.5">
                 <div className="flex items-center gap-2">
                   <span className="text-lg leading-none">{PlanetSymbols[r.name] || '·'}</span>
-                  <span className="font-medium">{r.name}</span>
+                  <span className="font-medium text-sm text-zinc-900">{r.name}</span>
                 </div>
-                <div className="flex items-center gap-2 text-[11px]">
-                  <span className={`px-1.5 py-0.5 rounded border ${r.inSect? 'border-emerald-300 text-emerald-700':'border-rose-300 text-rose-700'}`}>{r.inSect? 'in-sect':'out-of-sect'}</span>
-                  {r.hayz && <span className="px-1.5 py-0.5 rounded border border-blue-300 text-blue-700">hayz</span>}
-                  {r.polMatch && <span className="px-1.5 py-0.5 rounded border border-zinc-300">polarity</span>}
-                  {r.hemMatch && <span className="px-1.5 py-0.5 rounded border border-zinc-300">hemisphere</span>}
+                <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px]">
+                  <span
+                    className={`rounded-full border px-1.5 py-0.5 ${
+                      r.sectState === 'in'
+                        ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                        : r.sectState === 'out'
+                          ? 'border-rose-300 bg-rose-50 text-rose-700'
+                          : 'border-zinc-200 bg-zinc-50 text-zinc-500'
+                    }`}
+                    style={monoStyle}
+                  >
+                    {r.sectState === 'in' ? 'in-sect' : r.sectState === 'out' ? 'out-of-sect' : 'sect n/a'}
+                  </span>
+                  {r.hayz && <span className="rounded-full border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-sky-700" style={monoStyle}>hayz</span>}
+                  {r.polMatch && <span className="rounded-full border border-zinc-200 bg-white px-1.5 py-0.5 text-zinc-500" style={monoStyle}>polarity</span>}
+                  {r.hemMatch && <span className="rounded-full border border-zinc-200 bg-white px-1.5 py-0.5 text-zinc-500" style={monoStyle}>hemisphere</span>}
                 </div>
               </div>
             ))}
@@ -4522,178 +6620,225 @@ function SectPanel({ data }) {
 
 
 
-function ChartMock({ hours, data, includeModern, onToggleModern, onRefresh, onLocationChange, onSnap, snapDisabled, mode, manualIso, onForensic, showForensicButton=true, onCasePrompt, houseSystem, onHouseSystemChange }){
-  // House system selector options (Swiss codes)
+function ChartMock({ data, chartLens = 'traditional', onChartLensChange, onSnap, snapDisabled, houseSystem, onHouseSystemChange }){
   const HOUSE_OPTIONS = [
-    { code: 'R', label: 'Regiomontanus' },
-    { code: 'P', label: 'Placidus' },
-    { code: 'E', label: 'Equal' },
-    { code: 'W', label: 'Whole Sign' },
-    { code: 'O', label: 'Porphyry' },
-    { code: 'C', label: 'Campanus' },
-    { code: 'K', label: 'Koch' },
-    { code: 'T', label: 'Topocentric' },
+    { code: 'R', label: 'Regiomontanus (R)' },
+    { code: 'P', label: 'Placidus (P)' },
+    { code: 'E', label: 'Equal (E)' },
+    { code: 'W', label: 'Whole Sign (W)' },
+    { code: 'O', label: 'Porphyry (O)' },
+    { code: 'C', label: 'Campanus (C)' },
+    { code: 'K', label: 'Koch (K)' },
+    { code: 'T', label: 'Topocentric (T)' },
   ];
-  const [now, setNow] = useState(new Date());
-  // Only tick in realtime; freeze at manual time when in manual mode
-  useEffect(()=>{
-    if (mode === 'manual') return; // no ticking; show system time only in realtime
-    const t = setInterval(()=> setNow(new Date()), 30000);
-    return ()=> clearInterval(t);
-  }, [mode]);
-  const clockDt = useMemo(() => {
-    if (mode === 'manual' && manualIso) {
-      try { return new Date(manualIso); } catch { /* ignore */ }
-    }
-    return now;
-  }, [mode, manualIso, now]);
-  const mins = clockDt.getHours()*60 + clockDt.getMinutes();
-  const angle = (mins/1440)*360;
-  const planetGlyphs = { Sun:'☉', Moon:'☽', Mercury:'☿', Venus:'♀', Mars:'♂', Jupiter:'♃', Saturn:'♄', Uranus:'♅', Neptune:'♆', Pluto:'♇', 'North Node':'☊' };
-  const asc = (data?.house_cusps && data.house_cusps.length>0) ? Number(data.house_cusps[0]) : 0;
-  const cusps = (data?.house_cusps && data.house_cusps.length===12) ? data.house_cusps : undefined;
-  const planets = (data?.planets||[])
-    .filter(p => p && typeof p === 'object' && p.planet && (p.longitude!=null))
-    .map(p=>({ id: p.planet, glyph: planetGlyphs[p.planet] || '·', lon: Number(p.longitude)||0, retro: !!p.retrograde, house: p.house, label: p.planet }));
-  const [editingLoc, setEditingLoc] = useState(false);
-  const [locInput, setLocInput] = useState('');
-  const chartLocationLabel = data?.location || 'Set location';
-  const displayedTimezoneLabel = formatAstroClockTimezoneLabel({
+  const planetGlyphs = {
+    Sun: '☉',
+    Moon: '☽',
+    Mercury: '☿',
+    Venus: '♀',
+    Mars: '♂',
+    Jupiter: '♃',
+    Saturn: '♄',
+    Uranus: '♅',
+    Neptune: '♆',
+    Pluto: '♇',
+    'North Node': '☊',
+    'South Node': '☋',
+    Chiron: '⚷',
+  };
+  const ascLon = data?.ascendant ?? data?.house_cusps?.[0] ?? 0;
+  const midheavenLon = data?.midheaven ?? data?.house_cusps?.[9] ?? null;
+  const cusps = Array.isArray(data?.house_cusps) && data.house_cusps.length >= 12
+    ? data.house_cusps.slice(0, 12)
+    : undefined;
+  const ascMeta = useMemo(() => chartPointSummary(ascLon), [ascLon]);
+  const midheavenMeta = useMemo(() => chartPointSummary(midheavenLon), [midheavenLon]);
+  const fortuneMeta = useMemo(() => extractFortuneLot(data?.arabic_parts), [data?.arabic_parts]);
+  const sectMeta = useMemo(() => summarizeSectMeta(data?.sect), [data?.sect]);
+  const visiblePlanetRows = useMemo(
+    () => filterChartPlanetsByLens(data?.planets, chartLens),
+    [data?.planets, chartLens],
+  );
+  const planets = useMemo(
+    () => visiblePlanetRows
+      .filter((planet) => planet && typeof planet === 'object' && planet.planet && planet.longitude != null)
+      .map((planet) => ({
+        id: planet.planet,
+        glyph: planetGlyphs[planet.planet] || '·',
+        lon: Number(planet.longitude) || 0,
+        retro: !!planet.retrograde,
+        house: planet.house,
+        label: planet.planet,
+      })),
+    [visiblePlanetRows],
+  );
+  const visiblePlanetIds = useMemo(() => new Set(planets.map((planet) => planet.id)), [planets]);
+  const wheelAspects = useMemo(
+    () => buildWheelAspectRows(data?.planetary_aspects_precise, visiblePlanetIds),
+    [data?.planetary_aspects_precise, visiblePlanetIds],
+  );
+  const locationLabel = typeof data?.location === 'string' && data.location.trim()
+    ? data.location.trim()
+    : 'Set location';
+  const timezoneLabel = formatAstroClockTimezoneLabel({
     timestamp: data?.timestamp,
     timezone: data?.timezone,
     timezoneLabel: data?.timezone_label,
   });
-  const defaultCasePrompt = async () => {
-    try {
-      let name = '';
-      try { name = (window.prompt && window.prompt('Enter Case Name')) || ''; } catch(_) { name = ''; }
-      if (!name) name = 'Enter case name here';
-      const txt = `Case name: ${name}\n\nTask:\nProvide the timestamp + location/time-zone package needed to cast forensic-astrology event charts. Do not generate charts or interpretations-only deliver items (1) and (2) below. Make best-judgment choices and state assumptions briefly (no follow-up questions).\n\n1) Identify Event Timestamps\n   - Primary: the earliest reliable discovery/notification moment.\n   - Alternates: (a) emergency/official log time, (b) legal pronouncement (e.g., time of death), (c) last confirmed alive/seen.\n   - For each timestamp: give local time (to the minute), UTC equivalent, a short reliability note, and 1–2 source links. If sources conflict, pick the most authoritative, explain why, and list the runner-up time(s).\n\n2) Locations & Time Zones\n   - For each timestamp: provide the full street address (venue + city + country), precise coordinates in decimal degrees (lat/long), time-zone name and UTC offset, and whether daylight saving time was in effect at that moment. Show the UTC conversion you used.\n\nOutput format (one markdown table):\nLabel | Local Time | UTC | Address | Lat/Long | Time Zone (incl. DST) | Source(s) | Reliability Notes`;
-      await safeCopyText(txt);
-    } catch (_) {}
-  };
+  const chartContextLabel = [locationLabel, timezoneLabel].filter(Boolean).join(' • ');
+  const chartDateLabel = data?.timestamp ? formatControlDateLabel(String(data.timestamp).split('T')[0]) : '';
+  const chartTimeLabel = formatHM(data?.timestamp);
+  const chartFooterLabel = ['chart', chartDateLabel, chartTimeLabel, timezoneLabel].filter(Boolean).join(' · ');
+
   return (
-    <div className={`${panelCls} relative`}>
-      <div className="mb-3 space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className="text-[11px] text-zinc-600 hidden sm:inline">Modern</span>
-            <label className="relative inline-flex items-center cursor-pointer select-none">
-              <input
-                type="checkbox"
-                className="sr-only peer"
-                checked={!!includeModern}
-                onChange={onToggleModern}
-              />
-              <div className="w-10 h-5 bg-zinc-300 peer-checked:bg-zinc-800 rounded-full transition-colors"></div>
-              <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
-              <span className="ml-2 text-[11px]">♅ ♆ ♇</span>
+    <div className={`${panelCls} overflow-hidden px-0 py-0`}>
+      <div className="border-b border-zinc-200">
+        <div className="flex flex-wrap items-start justify-between gap-3 px-4 py-3 sm:px-5">
+          <div className="min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-zinc-500" style={monoStyle}>
+            {chartContextLabel ? <span className="truncate">{chartContextLabel}</span> : <span>Active chart</span>}
+          </div>
+          <button
+            type="button"
+            disabled={!!snapDisabled}
+            className="inline-flex min-w-[86px] items-center justify-center rounded-full bg-zinc-900 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white disabled:cursor-not-allowed disabled:bg-zinc-300"
+            style={monoStyle}
+            onClick={onSnap}
+          >
+            Snap
+          </button>
+        </div>
+        <div className="flex flex-col gap-3 border-t border-zinc-200 px-4 py-3 sm:px-5 xl:flex-row xl:items-start xl:justify-between">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <div className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-white p-1">
+              {CHART_LENS_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => onChartLensChange?.(option.id)}
+                  className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] ${
+                    chartLens === option.id
+                      ? 'bg-zinc-900 text-white shadow-sm'
+                      : 'text-zinc-600 hover:text-zinc-900'
+                  }`}
+                  style={monoStyle}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            <label className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.12em] text-zinc-500" style={monoStyle}>
+              <span>Houses</span>
+              <select
+                className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-[10px] font-medium tracking-normal text-zinc-700"
+                value={houseSystem || 'R'}
+                onChange={(event)=> onHouseSystemChange && onHouseSystemChange(event.target.value)}
+                title="House system"
+              >
+                {HOUSE_OPTIONS.map((option) => (
+                  <option key={option.code} value={option.code}>{option.label}</option>
+                ))}
+              </select>
             </label>
           </div>
-          <div className="flex items-center gap-2">
-            <h3 className="font-semibold text-sm">Chart</h3>
-            {displayedTimezoneLabel && (
-              <span className="px-2 py-0.5 rounded-full border border-zinc-300 bg-white/80 text-[11px] text-zinc-600">
-                {displayedTimezoneLabel}
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-zinc-600">
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <label className="hidden md:inline text-zinc-600">Houses</label>
-            <select
-              className="px-2 py-0.5 rounded border border-zinc-300 bg-white/80"
-              value={houseSystem || 'R'}
-              onChange={(e)=> onHouseSystemChange && onHouseSystemChange(e.target.value)}
-              title="House system"
-            >
-              {HOUSE_OPTIONS.map(opt => (
-                <option key={opt.code} value={opt.code}>{opt.label}</option>
-              ))}
-            </select>
-            <span className="max-w-[220px] truncate rounded-full border border-zinc-200 bg-zinc-50/80 px-2 py-0.5 text-zinc-600 sm:max-w-[280px] dark:border-zinc-700 dark:bg-zinc-800/70 dark:text-zinc-300">
-              {chartLocationLabel}
-            </span>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              className="px-2 py-0.5 rounded border border-zinc-300 bg-white/80 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800/70 dark:text-zinc-200 dark:hover:bg-zinc-800"
-              onClick={()=> { setEditingLoc(v=>!v); setLocInput(data?.location || ''); }}
-            >
-              Edit
-            </button>
-            <button
-              type="button"
-              disabled={!!snapDisabled}
-              className="px-2.5 py-0.5 rounded-full border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-50 disabled:hover:bg-blue-50 dark:border-sky-500/40 dark:bg-sky-500/10 dark:text-sky-200 dark:hover:bg-sky-500/20"
-              onClick={onSnap}
-            >
-              Snap
-            </button>
-            {showForensicButton && (
-              <>
-                <button
-                  type="button"
-                  className="px-1.5 py-0.5 rounded-lg border text-[11px]
-                             bg-white/70 hover:bg-white/90 text-gray-800 border-gray-300
-                             dark:bg-gray-700/60 dark:hover:bg-gray-700/80 dark:text-gray-100 dark:border-gray-700"
-                  onClick={onForensic}
-                >Forensic</button>
-                <button
-                  type="button"
-                  className="px-1.5 py-0.5 rounded-lg border text-[11px]
-                             bg-white/70 hover:bg-white/90 text-gray-800 border-gray-300
-                             dark:bg-gray-700/60 dark:hover:bg-gray-700/80 dark:text-gray-100 dark:border-gray-700"
-                  onClick={onCasePrompt || defaultCasePrompt}
-                  title="Copy AI-ready case prompt"
-                >Case Prompt</button>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-      {editingLoc && (
-        <div className="mb-2 flex items-center gap-2 text-[11px]">
-          <input value={locInput} onChange={e=>setLocInput(e.target.value)} className="px-2 py-1 border rounded w-60" placeholder="City, Country or lat,lon" />
-          <button type="button" className="px-2 py-1 rounded border border-zinc-300 hover:bg-zinc-50" onClick={async ()=> { try { await onLocationChange?.(locInput); } catch(_){} finally { setEditingLoc(false); } }}>Set</button>
-          <button type="button" className="px-2 py-1 text-zinc-600" onClick={()=> setEditingLoc(false)}>Cancel</button>
-        </div>
-      )}
-      <div className={`relative w-full aspect-square rounded-lg text-zinc-500`}>
-        {/* SketchWheel fills the square */}
-        <div className="absolute inset-0">
-          <SketchWheel asc={asc} cusps={cusps} planets={planets} showAspects={false} />
-        </div>
-        {/* Hour-of-Day mini ring bottom-right */}
-        <div className="absolute right-2 bottom-2 w-20 h-20 rounded-full grid place-items-center" style={{ background: `conic-gradient(#111827 ${angle}deg, #e5e7eb ${angle}deg 360deg)` }}>
-          <div className="bg-white rounded-full w-14 h-14 grid place-items-center text-center">
-            <div className="text-[10px] leading-3">
-              {hours?.current_hour?.ruling_planet && (
-                <div className="text-base leading-none">{planetGlyphs[hours.current_hour.ruling_planet] || ''}</div>
-              )}
-              <div className="text-xs font-semibold">
-                {(() => {
-                  try {
-                    return new Intl.DateTimeFormat(TIME_LOCALE, {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      hour12: false,
-                      hourCycle: 'h23'
-                    }).format(clockDt);
-                  } catch {
-                    return clockDt.toISOString().slice(11, 16);
-                  }
-                })()}
+
+          <div className="flex flex-wrap items-center gap-3 xl:justify-end">
+            <div className="flex flex-wrap items-start gap-4">
+              <div className="min-w-[116px]">
+                <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-zinc-400" style={monoStyle}>ASC</div>
+                <div className="mt-0.5 text-[14px] leading-tight text-zinc-900" style={serifStyle}>
+                  {ascMeta ? (
+                    <>
+                      <span className="text-zinc-700" style={zodiacGlyphStyle}>{ascMeta.glyph}</span>{' '}
+                      {ascMeta.sign} {ascMeta.degreeText}
+                    </>
+                  ) : '—'}
+                </div>
               </div>
-              <div className="text-[10px] text-zinc-500">Hr of Day</div>
+              <div className="min-w-[116px]">
+                <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-zinc-400" style={monoStyle}>MC</div>
+                <div className="mt-0.5 text-[14px] leading-tight text-zinc-900" style={serifStyle}>
+                  {midheavenMeta ? (
+                    <>
+                      <span className="text-zinc-700" style={zodiacGlyphStyle}>{midheavenMeta.glyph}</span>{' '}
+                      {midheavenMeta.sign} {midheavenMeta.degreeText}
+                    </>
+                  ) : '—'}
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
+
+      <div className="px-2 pb-2 pt-3 sm:px-4">
+        <div className="mx-auto w-full max-w-[800px] aspect-square">
+          <SketchWheel
+            asc={ascMeta?.lon ?? 0}
+            midheaven={midheavenMeta?.lon ?? undefined}
+            cusps={cusps}
+            planets={planets}
+            aspects={wheelAspects}
+            showAspects={wheelAspects.length > 0}
+          />
+        </div>
+      </div>
+
+      <div className="border-t border-zinc-200 px-4 py-3 sm:px-5">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 xl:gap-0">
+          <div className="min-w-0 xl:px-4 xl:first:pl-0">
+            <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-zinc-400" style={monoStyle}>Ascendant</div>
+            <div className="mt-1 text-[1.05rem] leading-tight text-zinc-900" style={serifStyle}>
+              {ascMeta ? (
+                <>
+                  <span className="text-zinc-700" style={zodiacGlyphStyle}>{ascMeta.glyph}</span>{' '}
+                  {ascMeta.degreeText}
+                </>
+              ) : '—'}
+            </div>
+            <div className="mt-1 text-[12px] text-zinc-600">
+              {ascMeta ? `${ascMeta.sign} · ruled by ${ascMeta.ruler}` : 'No ascendant data'}
+            </div>
+          </div>
+          <div className="min-w-0 xl:border-l xl:border-zinc-200 xl:px-4">
+            <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-zinc-400" style={monoStyle}>Midheaven</div>
+            <div className="mt-1 text-[1.05rem] leading-tight text-zinc-900" style={serifStyle}>
+              {midheavenMeta ? (
+                <>
+                  <span className="text-zinc-700" style={zodiacGlyphStyle}>{midheavenMeta.glyph}</span>{' '}
+                  {midheavenMeta.degreeText}
+                </>
+              ) : '—'}
+            </div>
+            <div className="mt-1 text-[12px] text-zinc-600">
+              {midheavenMeta ? `${midheavenMeta.sign} culminating` : 'No midheaven data'}
+            </div>
+          </div>
+          <div className="min-w-0 xl:border-l xl:border-zinc-200 xl:px-4">
+            <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-zinc-400" style={monoStyle}>Lot of Fortune</div>
+            <div className="mt-1 text-[1.05rem] leading-tight text-zinc-900" style={serifStyle}>
+              {fortuneMeta ? `⊕ ${fortuneMeta.degreeText}` : '—'}
+            </div>
+            <div className="mt-1 text-[12px] text-zinc-600">
+              {fortuneMeta ? `${fortuneMeta.sign}${fortuneMeta.house ? ` · H${fortuneMeta.house}` : ''}` : 'No fortune data'}
+            </div>
+          </div>
+          <div className="min-w-0 xl:border-l xl:border-zinc-200 xl:px-4 xl:last:pr-0">
+            <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-zinc-400" style={monoStyle}>Sect</div>
+            <div className="mt-1 text-[1.05rem] leading-tight text-zinc-900" style={serifStyle}>
+              {sectMeta ? `${sectMeta.glyph} ${sectMeta.label}` : '—'}
+            </div>
+            <div className="mt-1 text-[12px] text-zinc-600">
+              {sectMeta?.detail || 'No sect data'}
+            </div>
+          </div>
+        </div>
+        {chartFooterLabel ? (
+          <div className="mt-3 flex justify-end border-t border-zinc-100 pt-3 text-[10px] text-zinc-400" style={monoStyle}>
+            <span className="truncate">{chartFooterLabel}</span>
+          </div>
+        ) : null}
+      </div>
     </div>
-    
   );
 }
 
@@ -4758,40 +6903,90 @@ function MoonCondition({ data }){
     : '-';
   const next = t.sign_exit_eta_hours != null ? `Next sign ${fmtH(t.sign_exit_eta_hours)}` : '-';
   const prog = typeof t.sign_progress_pct === 'number' ? Math.max(0, Math.min(100, t.sign_progress_pct)) : 0;
+  const lunarStatus = (t?.in_voc ?? moon?.void_of_course)
+    ? 'Void of course'
+    : 'Configured';
+  const nextAspectLabel = t?.next_aspect
+    ? `${PlanetSymbols.Moon} ${aspectSymbol(aspectLabel(t.next_aspect.aspect))} ${PlanetSymbols[t.next_aspect.planet] || t.next_aspect.planet}`
+    : 'No imminent aspect';
+  const nextAspectMeta = t?.next_aspect?.eta_hours != null ? `in ${fmtH(t.next_aspect.eta_hours)}` : 'awaiting next perfection';
+  const nextSignLabel = moon?.next_sign || t?.next_sign || 'Next sign';
+  const nextSignMeta = t.sign_exit_eta_hours != null ? `in ${fmtH(t.sign_exit_eta_hours)}` : 'timing unavailable';
+  const signProgressLabel = prog > 0 ? `${prog.toFixed(0)}% through ${moon?.sign || 'current sign'}` : `Just entered ${moon?.sign || 'sign'}`;
+  const phaseSummary = phaseInfo
+    ? `${phaseInfo.name} · ${phaseInfo.pct}% illuminated${phaseInfo.waxing ? ' · waxing' : ' · waning'}`
+    : 'Moon phase unavailable';
   return (
     <div className={panelCls}>
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="font-semibold text-sm">Moon Condition</h3>
-      </div>
-      <div className="flex items-start justify-between gap-4">
-        <div className="text-sm">
-          <div className="font-medium">{left}</div>
-          <div className="text-xs text-zinc-500">{vocTag}</div>
-          {phaseInfo && (
-            <div className="mt-1 text-xs text-zinc-700">
-              <span className="px-1.5 py-0.5 rounded-full border border-zinc-200 bg-white">{phaseInfo.name} · {phaseInfo.pct}%</span>
-            </div>
-          )}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-400" style={monoStyle}>
+            Lunar State
+          </div>
+          <h3 className="mt-1 font-semibold text-sm">Moon Condition</h3>
         </div>
-        <div className="flex-1">
-          <div className="flex items-center justify-end gap-2 text-xs text-zinc-700">
-            <span className="px-2 py-0.5 rounded-full border border-zinc-200">{start}</span>
-            <span>{'->'}</span>
-            <span className="px-2 py-0.5 rounded-full border border-zinc-200">{next}</span>
+        <div className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${
+          (t?.in_voc ?? moon?.void_of_course)
+            ? 'border-amber-300 bg-amber-50 text-amber-700'
+            : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+        }`} style={monoStyle}>
+          {lunarStatus}
+        </div>
+      </div>
+      <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)]">
+        <div className="min-w-0">
+          <div className="text-[1.45rem] leading-tight text-zinc-900" style={serifStyle}>
+            {PlanetSymbols.Moon} {left}
           </div>
-          <div className="mt-2 h-2 rounded-full bg-zinc-200 overflow-hidden">
-            <div className="h-full bg-zinc-900" style={{ width: `${prog}%` }} />
+          <div className="mt-1 text-[13px] leading-5 text-zinc-700">{phaseSummary}</div>
+          <div className="mt-3 grid gap-3 border-t border-zinc-100 pt-3 sm:grid-cols-2">
+            <div className="min-w-0">
+              <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-zinc-400" style={monoStyle}>
+                VoC Window
+              </div>
+              <div className="mt-1 text-[14px] leading-5 text-zinc-900" style={serifStyle}>{vocTag}</div>
+            </div>
+            <div className="min-w-0 sm:border-l sm:border-zinc-100 sm:pl-4">
+              <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-zinc-400" style={monoStyle}>
+                Duration
+              </div>
+              <div className="mt-1 text-[14px] leading-5 text-zinc-900" style={serifStyle}>
+                {t.voc_duration_hours != null ? fmtH(t.voc_duration_hours) : 'No VoC duration'}
+              </div>
+            </div>
           </div>
-          <div className="mt-2 flex items-center gap-2 text-[11px] text-zinc-600">
-            <span className="px-1.5 py-0.5 rounded-full border border-zinc-200">VoC: {(t?.in_voc ?? moon?.void_of_course) ? 'Yes' : 'No'}</span>
-            <span className="px-1.5 py-0.5 rounded-full border border-zinc-200">dur. {t.voc_duration_hours!=null? fmtH(t.voc_duration_hours): '-'}</span>
-            <span className="text-zinc-500">
-              {t?.next_aspect ? (
-                <>
-                  {PlanetSymbols.Moon} {aspectSymbol(aspectLabel(t.next_aspect.aspect))} {PlanetSymbols[t.next_aspect.planet] || t.next_aspect.planet}
-                </>
-              ) : '-'}
-            </span>
+        </div>
+        <div className="min-w-0 space-y-3">
+          <div className="grid gap-3 border-t border-zinc-100 pt-3 sm:grid-cols-2">
+            <div className="min-w-0">
+              <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-zinc-400" style={monoStyle}>
+                Next Aspect
+              </div>
+              <div className="mt-1 text-[15px] leading-5 text-zinc-900" style={serifStyle}>{nextAspectLabel}</div>
+              <div className="mt-1 text-[11px] text-zinc-500">{nextAspectMeta}</div>
+            </div>
+            <div className="min-w-0 sm:border-l sm:border-zinc-100 sm:pl-4">
+              <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-zinc-400" style={monoStyle}>
+                Next Sign
+              </div>
+              <div className="mt-1 text-[15px] leading-5 text-zinc-900" style={serifStyle}>{nextSignLabel}</div>
+              <div className="mt-1 text-[11px] text-zinc-500">{nextSignMeta}</div>
+            </div>
+          </div>
+          <div className="border-t border-zinc-100 pt-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-zinc-400" style={monoStyle}>
+                Sign Progress
+              </div>
+              <div className="text-[11px] text-zinc-500">{signProgressLabel}</div>
+            </div>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-zinc-200">
+              <div className="h-full bg-zinc-900" style={{ width: `${prog}%` }} />
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-zinc-500">
+              <span>{start}</span>
+              <span>{next}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -4805,6 +7000,11 @@ function SavedSnapsTile({ snaps, loading, loaded, onRefresh, onLoad, onDelete })
   const [idxLoading, setIdxLoading] = useState(false);
   const [indexDocs, setIndexDocs] = useState(null); // [{ id, snap, text, title, subtitle }]
   const [actionBusy, setActionBusy] = useState(null); // id of snap being acted on
+  const searchRefreshRequestedRef = useRef(false);
+  const snapIdsKey = useMemo(
+    () => (Array.isArray(snaps) ? snaps.map((snap) => String(snap?.id || '')).join('|') : ''),
+    [snaps],
+  );
 
   const handleLoad = async (snap) => {
     try { setActionBusy(snap.id); await onLoad(snap); } catch (e) { /* no-op */ } finally { setActionBusy(null); }
@@ -4812,6 +7012,22 @@ function SavedSnapsTile({ snaps, loading, loaded, onRefresh, onLoad, onDelete })
   const handleDelete = async (id) => {
     try { setActionBusy(id); await onDelete(id); } catch (e) { /* no-op */ } finally { setActionBusy(null); }
   };
+
+  useEffect(() => {
+    if (mode !== 'search') {
+      searchRefreshRequestedRef.current = false;
+      return;
+    }
+    if (loading || searchRefreshRequestedRef.current || typeof onRefresh !== 'function') return;
+    if (!loaded || !Array.isArray(snaps) || snaps.length === 0) {
+      searchRefreshRequestedRef.current = true;
+      void onRefresh({ silent: true });
+    }
+  }, [loaded, loading, mode, onRefresh, snaps]);
+
+  useEffect(() => {
+    if (mode === 'search') setIndexDocs(null);
+  }, [mode, snapIdsKey]);
 
   // Build index on demand when entering search
   useEffect(() => {
@@ -4846,6 +7062,9 @@ function SavedSnapsTile({ snaps, loading, loaded, onRefresh, onLoad, onDelete })
           if (s?.summary?.sect_light) parts.push(`light:${s.summary.sect_light}`);
           if (s?.summary?.hour_ruler) parts.push(`hour:${s.summary.hour_ruler}`);
           if (s?.summary?.moon_sign) parts.push(`moon:${s.summary.moon_sign}`);
+          if (s?.summary?.certification) {
+            parts.push(`certification ${s.summary.certification.status || ''} ${s.summary.certification.confidence || ''}`);
+          }
           // Planets
           const planets = Array.isArray(dash.planets) ? dash.planets : [];
           planets.forEach(p => {
@@ -4873,7 +7092,6 @@ function SavedSnapsTile({ snaps, loading, loaded, onRefresh, onLoad, onDelete })
       } finally {
         if (!cancelled) setIdxLoading(false);
       }
-      return () => { cancelled = true; };
     };
     build();
     return () => { cancelled = true; };
@@ -4890,14 +7108,20 @@ function SavedSnapsTile({ snaps, loading, loaded, onRefresh, onLoad, onDelete })
 
   return (
     <div className={panelCls}>
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="font-semibold text-sm">Saved Snaps</h3>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-400" style={monoStyle}>
+            Reference Stack
+          </div>
+          <h3 className="mt-1 font-semibold text-sm">Saved Snaps</h3>
+        </div>
         <div className="flex items-center gap-2">
-          <button onClick={onRefresh} className="text-[11px] text-zinc-600 px-2 py-0.5 rounded border border-zinc-300 hover:bg-zinc-50">Refresh</button>
-          <button onClick={() => setMode(m => m === 'snaps' ? 'search' : 'snaps')} className="text-[11px] text-zinc-600 px-2 py-0.5 rounded border border-zinc-300 hover:bg-zinc-50">{mode==='snaps' ? 'Search' : 'Snaps'}</button>
+          <button onClick={onRefresh} className={utilityPillCls} style={monoStyle}>Refresh</button>
+          <button onClick={() => setMode(m => m === 'snaps' ? 'search' : 'snaps')} className={utilityPillCls} style={monoStyle}>{mode==='snaps' ? 'Search' : 'Snaps'}</button>
         </div>
       </div>
 
+      <div className="mt-3">
       {mode === 'snaps' ? (
         loading ? (
           <div className="text-sm text-zinc-500">Loading…</div>
@@ -4907,30 +7131,48 @@ function SavedSnapsTile({ snaps, loading, loaded, onRefresh, onLoad, onDelete })
           <div className="text-sm text-zinc-500">No snaps yet</div>
         ) : (
           <div className="space-y-2 max-h-72 overflow-auto pr-1">
-            {snaps.map((s)=> (
-              <div key={s.id} className="border border-zinc-200 rounded p-2 flex items-center justify-between">
-                <div className="text-sm">
-                  <div className="font-medium">{s.label || 'Untitled Snap'}</div>
-                  <div className="text-[11px] text-zinc-600">{(new Date(s.effective_datetime)).toLocaleString()} · {s.location || '-'}</div>
-                  <div className="text-[11px] text-zinc-600">Hour: {s.summary?.hour_ruler || '-'} · Moon: {s.summary?.moon_sign || '-'}</div>
-                  <div className="text-[11px] text-zinc-600">Sect: {s.summary?.chart_sect ? (s.summary.chart_sect === 'diurnal' ? 'Day' : 'Night') : '-'}{s.summary?.sect_light ? ` · Light: ${s.summary.sect_light}` : ''}</div>
+            {snaps.map((s)=> {
+              const certificationSummary = s.summary?.certification;
+              const certificationLabel = certificationSummary?.status
+                ? String(certificationSummary.status).replace(/_/g, ' ')
+                : '';
+              return (
+              <div key={s.id} className="rounded-2xl border border-zinc-100 bg-white px-3 py-2.5 flex items-center justify-between gap-3">
+                <div className="min-w-0 text-sm">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium text-zinc-900">{s.label || 'Untitled Snap'}</span>
+                    {certificationSummary ? (
+                      <span className="rounded-full border border-sky-100 bg-sky-50 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-sky-700" style={monoStyle}>
+                        Certification{certificationLabel ? ` · ${certificationLabel}` : ''}
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="mt-1 text-[11px] text-zinc-600">{(new Date(s.effective_datetime)).toLocaleString()} · {s.location || '-'}</div>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-zinc-500">
+                    <span>Hour: {s.summary?.hour_ruler || '-'}</span>
+                    <span>Moon: {s.summary?.moon_sign || '-'}</span>
+                    <span>Sect: {(() => {
+                      const snapSect = normalizeSectValue(s.summary?.chart_sect);
+                      return snapSect ? (snapSect === 'diurnal' ? 'Day' : 'Night') : '-';
+                    })()}</span>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button disabled={actionBusy===s.id} className="px-2 py-0.5 text-[11px] rounded border border-zinc-300 hover:bg-zinc-50 disabled:opacity-50" onClick={()=> handleLoad(s)}>{actionBusy===s.id? '…':'Load'}</button>
-                  <button disabled={actionBusy===s.id} className="px-2 py-0.5 text-[11px] rounded border border-zinc-300 text-zinc-700 hover:bg-zinc-50 disabled:opacity-50" onClick={()=> handleDelete(s.id)}>{actionBusy===s.id? '…':'Delete'}</button>
+                  <button disabled={actionBusy===s.id} className={`${utilityPillCls} disabled:opacity-50`} style={monoStyle} onClick={()=> handleLoad(s)}>{actionBusy===s.id? '…':'Load'}</button>
+                  <button disabled={actionBusy===s.id} className={`${utilityPillCls} disabled:opacity-50`} style={monoStyle} onClick={()=> handleDelete(s.id)}>{actionBusy===s.id? '…':'Delete'}</button>
                 </div>
               </div>
-            ))}
+            );})}
           </div>
         )
       ) : (
         <div>
           <div className="mb-2 flex items-center gap-2">
-            <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search label, planet (e.g., Sun Leo H10), or aspect (e.g., Moon trine Venus)" className="w-full px-2 py-1 border rounded" />
-            <button className="text-[11px] px-2 py-1 border rounded" onClick={()=>setQ('')}>Clear</button>
+            <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search label, planet (e.g., Sun Leo H10), or aspect (e.g., Moon trine Venus)" className="w-full rounded-full border border-zinc-200 px-3 py-2 text-[12px] text-zinc-700 placeholder:text-zinc-400" />
+            <button className={utilityPillCls} style={monoStyle} onClick={()=>setQ('')}>Clear</button>
           </div>
-          {idxLoading ? (
-            <div className="text-sm text-zinc-500">Building index…</div>
+          {(loading || idxLoading) ? (
+            <div className="text-sm text-zinc-500">{loading ? 'Loading snaps…' : 'Building index…'}</div>
           ) : (!indexDocs || indexDocs.length === 0) ? (
             <div className="text-sm text-zinc-500">No snaps to search</div>
           ) : results.length === 0 ? (
@@ -4938,14 +7180,14 @@ function SavedSnapsTile({ snaps, loading, loaded, onRefresh, onLoad, onDelete })
           ) : (
             <div className="space-y-2 max-h-64 overflow-auto pr-1">
               {results.map(doc => (
-                <div key={doc.id} className="border border-zinc-200 rounded p-2 flex items-center justify-between">
-                  <div className="text-sm">
-                    <div className="font-medium">{doc.title}</div>
-                    <div className="text-[11px] text-zinc-600">{doc.subtitle}</div>
+                <div key={doc.id} className="rounded-2xl border border-zinc-100 bg-white px-3 py-2.5 flex items-center justify-between gap-3">
+                  <div className="min-w-0 text-sm">
+                    <div className="font-medium text-zinc-900">{doc.title}</div>
+                    <div className="mt-1 text-[11px] text-zinc-600">{doc.subtitle}</div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button disabled={actionBusy===doc.id} className="px-2 py-0.5 text-[11px] rounded border border-zinc-300 hover:bg-zinc-50 disabled:opacity-50" onClick={()=> handleLoad(doc.snap)}>{actionBusy===doc.id? '…':'Load'}</button>
-                    <button disabled={actionBusy===doc.id} className="px-2 py-0.5 text-[11px] rounded border border-zinc-300 text-zinc-700 hover:bg-zinc-50 disabled:opacity-50" onClick={()=> handleDelete(doc.id)}>{actionBusy===doc.id? '…':'Delete'}</button>
+                    <button disabled={actionBusy===doc.id} className={`${utilityPillCls} disabled:opacity-50`} style={monoStyle} onClick={()=> handleLoad(doc.snap)}>{actionBusy===doc.id? '…':'Load'}</button>
+                    <button disabled={actionBusy===doc.id} className={`${utilityPillCls} disabled:opacity-50`} style={monoStyle} onClick={()=> handleDelete(doc.id)}>{actionBusy===doc.id? '…':'Delete'}</button>
                   </div>
                 </div>
               ))}
@@ -4953,6 +7195,7 @@ function SavedSnapsTile({ snaps, loading, loaded, onRefresh, onLoad, onDelete })
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }
@@ -4977,6 +7220,7 @@ function CurrentAspectCard({ data, onOpenAnalysis, useMorin, setUseMorin }){
     return 6;
   };
   const [useDecl, setUseDecl] = useState(false);
+  const [phaseFilter, setPhaseFilter] = useState('any');
   const declList = (data?.top_declinations || []).slice(0,4);
   const morinAntiList = (data?.morin_antiscia || []).slice(0,4);
   const morinList = Array.isArray(data?.morin_aspects) ? data.morin_aspects.slice(0,4) : [];
@@ -4984,10 +7228,46 @@ function CurrentAspectCard({ data, onOpenAnalysis, useMorin, setUseMorin }){
   const title = useDecl
     ? (useMorin ? 'Antiscia (Morin)' : 'Declination (∥ / antiparallel)')
     : (useMorin ? 'Morin Aspects' : 'Current Aspects');
+  const filteredAspects = aspects.filter((row) => {
+    if (phaseFilter === 'any') return true;
+    return String(row?.phase || '').toLowerCase() === phaseFilter;
+  });
+  const getTone = (name) => {
+    const key = String(name || '').toLowerCase();
+    if (key.includes('trine') || key.includes('sext') || key.includes('parallel')) {
+      return { accent: 'text-emerald-700', bar: 'bg-emerald-600' };
+    }
+    if (key.includes('square') || key.includes('opp') || key.includes('anti')) {
+      return { accent: 'text-rose-700', bar: 'bg-rose-500' };
+    }
+    return { accent: 'text-zinc-900', bar: 'bg-zinc-900' };
+  };
+  const getExactnessPct = (row) => {
+    const max = Number(row?.max_orb ?? getMaxOrb(row?.aspect));
+    const orb = Math.abs(Number(row?.orb || 0));
+    if (!Number.isFinite(max) || max <= 0) return 0;
+    return Math.max(0, Math.min(100, Math.round((1 - (orb / max)) * 100)));
+  };
+  const formatMeta = (row) => {
+    const pieces = [`orb ${row?.orb_text || `${Math.abs(Number(row?.orb || 0)).toFixed(2)}°`}`];
+    if (row?.phase) pieces.push(String(row.phase));
+    if (useMorin && row?.partile) {
+      pieces.push('partile');
+    } else if (useMorin && row?.complete_platic) {
+      pieces.push('platic');
+    }
+    if (useMorin && row?.direction) pieces.push(String(row.direction));
+    return pieces.join(' · ');
+  };
   return (
     <div data-testid="current-aspects-card" className={`${panelCls} aspect-square flex flex-col overflow-hidden`}>
-      <div className="mb-2 flex items-start justify-between gap-3">
-        <h3 className="font-semibold text-sm">{title}</h3>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-400" style={monoStyle}>
+            Live Signal
+          </div>
+          <h3 className="mt-1 font-semibold text-sm">{title}</h3>
+        </div>
         <div className="flex flex-wrap items-center justify-end gap-3 text-[11px] text-zinc-600">
           <div className="flex items-center gap-1">
             <span className="hidden sm:inline">Morin</span>
@@ -5007,9 +7287,29 @@ function CurrentAspectCard({ data, onOpenAnalysis, useMorin, setUseMorin }){
           </div>
         </div>
       </div>
-      {aspects.length === 0 ? (
-        <div className="flex min-h-0 flex-1 flex-col">
-          <div className="text-sm text-zinc-500">No major aspects</div>
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        {['any', 'applying', 'separating'].map((filterKey) => (
+          <button
+            key={filterKey}
+            type="button"
+            className={`rounded-full border px-2 py-0.5 text-[8px] font-semibold uppercase tracking-[0.16em] ${
+              phaseFilter === filterKey
+                ? 'border-zinc-900 bg-zinc-900 text-white'
+                : 'border-zinc-200 bg-white text-zinc-500'
+            }`}
+            style={monoStyle}
+            onClick={() => setPhaseFilter(filterKey)}
+          >
+            {filterKey}
+          </button>
+        ))}
+      </div>
+      <div className="mt-1.5 text-[9px] text-zinc-500">
+        {filteredAspects.length} active{phaseFilter !== 'any' ? ` · ${phaseFilter}` : ''}
+      </div>
+      {filteredAspects.length === 0 ? (
+        <div className="mt-3 flex min-h-0 flex-1 flex-col">
+          <div className="text-sm text-zinc-500">No aspects in this scope.</div>
           <div className="mt-auto flex items-center justify-end border-t border-zinc-100 pt-2">
             <button type="button" onClick={onOpenAnalysis}
                     className="shrink-0 rounded border border-zinc-300 bg-white/80 px-2 py-0.5 text-[11px] hover:bg-white/90"
@@ -5018,23 +7318,35 @@ function CurrentAspectCard({ data, onOpenAnalysis, useMorin, setUseMorin }){
         </div>
       ) : (
         <>
-          <div className="astro-scroll-shell min-h-0 flex-1">
-            <div data-testid="current-aspects-scroll" className="astro-scroll min-h-0 flex-1">
-              <div className="space-y-3 pb-2">
-                {aspects.map((a, idx) => {
-                  let percent = 0;
-                  try {
-                    const max = Number(a?.max_orb ?? getMaxOrb(a?.aspect));
-                    const orb = Math.abs(Number(a?.orb || 0));
-                    percent = Math.max(0, Math.min(100, (1 - (orb / (max || 6))) * 100));
-                  } catch {}
+          <div className="astro-scroll-shell mt-2 min-h-0 flex-1">
+            <div data-testid="current-aspects-scroll" className="astro-scroll min-h-0 flex-1 pr-1">
+              <div className="space-y-0 pb-2">
+                {filteredAspects.map((a, idx) => {
+                  const percent = getExactnessPct(a);
+                  const tone = getTone(a?.aspect);
                   return (
-                    <div key={idx}>
-                      <div className="text-sm font-semibold">{a.planet1} {a.symbol || ''} {a.planet2}</div>
-                      <div className="text-xs leading-5 text-zinc-600">orb {a.orb_text || `${Math.abs(Number(a?.orb||0)).toFixed(2)}°`} / max {(a?.max_orb ?? getMaxOrb(a?.aspect))}°{useMorin && (a?.partile ? ' · partile' : (a?.complete_platic ? ' · platic' : ''))}{useMorin && a?.direction ? ` · ${a.direction}` : ''}{useMorin && a?.phase ? ` · ${a.phase}` : ''}</div>
-                      <div className="mt-1 flex items-center justify-between text-[11px]"><span>Exactness</span><span>{Math.round(percent)}%</span></div>
-                      <div className="mt-0.5 h-2 overflow-hidden rounded-full bg-zinc-200">
-                        <div className="h-full bg-zinc-900" style={{ width: `${percent}%` }} />
+                    <div key={idx} className="border-b border-zinc-100 py-2 first:pt-0 last:border-b-0 last:pb-0">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className={`truncate text-[13px] font-medium ${tone.accent}`} style={serifStyle}>
+                            {a.planet1} {a.symbol || ''} {a.planet2}
+                          </div>
+                          <div className="mt-0.5 text-[9px] leading-4 text-zinc-500">
+                            {formatMeta(a)}
+                          </div>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <div className="text-[1rem] leading-none tracking-[-0.03em] text-zinc-900" style={serifStyle}>
+                            {percent}
+                            <span className="ml-0.5 text-[0.6rem] text-zinc-400">%</span>
+                          </div>
+                          <div className="mt-0.5 text-[8px] font-semibold uppercase tracking-[0.16em] text-zinc-400" style={monoStyle}>
+                            Exactness
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-zinc-200">
+                        <div className={`h-full ${tone.bar}`} style={{ width: `${percent}%` }} />
                       </div>
                     </div>
                   );
@@ -5043,9 +7355,9 @@ function CurrentAspectCard({ data, onOpenAnalysis, useMorin, setUseMorin }){
             </div>
           </div>
           <div className="mt-2 flex shrink-0 items-end justify-between gap-3 border-t border-zinc-100 pt-2">
-            <div className="text-[11px] leading-4 text-zinc-500">Bar fills as orb tightens toward exact.</div>
+            <div className="text-[9px] leading-4 text-zinc-500">Exactness emphasizes the tightest live contacts in the current scope.</div>
             <button type="button" onClick={onOpenAnalysis}
-                    className="shrink-0 rounded border border-zinc-300 bg-white/80 px-2 py-0.5 text-[11px] hover:bg-white/90"
+                    className="shrink-0 rounded border border-zinc-300 bg-white/80 px-2 py-0.5 text-[10px] hover:bg-white/90"
                     title="Open comprehensive aspect analysis">More</button>
           </div>
         </>
@@ -5064,36 +7376,71 @@ function PositionsDignityCard({ data }){
   const knobLeft = (score)=> `calc( ${( (norm(score) - (-5)) / 10 ) * 100}% - 8px )`;
   return (
     <div className={`${panelCls} aspect-square`}>
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="font-semibold text-sm">Positions + Dignity</h3>
-        <div className="text-[11px] text-zinc-600 space-x-2">
-          <button onClick={()=>setSort('score')} className={`px-1.5 py-0.5 rounded border ${sort==='score'? 'border-zinc-800 text-zinc-800':'border-zinc-200'}`}>By Score</button>
-          <button onClick={()=>setSort('lon')} className={`px-1.5 py-0.5 rounded border ${sort==='lon'? 'border-zinc-800 text-zinc-800':'border-zinc-200'}`}>By Longitude</button>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-400" style={monoStyle}>
+            Planet Positions
+          </div>
+          <h3 className="mt-1 font-semibold text-sm">Positions + Dignity</h3>
+        </div>
+        <div className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-white p-1 text-[10px]" style={monoStyle}>
+          <button
+            onClick={()=>setSort('score')}
+            className={`rounded-full px-2.5 py-0.5 font-semibold uppercase tracking-[0.1em] ${
+              sort==='score' ? 'bg-zinc-900 text-white' : 'text-zinc-500'
+            }`}
+          >
+            Score
+          </button>
+          <button
+            onClick={()=>setSort('lon')}
+            className={`rounded-full px-2.5 py-0.5 font-semibold uppercase tracking-[0.1em] ${
+              sort==='lon' ? 'bg-zinc-900 text-white' : 'text-zinc-500'
+            }`}
+          >
+            Longitude
+          </button>
         </div>
       </div>
-      <div className="overflow-auto h-[calc(100%-32px)] pr-1">
+      <div className="mt-3 overflow-auto h-[calc(100%-56px)] pr-1">
         <div className="space-y-2">
           {rows.map((p, idx)=>{
             const s = Number(p.dignity_score)||0;
             const sign = p.sign || signFromLon(p.longitude);
             return (
-              <div key={idx} className="py-1 border-b border-zinc-100 last:border-0">
-                <div className="grid grid-cols-12 items-center gap-2">
-                  <div className="col-span-3 flex items-center space-x-2">
-                    <span className="text-lg leading-none">{PlanetSymbols[p.planet] || '·'}{p.retrograde? ' R':''}</span>
-                    <span className="font-medium text-sm">{p.planet}</span>
+              <div key={idx} className="rounded-2xl border border-zinc-100 bg-white px-3 py-2.5">
+                <div className="flex items-center gap-3">
+                  <div className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white text-[17px] leading-none">
+                    {PlanetSymbols[p.planet] || '·'}
                   </div>
-                  <div className="col-span-4 text-sm">
-                    {degreeTextFromLon(p.longitude)} {sign} - <span className="px-1.5 py-0.5 rounded border border-zinc-200 text-xs">H{p.house??'-'}</span>
-                  </div>
-                  <div className="col-span-3">
-                    <div className="relative h-3 rounded-full" style={{ background: 'linear-gradient(90deg, var(--grad-left,#fecdd3), var(--grad-mid,#e5e7eb), var(--grad-right,#bbf7d0))' }}>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline gap-2">
+                      <span className="truncate text-[13px] font-medium text-zinc-900">{p.planet}</span>
+                      {p.retrograde ? (
+                        <span className="rounded-full border border-zinc-200 bg-white px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-[0.16em] text-zinc-500" style={monoStyle}>
+                          Retrograde
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="mt-0.5 text-[12px] text-zinc-600">
+                      <span className="text-zinc-900" style={serifStyle}>
+                        {degreeTextFromLon(p.longitude)} {sign}
+                      </span>
+                      <span className="mx-1 text-zinc-300">·</span>
+                      <span>H{p.house ?? '-'}</span>
+                    </div>
+                    <div className="mt-2 relative h-1.5 rounded-full" style={{ background: 'linear-gradient(90deg, #fecdd3, #e5e7eb 50%, #bbf7d0)' }}>
                       <div className="absolute inset-y-0 left-1/2 w-px bg-zinc-400/70" />
-                      <div className="absolute -top-1 -bottom-1 w-4 rounded-full border border-zinc-800/30 bg-white" style={{ left: knobLeft(s) }} />
+                      <div className="absolute -top-1.5 h-4 w-4 rounded-full border border-zinc-800/20 bg-white shadow-sm" style={{ left: knobLeft(s) }} />
                     </div>
                   </div>
-                  <div className="col-span-2 text-sm text-right">
-                    <span className={`${s>=0?'text-emerald-700':'text-rose-700'}`}>{s>=0? '+':''}{s}</span>
+                  <div className="shrink-0 text-right">
+                    <div className={`text-[1.05rem] leading-none ${s>=0?'text-emerald-700':'text-rose-700'}`} style={serifStyle}>
+                      {s>=0? '+':''}{s}
+                    </div>
+                    <div className="mt-1 text-[8px] font-semibold uppercase tracking-[0.16em] text-zinc-400" style={monoStyle}>
+                      Score
+                    </div>
                   </div>
                 </div>
               </div>

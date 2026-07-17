@@ -18,6 +18,20 @@ WATER_SIGNS = {"Cancer", "Scorpio", "Pisces"}
 HARD_ASPECT_TYPES = {"conjunction", "square", "opposition"}
 HARD_MALEFIC_PLANETS = ("Mars", "Saturn", "Uranus", "Pluto")
 HARD_AFFLICTION_MAX_ORB = 5.0
+SIGN_RULERS = {
+    "Aries": "Mars",
+    "Taurus": "Venus",
+    "Gemini": "Mercury",
+    "Cancer": "Moon",
+    "Leo": "Sun",
+    "Virgo": "Mercury",
+    "Libra": "Venus",
+    "Scorpio": "Mars",
+    "Sagittarius": "Jupiter",
+    "Capricorn": "Saturn",
+    "Aquarius": "Saturn",
+    "Pisces": "Jupiter",
+}
 
 
 def _norm360(x: float) -> float:
@@ -47,6 +61,12 @@ def _planet_sign_name(entry: Dict[str, Any]) -> str:
         return str(entry.get("sign") or "").strip()
     except Exception:
         return ""
+
+
+def _sign_name_from_longitude(lon: float) -> str:
+    d = _norm360(lon)
+    idx = int(d // 30) % 12
+    return SIGNS[idx][1]
 
 
 def _aspect_entry(aspects: Dict[str, Dict[str, Any]], p1: str, p2: str) -> Dict[str, Any]:
@@ -94,6 +114,7 @@ def _planet_hard_afflicted(name: str, aspects: Dict[str, Dict[str, Any]]) -> boo
 def extract_features(dashboard: Dict[str, Any]) -> Dict[str, Any]:
     planets_in = dashboard.get("planets") or []
     planets: Dict[str, Dict[str, Any]] = {}
+    asteroids: Dict[str, Dict[str, Any]] = {}
     degree_sig = {
         "anaretic": [],
         "ingress": [],
@@ -108,13 +129,8 @@ def extract_features(dashboard: Dict[str, Any]) -> Dict[str, Any]:
                 continue
             lon = float(p.get("longitude", 0.0))
             deg = _deg_in_sign(lon)
-            # sign name from longitude if not provided
-            def _sign_name(L: float) -> str:
-                d = _norm360(L)
-                idx = int(d // 30) % 12
-                return SIGNS[idx][1]
             entry = {
-                "sign": p.get("sign") or _sign_name(lon),
+                "sign": p.get("sign") or _sign_name_from_longitude(lon),
                 "house": p.get("house"),
                 "longitude": lon,
                 "degree_in_sign": deg,
@@ -127,7 +143,7 @@ def extract_features(dashboard: Dict[str, Any]) -> Dict[str, Any]:
                 "ingress": deg < 1.0,
                 "middegree": 14.5 <= deg <= 15.5,
                 "via_combusta": _in_via_combusta(lon),
-                "mute_sign": (_sign_name(lon) in MUTE_SIGNS),
+                "mute_sign": (_sign_name_from_longitude(lon) in MUTE_SIGNS),
             }
             planets[name] = entry
             # degree signatures lists
@@ -139,6 +155,33 @@ def extract_features(dashboard: Dict[str, Any]) -> Dict[str, Any]:
                 degree_sig["middegree"].append(name)
             if entry["via_combusta"]:
                 degree_sig["via_combusta"].append(name)
+        except Exception:
+            continue
+
+    for item in ((dashboard.get("asteroids") or {}).get("items") or []):
+        try:
+            name = item.get("name")
+            if not name:
+                continue
+            lon = float(item.get("longitude", 0.0))
+            deg = _deg_in_sign(lon)
+            asteroids[str(name)] = {
+                "number": item.get("number"),
+                "tier": item.get("tier"),
+                "sign": item.get("sign") or _sign_name_from_longitude(lon),
+                "house": item.get("house"),
+                "longitude": lon,
+                "degree_in_sign": deg,
+                "latitude": item.get("latitude"),
+                "speed": item.get("speed"),
+                "retrograde": bool(item.get("retrograde", False)),
+                "angular": bool(item.get("house") in [1, 4, 7, 10]),
+                "anaretic": deg >= 29.0,
+                "ingress": deg < 1.0,
+                "middegree": 14.5 <= deg <= 15.5,
+                "via_combusta": _in_via_combusta(lon),
+                "mute_sign": (_sign_name_from_longitude(lon) in MUTE_SIGNS),
+            }
         except Exception:
             continue
 
@@ -159,9 +202,14 @@ def extract_features(dashboard: Dict[str, Any]) -> Dict[str, Any]:
             p2 = a.get("planet2")
             if not p1 or not p2:
                 continue
+            applying_raw = a.get("applying")
+            if applying_raw is None:
+                applying = (str(a.get("phase") or "").strip().lower() == "applying")
+            else:
+                applying = applying_raw in (True, "true", "True", "1", 1)
             entry = {
-                "type": (a.get("aspect") or "").strip().lower(),
-                "applying": bool(a.get("applying", False)),
+                "type": (a.get("aspect") or a.get("type") or "").strip().lower(),
+                "applying": applying,
                 "orb": float(a.get("orb", 999.0)),
                 # Propagate horary engine perfection metrics when present
                 "time_to_perfection": (float(a.get("time_to_perfection")) if a.get("time_to_perfection") is not None else None),
@@ -284,6 +332,30 @@ def extract_features(dashboard: Dict[str, Any]) -> Dict[str, Any]:
     water_cusp_count = sum(1 for sign in cusp_signs.values() if sign in WATER_SIGNS)
     water_cusp_4_8_12 = sum(1 for key in ("4", "8", "12") if cusp_signs.get(key) in WATER_SIGNS)
 
+    def _angle_entry(cidx: int, label: str) -> Dict[str, Any]:
+        try:
+            lon = float(cusps[cidx - 1])
+            deg = _deg_in_sign(lon)
+            return {
+                "label": label,
+                "longitude": lon,
+                "sign": _sign_name_from_longitude(lon),
+                "degree_in_sign": deg,
+                "anaretic": deg >= 29.0,
+                "ingress": deg < 1.0,
+                "middegree": 14.5 <= deg <= 15.5,
+                "via_combusta": _in_via_combusta(lon),
+            }
+        except Exception:
+            return {}
+
+    angles = {
+        "Ascendant": _angle_entry(1, "Ascendant"),
+        "IC": _angle_entry(4, "IC"),
+        "Descendant": _angle_entry(7, "Descendant"),
+        "Midheaven": _angle_entry(10, "Midheaven"),
+    }
+
     houses_synth = {
         "first_ruler": first_ruler,
         "first_ruler_house": first_ruler_house,
@@ -365,6 +437,14 @@ def extract_features(dashboard: Dict[str, Any]) -> Dict[str, Any]:
     houses_synth["fifth_and_seventh_rulers_same_house"] = bool(
         fifth_ruler_house is not None and fifth_ruler_house == seventh_ruler_house
     )
+    fourth_ruler = houses_synth.get("fourth_ruler")
+    fourth_ruler_house = houses_synth.get("fourth_ruler_house")
+    houses_synth["fourth_and_fifth_same_ruler"] = bool(
+        fourth_ruler and houses_synth.get("fifth_ruler") and str(fourth_ruler) == str(houses_synth.get("fifth_ruler"))
+    )
+    houses_synth["fourth_and_fifth_rulers_same_house"] = bool(
+        fourth_ruler_house is not None and fourth_ruler_house == fifth_ruler_house
+    )
     houses_synth["seventh_and_tenth_same_ruler"] = bool(
         seventh_ruler and houses_synth.get("tenth_ruler") and str(seventh_ruler) == str(houses_synth.get("tenth_ruler"))
     )
@@ -399,26 +479,54 @@ def extract_features(dashboard: Dict[str, Any]) -> Dict[str, Any]:
     houses_synth["neptune_water_sign"] = bool(_planet_sign_name(neptune) in WATER_SIGNS)
 
     moon_house = _house_number(moon.get("house"))
+    moon_sign = _planet_sign_name(moon)
+    moon_dispositor = SIGN_RULERS.get(moon_sign, "")
+    moon_dispositor_info = planets.get(moon_dispositor) or {}
+    moon_dispositor_house = _house_number(moon_dispositor_info.get("house")) if moon_dispositor else None
+    moon_dispositor_to_seventh = _aspect_entry(
+        aspects,
+        str(moon_dispositor or ""),
+        str(seventh_ruler or ""),
+    )
+    moon_dispositor_to_seventh_type = str(
+        moon_dispositor_to_seventh.get("type") or ""
+    ).strip().lower()
+    try:
+        moon_dispositor_to_seventh_orb = float(moon_dispositor_to_seventh.get("orb"))
+    except Exception:
+        moon_dispositor_to_seventh_orb = None
     moon_flags = {
         "void_of_course": bool((dashboard.get("moon") or {}).get("void_of_course", False)),
         "via_combusta": bool(moon.get("via_combusta", False)),
         "house": moon_house,
-        "sign": _planet_sign_name(moon),
-        "water_sign": bool(_planet_sign_name(moon) in WATER_SIGNS),
+        "sign": moon_sign,
+        "water_sign": bool(moon_sign in WATER_SIGNS),
         "in_4_8_12": bool(moon_house in (4, 8, 12)),
         "in_3_or_9": bool(moon_house in (3, 9)),
         "hard_malefic_contact": _planet_hard_afflicted("Moon", aspects),
+        "dispositor": moon_dispositor,
+        "dispositor_house": moon_dispositor_house,
+        "dispositor_same_house_as_moon": bool(
+            moon_house is not None and moon_house == moon_dispositor_house
+        ),
+        "dispositor_to_seventh_ruler_type": moon_dispositor_to_seventh_type,
+        "dispositor_to_seventh_ruler_hard": bool(
+            moon_dispositor_to_seventh_type in HARD_ASPECT_TYPES
+        ),
+        "dispositor_to_seventh_ruler_orb": moon_dispositor_to_seventh_orb,
     }
 
     out = {
         "sect": dashboard.get("sect") or {},
         "planets": planets,
+        "asteroids": asteroids,
         "degree_signatures": degree_sig,
         "moon": moon_flags,
         "aspects": aspects,
         "lots": dashboard.get("arabic_parts") or {},
         "fixed_stars": fs_map,
         "fixed_stars_list": fs_hits,
+        "angles": angles,
         "house_cusps": dashboard.get("house_cusps") or [],
         "house_rulers": rulers,
         "houses": houses_synth,
@@ -494,17 +602,30 @@ def compute_dominance(features: Dict[str, Any]) -> Dict[str, Any]:
             return 'Slightly Dominant'
         return 'Weak'
 
-    # Pre-index aspects for both directions
+    # Pre-index aspects for both directions without counting generated reverse aliases twice.
     aspects_for = {name: [] for name in planets.keys()}
+    seen_aspects_for = {name: set() for name in planets.keys()}
     for key, a in aspects.items():
         try:
             p1, p2 = key.split('_to_')
         except Exception:
             continue
-        if p1 in aspects_for:
+        pair = tuple(sorted((p1, p2)))
+        signature = (
+            pair[0],
+            pair[1],
+            str(a.get('type') or '').lower(),
+            str(a.get('orb') if a.get('orb') is not None else ''),
+            bool(a.get('applying')),
+            str(a.get('degrees_to_exact') if a.get('degrees_to_exact') is not None else ''),
+            str(a.get('exact_time') if a.get('exact_time') is not None else ''),
+        )
+        if p1 in aspects_for and signature not in seen_aspects_for[p1]:
             aspects_for[p1].append(a)
-        if p2 in aspects_for:
+            seen_aspects_for[p1].add(signature)
+        if p2 in aspects_for and signature not in seen_aspects_for[p2]:
             aspects_for[p2].append(a)
+            seen_aspects_for[p2].add(signature)
 
     results = {}
     for name, info in planets.items():

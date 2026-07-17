@@ -5,16 +5,21 @@
   "description": "Diligent industry with Virgo/Capricorn and Saturn/Mercury discipline; houses 6/10.",
   "confidence": "medium",
   "polarity": "positive",
-  "sources": ["Carter: Virgo/Capricorn; Saturn/Mercury"],
+  "sources": ["Carter: Virgo/Capricorn; Saturn/Mercury", "Morin: H6 service/labor and H10 profession require specific planetary determination"],
   "logic": { "base": 0,
     "boosts": [
       { "kind": "sign_emphasis", "sign": "Virgo", "min": 1.5, "weight": 8 },
       { "kind": "sign_emphasis", "sign": "Capricorn", "min": 1.5, "weight": 8 },
       { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": 8 },
       { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": 6 },
-      { "kind": "house_emphasis", "houses": [6,10], "min_total": 2, "weight": 6 }
+      { "kind": "house_emphasis", "houses": [6,10], "min_total": 2, "weight": 6 },
+      { "kind": "planet_in_house", "planet": "Saturn", "houses": [6, 10], "weight": 6 },
+      { "kind": "planet_in_house", "planet": "Mars", "houses": [6, 10], "weight": 4 },
+      { "kind": "sign_emphasis", "sign": "Scorpio", "min": 1.5, "weight": 4 },
+      { "kind": "planet_area", "planet": "Saturn", "areas": ["health", "honors"], "mode": "max", "min": 0.45, "weight": 5 },
+      { "kind": "planet_area", "planet": "Mercury", "areas": ["health", "honors"], "mode": "max", "min": 0.45, "weight": 4 },
+      { "kind": "planet_area", "planet": "Mars", "areas": ["health", "honors"], "mode": "max", "min": 0.45, "weight": 3 }
     ],
     "dampeners": [],
     "escalators": [] }
 }
-

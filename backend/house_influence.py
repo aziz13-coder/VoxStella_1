@@ -1041,7 +1041,6 @@ def compute_house_influences(chart_data: Dict[str, Any], metrics: Dict[str, Any]
                             tags += list((_load_morin_keywords().get('sect', {}) or {}).get('benefic_of_sect', []) or [])
                         if pnm == sec.get('malefic_of_sect'):
                             tags.append('malefic_of_sect')
-                            tags += list((_load_morin_keywords().get('sect', {}) or {}).get('malefic_out_of_sect', []) or [])
                         # per-planet flags
                         try:
                             row = next((r for r in (sec.get('planets') or []) if str(r.get('planet')) == pnm), None)
@@ -1052,6 +1051,8 @@ def compute_house_influences(chart_data: Dict[str, Any], metrics: Dict[str, Any]
                                 tags.append('in_sect')
                             elif row.get('in_sect') is False:
                                 tags.append('out_of_sect')
+                                if pnm in {'Mars', 'Saturn'}:
+                                    tags += list((_load_morin_keywords().get('sect', {}) or {}).get('malefic_out_of_sect', []) or [])
                             if row.get('hayz'):
                                 tags.append('hayz')
                 except Exception:
@@ -1137,14 +1138,22 @@ def _build_basic_analysis(
     # Overview
     ruler_nm = house_rulers.get(str(hnum)) or (SIGN_RULER.get(sign) if isinstance(sign, str) else None)
     ex_nm = EXALTATION.get(sign) if isinstance(sign, str) else None
-    # Triplicity depends on sect; approximate with day/night flag when available
+    # Triplicity depends on sect; planetary condition phrasing uses per-planet sect.
     day_chart = None
+    sect_by_planet: Dict[str, Dict[str, Any]] = {}
     try:
         sec = compute_sect_info(chart_data) if compute_sect_info else None
-        cs = str(sec.get('chart_sect') or '') if isinstance(sec, dict) else ''
-        day_chart = True if cs == 'diurnal' else (False if cs == 'nocturnal' else None)
+        if isinstance(sec, dict):
+            cs = str(sec.get('chart_sect') or '')
+            day_chart = True if cs == 'diurnal' else (False if cs == 'nocturnal' else None)
+            sect_by_planet = {
+                str(row.get('planet')): row
+                for row in (sec.get('planets') or [])
+                if isinstance(row, dict) and row.get('planet')
+            }
     except Exception:
         day_chart = None
+        sect_by_planet = {}
     tri_nm = None
     try:
         elem = _element_of_sign(sign or '')
@@ -1378,9 +1387,13 @@ def _build_basic_analysis(
             malef = nm in MALEFICS
             sect_phrase = None
             try:
-                if malef and day_chart is not None:
+                if malef:
+                    row = sect_by_planet.get(nm)
                     sectp = rules.get('sect_modifiers') or {}
-                    sect_phrase = sectp.get('malefic_in_sect') if day_chart else sectp.get('malefic_out_of_sect')
+                    if isinstance(row, dict) and row.get('in_sect') is True:
+                        sect_phrase = sectp.get('malefic_in_sect')
+                    elif isinstance(row, dict) and row.get('in_sect') is False:
+                        sect_phrase = sectp.get('malefic_out_of_sect')
             except Exception:
                 sect_phrase = None
             solar_c = None

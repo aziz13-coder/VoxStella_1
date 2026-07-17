@@ -46,6 +46,7 @@
       "enum": [
         "accident_pressure",
         "benefic_minus_malefic",
+        "gambling_natal_curated",
         "malefic_minus_benefic"
       ]
     },
@@ -55,6 +56,27 @@
         "overlay",
         "ignore"
       ]
+    },
+    "score_polarity": {
+      "type": "string",
+      "enum": [
+        "higher_is_better",
+        "higher_is_worse"
+      ]
+    },
+    "atlas_search_filters": {
+      "$ref": "#/$defs/atlasSearchFilters"
+    },
+    "atlas_shortlist_strategy": {
+      "type": "string",
+      "enum": [
+        "line_first",
+        "relocation_prepass"
+      ]
+    },
+    "atlas_relocation_prepass_limit": {
+      "type": "integer",
+      "minimum": 1
     },
     "goal_family": {
       "type": "string",
@@ -192,6 +214,26 @@
         "MC",
         "IC"
       ]
+    },
+    "atlasSearchFilters": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "bodies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/planet"
+          },
+          "default": []
+        },
+        "angles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/angle"
+          },
+          "default": []
+        }
+      }
     },
     "distanceBand": {
       "type": "object",
@@ -378,6 +420,14 @@
             "body_presence",
             "communication",
             "conflict_pressure",
+            "asc_ruler_strength",
+            "gambling_ruler_strength",
+            "asc_gambling_harmony",
+            "asc_gambling_tension",
+            "moon_gambling_support",
+            "moon_liability",
+            "retrograde_liability",
+            "money_support",
             "travel_joy",
             "restoration",
             "speculation",

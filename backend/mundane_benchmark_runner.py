@@ -5,6 +5,7 @@ import json
 from collections import Counter
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
+from urllib.parse import urlparse
 
 from validate_mundane_benchmark_datasets import (
     HISTORICAL_FILES,
@@ -17,7 +18,15 @@ from validate_mundane_benchmark_datasets import (
 )
 
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+def _resolve_reference_root() -> Path:
+    current_path = Path(__file__).resolve()
+    for parent in current_path.parents:
+        if (parent / "AGENTS.md").exists() and (parent / "backend").is_dir():
+            return parent
+    return current_path.parents[1]
+
+
+REPO_ROOT = _resolve_reference_root()
 DEFAULT_DATASET_PATHS = [SOURCE_ALIGNMENT_FILE, *HISTORICAL_FILES, NATIONAL_CHART_CANDIDATE_FILE]
 
 
@@ -51,6 +60,14 @@ def _source_entries(case: Dict[str, Any], dataset_kind: str) -> List[Dict[str, A
     return [item for item in assertions if isinstance(item, dict)]
 
 
+def _is_remote_reference(value: str) -> bool:
+    try:
+        parsed = urlparse(value)
+    except Exception:
+        return False
+    return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
+
+
 def _check_source_files(case: Dict[str, Any], dataset_kind: str, dataset_path: Path) -> List[Dict[str, str]]:
     failures: List[Dict[str, str]] = []
     case_id = _normalize_text(case.get("case_id")) or "unknown"
@@ -68,6 +85,8 @@ def _check_source_files(case: Dict[str, Any], dataset_kind: str, dataset_path: P
                         "detail": f"Missing {key} value.",
                     }
                 )
+                continue
+            if _is_remote_reference(relpath):
                 continue
             candidate = REPO_ROOT / relpath
             if not candidate.exists():

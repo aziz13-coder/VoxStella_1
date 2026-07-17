@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 Complete Traditional Horary Astrology Engine with Enhanced Configuration
 REFACTORED VERSION with YAML Configuration and Enhanced Moon Testimony
@@ -73,7 +73,11 @@ except ImportError:  # pragma: no cover - fallback when executed as script
     from horary_config import get_config, cfg, HoraryError
 
 # Timezone handling
-import swisseph as swe
+from swisseph_state import (
+    configure_swisseph_ephemeris_path,
+    swisseph as swe,
+    swisseph_lock,
+)
 
 # Import our computational helpers
 from .calculation.helpers import (
@@ -95,9 +99,9 @@ from .services.geolocation import (
     safe_geocode,
 )
 try:
-    from ..models import Planet, Aspect, PlanetPosition, HoraryChart
+    from ..models import Planet, Aspect, PlanetPosition, HoraryChart, SolarCondition
 except ImportError:  # pragma: no cover - fallback when executed as script
-    from models import Planet, Aspect, PlanetPosition, HoraryChart
+    from models import Planet, Aspect, PlanetPosition, HoraryChart, SolarCondition
 from .dsl import (
     aspect as dsl_aspect,
     translation as dsl_translation,
@@ -120,6 +124,44 @@ USE_REASONING_V1 = os.getenv("USE_REASONING_V1", "").lower() in {"1", "true", "y
 
 # Setup module logger
 logger = logging.getLogger(__name__)
+
+
+class EphemerisCalculationError(RuntimeError):
+    """Raised when a chart cannot be calculated from Swiss Ephemeris data."""
+
+
+def _solar_condition_name(value: Any) -> str:
+    """Return a display condition name from SolarAnalysis, SolarCondition, dict, or string."""
+    if not value:
+        return ""
+    if isinstance(value, dict):
+        raw = value.get("condition")
+    else:
+        raw = getattr(value, "condition", value)
+    if isinstance(raw, SolarCondition):
+        return raw.condition_name
+    name = getattr(raw, "condition_name", None)
+    if name:
+        return str(name)
+    return str(raw or "")
+
+
+def _is_solar_condition(position: Any, condition: Any) -> bool:
+    expected = _solar_condition_name(condition).strip().lower()
+    actual = _solar_condition_name(getattr(position, "solar_condition", None)).strip().lower()
+    return bool(expected and actual == expected)
+
+
+def _normalize_snapshot_solar_condition(
+    snapshot: Optional[Dict[str, Any]],
+    field_name: str,
+) -> Optional[Dict[str, Any]]:
+    """Normalize doctrine snapshot boundaries to their documented string shape."""
+    if isinstance(snapshot, dict) and field_name in snapshot:
+        snapshot[field_name] = (
+            _solar_condition_name(snapshot.get(field_name)) or "Free of Sun"
+        )
+    return snapshot
 
 
 def _structure_reasoning(reasoning: List[Any]) -> List[Dict[str, Any]]:
@@ -171,9 +213,9 @@ def _structure_reasoning(reasoning: List[Any]) -> List[Dict[str, Any]]:
         # Accept weights expressed as either "(-12%)", "(-12)", "-12%" and allow a trailing
         # parenthetical note after the numeric (e.g. "-12% (turning away)").
         weight_match = None
-        # Pattern A: (В±NN) optionally followed by a note paren
+        # Pattern A: (±NN) optionally followed by a note paren
         m_paren_num = re.search(r"\(([+-]?\d+)\)\s*(?:\([^)]*\))?\s*$", rule)
-        # Pattern B: В±NN% optionally followed by a note paren
+        # Pattern B: ±NN% optionally followed by a note paren
         m_percent = re.search(r"([+-]?\d+)%\s*(?:\([^)]*\))?\s*$", rule)
         if m_paren_num:
             weight_match = m_paren_num
@@ -425,22 +467,20 @@ def extract_testimonies(chart: HoraryChart, contract: Dict[str, Planet]) -> List
             primitives.append(dsl_accidental(actor, "retro"))
             
         # CRITICAL FIX: Generate combustion testimonies for house rulers
-        if hasattr(pos, 'solar_condition') and pos.solar_condition:
-            condition = pos.solar_condition.condition
-            if condition == "Combustion":
-                # Generate negative testimony for each house this planet rules
-                for house_num, ruler in getattr(chart, "house_rulers", {}).items():
-                    if ruler == planet:
-                        # Create combustion testimony
-                        primitives.append({
-                            "key": f"l{house_num}_combust",
-                            "weight": -2,  # Strong negative testimony for combustion
-                            "house": int(house_num),
-                            "family": f"l{house_num}_condition",
-                            "kind": f"l{house_num}",
-                            "polarity": "NEGATIVE",
-                            "context": f"House {house_num} ruler {planet.value} combusted - matter destroyed/hidden"
-                        })
+        if _is_solar_condition(pos, SolarCondition.COMBUSTION):
+            # Generate negative testimony for each house this planet rules
+            for house_num, ruler in getattr(chart, "house_rulers", {}).items():
+                if ruler == planet:
+                    # Create combustion testimony
+                    primitives.append({
+                        "key": f"l{house_num}_combust",
+                        "weight": -2,  # Strong negative testimony for combustion
+                        "house": int(house_num),
+                        "family": f"l{house_num}_condition",
+                        "kind": f"l{house_num}",
+                        "polarity": "NEGATIVE",
+                        "context": f"House {house_num} ruler {planet.value} combusted - matter destroyed/hidden"
+                    })
 
     # ------------------------------------------------------------------
     # Translation, collection & prohibition
@@ -645,9 +685,7 @@ def extract_testimonies(chart: HoraryChart, contract: Dict[str, Planet]) -> List
             continue
             
         # Check for disqualifying conditions before assigning "fortunate" tags
-        is_combust = (hasattr(position, 'solar_condition') and 
-                     position.solar_condition and 
-                     position.solar_condition.condition == "Combustion")
+        is_combust = _is_solar_condition(position, SolarCondition.COMBUSTION)
         
         is_severely_debilitated = position.dignity_score <= -8
         
@@ -675,7 +713,7 @@ def extract_testimonies(chart: HoraryChart, contract: Dict[str, Planet]) -> List
     # -------------------------------
     # CRITICAL FINANCE PLACEMENTS
     # -------------------------------
-    # Helper: degree within current sign (0вЂ“30)
+    # Helper: degree within current sign (0–30)
     def _deg_in_sign(pos):
         try:
             return (pos.longitude - pos.sign.start_degree) % 30
@@ -689,7 +727,7 @@ def extract_testimonies(chart: HoraryChart, contract: Dict[str, Planet]) -> List
     anaretic_pen = getattr(weights, "anaretic_penalty", -2) if weights else -2
     l2_in_4_base = getattr(weights, "l2_in_4_end_of_matter_penalty", -4) if weights else -4
 
-    # A) Querent (L1) in bad houses в†’ esp. 8th is a classic financial caution
+    # A) Querent (L1) in bad houses → esp. 8th is a classic financial caution
     l1 = contract.get("querent")
     if l1:
         l1_pos = chart.planets.get(l1)
@@ -709,7 +747,7 @@ def extract_testimonies(chart: HoraryChart, contract: Dict[str, Planet]) -> List
     if l2:
         l2_pos = chart.planets.get(l2)
         if l2_pos:
-            # General "L2 in 4th" в†’ outcome colored by funds (regret/constrained if weak)
+            # General "L2 in 4th" → outcome colored by funds (regret/constrained if weak)
             if l2_pos.house == 4:
                 w = l2_in_4_base
                 # Common intensifiers
@@ -721,8 +759,8 @@ def extract_testimonies(chart: HoraryChart, contract: Dict[str, Planet]) -> List
                     "key": "L2_CONSTRAINED_END_OF_MATTER",
                     "rule": (f"Your Money (L2: {l2.value}) in 4th (end-of-matter)"
                              f"{' Rx' if getattr(l2_pos,'retrograde',False) else ''}"
-                             f"{' at 29В°' if _deg_in_sign(l2_pos) >= 29.0 else ''}"
-                             " в†’ constrained funds / potential regret"),
+                             f"{' at 29°' if _deg_in_sign(l2_pos) >= 29.0 else ''}"
+                             " → constrained funds / potential regret"),
                     "weight": w,
                     "house": 2,  # the topic house being judged is L2
                     "factor": "finance_critical",
@@ -881,7 +919,7 @@ class EnhancedTraditionalAstrologicalCalculator:
     
     def __init__(self, timezone_manager=None):
         # Set Swiss Ephemeris path
-        swe.set_ephe_path('')
+        configure_swisseph_ephemeris_path('')
         
         # Initialize timezone manager (use provided or create new)
         self.timezone_manager = timezone_manager or TimezoneManager()
@@ -929,12 +967,92 @@ class EnhancedTraditionalAstrologicalCalculator:
     def get_real_moon_speed(self, jd_ut: float) -> float:
         """Get actual Moon speed from ephemeris in degrees per day"""
         try:
-            moon_data, ret_flag = swe.calc_ut(jd_ut, swe.MOON, swe.FLG_SWIEPH | swe.FLG_SPEED)
+            with swisseph_lock():
+                moon_data, ret_flag = swe.calc_ut(
+                    jd_ut,
+                    swe.MOON,
+                    swe.FLG_SWIEPH | swe.FLG_SPEED,
+                )
             return abs(moon_data[3])  # degrees per day
         except Exception as e:
             logger.warning(f"Failed to get Moon speed from ephemeris: {e}")
             # Fall back to configured default
             return cfg().timing.default_moon_speed_fallback
+
+    def _calculate_ephemeris_snapshot(
+        self,
+        jd_ut: float,
+        lat: float,
+        lon: float,
+        house_code_bytes: bytes,
+    ) -> Tuple[Dict[Planet, PlanetPosition], List[float], float, float]:
+        """Calculate all positions and houses as one process-global Swiss snapshot."""
+        planets: Dict[Planet, PlanetPosition] = {}
+
+        with swisseph_lock():
+            for planet_enum, planet_id in self.planets_swe.items():
+                try:
+                    planet_data, _ret_flag = swe.calc_ut(
+                        jd_ut,
+                        planet_id,
+                        swe.FLG_SWIEPH | swe.FLG_SPEED,
+                    )
+                    if len(planet_data) < 4:
+                        raise ValueError("Swiss Ephemeris returned an incomplete planet vector")
+
+                    longitude = float(planet_data[0])
+                    latitude = float(planet_data[1])
+                    speed = float(planet_data[3])
+                    if not all(math.isfinite(value) for value in (longitude, latitude, speed)):
+                        raise ValueError("Swiss Ephemeris returned a non-finite planet vector")
+
+                    planets[planet_enum] = PlanetPosition(
+                        planet=planet_enum,
+                        longitude=longitude,
+                        latitude=latitude,
+                        house=0,  # Calculated after the house cusps are available.
+                        sign=self._get_sign(longitude),
+                        dignity_score=0,
+                        retrograde=speed < 0,
+                        speed=speed,
+                    )
+                except Exception as exc:
+                    logger.error(
+                        "Swiss Ephemeris failed while calculating %s",
+                        planet_enum.value,
+                        exc_info=True,
+                    )
+                    raise EphemerisCalculationError(
+                        f"Unable to calculate the {planet_enum.value} position"
+                    ) from exc
+
+            try:
+                houses_data, ascmc = swe.houses(
+                    jd_ut,
+                    lat,
+                    lon,
+                    house_code_bytes,
+                )
+                houses = [float(cusp) for cusp in houses_data]
+                if len(houses) != 12 or len(ascmc) < 2:
+                    raise ValueError("Swiss Ephemeris returned incomplete house data")
+                ascendant = float(ascmc[0])
+                midheaven = float(ascmc[1])
+                if not all(
+                    math.isfinite(value)
+                    for value in (*houses, ascendant, midheaven)
+                ):
+                    raise ValueError("Swiss Ephemeris returned non-finite house data")
+            except Exception as exc:
+                logger.error(
+                    "Swiss Ephemeris failed while calculating houses",
+                    exc_info=True,
+                )
+                raise EphemerisCalculationError(
+                    "Unable to calculate astrological houses"
+                ) from exc
+
+        return planets, houses, ascendant, midheaven
     
     def calculate_chart(self, dt_local: datetime.datetime, dt_utc: datetime.datetime, 
                        timezone_info: str, lat: float, lon: float, location_name: str,
@@ -942,8 +1060,24 @@ class EnhancedTraditionalAstrologicalCalculator:
         """Enhanced Calculate horary chart with configuration system"""
         
         # Convert UTC datetime to Julian Day for Swiss Ephemeris
-        jd_ut = swe.julday(dt_utc.year, dt_utc.month, dt_utc.day, 
-                          dt_utc.hour + dt_utc.minute/60.0 + dt_utc.second/3600.0)
+        try:
+            with swisseph_lock():
+                jd_ut = swe.julday(
+                    dt_utc.year,
+                    dt_utc.month,
+                    dt_utc.day,
+                    dt_utc.hour
+                    + dt_utc.minute / 60.0
+                    + dt_utc.second / 3600.0,
+                )
+        except Exception as exc:
+            logger.error(
+                "Swiss Ephemeris failed while calculating the Julian day",
+                exc_info=True,
+            )
+            raise EphemerisCalculationError(
+                "Unable to calculate the chart's Julian day"
+            ) from exc
         
         logger.info(f"Calculating chart for:")
         logger.info(f"  Local time: {dt_local} ({timezone_info})")
@@ -956,65 +1090,29 @@ class EnhancedTraditionalAstrologicalCalculator:
             safe_location = location_name.encode('ascii', 'replace').decode('ascii')
             logger.info(f"  Location: {safe_location} ({lat:.4f}, {lon:.4f})")
         
-        # Calculate traditional planets only
-        planets = {}
-        for planet_enum, planet_id in self.planets_swe.items():
-            try:
-                planet_data, ret_flag = swe.calc_ut(jd_ut, planet_id, swe.FLG_SWIEPH | swe.FLG_SPEED)
-                
-                longitude = planet_data[0]
-                latitude = planet_data[1]
-                speed = planet_data[3]  # degrees/day
-                retrograde = speed < 0
-                
-                sign = self._get_sign(longitude)
-                
-                planets[planet_enum] = PlanetPosition(
-                    planet=planet_enum,
-                    longitude=longitude,
-                    latitude=latitude,
-                    house=0,  # Will be calculated after houses
-                    sign=sign,
-                    dignity_score=0,  # Will be calculated after solar analysis
-                    retrograde=retrograde,
-                    speed=speed
-                )
-                
-            except Exception as e:
-                logger.error(f"Error calculating {planet_enum.value}: {e}")
-                # Create fallback
-                planets[planet_enum] = PlanetPosition(
-                    planet=planet_enum,
-                    longitude=0.0,
-                    latitude=0.0,
-                    house=1,
-                    sign=Sign.ARIES,
-                    dignity_score=0,
-                    speed=0.0
-                )
-        
-        # Calculate houses (from centralized config)
-        try:
-            from horary_config import cfg as _cfg
-            # Optional override for Astro Clock; fallback to configured default
-            house_code = None
-            if isinstance(house_system_code, str) and house_system_code.strip():
-                house_code = house_system_code.strip()
-            else:
-                house_code = getattr(getattr(_cfg(), 'houses', object()), 'system_code', 'R')
-            if isinstance(house_code, str):
-                house_code_bytes = house_code.encode('ascii', 'ignore') or b'R'
-            else:
-                house_code_bytes = b'R'
-            houses_data, ascmc = swe.houses(jd_ut, lat, lon, house_code_bytes)
-            houses = list(houses_data)
-            ascendant = ascmc[0]
-            midheaven = ascmc[1]
-        except Exception as e:
-            logger.error(f"Error calculating houses: {e}")
-            ascendant = 0.0
-            midheaven = 90.0
-            houses = [i * 30.0 for i in range(12)]
+        # Resolve the configured house system before acquiring the process-global
+        # Swiss lock, then calculate every position and cusp under one lock.
+        from horary_config import cfg as _cfg
+
+        if isinstance(house_system_code, str) and house_system_code.strip():
+            house_code = house_system_code.strip()
+        else:
+            house_code = getattr(
+                getattr(_cfg(), "houses", object()),
+                "system_code",
+                "R",
+            )
+        if isinstance(house_code, str):
+            house_code_bytes = house_code.encode("ascii", "ignore") or b"R"
+        else:
+            house_code_bytes = b"R"
+
+        planets, houses, ascendant, midheaven = self._calculate_ephemeris_snapshot(
+            jd_ut,
+            lat,
+            lon,
+            house_code_bytes,
+        )
         
         # Calculate house positions and house rulers
         house_rulers = {}
@@ -1186,7 +1284,7 @@ class EnhancedTraditionalAstrologicalCalculator:
         
         elongation = calculate_elongation(planet_pos.longitude, sun_pos.longitude)
         
-        # Must have minimum 10В° elongation
+        # Must have minimum 10° elongation
         if elongation < 10.0:
             return False
         
@@ -1194,7 +1292,8 @@ class EnhancedTraditionalAstrologicalCalculator:
         is_oriental = is_planet_oriental(planet_pos.longitude, sun_pos.longitude)
         
         # Get Sun altitude at civil twilight
-        sun_altitude = sun_altitude_at_civil_twilight(lat, lon, jd_ut)
+        with swisseph_lock():
+            sun_altitude = sun_altitude_at_civil_twilight(lat, lon, jd_ut)
         
         # Classical visibility conditions
         if planet == Planet.MERCURY:
@@ -1202,7 +1301,7 @@ class EnhancedTraditionalAstrologicalCalculator:
             if sun_altitude <= -8.0:
                 if elongation >= 10.0 and planet_pos.sign in [Sign.GEMINI, Sign.VIRGO]:
                     return True
-                # Or if greater elongation (18В° for Mercury)
+                # Or if greater elongation (18° for Mercury)
                 if elongation >= 18.0:
                     return True
 
@@ -1212,7 +1311,7 @@ class EnhancedTraditionalAstrologicalCalculator:
                 # Check if conditions support visibility
                 if sun_altitude <= -8.0:  # Civil twilight or darker
                     return True
-                # Or if Venus is at maximum elongation (classical ~47В°)
+                # Or if Venus is at maximum elongation (classical ~47°)
                 if elongation >= 40.0:
                     return True
         
@@ -1264,7 +1363,7 @@ class EnhancedTraditionalAstrologicalCalculator:
         if planet in house_joys and house_joys[planet] == house:
             score += config.dignity.joy
         
-        # ENHANCED: Use 5В° rule for angularity determination
+        # ENHANCED: Use 5° rule for angularity determination
         # This requires access to houses and longitude - will be handled in calling function
         # For now, use traditional classification
         if house in [1, 4, 7, 10]:
@@ -1389,7 +1488,7 @@ class EnhancedTraditionalAstrologicalCalculator:
         if planet in house_joys and house_joys[planet] == house:
             accidental_score += config.dignity.joy
         
-        # Angularity with 5В° rule
+        # Angularity with 5° rule
         angularity = self._get_traditional_angularity(planet_pos.longitude, houses, house)
         
         if angularity == "angular":
@@ -1530,7 +1629,7 @@ class EnhancedTraditionalAstrologicalCalculator:
     def _calculate_enhanced_dignity_with_5degree_rule(self, planet: Planet, planet_pos: PlanetPosition, 
                                                      houses: List[float], 
                                                      solar_analysis: Optional[SolarAnalysis] = None) -> int:
-        """Enhanced dignity calculation with 5В° rule for angularity (ENHANCED)"""
+        """Enhanced dignity calculation with 5° rule for angularity (ENHANCED)"""
         score = 0
         config = cfg()
         sign = self._get_sign(planet_pos.longitude)
@@ -1569,7 +1668,7 @@ class EnhancedTraditionalAstrologicalCalculator:
         if planet in house_joys and house_joys[planet] == house:
             score += config.dignity.joy
         
-        # ENHANCED: Apply 5В° rule for angularity
+        # ENHANCED: Apply 5° rule for angularity
         angularity = self._get_traditional_angularity(planet_pos.longitude, houses, house)
         
         if angularity == "angular":
@@ -1617,7 +1716,7 @@ class EnhancedTraditionalAstrologicalCalculator:
             current_cusp = houses[i] % 360
             next_cusp = houses[(i + 1) % 12] % 360
             
-            if current_cusp > next_cusp:  # Crosses 0В°
+            if current_cusp > next_cusp:  # Crosses 0°
                 if longitude >= current_cusp or longitude < next_cusp:
                     return i + 1
             else:
@@ -1627,13 +1726,13 @@ class EnhancedTraditionalAstrologicalCalculator:
         return 1
     
     def _get_traditional_angularity(self, longitude: float, houses: List[float], house: int) -> str:
-        """Determine traditional angularity using 5В° rule (ENHANCED)"""
+        """Determine traditional angularity using 5° rule (ENHANCED)"""
         longitude = longitude % 360
         
         # Get angular house cusps (1st, 4th, 7th, 10th)
         angular_cusps = [houses[0], houses[3], houses[6], houses[9]]  # 1st, 4th, 7th, 10th
         
-        # Check proximity to angular cusps (5В° rule)
+        # Check proximity to angular cusps (5° rule)
         for cusp in angular_cusps:
             cusp = cusp % 360
             
@@ -1714,6 +1813,7 @@ class EnhancedTraditionalHoraryJudgmentEngine:
                 analysis = chart.solar_analyses.get(planet)
                 if analysis and hasattr(analysis, 'condition'):
                     setattr(pos, 'visibility', getattr(analysis, 'condition', None))
+                    setattr(pos, 'solar_condition', analysis)
     
     def judge_question(self, question: str, location: str, 
                       date_str: Optional[str] = None, time_str: Optional[str] = None,
@@ -1801,7 +1901,7 @@ class EnhancedTraditionalHoraryJudgmentEngine:
                                             chart, question_analysis, question_type, category_rules)
             reasoning_bundle = serialize_reasoning_v1(structured_reasoning) if USE_REASONING_V1 else None
 
-            # FRONTEND ORDERING (presentation only вЂ” does not affect scoring)
+            # FRONTEND ORDERING (presentation only — does not affect scoring)
             try:
                 judgment["reasoning"] = sort_reasoning_for_display(judgment.get("reasoning", []))
             except Exception:
@@ -1855,6 +1955,10 @@ class EnhancedTraditionalHoraryJudgmentEngine:
                                 reception_info,
                                 judgment.get("moon_testimony") or {},
                                 judgment.get("pet_safety") or {},
+                            )
+                            _normalize_snapshot_solar_condition(
+                                pet_snapshot,
+                                "pet_solar_condition",
                             )
                             projection = build_pet_missing_location_projection(pet_snapshot)
                         if projection.get("applies"):
@@ -2150,7 +2254,7 @@ class EnhancedTraditionalHoraryJudgmentEngine:
 
         q = question.lower().strip()
 
-        # QUALITY patterns вЂ“ evaluation / advisability
+        # QUALITY patterns – evaluation / advisability
         quality_indicators = (
             'should i','should we','is it good','is it wise','is it favorable',
             'is it advisable','is it beneficial','is it worth','is it right',
@@ -2183,7 +2287,7 @@ class EnhancedTraditionalHoraryJudgmentEngine:
         if any(k in q for k in quality_indicators) or any(k in q for k in safety_indicators):
             return "QUALITY"
 
-        # OCCURRENCE patterns вЂ“ likelihood / event language
+        # OCCURRENCE patterns – likelihood / event language
         occurrence_indicators = (
             'will i','will we','will it','will this','will there','will they','will he','will she',
             'am i going to','are we going to','is it going to',
@@ -2302,13 +2406,13 @@ class EnhancedTraditionalHoraryJudgmentEngine:
                     "global": True,  # bypass category filters
                 })
                 
-                # Extra nudge if near the IC cusp (say within 3В°)
+                # Extra nudge if near the IC cusp (say within 3°)
                 ic_long = getattr(chart, "house_cusps", {}).get(4)
                 if isinstance(ic_long, (int, float)) and abs((pos.longitude - ic_long + 180) % 360 - 180) <= 3:
                     reasoning.append({
                         "stage": "House Conditions",
                         "key": "malefic_near_ic",
-                        "rule": f"{planet.value} within 3В° of IC",
+                        "rule": f"{planet.value} within 3° of IC",
                         "weight": -1,
                         "house": 4,
                         "factor": "end_matter",
@@ -2649,19 +2753,19 @@ class EnhancedTraditionalHoraryJudgmentEngine:
                         if distance < 1.0:
                             severe_impediments += 1
                             solar_penalty += 40
-                            reason = f"{planet.value} (extreme combustion at {distance:.1f}В°)"
+                            reason = f"{planet.value} (extreme combustion at {distance:.1f}°)"
                             penalty = 40
                         elif distance < 2.0:
                             solar_penalty += 25
-                            reason = f"{planet.value} (severe combustion at {distance:.1f}В°)"
+                            reason = f"{planet.value} (severe combustion at {distance:.1f}°)"
                             penalty = 25
                         elif distance < 5.0:
                             solar_penalty += 15
-                            reason = f"{planet.value} (combustion at {distance:.1f}В°)"
+                            reason = f"{planet.value} (combustion at {distance:.1f}°)"
                             penalty = 15
                         else:
                             solar_penalty += 10
-                            reason = f"{planet.value} (light combustion at {distance:.1f}В°)"
+                            reason = f"{planet.value} (light combustion at {distance:.1f}°)"
                             penalty = 10
 
                         if planet_dignity <= -4 and distance < 3.0:
@@ -3062,6 +3166,10 @@ class EnhancedTraditionalHoraryJudgmentEngine:
                 moon_testimony,
                 pet_safety,
             )
+            _normalize_snapshot_solar_condition(
+                pet_missing_snapshot,
+                "pet_solar_condition",
+            )
             pet_missing_eval = evaluate_pet_missing_snapshot(pet_missing_snapshot)
             if pet_missing_eval.get("applies"):
                 reasoning.extend(pet_missing_eval.get("reasoning", []))
@@ -3093,6 +3201,10 @@ class EnhancedTraditionalHoraryJudgmentEngine:
                 pet_analysis,
                 pet_safety,
                 moon_testimony,
+            )
+            _normalize_snapshot_solar_condition(
+                pet_recovery_snapshot,
+                "pet_solar_condition",
             )
             pet_recovery_eval = evaluate_pet_recovery_snapshot(pet_recovery_snapshot)
             if pet_recovery_eval.get("applies"):
@@ -3283,19 +3395,19 @@ class EnhancedTraditionalHoraryJudgmentEngine:
                 aspect_msg = None
                 if "conjunction" in aspect_l:
                     aspect_weight = 1
-                    aspect_msg = "Aspect type: Conjunction вЂ” powerful contact (quality depends on dignity/context)."
+                    aspect_msg = "Aspect type: Conjunction — powerful contact (quality depends on dignity/context)."
                 elif "trine" in aspect_l:
                     aspect_weight = 1
-                    aspect_msg = "Aspect type: Trine вЂ” easy flow and support."
+                    aspect_msg = "Aspect type: Trine — easy flow and support."
                 elif "sextile" in aspect_l:
                     aspect_weight = 1
-                    aspect_msg = "Aspect type: Sextile вЂ” opportunity with some effort."
+                    aspect_msg = "Aspect type: Sextile — opportunity with some effort."
                 elif "square" in aspect_l:
                     aspect_weight = -2
-                    aspect_msg = "Aspect type: Square вЂ” obstacles and friction; requires effort to realize."
+                    aspect_msg = "Aspect type: Square — obstacles and friction; requires effort to realize."
                 elif "opposition" in aspect_l:
                     aspect_weight = -3
-                    aspect_msg = "Aspect type: Opposition вЂ” pulling apart; strong denial unless heavily mitigated."
+                    aspect_msg = "Aspect type: Opposition — pulling apart; strong denial unless heavily mitigated."
                 if aspect_msg is not None:
                     reasoning.append({"stage": "Perfection", "rule": aspect_msg, "weight": aspect_weight})
 
@@ -3351,7 +3463,7 @@ class EnhancedTraditionalHoraryJudgmentEngine:
                     if neg_case:
                         reasoning.append({
                             "stage": "Perfection",
-                            "rule": f"Reception: Negative (received into detriment/fall) вЂ” {neg_detail}",
+                            "rule": f"Reception: Negative (received into detriment/fall) — {neg_detail}",
                             "weight": -2,
                         })
                 except Exception:
@@ -3384,7 +3496,7 @@ class EnhancedTraditionalHoraryJudgmentEngine:
                     weight = 4
                 elif is_hard:
                     # Default to opposing weight for hard aspects when unfavorable
-                    rule_text = "Perfection by hard aspect вЂ“ occurrence with obstacles (unfavorable)"
+                    rule_text = "Perfection by hard aspect – occurrence with obstacles (unfavorable)"
                     weight = -4 if not perfection.get("favorable") else 2
                     # Reception can mitigate the negativity a bit
                     rec = perfection.get("reception") or {}
@@ -3443,7 +3555,7 @@ class EnhancedTraditionalHoraryJudgmentEngine:
                 neg_detail = ""
                 if perfection.get("negative_reasons"):
                     neg_detail = f" ({'; '.join(perfection['negative_reasons'])})"
-                reasoning.append({"stage": "Perfection found", "rule": f"вќЊ {perfection['reason']}{neg_detail}", "weight": -8})
+                reasoning.append({"stage": "Perfection found", "rule": f"❌ {perfection['reason']}{neg_detail}", "weight": -8})
 
             # Apply consideration penalties (R1, R26) after perfection
             # For perfection cases, maintain minimum floor confidence
@@ -3870,13 +3982,13 @@ class EnhancedTraditionalHoraryJudgmentEngine:
         elif benefic_support["neutral"]:
             reasoning.append(f"Note: {benefic_support['reason']} (secondary testimony)")
         
-        # 6. PREGNANCY-SPECIFIC: Check for Moonв†’benefic OR L1в†”L5 reception (FIXED: don't auto-deny)
+        # 6. PREGNANCY-SPECIFIC: Check for Moon→benefic OR L1↔L5 reception (FIXED: don't auto-deny)
         if question_type == Category.PREGNANCY:
-            # Check for L1в†”L5 reception (already fixed)
+            # Check for L1↔L5 reception (already fixed)
             reception = self._detect_reception_between_planets(chart, querent_planet, quesited_planet)
             has_reception = reception != "none"
             
-            # Check for Moonв†’benefic testimony (already fixed in moon testimony)  
+            # Check for Moon→benefic testimony (already fixed in moon testimony)
             has_moon_benefic = False
             if moon_testimony.get("aspects"):
                 for aspect_info in moon_testimony["aspects"]:
@@ -3885,9 +3997,9 @@ class EnhancedTraditionalHoraryJudgmentEngine:
                         has_moon_benefic = True
                         break
             
-            # Pregnancy exception: Don't auto-deny if reception OR moonв†’benefic exists
+            # Pregnancy exception: Don't auto-deny if reception OR moon→benefic exists
             if has_reception or has_moon_benefic:
-                reception_reason = f"L1в†”L5 reception ({reception})" if has_reception else ""
+                reception_reason = f"L1↔L5 reception ({reception})" if has_reception else ""
                 moon_benefic_reason = "Moon applying to benefic" if has_moon_benefic else ""
                 combined_reason = " & ".join(filter(None, [reception_reason, moon_benefic_reason]))
                 
@@ -4030,7 +4142,7 @@ class EnhancedTraditionalHoraryJudgmentEngine:
             if strongest:
                 # Check if this aspect should actually be negative under enhanced scoring
                 aspect_desc = strongest.get("description", "")
-                if "вЌ" in aspect_desc or "в–Ў" in aspect_desc:  # Opposition or square
+                if "☍" in aspect_desc or "□" in aspect_desc:  # Opposition or square
                     # These should be negative under enhanced policy, don't include as supportive
                     pass
                 else:
@@ -4487,45 +4599,6 @@ class EnhancedTraditionalHoraryJudgmentEngine:
         # Enhanced retrograde handling - configurable instead of automatic denial
         querent_pos = chart.planets[querent]
         quesited_pos = chart.planets[quesited]
-        reception_info = self.reception_calculator.calculate_comprehensive_reception(
-            chart, querent, quesited
-        )
-        mutual = reception_info.get("mutual", "none")
-        one_way = reception_info.get("one_way", [])
-        
-        if not config.retrograde.automatic_denial:
-            # Retrograde is now just a penalty, not automatic denial
-            if querent_pos.retrograde or quesited_pos.retrograde:
-                # This will be handled in dignity scoring instead
-                pass
-        else:
-            # Legacy behavior - automatic denial
-            if querent_pos.retrograde or quesited_pos.retrograde:
-                return {
-                    "denied": True,
-                    "confidence": config.confidence.denial.frustration_retrograde,
-                    "reason": f"Frustration - {'querent' if querent_pos.retrograde else 'quesited'} significator retrograde"
-                }
-        
-        return {"denied": False}
-
-    def _check_enhanced_denial_conditions(self, chart: HoraryChart, querent: Planet, quesited: Planet) -> Dict[str, Any]:
-        """Enhanced denial conditions with configurable retrograde handling"""
-        
-        config = cfg()
-        
-        # Traditional Frustration - any planet can aspect a significator first
-        frustration_result = self._check_frustration(chart, querent, quesited)
-        if frustration_result["found"]:
-            return {
-                "denied": True,
-                "confidence": frustration_result["confidence"],
-                "reason": frustration_result["reason"]
-            }
-        
-        # Enhanced retrograde handling - configurable instead of automatic denial
-        querent_pos = chart.planets[querent]
-        quesited_pos = chart.planets[quesited]
         
         if not config.retrograde.automatic_denial:
             # Retrograde is now just a penalty, not automatic denial
@@ -4896,7 +4969,7 @@ class EnhancedTraditionalHoraryJudgmentEngine:
             # Traditional rule: Even combust planets can translate light
             # but with reduced effectiveness
             combustion_penalty = 0
-            if hasattr(pos, 'solar_condition') and pos.solar_condition.condition == "Combustion":
+            if _is_solar_condition(pos, SolarCondition.COMBUSTION):
                 combustion_penalty = 15
                 confidence -= combustion_penalty
                 
@@ -5185,7 +5258,7 @@ class EnhancedTraditionalHoraryJudgmentEngine:
                         confidence = 75
                         
                         # Reduce confidence if translator is combust
-                        if hasattr(pos, 'solar_condition') and pos.solar_condition.condition == "Combustion":
+                        if _is_solar_condition(pos, SolarCondition.COMBUSTION):
                             confidence -= 10
                         
                         party_name = "seller" if party_aspect["other"] == seller else "buyer"
@@ -5200,7 +5273,7 @@ class EnhancedTraditionalHoraryJudgmentEngine:
                     elif (not party_aspect["applying"] and item_aspect["applying"]):
                         confidence = 75
                         
-                        if hasattr(pos, 'solar_condition') and pos.solar_condition.condition == "Combustion":
+                        if _is_solar_condition(pos, SolarCondition.COMBUSTION):
                             confidence -= 10
                             
                         party_name = "seller" if party_aspect["other"] == seller else "buyer"
@@ -5434,20 +5507,20 @@ class EnhancedTraditionalHoraryJudgmentEngine:
         
         # Convert aspect names to symbols (matching frontend)
         aspect_symbols = {
-            'Conjunction': 'вЊ',
-            'Sextile': 'вљ№', 
-            'Square': 'в–Ў',
-            'Trine': 'в–і',
-            'Opposition': 'вЌ'
+            'Conjunction': '☌',
+            'Sextile': '⚹',
+            'Square': '□',
+            'Trine': '△',
+            'Opposition': '☍'
         }
         
         # Get aspect symbol or fallback
-        symbol = aspect_symbols.get(aspect_name, 'в—‹')
+        symbol = aspect_symbols.get(aspect_name, '○')
         
         # Format status
         status = "applying" if applying else "separating"
         
-        # Return formatted string matching frontend style: "Planet1 вЊ Planet2 (applying)"
+        # Return formatted string matching frontend style: "Planet1 ☌ Planet2 (applying)"
         return f"{planet1} {symbol} {planet2} ({status})"
     
     def _get_aspect_symbol(self, aspect_data) -> str:
@@ -5460,14 +5533,14 @@ class EnhancedTraditionalHoraryJudgmentEngine:
         
         # Convert aspect names to symbols
         aspect_symbols = {
-            'Conjunction': 'вЊ',
-            'Sextile': 'вљ№', 
-            'Square': 'в–Ў',
-            'Trine': 'в–і',
-            'Opposition': 'вЌ'
+            'Conjunction': '☌',
+            'Sextile': '⚹',
+            'Square': '□',
+            'Trine': '△',
+            'Opposition': '☍'
         }
         
-        return aspect_symbols.get(aspect_name, 'в—‹')
+        return aspect_symbols.get(aspect_name, '○')
     
     def _check_benefic_aspects_to_significators(self, chart: HoraryChart, querent_planet: Planet, quesited_planet: Planet) -> Dict[str, Any]:
         """ENHANCED: Check for beneficial aspects to significators (traditional hierarchy)"""
@@ -5698,7 +5771,7 @@ class EnhancedTraditionalHoraryJudgmentEngine:
         """Traditional void-of-course check (ground truth).
 
         Definition used here: the Moon is VOC if, before leaving its current sign,
-        it will not apply to any of the seven classical planets (SunвЂ“Saturn) by a
+        it will not apply to any of the seven classical planets (Sun–Saturn) by a
         Ptolemaic aspect (conjunction, sextile, square, trine, opposition). This
         implementation is sign-bounded and does not require being within classical
         orb at the sign boundary (Lilly-style). Retrograde motion is respected.
@@ -5722,19 +5795,19 @@ class EnhancedTraditionalHoraryJudgmentEngine:
         _debug_log(logging.INFO, "[VOC] Starting void of course determination for Moon")
         _debug_log(
             logging.INFO,
-            f"[VOC] Moon position: {moon_pos.longitude:.2f}В° in {moon_pos.sign.sign_name if hasattr(moon_pos.sign, 'sign_name') else str(moon_pos.sign)}",
+            f"[VOC] Moon position: {moon_pos.longitude:.2f}° in {moon_pos.sign.sign_name if hasattr(moon_pos.sign, 'sign_name') else str(moon_pos.sign)}",
         )
-        _debug_log(logging.INFO, f"[VOC] Moon speed: {moon_pos.speed:.4f}В°/day, retrograde: {moon_pos.retrograde}")
+        _debug_log(logging.INFO, f"[VOC] Moon speed: {moon_pos.speed:.4f}°/day, retrograde: {moon_pos.retrograde}")
 
         # Calculate distance to sign exit (respect retrograde direction)
         moon_degree_in_sign = moon_pos.longitude % 30
         if moon_pos.retrograde:
-            degrees_to_sign_exit = moon_degree_in_sign               # moving down toward 0В°
+            degrees_to_sign_exit = moon_degree_in_sign               # moving down toward 0°
         else:
-            degrees_to_sign_exit = 30.0 - moon_degree_in_sign        # moving up toward 30В°
+            degrees_to_sign_exit = 30.0 - moon_degree_in_sign        # moving up toward 30°
             
-        _debug_log(logging.INFO, f"[VOC] Moon degree in sign: {moon_degree_in_sign:.2f}В°")
-        _debug_log(logging.INFO, f"[VOC] Degrees to sign exit: {degrees_to_sign_exit:.2f}В°")
+        _debug_log(logging.INFO, f"[VOC] Moon degree in sign: {moon_degree_in_sign:.2f}°")
+        _debug_log(logging.INFO, f"[VOC] Degrees to sign exit: {degrees_to_sign_exit:.2f}°")
 
         # Use high-precision exit timing when available (consistent w/ other modules)
         days_until_sign_exit = self._days_to_sign_exit(moon_pos)
@@ -5742,7 +5815,7 @@ class EnhancedTraditionalHoraryJudgmentEngine:
             # Fallback to local approximation if helper unavailable
             speed = abs(moon_pos.speed) or getattr(cfg().timing, "default_moon_speed_fallback", 13.2)
             days_until_sign_exit = degrees_to_sign_exit / max(0.01, speed)
-            _debug_log(logging.INFO, f"[VOC] Using fallback speed calculation: {speed:.2f}В°/day")
+            _debug_log(logging.INFO, f"[VOC] Using fallback speed calculation: {speed:.2f}°/day")
         else:
             _debug_log(logging.INFO, "[VOC] Using precise exit timing from helper")
             
@@ -5832,8 +5905,8 @@ class EnhancedTraditionalHoraryJudgmentEngine:
         moon_pos = chart.planets[Planet.MOON]
         classical_planets = [Planet.SUN, Planet.MERCURY, Planet.VENUS, Planet.MARS, Planet.JUPITER, Planet.SATURN]
         
-        _debug_log(logging.INFO, f"[ASPECT-DEBUG] Moon at {moon_pos.longitude:.2f}В° in {moon_pos.sign.sign_name}")
-        _debug_log(logging.INFO, f"[ASPECT-DEBUG] Moon speed: {moon_pos.speed:.4f}В°/day, retrograde: {moon_pos.retrograde}")
+        _debug_log(logging.INFO, f"[ASPECT-DEBUG] Moon at {moon_pos.longitude:.2f}° in {moon_pos.sign.sign_name}")
+        _debug_log(logging.INFO, f"[ASPECT-DEBUG] Moon speed: {moon_pos.speed:.4f}°/day, retrograde: {moon_pos.retrograde}")
         
         # 1) Enhanced Aspects (Moon-involved)
         enhanced_aspects = calculate_enhanced_aspects(chart.planets, chart.julian_day)
@@ -5871,7 +5944,7 @@ class EnhancedTraditionalHoraryJudgmentEngine:
             if planet not in chart.planets:
                 continue
             planet_pos = chart.planets[planet]
-            _debug_log(logging.INFO, f"[ASPECT-DEBUG] --- {planet.value} at {planet_pos.longitude:.2f}В° ---")
+            _debug_log(logging.INFO, f"[ASPECT-DEBUG] --- {planet.value} at {planet_pos.longitude:.2f}° ---")
 
             for aspect_type in Aspect:
                 t_aspects = time_to_perfection(moon_pos, planet_pos, aspect_type)
@@ -6610,7 +6683,7 @@ class EnhancedTraditionalHoraryJudgmentEngine:
                 challenge_reasons.append("weak collector")
 
             # Check if collector is free from major afflictions
-            if hasattr(pos, 'solar_condition') and pos.solar_condition.condition == "Combustion":
+            if _is_solar_condition(pos, SolarCondition.COMBUSTION):
                 base_confidence -= 20  # Combust collector less reliable - challenge, not failure
                 challenge_reasons.append("collector combust")
 
@@ -6925,14 +6998,22 @@ class EnhancedTraditionalHoraryJudgmentEngine:
             planet_id_frustrator = self.calculator.planets_swe.get(frustrating_pos.planet)
             try:
                 if planet_id_target is not None:
-                    st_target = calculate_next_station_time(planet_id_target, chart.julian_day)
+                    with swisseph_lock():
+                        st_target = calculate_next_station_time(
+                            planet_id_target,
+                            chart.julian_day,
+                        )
                 else:
                     st_target = None
             except Exception:
                 st_target = None
             try:
                 if planet_id_frustrator is not None:
-                    st_frustrator = calculate_next_station_time(planet_id_frustrator, chart.julian_day)
+                    with swisseph_lock():
+                        st_frustrator = calculate_next_station_time(
+                            planet_id_frustrator,
+                            chart.julian_day,
+                        )
                 else:
                     st_frustrator = None
             except Exception:
@@ -7070,11 +7151,11 @@ class EnhancedTraditionalHoraryJudgmentEngine:
         
         if chart_sect == "diurnal":  # Day chart
             if malefic == Planet.MARS:  # Mars out of sect by day
-                sect_multiplier = 1.25  # Mars penalties Г—1.25 in day charts
+                sect_multiplier = 1.25  # Mars penalties ×1.25 in day charts
             # Saturn in sect by day (no amplification)
         else:  # Night chart  
             if malefic == Planet.SATURN:  # Saturn out of sect by night
-                sect_multiplier = 1.25  # Saturn penalties Г—1.25 in night charts
+                sect_multiplier = 1.25  # Saturn penalties ×1.25 in night charts
             # Mars in sect by night (no amplification)
             
         # 2. ESSENTIAL DIGNITY AMPLIFICATION
@@ -7129,8 +7210,7 @@ class EnhancedTraditionalHoraryJudgmentEngine:
                 
         # 6. COMBUSTION AMPLIFICATION (if malefic is combust, it's chaotic)
         combustion_penalty = 0
-        solar_condition = getattr(malefic_pos, 'solar_condition', {})
-        if isinstance(solar_condition, dict) and solar_condition.get('condition') == 'Combustion':
+        if _is_solar_condition(malefic_pos, SolarCondition.COMBUSTION):
             combustion_penalty = -4  # Combust malefics are unpredictable and harmful
             
         # Calculate base malefic penalty (before sect amplification)
@@ -7488,12 +7568,14 @@ class EnhancedTraditionalHoraryJudgmentEngine:
         planet_id_2 = self.calculator.planets_swe.get(pos2.planet)
 
         if planet_id_1 is not None:
-            station_jd_1 = calculate_next_station_time(planet_id_1, jd_start)
+            with swisseph_lock():
+                station_jd_1 = calculate_next_station_time(planet_id_1, jd_start)
             if station_jd_1 and (station_jd_1 - jd_start) < days_to_perfect:
                 return False, {"type": "refranation", "planet": pos1.planet}
 
         if planet_id_2 is not None:
-            station_jd_2 = calculate_next_station_time(planet_id_2, jd_start)
+            with swisseph_lock():
+                station_jd_2 = calculate_next_station_time(planet_id_2, jd_start)
             if station_jd_2 and (station_jd_2 - jd_start) < days_to_perfect:
                 return False, {"type": "refranation", "planet": pos2.planet}
 
@@ -7543,7 +7625,7 @@ class EnhancedTraditionalHoraryJudgmentEngine:
         if abs(v_rel) < 1e-6:
             return None
 
-        # Compute delta for both aspect polarities (e.g. 90В° and -90В° for a square)
+        # Compute delta for both aspect polarities (e.g. 90° and -90° for a square)
         delta1 = (A - theta0 + 180.0) % 360.0 - 180.0
         delta2 = (-A - theta0 + 180.0) % 360.0 - 180.0
         delta = delta1 if abs(delta1) < abs(delta2) else delta2
@@ -7662,7 +7744,7 @@ class EnhancedTraditionalHoraryJudgmentEngine:
         if void_of_course:
             base_confidence -= 15
         
-        # Very close aspects (within 1В°) are more decisive
+        # Very close aspects (within 1°) are more decisive
         if next_aspect.orb <= 1.0:
             base_confidence += 10
         
@@ -7693,7 +7775,7 @@ class EnhancedTraditionalHoraryJudgmentEngine:
         }
 
     def _check_sun_applying_to_10th_ruler(self, chart: HoraryChart) -> Optional[Dict[str, Any]]:
-        """Detect if the Sun applies to the 10th house ruler within 3В°"""
+        """Detect if the Sun applies to the 10th house ruler within 3°"""
 
         tenth_ruler = chart.house_rulers.get(10)
         if not tenth_ruler:
@@ -7719,7 +7801,7 @@ class EnhancedTraditionalHoraryJudgmentEngine:
             return None
 
         combust = False
-        if hasattr(ruler_pos, "solar_condition") and ruler_pos.solar_condition.condition == "Combustion":
+        if _is_solar_condition(ruler_pos, SolarCondition.COMBUSTION):
             combust = True
 
         return {"ruler": tenth_ruler, "combust": combust}
@@ -7744,7 +7826,7 @@ class EnhancedTraditionalHoraryJudgmentEngine:
             soften_no_perfection = False
             question_intent = question_analysis.get("question_intent", "REUNION")
             if not blockers and judgment["traditional_factors"].get("perfection_type") == "none":
-                # CRITICAL FIX: Calibrate severity by intent and imminent Moonв†’quesited contact
+                # CRITICAL FIX: Calibrate severity by intent and imminent Moon→quesited contact
                 # Detect imminent Moon support to the quesited (favorable, in-sign, soon)
                 try:
                     sigs = self._identify_significators(chart, question_analysis)
@@ -7784,7 +7866,7 @@ class EnhancedTraditionalHoraryJudgmentEngine:
                     severity = "fatal"
                     reason = "No viable perfection found between significators"
                     if question_intent != "REUNION" or moon_softener:
-                        # Calibrate down to 'severe' for nonвЂ‘reunion or when Moon applies soon to quesited
+                        # Calibrate down to 'severe' for non‑reunion or when Moon applies soon to quesited
                         severity = "severe"
                         soften_no_perfection = True
                     blockers = [{
@@ -7811,9 +7893,9 @@ class EnhancedTraditionalHoraryJudgmentEngine:
                 base_conf = 60  # Condition-based questions should avoid overconfident NOs without perfection
             else:
                 base_conf = 70  # Traditional bias for reunion questions
-                # Calibrate base confidence lower when softening noвЂ‘perfection
+                # Calibrate base confidence lower when softening no‑perfection
                 if soften_no_perfection:
-                    # Lower base to tame extremes (target ~80вЂ“85% final on NO)
+                    # Lower base to tame extremes (target ~80–85% final on NO)
                     base_conf = 60 if moon_softener else 65
             
             hybrid_result = self._calculate_hybrid_confidence(
@@ -8048,14 +8130,22 @@ class EnhancedTraditionalHoraryJudgmentEngine:
         cazimi_planets = []
         combusted_planets = []
         under_beams_planets = []
+        ignored_combusted_planets = []
+        ignored_under_beams_planets = []
         
         for planet, analysis in solar_analyses.items():
             if analysis.condition == SolarCondition.CAZIMI:
                 cazimi_planets.append(planet)
-            elif analysis.condition == SolarCondition.COMBUSTION and not ignore_combustion:
-                combusted_planets.append(planet)
-            elif analysis.condition == SolarCondition.UNDER_BEAMS and not ignore_combustion:
-                under_beams_planets.append(planet)
+            elif analysis.condition == SolarCondition.COMBUSTION:
+                if ignore_combustion:
+                    ignored_combusted_planets.append(planet)
+                else:
+                    combusted_planets.append(planet)
+            elif analysis.condition == SolarCondition.UNDER_BEAMS:
+                if ignore_combustion:
+                    ignored_under_beams_planets.append(planet)
+                else:
+                    under_beams_planets.append(planet)
         
         # Build summary with override notes
         summary_parts = []
@@ -8066,7 +8156,7 @@ class EnhancedTraditionalHoraryJudgmentEngine:
         if under_beams_planets:
             summary_parts.append(f"Under Beams: {', '.join(p.value for p in under_beams_planets)}")
         
-        if ignore_combustion and (combusted_planets or under_beams_planets):
+        if ignore_combustion and (ignored_combusted_planets or ignored_under_beams_planets):
             summary_parts.append("(Combustion effects ignored by override)")
         
         # Convert detailed analyses for JSON serialization
@@ -8131,7 +8221,7 @@ class EnhancedTraditionalHoraryJudgmentEngine:
         if moon_void.get("void"):
             severe_object_condition = (
                 quesited_pos.dignity_score <= -5
-                or getattr(getattr(quesited_pos, "solar_condition", None), "condition", None) == "Combustion"
+                or _is_solar_condition(quesited_pos, SolarCondition.COMBUSTION)
             )
             if severe_object_condition:
                 denial_reasons.append("Moon void-of-course with a badly afflicted object significator - no recovery possible")
@@ -8155,7 +8245,7 @@ class EnhancedTraditionalHoraryJudgmentEngine:
                 if aspect_diff > 180:
                     aspect_diff = 360 - aspect_diff
                 
-                if 172 <= aspect_diff <= 188:  # Opposition within 8В° orb
+                if 172 <= aspect_diff <= 188:  # Opposition within 8° orb
                     denial_reasons.append(f"Well-dignified Mars opposes {sig_planet.value} - theft/loss strongly indicated")
         
         # 7. South Node conjunct significators (traditional loss indicator) 
@@ -8349,8 +8439,7 @@ class EnhancedTraditionalHoraryJudgmentEngine:
             
             # Saturn cazimi in 4th = +4 (exact scenario from user's chart)
             if (fourth_house_ruler == Planet.SATURN and 
-                hasattr(ruler_pos, 'solar_condition') and 
-                ruler_pos.solar_condition.condition == "Cazimi"):
+                _is_solar_condition(ruler_pos, SolarCondition.CAZIMI)):
                 safety_score += 4
                 factors.append(("Saturn cazimi in 4th house (stable resolution)", 4))
             elif ruler_pos.dignity_score >= 5:  # Well-dignified L4
@@ -8363,7 +8452,7 @@ class EnhancedTraditionalHoraryJudgmentEngine:
             safety_score += 3
             factors.append(("L6 ({}) retrograde (retracing/returning)".format(quesited_planet.value), 3))
         
-        # 6. Check L6 в†” L8 hard applications - if absent, +2 (no death testimony)
+        # 6. Check L6 ↔ L8 hard applications - if absent, +2 (no death testimony)
         eighth_house_ruler = chart.house_rulers.get(8)
         if eighth_house_ruler and quesited_planet != eighth_house_ruler:
             # Check for hard aspects between L6 and L8
@@ -9004,15 +9093,15 @@ def sort_reasoning_for_display(entries):
     """
     Stable sorter for the Testimony Evaluation list.
     Order goals:
-      1) 'Saturn in the 7th' style considerations в†’ very top.
-      2) Intro/quality lines ('Question classified as вЂ¦', 'Chart is radical вЂ¦').
-      3) 'Querent: вЂ¦, Quesited: вЂ¦' (Identified) line.
+      1) 'Saturn in the 7th' style considerations → very top.
+      2) Intro/quality lines ('Question classified as …', 'Chart is radical …').
+      3) 'Querent: …, Quesited: …' (Identified) line.
       4) Moon testimony block (translation/collection/prohibition, VOC, Moon speed).
-      5) Per-planet conditions grouped together (MercuryвЂ¦ MercuryвЂ¦ stacked).
+      5) Per-planet conditions grouped together (Mercury… Mercury… stacked).
       6) General/other.
       7) 'Debilitated Lx ruler' near the end.
       8) 'End of matter' / 'in the 4th' absolutely last.
-    Purely presentational вЂ” does not change weights/scores.
+    Purely presentational — does not change weights/scores.
     """
     def t(e):
         return " ".join([
@@ -9035,7 +9124,7 @@ def sort_reasoning_for_display(entries):
 
     def is_saturn_7th_consideration(e):
         txt = t(e)
-        return bool(re.search(r"(saturn|в™„).{0,40}\b7(th)?\b", txt)) and ("house" in txt or "7th" in txt)
+        return bool(re.search(r"(saturn|♄).{0,40}\b7(th)?\b", txt)) and ("house" in txt or "7th" in txt)
 
     def is_moon_testimony(e):
         txt = t(e)

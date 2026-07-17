@@ -338,6 +338,214 @@ _SUMMARY_CAUTION_DOMAINS = {
     "temperament_shadow",
 }
 
+_PUBLIC_FIGURE_SUMMARY_CONTEXTS = {
+    "public_figure",
+    "public_figure_biography",
+    "public_life",
+    "public-life",
+    "biography",
+}
+
+_CRIMINAL_BIOGRAPHY_SUMMARY_CONTEXTS = {
+    "criminal",
+    "criminal_biography",
+    "criminal-figure",
+    "criminal_figure",
+    "criminals-bio",
+    "crime_biography",
+}
+
+_PUBLIC_FIGURE_TRAIT_PRIORITIES = {
+    # Public office, authority, and visible leadership.
+    "leadership_executive": 9,
+    "government_authority": 9,
+    "kingship_leadership_display": 8,
+    "capricorn_ambition": 7,
+    "domination_capricorn": 7,
+    # Institutional, policy, legal, and administrative signals.
+    "responsibility": 8,
+    "organization_capricorn": 8,
+    "legal_mind": 9,
+    "justice_advocacy": 8,
+    "zeal_for_reform": 8,
+    "calculation": 8,
+    "judgment_sound": 7,
+    "precision": 7,
+    "rationality": 7,
+    "zeal_for_service": 7,
+    # Public persuasion, coalition work, and social reach.
+    "eloquence": 9,
+    "mediation": 8,
+    "tact": 8,
+    "cooperation": 8,
+    "sociability": 7,
+    "quick_wittedness": 7,
+    "wit": 7,
+    "humour": 7,
+    "frankness": 7,
+    # Drive, courage, endurance, and conflict style.
+    "enterprise_initiative": 8,
+    "self_assertion": 8,
+    "courage_aries": 8,
+    "valor": 8,
+    "fortitude": 8,
+    "perseverance": 8,
+    "resilience": 8,
+    "endurance": 8,
+    "steadiness": 9,
+    "pugnacity": 7,
+    "willfulness": 7,
+    "ruthlessness": 7,
+    "severity": 7,
+    "rebellion": 9,
+    "disruptiveness": 8,
+    "unconventionality": 7,
+    # Public service and humanitarian reputation.
+    "humanitarianism": 9,
+    "philanthropy": 8,
+    "compassion_universalism": 8,
+    "charity": 8,
+    "unselfishness": 7,
+    "piety": 7,
+    "empathy": 8,
+    # Science, craft, arts, sport, and cultural performance.
+    "invention_discovery": 8,
+    "genius_inventive_scientific": 8,
+    "scholarship": 8,
+    "intelligence_general": 8,
+    "vision_big_picture": 7,
+    "curiosity": 7,
+    "industriousness": 7,
+    "creativity": 8,
+    "craftsmanship": 8,
+    "grace_artistic": 9,
+    "imagination": 7,
+    "transformation": 8,
+    "venturesomeness": 8,
+    "travel_inclination": 8,
+    "yearning_for_travel": 8,
+    "recklessness": 8,
+    "temperance": 6,
+    "sincerity": 6,
+    "reliability": 6,
+    "tenacity": 8,
+    "conservatism": 8,
+    "worldliness": 6,
+}
+
+_CRIMINAL_BIOGRAPHY_TRAIT_PRIORITIES = {
+    # Directly biographical conflict, violence, and harm signals.
+    "destructiveness": 10,
+    "ruthlessness": 10,
+    "severity": 10,
+    "pugnacity": 9,
+    "warlike": 9,
+    "wrath": 9,
+    "disruptiveness": 9,
+    "recklessness": 9,
+    "rashness": 8,
+    "turbulence": 8,
+    "danger_watery_catastrophes": 7,
+    # Domination, defiance, and ideological fixation.
+    "tyranny": 9,
+    "domination_capricorn": 9,
+    "willfulness": 8,
+    "rebellion": 8,
+    "self_assertion": 8,
+    "zealotry": 8,
+    "zeal_for_status": 7,
+    "greed_covetousness": 7,
+    "egoism_egotism": 7,
+    # Planning, deception, concealment, and predatory social strategy.
+    "cunning": 10,
+    "calculation": 9,
+    "lying_falsehood": 9,
+    "subtlety": 8,
+    "reticence": 8,
+    "watchfulness": 8,
+    "reserve_social_style": 7,
+    "worldliness": 7,
+    # Organized-crime and command biographies often hinge on enterprise and control.
+    "leadership_executive": 8,
+    "government_authority": 8,
+    "enterprise_initiative": 8,
+    "conservatism": 7,
+    "tenacity": 7,
+    "endurance": 7,
+    "perseverance": 7,
+    "fortitude": 7,
+    "transformation": 7,
+    # Obsessive, compulsive, and risk biographies.
+    "restlessness": 7,
+    "libido_sexual_drive_style": 7,
+    "compassion_universalism": 1,
+    "humanitarianism": 1,
+    "philanthropy": 1,
+    "charity": 1,
+    "empathy": 1,
+}
+
+_PUBLIC_FIGURE_DOMAIN_PRIORITIES = {
+    "role_capacity": 7,
+    "role_vocation_theme": 7,
+    "role_expression": 7,
+    "vocation_cognition": 7,
+    "work_style": 6,
+    "work_habit_positive": 6,
+    "executive_function": 6,
+    "social_action": 6,
+    "social_function": 6,
+    "social_orientation": 6,
+    "social_skill": 6,
+    "social_style": 6,
+    "communication_skill": 6,
+    "communication_style": 6,
+    "affect_communication": 5,
+    "action_tendency": 6,
+    "drive": 6,
+    "drive_assertion": 6,
+    "fortitude": 6,
+    "virtue_resilience": 6,
+    "courage": 6,
+    "cognition": 6,
+    "cognition_creativity": 6,
+    "cognition_originality": 6,
+    "cognitive_style": 5,
+    "cognition_decision_quality": 5,
+    "aesthetics_performance": 6,
+    "self_expression": 6,
+    "transformative_capacity": 5,
+    "religious_attitude": 5,
+    "care_orientation": 5,
+    "affect_social_feeling": 5,
+    "risk_taking": 5,
+    "life_pattern": 5,
+}
+
+_CRIMINAL_BIOGRAPHY_DOMAIN_PRIORITIES = {
+    "behavioral_risk": 8,
+    "cognitive_shadow": 8,
+    "compulsion_addiction": 7,
+    "ego_expression_shadow": 8,
+    "energy_shadow": 8,
+    "ethic_shadow": 9,
+    "ethical_shadow": 9,
+    "psychological": 6,
+    "relationship_risk": 7,
+    "shadow_affect": 7,
+    "shadow_of_belief": 7,
+    "shadow_of_will": 8,
+    "shadow_tendency": 8,
+    "social_shadow": 8,
+    "temperament_defensive": 6,
+    "temperament_negative": 8,
+    "temperament_shadow": 8,
+    "risk_taking": 7,
+    "action_tendency": 6,
+    "drive_assertion": 6,
+    "executive_function": 5,
+}
+
 
 def _trait_source_status(trait: Dict[str, Any]) -> str:
     try:
@@ -514,6 +722,128 @@ def _trait_summary_priority(trait: Dict[str, Any], bucket: Optional[str] = None)
         if domain in {"communication", "communication_style", "cognitive_affective"}:
             return 1
     return 0
+
+
+def _normalize_summary_context(summary_context: Optional[str]) -> str:
+    normalized = str(summary_context or "default").strip().lower()
+    return normalized or "default"
+
+
+def _is_public_figure_summary_context(summary_context: Optional[str]) -> bool:
+    return _normalize_summary_context(summary_context) in _PUBLIC_FIGURE_SUMMARY_CONTEXTS
+
+
+def _is_criminal_biography_summary_context(summary_context: Optional[str]) -> bool:
+    return _normalize_summary_context(summary_context) in _CRIMINAL_BIOGRAPHY_SUMMARY_CONTEXTS
+
+
+def _uses_contextual_summary_priority(summary_context: Optional[str]) -> bool:
+    return _is_public_figure_summary_context(summary_context) or _is_criminal_biography_summary_context(summary_context)
+
+
+def _trait_public_figure_priority(trait: Dict[str, Any]) -> int:
+    trait_id = str(trait.get("id") or "").strip().lower()
+    if trait_id in _PUBLIC_FIGURE_TRAIT_PRIORITIES:
+        return int(_PUBLIC_FIGURE_TRAIT_PRIORITIES[trait_id])
+    domain = str(trait.get("domain") or "").strip().lower()
+    if domain in _PUBLIC_FIGURE_DOMAIN_PRIORITIES:
+        return int(_PUBLIC_FIGURE_DOMAIN_PRIORITIES[domain])
+    bucket = str(trait.get("summary_bucket") or "").strip().lower()
+    if bucket in {"vocation", "social", "cognition", "aesthetic", "drive"}:
+        return 3
+    return 0
+
+
+def _trait_criminal_biography_priority(trait: Dict[str, Any]) -> int:
+    trait_id = str(trait.get("id") or "").strip().lower()
+    if trait_id in _CRIMINAL_BIOGRAPHY_TRAIT_PRIORITIES:
+        return int(_CRIMINAL_BIOGRAPHY_TRAIT_PRIORITIES[trait_id])
+    domain = str(trait.get("domain") or "").strip().lower()
+    if domain in _CRIMINAL_BIOGRAPHY_DOMAIN_PRIORITIES:
+        return int(_CRIMINAL_BIOGRAPHY_DOMAIN_PRIORITIES[domain])
+    bucket = str(trait.get("summary_bucket") or "").strip().lower()
+    if bucket in {"drive", "shadow", "risk", "character", "social"}:
+        return 3
+    return 0
+
+
+def _trait_summary_context_priority(trait: Dict[str, Any], summary_context: Optional[str]) -> int:
+    if _is_criminal_biography_summary_context(summary_context):
+        return _trait_criminal_biography_priority(trait)
+    if _is_public_figure_summary_context(summary_context):
+        return _trait_public_figure_priority(trait)
+    return 0
+
+
+def _trait_surface_order(trait: Dict[str, Any]) -> int:
+    surface = str(trait.get("summary_surface") or "").strip().lower()
+    if surface == "general":
+        return 0
+    if surface == "caution":
+        return 1
+    if surface == "specialized":
+        return 2
+    return 3
+
+
+def _trait_group_head_key(trait: Dict[str, Any], summary_context: Optional[str]) -> Tuple[Any, ...]:
+    if _uses_contextual_summary_priority(summary_context):
+        return (
+            -int(trait.get("summary_context_priority") or 0),
+            _trait_surface_order(trait),
+            -int(trait.get("summary_priority") or 0),
+            -_trait_source_priority(trait),
+            -_trait_score_tier(trait),
+            -float(trait.get("score", 0) or 0),
+            str(trait.get("id") or ""),
+        )
+    return (
+        -int(trait.get("summary_priority") or 0),
+        -_trait_score_tier(trait),
+        -_trait_source_priority(trait),
+        -float(trait.get("score", 0) or 0),
+        str(trait.get("id") or ""),
+    )
+
+
+def _trait_bucket_head_key(trait: Dict[str, Any], summary_context: Optional[str]) -> Tuple[Any, ...]:
+    if _uses_contextual_summary_priority(summary_context):
+        return (
+            -int(trait.get("summary_context_priority") or 0),
+            _trait_surface_order(trait),
+            -_trait_source_priority(trait),
+            -int(trait.get("summary_priority") or 0),
+            -_trait_score_tier(trait),
+            -float(trait.get("score", 0) or 0),
+            str(trait.get("id") or ""),
+        )
+    return (
+        -_trait_score_tier(trait),
+        -_trait_source_priority(trait),
+        -int(trait.get("summary_priority") or 0),
+        -float(trait.get("score", 0) or 0),
+        str(trait.get("id") or ""),
+    )
+
+
+def _trait_summary_rank_key(trait: Dict[str, Any], summary_context: Optional[str]) -> Tuple[Any, ...]:
+    if _uses_contextual_summary_priority(summary_context):
+        return (
+            -int(trait.get("summary_context_priority") or 0),
+            _trait_surface_order(trait),
+            -int(trait.get("summary_priority") or 0),
+            -_trait_source_priority(trait),
+            -_trait_score_tier(trait),
+            -float(trait.get("score", 0) or 0),
+            str(trait.get("id") or ""),
+        )
+    return (
+        -int(trait.get("summary_priority") or 0),
+        -_trait_score_tier(trait),
+        -_trait_source_priority(trait),
+        -float(trait.get("score", 0) or 0),
+        str(trait.get("id") or ""),
+    )
 
 
 def _pair_key(a: str, b: str) -> Tuple[str, str]:
@@ -1035,7 +1365,14 @@ class TraitEngine:
 
         return False, 0.0, None
 
-    def evaluate(self, metrics: Dict[str, Any], limit: int = 10, min_score: float = 18.0) -> Dict[str, Any]:
+    def evaluate(
+        self,
+        metrics: Dict[str, Any],
+        limit: int = 10,
+        min_score: float = 18.0,
+        summary_context: Optional[str] = "default",
+    ) -> Dict[str, Any]:
+        normalized_summary_context = _normalize_summary_context(summary_context)
         traits = []
         # Load Morin keywords dictionary (optional)
         mk = _load_morin_keywords_safe()
@@ -1050,6 +1387,7 @@ class TraitEngine:
             summary_eligible = summary_surface != "specialized"
             summary_bucket = _trait_summary_bucket(t)
             summary_priority = _trait_summary_priority(t, summary_bucket)
+            summary_context_priority = _trait_summary_context_priority(t, normalized_summary_context)
             base = float(logic.get("base", 0) or 0)
             total = base
             positive_hits = 0
@@ -1134,6 +1472,7 @@ class TraitEngine:
                 "summary_eligible": summary_eligible,
                 "summary_bucket": summary_bucket,
                 "summary_priority": summary_priority,
+                "summary_context_priority": summary_context_priority,
                 "score": round(score, 1),
                 "raw_score": round(raw_score, 1),
                 "max_score": round(max_support, 1),
@@ -1172,7 +1511,13 @@ class TraitEngine:
             key = str(trait.get("family_key") or trait.get("id") or "")
             family_groups.setdefault(key, []).append(trait)
         for group in family_groups.values():
-            rep = group[0]
+            if _uses_contextual_summary_priority(normalized_summary_context):
+                rep = sorted(
+                    group,
+                    key=lambda trait: _trait_summary_rank_key(trait, normalized_summary_context),
+                )[0]
+            else:
+                rep = group[0]
             related = [
                 {
                     "id": item.get("id"),
@@ -1180,12 +1525,13 @@ class TraitEngine:
                     "polarity": item.get("polarity"),
                     "score": item.get("score"),
                 }
-                for item in group[1:]
+                for item in group
+                if item is not rep
             ]
-            for idx, item in enumerate(group):
+            for item in group:
                 item["family_size"] = len(group)
-                item["family_representative"] = idx == 0
-                item["related_traits"] = related if idx == 0 else []
+                item["family_representative"] = item is rep
+                item["related_traits"] = related if item is rep else []
             family_reps.append(rep)
         top_limit = max(3, min(limit, 10))
         curated_reps = [t for t in family_reps if not t.get("provisional")]
@@ -1206,24 +1552,16 @@ class TraitEngine:
         for group in bucket_groups.values():
             rep = sorted(
                 group,
-                key=lambda trait: (
-                    -int(trait.get("summary_priority") or 0),
-                    -_trait_score_tier(trait),
-                    -_trait_source_priority(trait),
-                    -float(trait.get("score", 0) or 0),
-                    str(trait.get("id") or ""),
-                ),
+                key=lambda trait: _trait_group_head_key(trait, normalized_summary_context),
             )[0]
             bucket_heads.append(rep)
         bucket_heads = sorted(
             bucket_heads,
-            key=lambda trait: (
-                -_trait_score_tier(trait),
-                -_trait_source_priority(trait),
-                -int(trait.get("summary_priority") or 0),
-                -float(trait.get("score", 0) or 0),
-                str(trait.get("id") or ""),
-            ),
+            key=lambda trait: _trait_bucket_head_key(trait, normalized_summary_context),
+        )
+        summary_traits = sorted(
+            summary_pool,
+            key=lambda trait: _trait_summary_rank_key(trait, normalized_summary_context),
         )
         top_traits: List[Dict[str, Any]] = []
         seen_ids = set()
@@ -1233,7 +1571,12 @@ class TraitEngine:
             if len(top_traits) >= top_limit:
                 break
         if len(top_traits) < top_limit:
-            for trait in summary_pool:
+            fill_pool = (
+                summary_traits
+                if _uses_contextual_summary_priority(normalized_summary_context)
+                else summary_pool
+            )
+            for trait in fill_pool:
                 trait_id = str(trait.get("id") or "")
                 if trait_id in seen_ids:
                     continue
@@ -1241,16 +1584,6 @@ class TraitEngine:
                 seen_ids.add(trait_id)
                 if len(top_traits) >= top_limit:
                     break
-        summary_traits = sorted(
-            summary_pool,
-            key=lambda trait: (
-                -int(trait.get("summary_priority") or 0),
-                -_trait_score_tier(trait),
-                -_trait_source_priority(trait),
-                -float(trait.get("score", 0) or 0),
-                str(trait.get("id") or ""),
-            ),
-        )
         top_traits_by_polarity = {
             polarity: [
                 trait
@@ -1273,6 +1606,7 @@ class TraitEngine:
             "traits": indicated,
             "guidance": guidance,
             "trait_enrichment_meta": {
+                "summary_context": normalized_summary_context,
                 "morin_keywords_policy": "canonical_non_scoring",
                 "corpus_enrichment_policy": "parallel_non_scoring",
                 "corpus_index_path": corpus.get("index_path"),

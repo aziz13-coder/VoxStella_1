@@ -5,17 +5,17 @@
   "description": "Skillful analysis and utilization in detail associated with Virgo/Earth; methodical craft.",
   "confidence": "high",
   "polarity": "positive",
-  "sources": ["Carter: Virgo/Earth analysis/utilization in detail; 6th = method/work"],
+  "sources": ["Carter: Virgo/Earth analysis/utilization in detail; 6th = method/work", "Morin: H6 service/labor requires Mercury determination for applied craft"],
   "logic": {
     "base": 0,
     "boosts": [
       { "kind": "sign_emphasis", "sign": "Virgo", "min": 1.5, "weight": 10 },
       { "kind": "element", "element": "Earth", "min_share": 0.35, "weight": 8 },
       { "kind": "house_emphasis", "houses": [6], "min_total": 1, "weight": 6 },
-      { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": 6 }
+      { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": 6 },
+      { "kind": "planet_area", "planet": "Mercury", "areas": ["health"], "min": 0.45, "weight": 5 }
     ],
     "dampeners": [],
     "escalators": []
   }
 }
-

@@ -14,6 +14,24 @@ import astro_clock_api
 import house_influence
 
 
+def test_planet_area_scores_require_absolute_determination_strength():
+    scores, details = astro_clock_api._build_planet_area_scores_from_house_influences(
+        {
+            "houses": [
+                {"house": 2, "influences": [{"planet": "Jupiter", "value": 2.0}]},
+                {"house": 11, "influences": [{"planet": "Jupiter", "value": 1.0}]},
+                {"house": 10, "influences": [{"planet": "Venus", "value": 40.0}]},
+            ]
+        }
+    )
+
+    assert scores["Venus"]["honors"] == 1.0
+    assert 0.22 <= scores["Jupiter"]["wealth"] <= 0.23
+    assert scores["Jupiter"]["wealth"] < 0.6
+    assert details["Jupiter"]["wealth"]["relative_strength"] == 1.0
+    assert details["Jupiter"]["wealth"]["absolute_strength"] == 0.05
+
+
 def test_traits_profile_does_not_depend_on_dashboard_builder(monkeypatch):
     client = app_module.app.test_client()
 
@@ -110,6 +128,93 @@ def test_traits_profile_does_not_depend_on_dashboard_builder(monkeypatch):
     assert data_payload["chart_snapshot"]["location"] == "Paris, France"
     assert data_payload["chart_snapshot"]["house_cusps"]
     assert data_payload["receptions"]["mutual"][0]["p1"] == "Venus"
+
+
+def test_points_degree_hits_forces_placidus_house_context(monkeypatch):
+    client = app_module.app.test_client()
+
+    settings = SimpleNamespace(
+        mode=SimpleNamespace(value="manual"),
+        location="Israel",
+        custom_time=None,
+        timezone="Asia/Jerusalem",
+        latitude=31.76904,
+        longitude=35.21633,
+        house_system_code="R",
+    )
+    data = SimpleNamespace(
+        timestamp=datetime(1990, 1, 13, 19, 33, tzinfo=timezone.utc),
+        settings=settings,
+        chart_result={
+            "_raw_chart": SimpleNamespace(
+                houses=[
+                    12.345678901,
+                    44.444444444,
+                    76.543219876,
+                    262.1948673182044,
+                    300.0,
+                    331.0,
+                    192.345678901,
+                    19.801681799358164,
+                    42.0,
+                    82.345678901,
+                    112.0,
+                    144.8074351945643,
+                ],
+                ascendant=12.345678901,
+                midheaven=82.345678901,
+            ),
+        },
+    )
+    captured = {}
+
+    def fake_context(_eng, house_system_override=None):
+        captured["house_system_override"] = house_system_override
+        return data, settings
+
+    def fake_compute(_chart_data, timestamp_iso=None, **kwargs):
+        captured["computed_house_system"] = kwargs.get("house_system")
+        captured["chart_data"] = _chart_data
+        return {
+            "chart_meta": {
+                "datetime_utc": timestamp_iso,
+                "house_system": kwargs.get("house_system"),
+            },
+            "points": [],
+        }
+
+    monkeypatch.setattr(astro_clock_api, "_engine_instance", lambda: SimpleNamespace(settings=settings))
+    monkeypatch.setattr(astro_clock_api, "_data_for_request_clock_context", fake_context)
+    monkeypatch.setattr(
+        astro_clock_api,
+        "_serialize_real_time",
+        lambda _data: {
+            "timestamp": "1990-01-13T19:33:00+00:00",
+            "chart_data": {
+                "house_system_code": "R",
+                "planets": [],
+                "houses": [0.0] * 12,
+                "ascendant": 12.35,
+                "midheaven": 82.35,
+            },
+        },
+    )
+    monkeypatch.setattr(astro_clock_api, "_extend_chart_data_for_synastry", lambda cd, *_args, **_kwargs: cd)
+    monkeypatch.setattr(astro_clock_api, "compute_symbolic_points_payload", fake_compute)
+
+    response = client.get("/api/astro-clock/points/degree-hits?house_system_code=R")
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert payload["success"] is True
+    assert captured["house_system_override"] == "P"
+    assert captured["computed_house_system"] == "P"
+    assert payload["data"]["chart_meta"]["house_system"] == "P"
+    assert captured["chart_data"]["houses"] == [0.0] * 12
+    assert captured["chart_data"]["house_cusps_exact"][3] == 262.1948673182044
+    assert captured["chart_data"]["houses_exact"][7] == 19.801681799358164
+    assert captured["chart_data"]["ascendant_exact"] == 12.345678901
+    assert captured["chart_data"]["midheaven_exact"] == 82.345678901
 
 
 def test_traits_profile_perf_logging_is_opt_in_and_non_disruptive(monkeypatch):

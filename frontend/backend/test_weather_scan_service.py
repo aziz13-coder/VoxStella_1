@@ -72,6 +72,27 @@ def test_build_weather_scan_request_accepts_place_coordinates():
     assert pool[0]["longitude"] == -80.1918
 
 
+def test_place_scan_timepoints_treat_naive_datetimes_as_place_local_time():
+    request_model = weather_scan_service.build_weather_scan_request(
+        {
+            "family_id": "wind_event_pressure",
+            "scan_scope": "place_timeline",
+            "location": "Miami, Florida, USA",
+            "timezone": "America/New_York",
+            "latitude": "25.7617",
+            "longitude": "-80.1918",
+            "start_datetime": "2026-04-12T12:00:00",
+            "end_datetime": "2026-04-12T18:00:00",
+            "time_step_hours": "6",
+        }
+    )
+
+    assert weather_scan_service._scan_timepoints(request_model) == [
+        "2026-04-12T16:00:00+00:00",
+        "2026-04-12T22:00:00+00:00",
+    ]
+
+
 def test_run_weather_scan_builds_series_and_ranked_rows(monkeypatch):
     request_model = weather_scan_service.build_weather_scan_request(
         {

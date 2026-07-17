@@ -17,6 +17,7 @@ from election_models.marriage import score_marriage_election
 from election_models.marriage_beta import score_marriage_beta_election
 from election_models.business import score_business_election
 from election_models.business_beta import score_business_beta_election
+from election_models.estate import score_estate_election
 from election_models.journey import score_journey_election
 from election_models.haircut import score_haircut_election
 from election_models.viral_content import score_viral_content_election
@@ -24,6 +25,10 @@ from election_models.legal import score_legal_election
 from election_models.battle import score_battle_election
 from election_models.conception import score_conception_election
 from election_models.beautification import score_beautification_election
+from election_models.lunar_fertility import (
+    scan_lunar_fertility_windows,
+    score_lunar_fertility_election,
+)
 
 __all__ = [
     'Score',
@@ -33,6 +38,7 @@ __all__ = [
     'score_contract_election',
     'score_business_election',
     'score_business_beta_election',
+    'score_estate_election',
     'score_journey_election',
     'score_haircut_election',
     'score_viral_content_election',
@@ -40,4 +46,6 @@ __all__ = [
     'score_battle_election',
     'score_conception_election',
     'score_beautification_election',
+    'scan_lunar_fertility_windows',
+    'score_lunar_fertility_election',
 ]

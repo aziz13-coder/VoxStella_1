@@ -5,15 +5,17 @@
   "description": "Hospitable disposition via Cancer home themes and benefic Venus/Jupiter; houses 4/5.",
   "confidence": "medium",
   "polarity": "positive",
-  "sources": ["Carter: Cancer home; Venus/Jupiter benefics"],
+  "sources": ["Carter: Cancer home; Venus/Jupiter benefics", "Morin: H4 home and H5 pleasure require benefic or lunar determination"],
   "logic": { "base": 0,
     "boosts": [
       { "kind": "sign_emphasis", "sign": "Cancer", "min": 1.5, "weight": 8 },
       { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": 6 },
       { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 6 },
-      { "kind": "house_emphasis", "houses": [4,5], "min_total": 2, "weight": 6 }
+      { "kind": "house_emphasis", "houses": [4,5], "min_total": 2, "weight": 6 },
+      { "kind": "planet_area", "planet": "Moon", "areas": ["home"], "min": 0.45, "weight": 4 },
+      { "kind": "planet_area", "planet": "Venus", "areas": ["home", "children"], "mode": "max", "min": 0.45, "weight": 4 },
+      { "kind": "planet_area", "planet": "Jupiter", "areas": ["home", "children"], "mode": "max", "min": 0.45, "weight": 4 }
     ],
     "dampeners": [],
     "escalators": [] }
 }
-

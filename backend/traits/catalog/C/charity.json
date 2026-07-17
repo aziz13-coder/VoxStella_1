@@ -5,16 +5,17 @@
   "description": "Beneficence and charitable inclination via Jupiter/Venus; effective when organized by Saturn.",
   "confidence": "medium",
   "polarity": "positive",
-  "sources": ["Carter: Jupiter/Venus beneficence; Saturn for organization"],
+  "sources": ["Carter: Jupiter/Venus beneficence; Saturn for organization", "Morin: H11 support/allies and H2 resources require benefic planetary determination"],
   "logic": {
     "base": 0,
     "boosts": [
       { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 10 },
       { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": 8 },
-      { "kind": "house_emphasis", "houses": [11], "min_total": 1, "weight": 6 }
+      { "kind": "house_emphasis", "houses": [11], "min_total": 1, "weight": 6 },
+      { "kind": "planet_area", "planet": "Jupiter", "areas": ["friends", "wealth"], "mode": "max", "min": 0.45, "weight": 5 },
+      { "kind": "planet_area", "planet": "Venus", "areas": ["friends"], "min": 0.45, "weight": 4 }
     ],
     "dampeners": [],
     "escalators": []
   }
 }
-

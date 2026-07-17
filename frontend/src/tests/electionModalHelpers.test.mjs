@@ -4,14 +4,21 @@ import {
   BUSINESS_ALPHA_DESCRIPTION,
   BUSINESS_BETA_DESCRIPTION,
   BUSINESS_BETA_PARTICIPANT_HELP,
+  ESTATE_DESCRIPTION,
+  ESTATE_PARTICIPANT_HELP,
+  LUNAR_FERTILITY_DESCRIPTION,
   MARRIAGE_ALPHA_DESCRIPTION,
   MARRIAGE_BETA_DESCRIPTION,
   MARRIAGE_BETA_PARTICIPANT_HELP,
   buildBusinessBetaLineOptions,
+  buildEstateLineOptions,
+  buildLunarFertilityReportHtml,
   mergeElectionTimelineRows,
   parseElectionClockValue,
   sanitizeBusinessBetaElectionRow,
   sanitizeBusinessBetaTagDisplay,
+  sanitizeEstateElectionRow,
+  sanitizeEstateTagDisplay,
   sanitizeMarriageBetaElectionRow,
   sanitizeMarriageBetaTagDisplay,
 } from '../features/astroclock/ElectionModal.jsx';
@@ -78,6 +85,96 @@ describe('ElectionModal helpers', () => {
       { id: 'event', label: 'Event line', kind: 'event' },
       { id: 'participant:1', label: 'Founder A', kind: 'participant' },
       { id: 'participant:2', label: 'Founder B', kind: 'participant' },
+    ]);
+  });
+
+  it('describes estate as a direction-specific event-plus-participant workflow', () => {
+    expect(ESTATE_DESCRIPTION).toContain('event line');
+    expect(ESTATE_DESCRIPTION).toContain('buyer or seller fit line');
+    expect(ESTATE_DESCRIPTION).toContain('buy and sell');
+    expect(ESTATE_PARTICIPANT_HELP).toContain('one saved Astro Clock chart');
+    expect(ESTATE_PARTICIPANT_HELP).toContain('property set');
+  });
+
+  it('describes lunar fertility as a separate phase-window workflow', () => {
+    expect(LUNAR_FERTILITY_DESCRIPTION).toContain('Sun-Moon phase');
+    expect(LUNAR_FERTILITY_DESCRIPTION).toContain('phase');
+    expect(LUNAR_FERTILITY_DESCRIPTION).toContain('antiphase');
+  });
+
+  it('builds the fertility-only report shape from lunar scan results', () => {
+    const html = buildLunarFertilityReportHtml({
+      result: {
+        matter: 'lunar_fertility',
+        location: 'Jerusalem <script>alert(1)</script>',
+        timezone: 'UTC',
+        consider_mode: 'phase_and_antiphase',
+        level_percent: 33,
+      },
+      seriesRows: [
+        {
+          timestamp: '2026-03-08T10:00:00+00:00',
+          timestamp_local: '2026-03-08T10:00:00+00:00',
+          score: 92,
+          sex_label: 'female',
+          phase_kind: 'phase',
+          moon_sign: 'Taurus',
+        },
+        {
+          timestamp: '2026-03-08T11:00:00+00:00',
+          timestamp_local: '2026-03-08T11:00:00+00:00',
+          score: 76,
+          sex_label: 'male',
+          phase_kind: 'antiphase',
+          moon_sign: 'Gemini',
+        },
+      ],
+      periods: [
+        {
+          start: '2026-03-08T10:00:00+00:00',
+          end: '2026-03-08T11:59:59+00:00',
+          best_timestamp: '2026-03-08T10:00:00+00:00',
+          best_score: 92,
+          sex_label: 'female',
+          phase_kind: 'phase',
+          moon_sign: 'Taurus',
+        },
+      ],
+      context: {
+        natalSnap: { label: 'Natal Chart', location: 'Haifa', effective_datetime: '1990-01-01T00:00:00Z' },
+        houseSystem: 'R',
+        generatedAt: '2026-04-22T10:00:00Z',
+      },
+    });
+
+    expect(html).toContain('Lunar Fertility Windows Report');
+    expect(html).toContain('Graphic Timeline');
+    expect(html).toContain('Grouped Fertility Periods');
+    expect(html).toContain('Full Hourly Favorable Table');
+    expect(html).toContain('female, phase');
+    expect(html).toContain('male, antiphase');
+    expect(html).not.toContain('<script>');
+    expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
+  });
+
+  it('rejects report generation for non-lunar election results', () => {
+    expect(() => buildLunarFertilityReportHtml({ result: { matter: 'conception' } })).toThrow(
+      /Lunar fertility report/,
+    );
+  });
+
+  it('builds estate line options from the selected buyer or seller chart', () => {
+    const options = buildEstateLineOptions({
+      snaps: [
+        { id: 'snap-a', label: 'Buyer A', location: 'Jerusalem' },
+        { id: 'snap-b', label: 'Seller B', location: 'Tel Aviv' },
+      ],
+      estateParticipantSnapId: 'snap-b',
+    });
+
+    expect(options).toEqual([
+      { id: 'event', label: 'Event line', kind: 'event' },
+      { id: 'participant:1', label: 'Seller B', kind: 'participant' },
     ]);
   });
 
@@ -181,5 +278,38 @@ describe('ElectionModal helpers', () => {
         cautions: ['Founder 1: Asc ruler falls in event 12th'],
       },
     ]);
+  });
+
+  it('sanitizes estate rows for display while preserving estate line payload fields', () => {
+    expect(sanitizeEstateTagDisplay('Event buy Moon phase support: waning (+3.0)')).toBe(
+      'Event buy Moon phase support: waning',
+    );
+
+    const sanitized = sanitizeEstateElectionRow({
+      score: 9,
+      estate_pass: true,
+      estate_selected_threshold: 6,
+      tags: ['Event buy Moon phase support: waning (+3.0)'],
+      pros: ['Event Fortuna trine Jupiter support (+0.85)'],
+      cautions: ['Event Mercury-Mars friction: conjunction/square (-1.5)'],
+      lines: [
+        {
+          label: 'Buyer A',
+          score: 4,
+          favorable: 4,
+          tense: 0,
+          tags: ['Buyer A: event Fortuna conjunction participant Asc (+1.2)'],
+          pros: ['Buyer A: event Fortuna conjunction participant Asc (+1.2)'],
+          cautions: [],
+        },
+      ],
+    });
+
+    expect(sanitized.estate_pass).toBe(true);
+    expect(sanitized.estate_selected_threshold).toBe(6);
+    expect(sanitized.tags).toEqual(['Event buy Moon phase support: waning']);
+    expect(sanitized.pros).toEqual(['Event Fortuna trine Jupiter support']);
+    expect(sanitized.cautions).toEqual(['Event Mercury-Mars friction: conjunction/square']);
+    expect(sanitized.lines[0].tags).toEqual(['Buyer A: event Fortuna conjunction participant Asc']);
   });
 });

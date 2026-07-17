@@ -3,11 +3,21 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+BACKEND_DIR = Path(__file__).resolve().parent
+
+
+def _repo_root() -> Path:
+    for candidate in Path(__file__).resolve().parents:
+        if (candidate / "AGENTS.md").exists() and (candidate / "backend").is_dir():
+            return candidate
+    return Path(__file__).resolve().parents[1]
+
+
+REPO_ROOT = _repo_root()
 
 
 def _backend_tokens() -> set[str]:
-    src = (REPO_ROOT / "backend" / "transits_morin.py").read_text(encoding="utf-8")
+    src = (BACKEND_DIR / "transits_morin.py").read_text(encoding="utf-8")
     return set(re.findall(r"_add\('([a-z0-9_]+)'\)", src))
 
 

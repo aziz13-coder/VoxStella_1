@@ -425,7 +425,7 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         help="Benchmark mode to run.",
     )
     parser.add_argument("--case-id", help="Run a single case_id only.")
-    parser.add_argument("--allow-live-geocode", action="store_true", help="Allow Nominatim fallback when a city is missing from the shipped catalog.")
+    parser.add_argument("--allow-live-geocode", action="store_true", help="Use expanded bundled catalog lookup when a city is missing from the primary shipped catalog match.")
     parser.add_argument("--include-disabled", action="store_true", help="Include disabled template rows.")
     parser.add_argument("--resolution", help="Override the benchmark resolution profile for relocation-limit defaults.")
     parser.add_argument("--limit", type=int, help="Override the final ranking limit.")

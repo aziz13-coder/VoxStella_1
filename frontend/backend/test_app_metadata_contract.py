@@ -15,6 +15,15 @@ def _load_app_module():
     return module
 
 
+def _load_build_metadata_module():
+    module_path = BACKEND_DIR / "build_metadata.py"
+    spec = importlib.util.spec_from_file_location("frontend_backend_build_metadata_test", module_path)
+    module = importlib.util.module_from_spec(spec)
+    assert spec and spec.loader
+    spec.loader.exec_module(module)
+    return module
+
+
 def test_version_endpoint_returns_coherent_metadata():
     module = _load_app_module()
     client = module.app.test_client()
@@ -49,7 +58,7 @@ def test_health_endpoint_exposes_app_and_api_versions():
 
 
 def test_build_metadata_loader_reads_pyinstaller_internal_path(tmp_path):
-    from build_metadata import load_build_metadata
+    build_metadata = _load_build_metadata_module()
 
     internal_dir = tmp_path / "_internal"
     internal_dir.mkdir(parents=True)
@@ -60,11 +69,38 @@ def test_build_metadata_loader_reads_pyinstaller_internal_path(tmp_path):
     }
     (internal_dir / "build_metadata.json").write_text(json.dumps(expected), encoding="utf-8")
 
-    payload = load_build_metadata(tmp_path)
+    payload = build_metadata.load_build_metadata(tmp_path)
 
     assert payload["metadata_source"] == "file"
     assert payload["runtime_kind"] == "pyinstaller_bundle"
     assert payload["built_at_utc"] == expected["built_at_utc"]
+
+
+def test_git_metadata_distinguishes_clean_dirty_and_unavailable_status(monkeypatch, tmp_path):
+    build_metadata = _load_build_metadata_module()
+
+    base_values = {
+        ("rev-parse", "HEAD"): "a" * 40,
+        ("rev-parse", "--short", "HEAD"): "a" * 7,
+        ("rev-parse", "--abbrev-ref", "HEAD"): "main",
+        ("rev-parse", "HEAD^{tree}"): "b" * 40,
+    }
+
+    def probe_with(status):
+        monkeypatch.setattr(
+            build_metadata,
+            "_run_git",
+            lambda args, *, cwd: (
+                status
+                if tuple(args) == ("status", "--short", "--untracked-files=all")
+                else base_values.get(tuple(args))
+            ),
+        )
+        return build_metadata.detect_git_metadata(tmp_path)
+
+    assert probe_with("")["dirty"] is False
+    assert probe_with(" M backend/app.py")["dirty"] is True
+    assert "dirty" not in probe_with(None)
 
 
 def test_chart_request_log_summary_redacts_raw_values():

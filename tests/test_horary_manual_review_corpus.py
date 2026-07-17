@@ -77,13 +77,16 @@ def test_conception_manual_review_case_surfaces_pregnancy_support_signals():
     assert any("Moon not void of course" in rule for rule in rules)
 
 
-def test_marriage_manual_review_case_preserves_mixed_support_with_no_perfection():
+def test_marriage_manual_review_case_preserves_mixed_secondary_balance():
     payload, final = _replay_manual_case("marry_review.json")
     rules = _rules(final)
 
     assert payload["question"] == "Will he marry me?"
-    assert final["traditional_factors"]["perfection_type"] == "none"
-    assert final["traditional_factors"]["reception"] == "mixed_reception"
+    assert (
+        final["traditional_factors"]["perfection_type"]
+        == "mixed_or_inconclusive_secondary_balance"
+    )
+    assert final["traditional_factors"]["reception"]["mutual"] == "mixed_reception"
     assert any("No perfection found - strict evaluation for event likelihood" in rule for rule in rules)
     assert any("mixed_reception" in rule for rule in rules)
     assert any("Moon Trine Venus" in rule for rule in rules)
@@ -91,14 +94,14 @@ def test_marriage_manual_review_case_preserves_mixed_support_with_no_perfection(
     assert not any("FLAG: MOON_NEXT_DECISIVE" in rule for rule in rules)
 
 
-def test_divorce_manual_review_case_replays_clean_no_perfection_denial():
+def test_divorce_manual_review_case_replays_secondary_balance_denial():
     payload, final = _replay_manual_case("divorce_review.json")
     rules = _rules(final)
 
     assert payload["question"] == "Will there be a divorce?"
-    assert final["traditional_factors"]["perfection_type"] == "none"
+    assert final["traditional_factors"]["perfection_type"] == "denial_secondary_balance"
     assert any("No perfection found - strict evaluation for event likelihood" in rule for rule in rules)
-    assert any("no direct perfection found between Jupiter and Mercury" in rule for rule in rules)
+    assert any("No direct perfection found between Jupiter and Mercury" in rule for rule in rules)
 
 
 def test_property_investment_manual_review_case_surfaces_profit_vs_property_doctrine():

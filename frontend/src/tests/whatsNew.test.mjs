@@ -54,6 +54,26 @@ describe('whats new release gating', () => {
     expect(release.isFallback).toBe(false);
   });
 
+  it('keeps the 3.1.0 release copy product-facing and nontechnical', () => {
+    expect(packageJson.version).toBe('3.1.0');
+
+    const release = getWhatsNewRelease(packageJson.version);
+    const copy = [
+      release.headline,
+      release.summary,
+      release.note,
+      ...release.items.flatMap((item) => [item.title, item.tag, item.body]),
+    ]
+      .filter(Boolean)
+      .join(' ');
+
+    expect(release.headline).toBe('Bug fixes');
+    expect(copy).toContain('Bug fixes');
+    expect(copy).toContain('reliability improvements');
+    expect(copy).not.toMatch(/\b(account access|premium prompts|purchase is ready|active status|verify access)\b/i);
+    expect(copy).not.toMatch(/\b(license|subscriber|backend|benchmark|module|filtered catalog|API)\b/i);
+  });
+
   it('shows for a new install until the version is marked seen', () => {
     const storage = createStorage();
     const release = getWhatsNewRelease(packageJson.version);

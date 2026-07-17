@@ -1,0 +1,1433 @@
+{
+  "schema_version": "1.0.0",
+  "generated_at": "2026-05-13T00:00:00+03:00",
+  "benchmark_id": "netflix_worst_roommate_ever_forensic_2026_05_13",
+  "purpose": "Source-backed forensic event replay benchmark for Netflix's Worst Roommate Ever cases. Netflix is used as the episode inventory; factual truth labels come from official, court, law-enforcement, and reputable journalism sources.",
+  "coverage": {
+    "as_of_date": "2026-05-13",
+    "released_seasons_included": [
+      1,
+      2
+    ],
+    "released_episode_count": 9,
+    "notes": [
+      "The official Netflix/Tudum title page lists two seasons. Season 1 has five episodes and Season 2 has four episodes.",
+      "The Season 2 Tudum article describes the Tammy Fritz and Scott Pettigrew stories in a different episode-number order than several catalog-style listings. This dataset follows the commonly indexed title order: S2E1 My BFF Tried to Kill Me, S2E2 Housemate from Hell, S2E3 Burning Down the House, S2E4 The Lethal Landlord.",
+      "Birth charts are intentionally out of scope. The benchmark only replays documented event or response anchors."
+    ]
+  },
+  "benchmark_policy": {
+    "status": "current_engine_baseline_seed",
+    "runnable_policy": "Runnable cases require a documented local date, time or tight response-time anchor, timezone, and location. Discovery, last-seen, welfare-call, or probable-sequence anchors are labeled as such and are not represented as exact death times unless a source says so.",
+    "holdout_policy": "Cases without a precise or tight public event time remain in the inventory but are excluded from live route scoring.",
+    "no_fabricated_times": true,
+    "comparison_status_values": [
+      "aligned",
+      "partially_aligned",
+      "misaligned"
+    ]
+  },
+  "comparison_axes": [
+    "violence_homicide",
+    "abduction_missing_person",
+    "deception_coverup",
+    "domestic_partner_involvement",
+    "family_involvement",
+    "child_victim",
+    "water_disappearance_or_drowning",
+    "accident_or_disaster",
+    "friend_or_close_associate",
+    "authority_or_public_case",
+    "accomplice_or_witness",
+    "route_vehicle_transport"
+  ],
+  "sources": [
+    {
+      "id": "netflix_wre_tudum_series",
+      "kind": "official_netflix_listing",
+      "title": "Worst Roommate Ever Cast, News, Videos and More",
+      "url": "https://www.netflix.com/tudum/worst-roommate-ever",
+      "metadata_strength": "high",
+      "notes": "Official Netflix/Tudum series page listing two seasons and Season 1 episode titles/descriptions."
+    },
+    {
+      "id": "netflix_wre_s2_tudum",
+      "kind": "official_netflix_listing",
+      "title": "Worst Roommate Ever Season 2: Everything You Need to Know",
+      "url": "https://www.netflix.com/tudum/articles/worst-roommate-ever-season-2-release-date-news",
+      "metadata_strength": "high",
+      "notes": "Official Netflix/Tudum Season 2 overview naming Janie Ridd, Michael Dudley, Scott Pettigrew, and Tammy Fritz."
+    },
+    {
+      "id": "history_puente_discovery_1988",
+      "kind": "reported_history",
+      "title": "Police Make a Grisly Discovery in Dorothea Puente's Lawn",
+      "url": "https://www.history.com/this-day-in-history/november-11/police-make-a-grisly-discovery-in-dorothea-puentes-lawn",
+      "metadata_strength": "medium",
+      "notes": "Historical summary of the November 1988 discovery at Puente's Sacramento boarding house."
+    },
+    {
+      "id": "latimes_puente_verdict_1993",
+      "kind": "reported_history",
+      "title": "Landlady Guilty in Murders of Three Tenants",
+      "url": "https://www.latimes.com/archives/la-xpm-1993-08-27-mn-28512-story.html",
+      "metadata_strength": "medium_high",
+      "notes": "Contemporaneous verdict report: Puente was convicted in three tenant deaths and the jury hung on six other counts."
+    },
+    {
+      "id": "upi_puente_sentence_1993",
+      "kind": "reported_history",
+      "title": "Sacramento Landlady Gets Life for Murders",
+      "url": "https://www.upi.com/Archives/1993/12/10/Sacramento-landlady-gets-life-for-murders/1569755499600/",
+      "metadata_strength": "medium_high",
+      "notes": "Contemporaneous sentencing report for Puente."
+    },
+    {
+      "id": "abc7_ramos_last_seen_2013",
+      "kind": "reported_history",
+      "title": "Family Pleads for Help Finding Missing Orange Woman",
+      "url": "https://abc7.com/archive/9095889/",
+      "metadata_strength": "medium",
+      "notes": "Public last-seen reporting for Maribel Ramos, including the approximate 8:30 p.m. last-seen time."
+    },
+    {
+      "id": "cbs_la_ramos_arrest_2013",
+      "kind": "reported_history",
+      "title": "Body Identified as Missing Fullerton Student, Roommate Arrested for Her Murder",
+      "url": "https://www.cbsnews.com/losangeles/news/police-trying-to-determine-if-body-found-in-remote-modjeska-canyon-is-missing-war-vet/",
+      "metadata_strength": "medium",
+      "notes": "Reports identification of Ramos's remains, homicide classification, and K.C. Joy's arrest."
+    },
+    {
+      "id": "cbs_la_joy_verdict_2014",
+      "kind": "reported_history",
+      "title": "Verdict Reached in Murder Trial of Roommate Accused of Killing Army Vet",
+      "url": "https://www.cbsnews.com/losangeles/news/verdict-reached-in-murder-trial-of-roommate-accused-of-killing-army-vet/",
+      "metadata_strength": "medium",
+      "notes": "Local reporting on the Joy murder verdict."
+    },
+    {
+      "id": "cbs_la_joy_sentence_2014",
+      "kind": "reported_history",
+      "title": "O.C. Man Gets 15 to Life for Killing Iraq War Vet",
+      "url": "https://www.cbsnews.com/losangeles/news/o-c-man-gets-15-to-life-for-killing-iraq-war-vet/",
+      "metadata_strength": "medium",
+      "notes": "Local reporting on Joy's sentence."
+    },
+    {
+      "id": "emol_khater_arrest_2011",
+      "kind": "reported_history",
+      "title": "PDI Detiene a Atleta Danes por Homicidio Frustrado de Joven Estadounidense",
+      "url": "https://www.emol.com/noticias/nacional/2011/08/10/497167/pdi-detiene-a-atleta-danes-por-homicidio-frustrado-de-joven-estadounidense.html",
+      "metadata_strength": "medium_high",
+      "notes": "Chilean reporting on PDI arrest facts for Youssef Khater and Callie Quinn's attack."
+    },
+    {
+      "id": "chilevision_khater_case_2022",
+      "kind": "reported_history",
+      "title": "Caso Inspiro una Serie: Estafador que se Hacia Pasar por Deportista Enterro Viva a Mujer en Providencia",
+      "url": "https://www.chilevision.cl/noticias/reportajes/a-fondo/caso-inspiro-una-serie-estafador-que-se-hacia-pasar-por-deportista",
+      "metadata_strength": "medium",
+      "notes": "Chilean secondary reporting describing conviction/sentence and survivor outcome."
+    },
+    {
+      "id": "longreads_bachman_2018",
+      "kind": "reported_history",
+      "title": "Worst Roommate Ever",
+      "url": "https://longreads.com/2018/02/21/worst-roommate-ever/",
+      "metadata_strength": "medium",
+      "notes": "Longform article basis for the Jamison Bachman roommate/squatter pattern."
+    },
+    {
+      "id": "philly_inquirer_bachman_2022",
+      "kind": "reported_history",
+      "title": "How a Philadelphia Lawyer Became Netflix's Worst Roommate Ever",
+      "url": "https://www.inquirer.com/news/jamison-bachman-jed-creek-worst-roommate-ever-philadelphia-20220304.html",
+      "metadata_strength": "medium",
+      "notes": "Local overview of Bachman's Philadelphia-area history and documentary portrayal."
+    },
+    {
+      "id": "montgomery_da_bachman_2017",
+      "kind": "official_prosecutor_record",
+      "title": "Jamison Bachman in Custody for Brother's Murder in Elkins Park",
+      "url": "https://www.montgomerycountypa.gov/Archive.aspx?ADID=4031",
+      "metadata_strength": "high",
+      "notes": "Official Montgomery County District Attorney release with 12:16 p.m. welfare-check dispatch, location, charges, and discovery of Harry Bachman."
+    },
+    {
+      "id": "cbs_philly_bachman_2017",
+      "kind": "reported_history",
+      "title": "Philadelphia Man Charged with Murdering His Brother in Elkins Park",
+      "url": "https://www.cbsnews.com/philadelphia/news/man-arrested-for-murder-of-brother-in-elkins-park/",
+      "metadata_strength": "medium",
+      "notes": "Local reporting with additional sequence details around Harry Bachman's missing arrival and Jamison Bachman's arrest."
+    },
+    {
+      "id": "utah_ag_ridd_2024",
+      "kind": "official_legal_source",
+      "title": "Ridd Case: Roommate Assaulted by a Virus",
+      "url": "https://attorneygeneral.utah.gov/ridd-case-roommate-assaulted-by-a-virus/",
+      "metadata_strength": "high",
+      "notes": "Utah Attorney General summary of Ridd's conviction for abuse and possession of a biological agent."
+    },
+    {
+      "id": "deseret_ridd_charges_2019",
+      "kind": "reported_history",
+      "title": "Utah Woman Bought Bacteria That Causes Staph Infections, Charges State",
+      "url": "https://www.deseret.com/utah/2019/12/20/21032179/utah-woman-bacteria-staph-infections-biological-weapon-charges/",
+      "metadata_strength": "medium_high",
+      "notes": "Charging-document based report on alleged VRSA purchase, caretaker/roommate context, and vulnerable-adult abuse charges."
+    },
+    {
+      "id": "cathedral_city_pd_pettigrew_2016",
+      "kind": "law_enforcement_record",
+      "title": "Cathedral City Police Department Press Release 187 PC - Murder",
+      "url": "https://www.cathedralcitypolice.com/wp-content/uploads/2018/04/Press-Release-187-June-15-20161.pdf",
+      "metadata_strength": "high",
+      "notes": "Police press release with dispatch time 23:39 on June 14, 2016 and death pronouncement at 00:17 on June 15."
+    },
+    {
+      "id": "justia_pettigrew_appeal_2021",
+      "kind": "court_record",
+      "title": "California v. Pettigrew",
+      "url": "https://law.justia.com/cases/california/court-of-appeal/2021/e074122.html",
+      "metadata_strength": "high",
+      "notes": "California appellate opinion affirming first-degree murder conviction and describing roomer/protective-order context."
+    },
+    {
+      "id": "gazette_fritz_sentence_2015",
+      "kind": "reported_history",
+      "title": "Colorado Springs Woman Who Tried to Kill Roommate for Insurance Money Gets 48 Years",
+      "url": "https://gazette.com/2015/05/26/colorado-springs-woman-who-tried-to-kill-roommate-for-insurance-money-gets-48-years-0a504450-0dae-5386-8f8f-8d8c86455fd6/",
+      "metadata_strength": "medium_high",
+      "notes": "Colorado Springs Gazette report on Tammy Fritz's conviction and sentence, relying on the 4th Judicial District Attorney's Office."
+    },
+    {
+      "id": "wa_courts_dudley_2025",
+      "kind": "court_record",
+      "title": "State of Washington v. Michael Lee Dudley",
+      "url": "https://www.courts.wa.gov/opinions/pdf/851993.pdf",
+      "metadata_strength": "high",
+      "notes": "Washington Court of Appeals opinion affirming Dudley's convictions except legal financial obligation corrections."
+    },
+    {
+      "id": "seattle_times_dudley_charged_2020",
+      "kind": "reported_history",
+      "title": "Burien Man Charged with Murder in Deaths of Two People Found in Bags on West Seattle Beach",
+      "url": "https://www.seattletimes.com/seattle-news/law-justice/burien-man-charged-with-murder-in-deaths-of-two-people-found-in-bags-on-west-seattle-beach/",
+      "metadata_strength": "medium_high",
+      "notes": "Local reporting on charging documents, tenant relationship, and June 9 neighbor 911 calls about gunfire/yelling."
+    },
+    {
+      "id": "fox13_dudley_sentence_2023",
+      "kind": "reported_history",
+      "title": "Man Sentenced to 46 Years for Killing Tenants, Stuffing Bodies in Suitcases Found on Seattle Beach",
+      "url": "https://www.fox13seattle.com/news/man-sentenced-to-46-years-for-killing-tenants-stuffing-bodies-in-suitcases-found-on-seattle-beach",
+      "metadata_strength": "medium",
+      "notes": "Local sentencing report for Dudley."
+    }
+  ],
+  "cases": [
+    {
+      "id": "wre_s1e1_dorothea_puente_boarding_house_murders",
+      "episode": {
+        "season": 1,
+        "episode": 1,
+        "title": "Call Me Grandma",
+        "source_ids": [
+          "netflix_wre_tudum_series"
+        ],
+        "confidence": "high"
+      },
+      "case_inventory": {
+        "real_people": {
+          "value": "Dorothea Puente; convicted victims Dorothy Miller, Benjamin Fink, and Leona Carpenter; charged or suspected in additional tenant deaths including Alvaro 'Bert' Montoya.",
+          "source_ids": [
+            "latimes_puente_verdict_1993",
+            "upi_puente_sentence_1993"
+          ],
+          "confidence": "medium_high",
+          "notes": "Use convicted, charged, and suspected statuses separately; do not collapse all suspected deaths into convictions."
+        },
+        "key_dates": [
+          {
+            "date": "1988-11-11",
+            "label": "First body discovered during police search at the boarding house.",
+            "source_ids": [
+              "history_puente_discovery_1988",
+              "latimes_puente_verdict_1993"
+            ],
+            "confidence": "medium"
+          },
+          {
+            "date": "1993-08-26",
+            "label": "Puente convicted in three tenant murders.",
+            "source_ids": [
+              "latimes_puente_verdict_1993"
+            ],
+            "confidence": "medium_high"
+          },
+          {
+            "date": "1993-12-10",
+            "label": "Puente sentenced to life without parole.",
+            "source_ids": [
+              "upi_puente_sentence_1993"
+            ],
+            "confidence": "medium_high"
+          }
+        ],
+        "locations": [
+          {
+            "name": "2100 F Street, Sacramento, California, USA",
+            "latitude": 38.5824,
+            "longitude": -121.475,
+            "precision": "address_public_history",
+            "source_ids": [
+              "history_puente_discovery_1988",
+              "latimes_puente_verdict_1993"
+            ],
+            "confidence": "medium"
+          }
+        ],
+        "relationship_context": {
+          "value": "Puente operated a boarding house for elderly, disabled, and otherwise vulnerable tenants and collected tenant benefit checks.",
+          "source_ids": [
+            "latimes_puente_verdict_1993",
+            "history_puente_discovery_1988"
+          ],
+          "confidence": "medium_high"
+        },
+        "incident_type": {
+          "value": "Serial tenant homicide and financial exploitation in a boarding-house context.",
+          "source_ids": [
+            "latimes_puente_verdict_1993",
+            "upi_puente_sentence_1993"
+          ],
+          "confidence": "medium_high"
+        },
+        "outcome": {
+          "value": "Puente was convicted of two first-degree murders and one second-degree murder; other charged counts were not resolved by conviction.",
+          "source_ids": [
+            "latimes_puente_verdict_1993",
+            "upi_puente_sentence_1993"
+          ],
+          "confidence": "medium_high"
+        },
+        "birth_times": {
+          "status": "not_used_not_collected",
+          "notes": "Benchmark replays event charts only. No person's birth time is used."
+        }
+      },
+      "benchmark": {
+        "replay_status": "holdout_missing_precise_event_time",
+        "hold_reason": "The episode is included in the inventory, but the public source set used here gives dates for discovery, verdict, and sentence rather than a precise or tight event time suitable for a death-time replay.",
+        "expected_primary_axes": [
+          "violence_homicide",
+          "deception_coverup",
+          "friend_or_close_associate"
+        ],
+        "expected_secondary_axes": [
+          "authority_or_public_case"
+        ],
+        "contradictory_axes": [
+          "accident_or_disaster",
+          "child_victim"
+        ]
+      }
+    },
+    {
+      "id": "wre_s1e2_maribel_ramos_last_seen_roommate_homicide",
+      "episode": {
+        "season": 1,
+        "episode": 2,
+        "title": "Be Careful of the Quiet Ones",
+        "source_ids": [
+          "netflix_wre_tudum_series"
+        ],
+        "confidence": "high"
+      },
+      "case_inventory": {
+        "real_people": {
+          "value": "Kwang Chol 'K.C.' Joy was convicted of murdering Maribel Ramos, an Iraq War veteran and Cal State Fullerton student.",
+          "source_ids": [
+            "cbs_la_joy_verdict_2014",
+            "cbs_la_joy_sentence_2014"
+          ],
+          "confidence": "medium_high"
+        },
+        "key_dates": [
+          {
+            "date": "2013-05-02",
+            "time": "20:30:00",
+            "timezone": "America/Los_Angeles",
+            "label": "Ramos reportedly last seen outside her Orange apartment around 8:30 p.m.",
+            "source_ids": [
+              "abc7_ramos_last_seen_2013"
+            ],
+            "confidence": "medium",
+            "notes": "Used as a last-seen/disappearance anchor, not as an exact homicide time."
+          },
+          {
+            "date": "2013-05-17",
+            "label": "Body identification and Joy arrest reported.",
+            "source_ids": [
+              "cbs_la_ramos_arrest_2013"
+            ],
+            "confidence": "medium"
+          },
+          {
+            "date": "2014-07-29",
+            "label": "Joy convicted.",
+            "source_ids": [
+              "cbs_la_joy_verdict_2014"
+            ],
+            "confidence": "medium"
+          },
+          {
+            "date": "2014-09-05",
+            "label": "Joy sentenced to 15 years to life.",
+            "source_ids": [
+              "cbs_la_joy_sentence_2014"
+            ],
+            "confidence": "medium"
+          }
+        ],
+        "locations": [
+          {
+            "name": "Orange, California, USA",
+            "latitude": 33.7879,
+            "longitude": -117.8531,
+            "precision": "city",
+            "source_ids": [
+              "abc7_ramos_last_seen_2013",
+              "cbs_la_ramos_arrest_2013"
+            ],
+            "confidence": "medium"
+          },
+          {
+            "name": "Modjeska Canyon / Santiago Canyon area, Orange County, California, USA",
+            "latitude": 33.7167,
+            "longitude": -117.6333,
+            "precision": "area",
+            "source_ids": [
+              "cbs_la_ramos_arrest_2013"
+            ],
+            "confidence": "medium"
+          }
+        ],
+        "relationship_context": {
+          "value": "Joy and Ramos were roommates; reporting describes conflict around Joy moving out and unpaid rent.",
+          "source_ids": [
+            "abc7_ramos_last_seen_2013",
+            "cbs_la_joy_sentence_2014"
+          ],
+          "confidence": "medium"
+        },
+        "incident_type": {
+          "value": "Roommate homicide with missing-person and concealed-remains elements.",
+          "source_ids": [
+            "cbs_la_ramos_arrest_2013",
+            "cbs_la_joy_verdict_2014"
+          ],
+          "confidence": "medium_high"
+        },
+        "outcome": {
+          "value": "Joy was convicted of second-degree murder and sentenced to 15 years to life.",
+          "source_ids": [
+            "cbs_la_joy_verdict_2014",
+            "cbs_la_joy_sentence_2014"
+          ],
+          "confidence": "medium_high"
+        },
+        "birth_times": {
+          "status": "not_used_not_collected",
+          "notes": "Benchmark replays event charts only. No person's birth time is used."
+        }
+      },
+      "benchmark": {
+        "replay_status": "runnable",
+        "event_anchor": {
+          "type": "last_seen_disappearance_anchor",
+          "date_local": "2013-05-02",
+          "time_local": "20:30:00",
+          "timezone": "America/Los_Angeles",
+          "location": "Orange, CA, USA",
+          "latitude": 33.7879,
+          "longitude": -117.8531,
+          "metadata_basis": "reported_last_seen_around_830pm",
+          "metadata_confidence": "medium",
+          "source_ids": [
+            "abc7_ramos_last_seen_2013"
+          ],
+          "notes": "Replay is the public last-seen anchor. It is not asserted as the exact homicide time."
+        },
+        "query": {
+          "mode": "manual",
+          "datetime_local": "2013-05-02T20:30:00",
+          "location": "Orange, CA, USA",
+          "timezone": "America/Los_Angeles",
+          "house_system_code": "R",
+          "case_type": "adult_female",
+          "latitude": "33.7879",
+          "longitude": "-117.8531"
+        },
+        "expected_primary_axes": [
+          "violence_homicide",
+          "abduction_missing_person",
+          "friend_or_close_associate"
+        ],
+        "expected_secondary_axes": [
+          "deception_coverup"
+        ],
+        "contradictory_axes": [
+          "accident_or_disaster",
+          "child_victim"
+        ],
+        "expected_survivability": {
+          "levels": [
+            "Lower"
+          ],
+          "bands": [
+            "fatal_pressure_dominant"
+          ]
+        },
+        "current_comparison_baseline": {
+          "status": "aligned",
+          "matched_axes": [
+            "violence_homicide",
+            "abduction_missing_person",
+            "friend_or_close_associate"
+          ],
+          "missed_axes": [],
+          "contradicted_axes": []
+        },
+        "current_survivability_baseline": {
+          "status": "aligned",
+          "level": "Lower",
+          "outcome_band": "fatal_pressure_dominant",
+          "score": -5.82
+        },
+        "baseline_observation": "The last-seen anchor aligns directionally on homicide, missing-person, and known-roommate axes. It also emits extra family, water, and witness categories that should be read as broad context rather than exact narrative reconstruction."
+      }
+    },
+    {
+      "id": "wre_s1e3_youssef_khater_callie_quinn_attack",
+      "episode": {
+        "season": 1,
+        "episode": 3,
+        "title": "Marathon Man",
+        "source_ids": [
+          "netflix_wre_tudum_series"
+        ],
+        "confidence": "high"
+      },
+      "case_inventory": {
+        "real_people": {
+          "value": "Youssef Khater; survivor Callie Quinn; additional fraud victims are described in reporting and documentary context.",
+          "source_ids": [
+            "emol_khater_arrest_2011",
+            "chilevision_khater_case_2022"
+          ],
+          "confidence": "medium"
+        },
+        "key_dates": [
+          {
+            "date": "2011-07-21",
+            "time_window": "madrugada / early morning",
+            "timezone": "America/Santiago",
+            "label": "Reported attack on Callie Quinn in Providencia, Santiago.",
+            "source_ids": [
+              "emol_khater_arrest_2011"
+            ],
+            "confidence": "medium",
+            "notes": "The source gives early morning, not an exact local time."
+          },
+          {
+            "date": "2011-08-10",
+            "label": "Khater arrest and detention-control hearing reported.",
+            "source_ids": [
+              "emol_khater_arrest_2011"
+            ],
+            "confidence": "medium_high"
+          }
+        ],
+        "locations": [
+          {
+            "name": "Santa Isabel and Condell area, Providencia, Santiago, Chile",
+            "latitude": -33.4472,
+            "longitude": -70.626,
+            "precision": "intersection_area",
+            "source_ids": [
+              "emol_khater_arrest_2011"
+            ],
+            "confidence": "medium"
+          }
+        ],
+        "relationship_context": {
+          "value": "Khater and Quinn knew each other through an expatriate hostel/residence; the documentary and reporting portray a shared-residence and fraud context.",
+          "source_ids": [
+            "emol_khater_arrest_2011",
+            "chilevision_khater_case_2022"
+          ],
+          "confidence": "medium"
+        },
+        "incident_type": {
+          "value": "Fraud context escalating into attempted homicide/assault; Quinn survived after being struck, strangled, and concealed under debris according to reporting.",
+          "source_ids": [
+            "emol_khater_arrest_2011",
+            "chilevision_khater_case_2022"
+          ],
+          "confidence": "medium"
+        },
+        "outcome": {
+          "value": "Khater was arrested and later reported convicted/sentenced in Chile; Quinn survived.",
+          "source_ids": [
+            "emol_khater_arrest_2011",
+            "chilevision_khater_case_2022"
+          ],
+          "confidence": "medium"
+        },
+        "birth_times": {
+          "status": "not_used_not_collected",
+          "notes": "Benchmark replays event charts only. No person's birth time is used."
+        }
+      },
+      "benchmark": {
+        "replay_status": "holdout_missing_precise_event_time",
+        "hold_reason": "The public source set gives an early-morning attack window but not an exact or tight local time. No proxy time is introduced.",
+        "expected_primary_axes": [
+          "violence_homicide",
+          "deception_coverup",
+          "friend_or_close_associate"
+        ],
+        "expected_secondary_axes": [
+          "abduction_missing_person"
+        ],
+        "contradictory_axes": [
+          "accident_or_disaster",
+          "child_victim",
+          "domestic_partner_involvement"
+        ]
+      }
+    },
+    {
+      "id": "wre_s1e4_jamison_bachman_serial_squatter_pattern",
+      "episode": {
+        "season": 1,
+        "episode": 4,
+        "title": "Roommate Wanted - Part 1",
+        "source_ids": [
+          "netflix_wre_tudum_series"
+        ],
+        "confidence": "high"
+      },
+      "case_inventory": {
+        "real_people": {
+          "value": "Jamison Bachman, also reported as using the name Jed Creek; former roommates/survivors portrayed include Alex Miller, Sonia Acevedo, and Arleen Hairbaedian.",
+          "source_ids": [
+            "longreads_bachman_2018",
+            "philly_inquirer_bachman_2022"
+          ],
+          "confidence": "medium",
+          "notes": "The broad serial-squatter pattern is largely a documentary and longform-journalism record, not a single adjudicated event family."
+        },
+        "key_dates": [
+          {
+            "date_range": "multiple years before 2017",
+            "label": "Reported roommate/squatter pattern across several homes.",
+            "source_ids": [
+              "longreads_bachman_2018",
+              "philly_inquirer_bachman_2022"
+            ],
+            "confidence": "medium"
+          },
+          {
+            "date": "2017-11-04",
+            "label": "Bachman charged in the death of his brother Harry Bachman, continued in S1E5.",
+            "source_ids": [
+              "montgomery_da_bachman_2017"
+            ],
+            "confidence": "high"
+          }
+        ],
+        "locations": [
+          {
+            "name": "Philadelphia and other East Coast roommate contexts, USA",
+            "latitude": 39.9526,
+            "longitude": -75.1652,
+            "precision": "multi_location_city_proxy",
+            "source_ids": [
+              "longreads_bachman_2018",
+              "philly_inquirer_bachman_2022"
+            ],
+            "confidence": "medium"
+          }
+        ],
+        "relationship_context": {
+          "value": "Bachman allegedly entered homes through roommate arrangements, friendship, or personal ties and then resisted removal.",
+          "source_ids": [
+            "longreads_bachman_2018",
+            "philly_inquirer_bachman_2022"
+          ],
+          "confidence": "medium"
+        },
+        "incident_type": {
+          "value": "Serial squatting, harassment, coercive legal tactics, and alleged violence.",
+          "source_ids": [
+            "longreads_bachman_2018",
+            "philly_inquirer_bachman_2022"
+          ],
+          "confidence": "medium"
+        },
+        "outcome": {
+          "value": "No single conviction covers the full serial-squatter pattern. The later brother homicide charge is separately documented in S1E5 and was not tried because Bachman died before adjudication.",
+          "source_ids": [
+            "philly_inquirer_bachman_2022",
+            "montgomery_da_bachman_2017"
+          ],
+          "confidence": "medium"
+        },
+        "birth_times": {
+          "status": "not_used_not_collected",
+          "notes": "Benchmark replays event charts only. No person's birth time is used."
+        }
+      },
+      "benchmark": {
+        "replay_status": "holdout_missing_precise_event_time",
+        "hold_reason": "Part 1 documents a multi-year pattern, not one source-backed event timestamp. The S1E5 brother homicide discovery anchor is replayable separately.",
+        "expected_primary_axes": [
+          "deception_coverup",
+          "friend_or_close_associate"
+        ],
+        "expected_secondary_axes": [
+          "violence_homicide",
+          "authority_or_public_case"
+        ],
+        "contradictory_axes": [
+          "accident_or_disaster",
+          "child_victim"
+        ]
+      }
+    },
+    {
+      "id": "wre_s1e5_harry_bachman_welfare_check_homicide_charge",
+      "episode": {
+        "season": 1,
+        "episode": 5,
+        "title": "Roommate Wanted - Part 2",
+        "source_ids": [
+          "netflix_wre_tudum_series"
+        ],
+        "confidence": "high"
+      },
+      "case_inventory": {
+        "real_people": {
+          "value": "Jamison Bachman was charged with murdering his brother Harry Bachman; Jamison died before trial, so the charge was not adjudicated.",
+          "source_ids": [
+            "montgomery_da_bachman_2017",
+            "cbs_philly_bachman_2017"
+          ],
+          "confidence": "high"
+        },
+        "key_dates": [
+          {
+            "date": "2017-11-03",
+            "label": "Harry Bachman failed to meet a family member after reported contact from home.",
+            "source_ids": [
+              "cbs_philly_bachman_2017"
+            ],
+            "confidence": "medium"
+          },
+          {
+            "date": "2017-11-04",
+            "time": "12:16:00",
+            "timezone": "America/New_York",
+            "label": "Cheltenham police dispatched for a welfare check and later located Harry Bachman deceased.",
+            "source_ids": [
+              "montgomery_da_bachman_2017"
+            ],
+            "confidence": "high",
+            "notes": "Used as a discovery/welfare-check anchor, not as the exact assault time."
+          },
+          {
+            "date": "2017-12-08",
+            "label": "Jamison Bachman died in jail before trial according to local reporting.",
+            "source_ids": [
+              "philly_inquirer_bachman_2022"
+            ],
+            "confidence": "medium"
+          }
+        ],
+        "locations": [
+          {
+            "name": "400 block North Sterling Road, Elkins Park, Pennsylvania, USA",
+            "latitude": 40.0712,
+            "longitude": -75.1277,
+            "precision": "block",
+            "source_ids": [
+              "montgomery_da_bachman_2017"
+            ],
+            "confidence": "high"
+          }
+        ],
+        "relationship_context": {
+          "value": "Harry was Jamison Bachman's brother; reporting says Harry had bailed Jamison out but the household would not let Jamison stay because of past violence/arrests.",
+          "source_ids": [
+            "cbs_philly_bachman_2017",
+            "montgomery_da_bachman_2017"
+          ],
+          "confidence": "medium_high"
+        },
+        "incident_type": {
+          "value": "Charged family homicide with blunt-force trauma evidence and vehicle theft allegations.",
+          "source_ids": [
+            "montgomery_da_bachman_2017",
+            "cbs_philly_bachman_2017"
+          ],
+          "confidence": "high"
+        },
+        "outcome": {
+          "value": "Jamison Bachman was arrested and charged with first- and third-degree murder; he died before trial, so no conviction resulted.",
+          "source_ids": [
+            "montgomery_da_bachman_2017",
+            "philly_inquirer_bachman_2022"
+          ],
+          "confidence": "high"
+        },
+        "birth_times": {
+          "status": "not_used_not_collected",
+          "notes": "Benchmark replays event charts only. No person's birth time is used."
+        }
+      },
+      "benchmark": {
+        "replay_status": "runnable",
+        "event_anchor": {
+          "type": "discovery_welfare_check_anchor",
+          "date_local": "2017-11-04",
+          "time_local": "12:16:00",
+          "timezone": "America/New_York",
+          "location": "Elkins Park, PA, USA",
+          "latitude": 40.0712,
+          "longitude": -75.1277,
+          "metadata_basis": "official_da_dispatch_time",
+          "metadata_confidence": "high",
+          "source_ids": [
+            "montgomery_da_bachman_2017"
+          ],
+          "notes": "Replay is the welfare-check/discovery dispatch anchor."
+        },
+        "query": {
+          "mode": "manual",
+          "datetime_local": "2017-11-04T12:16:00",
+          "location": "Elkins Park, PA, USA",
+          "timezone": "America/New_York",
+          "house_system_code": "R",
+          "case_type": "general",
+          "latitude": "40.0712",
+          "longitude": "-75.1277"
+        },
+        "expected_primary_axes": [
+          "violence_homicide",
+          "family_involvement",
+          "route_vehicle_transport"
+        ],
+        "expected_secondary_axes": [
+          "deception_coverup"
+        ],
+        "contradictory_axes": [
+          "accident_or_disaster",
+          "child_victim",
+          "domestic_partner_involvement"
+        ],
+        "expected_survivability": {
+          "levels": [
+            "Lower"
+          ],
+          "bands": [
+            "fatal_pressure_dominant"
+          ]
+        },
+        "current_comparison_baseline": {
+          "status": "partially_aligned",
+          "matched_axes": [
+            "violence_homicide",
+            "family_involvement"
+          ],
+          "missed_axes": [
+            "route_vehicle_transport"
+          ],
+          "contradicted_axes": []
+        },
+        "current_survivability_baseline": {
+          "status": "aligned",
+          "level": "Lower",
+          "outcome_band": "fatal_pressure_dominant",
+          "score": -5.43
+        },
+        "baseline_observation": "The welfare-check discovery anchor finds the fatal family homicide axis, but misses the vehicle/transport detail tied to the reported Ford Escape theft."
+      }
+    },
+    {
+      "id": "wre_s2e1_janie_ridd_rachel_biological_agent_case",
+      "episode": {
+        "season": 2,
+        "episode": 1,
+        "title": "My BFF Tried to Kill Me",
+        "source_ids": [
+          "netflix_wre_s2_tudum"
+        ],
+        "confidence": "high"
+      },
+      "case_inventory": {
+        "real_people": {
+          "value": "Janie Lynn Ridd; survivor Rachel, publicly identified mainly by first name; Rachel's son is part of the documentary and charging-document context.",
+          "source_ids": [
+            "netflix_wre_s2_tudum",
+            "deseret_ridd_charges_2019",
+            "utah_ag_ridd_2024"
+          ],
+          "confidence": "medium_high"
+        },
+        "key_dates": [
+          {
+            "date_range": "2019-10 to 2019-12",
+            "label": "Charging documents described communications and attempted VRSA purchase across this period.",
+            "source_ids": [
+              "deseret_ridd_charges_2019"
+            ],
+            "confidence": "medium_high"
+          },
+          {
+            "date": "2019-12-20",
+            "label": "Charges reported publicly.",
+            "source_ids": [
+              "deseret_ridd_charges_2019"
+            ],
+            "confidence": "medium_high"
+          },
+          {
+            "date": "2024-05-10",
+            "label": "Utah Attorney General published case-study summary.",
+            "source_ids": [
+              "utah_ag_ridd_2024"
+            ],
+            "confidence": "high"
+          }
+        ],
+        "locations": [
+          {
+            "name": "Salt Lake City / Millcreek, Utah, USA",
+            "latitude": 40.7608,
+            "longitude": -111.891,
+            "precision": "city_area",
+            "source_ids": [
+              "deseret_ridd_charges_2019",
+              "utah_ag_ridd_2024"
+            ],
+            "confidence": "medium"
+          }
+        ],
+        "relationship_context": {
+          "value": "Ridd and Rachel were longtime friends and roommates; charging-document reporting describes Ridd as caretaker and a conflict around custody/care of Rachel's son.",
+          "source_ids": [
+            "deseret_ridd_charges_2019",
+            "netflix_wre_s2_tudum"
+          ],
+          "confidence": "medium_high"
+        },
+        "incident_type": {
+          "value": "Poisoning/abuse allegations and attempted acquisition or possession of a biological agent.",
+          "source_ids": [
+            "deseret_ridd_charges_2019",
+            "utah_ag_ridd_2024",
+            "netflix_wre_s2_tudum"
+          ],
+          "confidence": "medium_high"
+        },
+        "outcome": {
+          "value": "Utah Attorney General says the office worked with federal authorities to convict Ridd of abuse and possession of a biological agent; Netflix/Tudum reports a sentence of up to 15 years and later parole release.",
+          "source_ids": [
+            "utah_ag_ridd_2024",
+            "netflix_wre_s2_tudum"
+          ],
+          "confidence": "medium_high"
+        },
+        "birth_times": {
+          "status": "not_used_not_collected",
+          "notes": "Benchmark replays event charts only. No person's birth time is used."
+        }
+      },
+      "benchmark": {
+        "replay_status": "holdout_missing_precise_event_time",
+        "hold_reason": "The case is useful for friend/roommate poisoning and child-custody motives, but the public sources used here describe a date range and charges rather than a precise event, delivery, arrest, or poisoning timestamp.",
+        "expected_primary_axes": [
+          "deception_coverup",
+          "friend_or_close_associate",
+          "child_victim"
+        ],
+        "expected_secondary_axes": [
+          "violence_homicide",
+          "family_involvement"
+        ],
+        "contradictory_axes": [
+          "accident_or_disaster"
+        ]
+      }
+    },
+    {
+      "id": "wre_s2e2_anita_cowen_pettigrew_welfare_call_homicide",
+      "episode": {
+        "season": 2,
+        "episode": 2,
+        "title": "Housemate from Hell",
+        "source_ids": [
+          "netflix_wre_s2_tudum"
+        ],
+        "confidence": "medium_high",
+        "notes": "Episode title order follows common catalog listings; the Tudum article's paragraph order appears inconsistent for S2E2/S2E3."
+      },
+      "case_inventory": {
+        "real_people": {
+          "value": "Scott Edmund Pettigrew was convicted in the murder of Anita 'Mimie' Cowen; Darrell Hatfield is portrayed as another roommate in the documentary context.",
+          "source_ids": [
+            "justia_pettigrew_appeal_2021",
+            "cathedral_city_pd_pettigrew_2016",
+            "netflix_wre_s2_tudum"
+          ],
+          "confidence": "high"
+        },
+        "key_dates": [
+          {
+            "date": "2016-06-14",
+            "time": "23:39:00",
+            "timezone": "America/Los_Angeles",
+            "label": "Police dispatched for welfare check after family heard disturbance on a phone call.",
+            "source_ids": [
+              "cathedral_city_pd_pettigrew_2016"
+            ],
+            "confidence": "high"
+          },
+          {
+            "date": "2016-06-15",
+            "time": "00:17:00",
+            "timezone": "America/Los_Angeles",
+            "label": "Cowen pronounced dead.",
+            "source_ids": [
+              "cathedral_city_pd_pettigrew_2016"
+            ],
+            "confidence": "high"
+          },
+          {
+            "date": "2021-03-25",
+            "label": "California appellate opinion filed.",
+            "source_ids": [
+              "justia_pettigrew_appeal_2021"
+            ],
+            "confidence": "high"
+          }
+        ],
+        "locations": [
+          {
+            "name": "69000 block Heritage Court, Cathedral City, California, USA",
+            "latitude": 33.7797,
+            "longitude": -116.4653,
+            "precision": "block",
+            "source_ids": [
+              "cathedral_city_pd_pettigrew_2016"
+            ],
+            "confidence": "high"
+          }
+        ],
+        "relationship_context": {
+          "value": "Cowen rented rooms in her home; Pettigrew was her roommate/lodger and was subject to protective-order conflict involving dogs before the homicide.",
+          "source_ids": [
+            "justia_pettigrew_appeal_2021",
+            "cathedral_city_pd_pettigrew_2016"
+          ],
+          "confidence": "high"
+        },
+        "incident_type": {
+          "value": "Roommate/lodger homicide with elder-abuse and protective-order elements; appellate facts describe a prolonged attack and pool/backyard death scene.",
+          "source_ids": [
+            "justia_pettigrew_appeal_2021",
+            "cathedral_city_pd_pettigrew_2016"
+          ],
+          "confidence": "high"
+        },
+        "outcome": {
+          "value": "Pettigrew was convicted of first-degree murder, elder abuse, and protective-order violation and sentenced to 25 years to life; conviction affirmed with limited credit/fee corrections.",
+          "source_ids": [
+            "justia_pettigrew_appeal_2021"
+          ],
+          "confidence": "high"
+        },
+        "birth_times": {
+          "status": "not_used_not_collected",
+          "notes": "Benchmark replays event charts only. No person's birth time is used."
+        }
+      },
+      "benchmark": {
+        "replay_status": "runnable",
+        "event_anchor": {
+          "type": "welfare_check_disturbance_anchor",
+          "date_local": "2016-06-14",
+          "time_local": "23:39:00",
+          "timezone": "America/Los_Angeles",
+          "location": "Cathedral City, CA, USA",
+          "latitude": 33.7797,
+          "longitude": -116.4653,
+          "metadata_basis": "police_dispatch_time_after_family_heard_disturbance",
+          "metadata_confidence": "high",
+          "source_ids": [
+            "cathedral_city_pd_pettigrew_2016"
+          ],
+          "notes": "Replay is the police welfare-check dispatch anchor, minutes before the public pronouncement time."
+        },
+        "query": {
+          "mode": "manual",
+          "datetime_local": "2016-06-14T23:39:00",
+          "location": "Cathedral City, CA, USA",
+          "timezone": "America/Los_Angeles",
+          "house_system_code": "R",
+          "case_type": "general",
+          "latitude": "33.7797",
+          "longitude": "-116.4653"
+        },
+        "expected_primary_axes": [
+          "violence_homicide",
+          "friend_or_close_associate",
+          "water_disappearance_or_drowning"
+        ],
+        "expected_secondary_axes": [
+          "deception_coverup",
+          "authority_or_public_case"
+        ],
+        "contradictory_axes": [
+          "accident_or_disaster",
+          "child_victim",
+          "domestic_partner_involvement"
+        ],
+        "expected_survivability": {
+          "levels": [
+            "Lower"
+          ],
+          "bands": [
+            "fatal_pressure_dominant"
+          ]
+        },
+        "current_comparison_baseline": {
+          "status": "aligned",
+          "matched_axes": [
+            "violence_homicide",
+            "friend_or_close_associate",
+            "water_disappearance_or_drowning"
+          ],
+          "missed_axes": [],
+          "contradicted_axes": []
+        },
+        "current_survivability_baseline": {
+          "status": "aligned",
+          "level": "Lower",
+          "outcome_band": "fatal_pressure_dominant",
+          "score": -10.22
+        },
+        "baseline_observation": "The disturbance/welfare-check anchor aligns on fatal violence, roommate/known-associate context, and the pool/water death scene."
+      }
+    },
+    {
+      "id": "wre_s2e3_tammy_fritz_bo_bowden_attempted_murder",
+      "episode": {
+        "season": 2,
+        "episode": 3,
+        "title": "Burning Down the House",
+        "source_ids": [
+          "netflix_wre_s2_tudum"
+        ],
+        "confidence": "medium_high",
+        "notes": "Episode title order follows common catalog listings; the Tudum article's paragraph order appears inconsistent for S2E2/S2E3."
+      },
+      "case_inventory": {
+        "real_people": {
+          "value": "Tammy Fritz was convicted of trying to kill James 'Bo' Bowden; co-defendants Sean Lagoe and Michelle Heaston pleaded guilty to related charges according to local reporting.",
+          "source_ids": [
+            "gazette_fritz_sentence_2015",
+            "netflix_wre_s2_tudum"
+          ],
+          "confidence": "medium_high"
+        },
+        "key_dates": [
+          {
+            "date": "2005",
+            "label": "Fritz set Bowden's room on fire after drinking, according to sentencing coverage.",
+            "source_ids": [
+              "gazette_fritz_sentence_2015"
+            ],
+            "confidence": "medium",
+            "notes": "No exact date/time in the source used here."
+          },
+          {
+            "date": "2009",
+            "label": "Bowden attacked with a baseball bat after Fritz hired others to kill him, according to sentencing coverage.",
+            "source_ids": [
+              "gazette_fritz_sentence_2015"
+            ],
+            "confidence": "medium",
+            "notes": "No exact date/time in the source used here."
+          },
+          {
+            "date": "2015-05-26",
+            "label": "Fritz sentenced to 48 years.",
+            "source_ids": [
+              "gazette_fritz_sentence_2015"
+            ],
+            "confidence": "medium_high"
+          }
+        ],
+        "locations": [
+          {
+            "name": "Colorado Springs, Colorado, USA",
+            "latitude": 38.8339,
+            "longitude": -104.8214,
+            "precision": "city",
+            "source_ids": [
+              "gazette_fritz_sentence_2015",
+              "netflix_wre_s2_tudum"
+            ],
+            "confidence": "medium"
+          }
+        ],
+        "relationship_context": {
+          "value": "Bowden was a friend of Fritz's late husband and moved in to help the household; Fritz held an insurance policy in which she was beneficiary.",
+          "source_ids": [
+            "gazette_fritz_sentence_2015",
+            "netflix_wre_s2_tudum"
+          ],
+          "confidence": "medium_high"
+        },
+        "incident_type": {
+          "value": "Attempted murder for insurance money, including an alleged room fire and later hired attack.",
+          "source_ids": [
+            "gazette_fritz_sentence_2015"
+          ],
+          "confidence": "medium_high"
+        },
+        "outcome": {
+          "value": "Fritz was convicted of attempted first-degree murder, solicitation, and conspiracy counts and sentenced to 48 years; co-defendants pleaded guilty to related charges.",
+          "source_ids": [
+            "gazette_fritz_sentence_2015"
+          ],
+          "confidence": "medium_high"
+        },
+        "birth_times": {
+          "status": "not_used_not_collected",
+          "notes": "Benchmark replays event charts only. No person's birth time is used."
+        }
+      },
+      "benchmark": {
+        "replay_status": "holdout_missing_precise_event_time",
+        "hold_reason": "The source set gives years and broad sequences for the fire and hired attack, but no exact or tight event time. No bedtime, commute, or noon proxy is introduced.",
+        "expected_primary_axes": [
+          "violence_homicide",
+          "deception_coverup",
+          "friend_or_close_associate",
+          "accident_or_disaster"
+        ],
+        "expected_secondary_axes": [
+          "accomplice_or_witness",
+          "family_involvement"
+        ],
+        "contradictory_axes": [
+          "child_victim",
+          "domestic_partner_involvement"
+        ]
+      }
+    },
+    {
+      "id": "wre_s2e4_michael_dudley_tenant_double_homicide",
+      "episode": {
+        "season": 2,
+        "episode": 4,
+        "title": "The Lethal Landlord",
+        "source_ids": [
+          "netflix_wre_s2_tudum"
+        ],
+        "confidence": "high"
+      },
+      "case_inventory": {
+        "real_people": {
+          "value": "Michael Lee Dudley was convicted of second-degree murder in the deaths of tenants Austin Wenner and Jessica Lewis.",
+          "source_ids": [
+            "wa_courts_dudley_2025",
+            "fox13_dudley_sentence_2023"
+          ],
+          "confidence": "high"
+        },
+        "key_dates": [
+          {
+            "date": "2020-06-09",
+            "time": "19:00:00",
+            "timezone": "America/Los_Angeles",
+            "label": "Charging-reporting anchor: a phone call around 7 p.m. and neighbor 911 reports of gunfire/yelling that night are part of the probable homicide sequence.",
+            "source_ids": [
+              "seattle_times_dudley_charged_2020"
+            ],
+            "confidence": "medium",
+            "notes": "Used as a probable-sequence anchor, not as a court-certified exact time of death."
+          },
+          {
+            "date": "2020-06-19",
+            "label": "Teenagers at Alki Beach found a suitcase with human remains.",
+            "source_ids": [
+              "wa_courts_dudley_2025"
+            ],
+            "confidence": "high"
+          },
+          {
+            "date": "2020-06-22",
+            "label": "More remains were recovered from the Duwamish River.",
+            "source_ids": [
+              "wa_courts_dudley_2025"
+            ],
+            "confidence": "high"
+          },
+          {
+            "date": "2022-12",
+            "label": "Dudley convicted by jury.",
+            "source_ids": [
+              "fox13_dudley_sentence_2023",
+              "wa_courts_dudley_2025"
+            ],
+            "confidence": "medium_high"
+          },
+          {
+            "date": "2025-08-25",
+            "label": "Washington appellate opinion filed.",
+            "source_ids": [
+              "wa_courts_dudley_2025"
+            ],
+            "confidence": "high"
+          }
+        ],
+        "locations": [
+          {
+            "name": "Burien, Washington, USA",
+            "latitude": 47.4704,
+            "longitude": -122.3468,
+            "precision": "city",
+            "source_ids": [
+              "wa_courts_dudley_2025",
+              "seattle_times_dudley_charged_2020"
+            ],
+            "confidence": "high"
+          },
+          {
+            "name": "Alki Beach / Duwamish Head, Seattle, Washington, USA",
+            "latitude": 47.5903,
+            "longitude": -122.3878,
+            "precision": "area",
+            "source_ids": [
+              "wa_courts_dudley_2025"
+            ],
+            "confidence": "high"
+          }
+        ],
+        "relationship_context": {
+          "value": "Lewis and Wenner were a couple staying/renting in Dudley's home, including the room described in court records as the blue room.",
+          "source_ids": [
+            "wa_courts_dudley_2025",
+            "seattle_times_dudley_charged_2020"
+          ],
+          "confidence": "high"
+        },
+        "incident_type": {
+          "value": "Tenant double homicide with firearm findings, dismemberment, and disposal of remains in suitcases/bags near water.",
+          "source_ids": [
+            "wa_courts_dudley_2025",
+            "seattle_times_dudley_charged_2020"
+          ],
+          "confidence": "high"
+        },
+        "outcome": {
+          "value": "Dudley was convicted of two counts of second-degree murder while armed with a firearm and sentenced to consecutive terms reported as about 46 years; appeal otherwise affirmed except financial-obligation correction.",
+          "source_ids": [
+            "wa_courts_dudley_2025",
+            "fox13_dudley_sentence_2023"
+          ],
+          "confidence": "high"
+        },
+        "birth_times": {
+          "status": "not_used_not_collected",
+          "notes": "Benchmark replays event charts only. No person's birth time is used."
+        }
+      },
+      "benchmark": {
+        "replay_status": "runnable",
+        "event_anchor": {
+          "type": "probable_homicide_sequence_anchor",
+          "date_local": "2020-06-09",
+          "time_local": "19:00:00",
+          "timezone": "America/Los_Angeles",
+          "location": "Burien, WA, USA",
+          "latitude": 47.4704,
+          "longitude": -122.3468,
+          "metadata_basis": "reported_evening_phone_call_and_neighbor_911_sequence",
+          "metadata_confidence": "medium",
+          "source_ids": [
+            "seattle_times_dudley_charged_2020",
+            "wa_courts_dudley_2025"
+          ],
+          "notes": "Replay is a probable sequence anchor. It is not asserted as exact time of death."
+        },
+        "query": {
+          "mode": "manual",
+          "datetime_local": "2020-06-09T19:00:00",
+          "location": "Burien, WA, USA",
+          "timezone": "America/Los_Angeles",
+          "house_system_code": "R",
+          "case_type": "general",
+          "latitude": "47.4704",
+          "longitude": "-122.3468"
+        },
+        "expected_primary_axes": [
+          "violence_homicide",
+          "friend_or_close_associate",
+          "deception_coverup"
+        ],
+        "expected_secondary_axes": [
+          "water_disappearance_or_drowning",
+          "domestic_partner_involvement",
+          "route_vehicle_transport"
+        ],
+        "contradictory_axes": [
+          "accident_or_disaster",
+          "child_victim"
+        ],
+        "expected_survivability": {
+          "levels": [
+            "Lower"
+          ],
+          "bands": [
+            "fatal_pressure_dominant"
+          ]
+        },
+        "current_comparison_baseline": {
+          "status": "aligned",
+          "matched_axes": [
+            "violence_homicide",
+            "friend_or_close_associate",
+            "deception_coverup"
+          ],
+          "missed_axes": [],
+          "contradicted_axes": []
+        },
+        "current_survivability_baseline": {
+          "status": "misaligned",
+          "level": "Moderate",
+          "outcome_band": "risk_loaded_survival",
+          "score": -1.55
+        },
+        "baseline_observation": "The probable homicide-sequence anchor aligns on double-homicide, tenant/known-associate, and concealment axes, but survivability undercalls a fatal known double-homicide as risk-loaded survival."
+      }
+    }
+  ]
+}

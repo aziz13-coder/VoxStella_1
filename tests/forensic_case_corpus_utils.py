@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 
 
@@ -8,6 +9,9 @@ CORPUS_PATH = REPO_ROOT / "tests" / "fixtures" / "forensic_case_corpus.json"
 
 AXIS_KEYWORDS = {
     "violence_homicide": [
+        "assault",
+        "beaten",
+        "bodily injury",
         "murder",
         "homicide",
         "violent",
@@ -21,9 +25,14 @@ AXIS_KEYWORDS = {
     ],
     "abduction_missing_person": [
         "abduction",
+        "captivity",
+        "confine",
+        "confinement",
         "kidnapping",
         "missing",
         "disappearance",
+        "detention",
+        "seizure",
         "taken",
     ],
     "deception_coverup": [
@@ -37,6 +46,107 @@ AXIS_KEYWORDS = {
         "concealment",
         "hidden",
     ],
+    "immediate_scene_or_vicinity_context": [
+        "front of the victim",
+        "immediate scene",
+        "in the vicinity",
+        "near the victim",
+        "not been taken",
+        "residence",
+        "voluntarily left",
+    ],
+    "trafficking_or_possession_context": [
+        "exploitation",
+        "human trafficking",
+        "made a possession",
+        "person a possession",
+        "possession",
+        "possession or value motive",
+        "sex trafficking",
+        "sex trade",
+        "sold",
+        "taken for trafficking",
+        "trafficking",
+        "treated as a possession",
+        "value motive",
+    ],
+    "communication_vehicle_short_distance_context": [
+        "communication issue",
+        "cousins",
+        "local movement",
+        "short distance",
+        "sibling",
+        "verbal argument",
+        "vehicle",
+        "vehicles involved",
+    ],
+    "family_home_end_matter_context": [
+        "end of the matter",
+        "family",
+        "home",
+        "house of the end",
+        "tomb",
+        "womb",
+    ],
+    "party_entertainment_context": [
+        "dancing",
+        "drinking",
+        "entertainment",
+        "fun",
+        "party",
+        "partying",
+    ],
+    "routine_disruption_stalker_context": [
+        "disrupted",
+        "normal thing",
+        "routine",
+        "stalker",
+        "watching the victim",
+    ],
+    "suspect_territory_context": [
+        "open enemy",
+        "right in front of the suspect",
+        "suspect territory",
+        "suspects nose",
+        "where the suspect feels comfortable",
+    ],
+    "death_financial_entanglement_context": [
+        "debts",
+        "deceased person",
+        "financial disagreement",
+        "house of death",
+        "inheritance",
+    ],
+    "far_distance_departure_context": [
+        "far away",
+        "farther away",
+        "further away",
+        "going further away",
+    ],
+    "public_authority_witness_context": [
+        "authorities",
+        "boss",
+        "government",
+        "out in the open",
+        "police",
+        "public",
+        "seen by a witness",
+        "witness",
+    ],
+    "friends_social_circle_context": [
+        "friends",
+        "friends may know",
+        "hopes and dreams",
+        "social circle",
+        "surrounded by friends",
+    ],
+    "hidden_captive_kidnapped_context": [
+        "enclosed area",
+        "hidden",
+        "kept hidden",
+        "kidnapped",
+        "may not be found",
+    ],
     "domestic_partner_involvement": [
         "spouse",
         "wife",
@@ -47,17 +157,18 @@ AXIS_KEYWORDS = {
         "7th house",
     ],
     "family_involvement": [
+        "custody",
         "family",
         "mother",
         "father",
         "parent",
         "parents",
-        "home",
-        "domestic",
+        "household",
     ],
     "child_victim": [
         "child",
         "children",
+        "custody",
         "baby",
         "infant",
         "daughter",
@@ -103,7 +214,29 @@ AXIS_KEYWORDS = {
         "two perpetrators",
         "more than one",
     ],
+    "route_vehicle_transport": [
+        "car",
+        "highway",
+        "jeep",
+        "license plate",
+        "movement",
+        "road",
+        "roads",
+        "route",
+        "transport",
+        "travel",
+        "trunk",
+        "vehicle",
+        "vehicles",
+    ],
 }
+
+
+def _keyword_matches(blob: str, keyword: str) -> bool:
+    if not blob or not keyword:
+        return False
+    escaped = re.escape(keyword.lower())
+    return re.search(rf"(?<![a-z0-9]){escaped}(?![a-z0-9])", blob) is not None
 
 
 def load_forensic_case_corpus(path=CORPUS_PATH):
@@ -141,14 +274,14 @@ def compare_case_to_forensic_output(case, forensic_result):
 
     for axis in case.get("expected_primary_axes") or []:
         keywords = AXIS_KEYWORDS.get(axis, [])
-        if any(keyword.lower() in blob for keyword in keywords):
+        if any(_keyword_matches(blob, keyword) for keyword in keywords):
             matched.append(axis)
         else:
             missed.append(axis)
 
     for axis in case.get("contradictory_axes") or []:
         keywords = AXIS_KEYWORDS.get(axis, [])
-        if any(keyword.lower() in contradiction_blob for keyword in keywords):
+        if any(_keyword_matches(contradiction_blob, keyword) for keyword in keywords):
             contradicted.append(axis)
 
     if contradicted:

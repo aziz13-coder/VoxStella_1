@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Dict, List, Mapping, Optional
+from zoneinfo import ZoneInfo
 
 from astrocartography_city_catalog import get_atlas_resolution_settings, normalize_atlas_resolution
 from horary_engine.services.geolocation import TimezoneManager, safe_geocode, search_live_location_candidates
@@ -75,19 +76,29 @@ def _coerce_optional_float(value: Any, *, field_name: str) -> Optional[float]:
         raise ValueError(f"{field_name} must be a number") from exc
 
 
-def _parse_datetime(value: Any, *, field_name: str) -> datetime:
+def _parse_datetime(value: Any, *, field_name: str, timezone_name: Optional[str] = None) -> datetime:
     raw = str(value or "").strip()
     if not raw:
         raise ValueError(f"{field_name} is required")
     try:
-        return datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
     except Exception as exc:
         raise ValueError(f"{field_name} must be ISO-8601 compatible") from exc
+    if parsed.tzinfo is None:
+        tzinfo = timezone.utc
+        if timezone_name:
+            try:
+                tzinfo = ZoneInfo(str(timezone_name))
+            except Exception:
+                tzinfo = timezone.utc
+        parsed = parsed.replace(tzinfo=tzinfo)
+    return parsed.astimezone(timezone.utc)
 
 
 def _scan_timepoints(request_model: WeatherScanRequest) -> List[str]:
-    start = _parse_datetime(request_model.start_datetime, field_name="start_datetime")
-    end = _parse_datetime(request_model.end_datetime, field_name="end_datetime")
+    timezone_name = request_model.timezone if request_model.scan_scope == "place_timeline" else None
+    start = _parse_datetime(request_model.start_datetime, field_name="start_datetime", timezone_name=timezone_name)
+    end = _parse_datetime(request_model.end_datetime, field_name="end_datetime", timezone_name=timezone_name)
     if end <= start:
         raise ValueError("end_datetime must be later than start_datetime")
     step_hours = int(request_model.time_step_hours or DEFAULT_WEATHER_SCAN_STEP_HOURS)

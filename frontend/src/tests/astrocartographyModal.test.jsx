@@ -182,6 +182,45 @@ describe('AstrocartographyModal', () => {
     expect(screen.getByRole('button', { name: 'Search Best Cities' })).toBeDisabled();
   });
 
+  it('offers Chiron as an astrocartography body filter', async () => {
+    await renderModal({
+      snaps: [{ id: 'snap-1', label: 'Test Snap' }],
+      activeSnapId: 'snap-1',
+    });
+
+    await waitFor(() => {
+      expect(astroClockApiMock.getAstrocartographyMap).toHaveBeenCalled();
+    });
+
+    expect(screen.getByLabelText(/Chiron/i)).toBeChecked();
+  });
+
+  it('labels warning PathFinder goals as lowest-risk atlas searches', async () => {
+    await renderModal({
+      snaps: [{ id: 'snap-1', label: 'Test Snap' }],
+      activeSnapId: 'snap-1',
+      initialGoalOptions: [
+        {
+          id: 'health_risk',
+          label: 'Health Risk',
+          goal_family: 'risk',
+          score_polarity: 'higher_is_worse',
+        },
+      ],
+    });
+
+    await waitFor(() => {
+      expect(astroClockApiMock.getAstrocartographyMap).toHaveBeenCalled();
+    });
+
+    fireEvent.change(screen.getByDisplayValue('General inspection'), {
+      target: { value: 'health_risk' },
+    });
+
+    expect(screen.getByRole('button', { name: 'Search Lowest Risk' })).toBeEnabled();
+    expect(screen.getByText('Lowest-risk pins')).toBeInTheDocument();
+  });
+
   it('cancels the active atlas session when the modal closes', async () => {
     let resolvePoll;
     pollAsyncSessionMock.mockImplementation(() => new Promise((resolve) => {

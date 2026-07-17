@@ -1,5 +1,5 @@
 {
-  "generated_on": "2026-04-05",
+  "generated_on": "2026-07-04",
   "generator": "scripts/build_astrocartography_goal_models.py",
   "models": [
     {
@@ -3717,16 +3717,20 @@
       "goal_family": "gambling",
       "atlas_search_filters": {
         "bodies": [
+          "Sun",
           "Moon",
           "Mercury",
           "Venus",
           "Mars",
           "Jupiter",
           "Saturn",
-          "Neptune"
+          "Uranus",
+          "Neptune",
+          "Pluto"
         ],
         "angles": [
           "ASC",
+          "DSC",
           "MC",
           "IC"
         ]
@@ -3875,6 +3879,7 @@
       "summary": "Warning-oriented model that ranks places where injury, illness pressure, and bodily strain are more likely to surface. Higher scores mean worse places.",
       "description": "Built as an explicit caution model rather than a positive destination goal. It uses the planetary caution layer for Mars, Saturn, Uranus, Neptune, and Pluto, the ASC as the body axis, and Morin-style 6th, 8th, and 12th-house health and danger semantics. High scores are a warning signal, not a recommendation.",
       "goal_family": "risk",
+      "score_polarity": "higher_is_worse",
       "legacy_refs": [
         {
           "source_app": "Almagest PathFinder",
@@ -5179,6 +5184,7 @@
       "summary": "Warning-oriented natal-only model for places with acute accident, collision, and crash pressure. Higher scores mean more accident-prone places.",
       "description": "Built from the subtype accident-pressure research pass rather than the generic risk lens. It emphasizes Mars, Uranus, Pluto, Saturn, and Chiron around angular lines and accident-pattern crossings, then blends in bodily-risk relocation metrics. Transit overlay is intentionally ignored because the accident benchmark got worse when transit was added.",
       "goal_family": "risk",
+      "score_polarity": "higher_is_worse",
       "evaluation_strategy": "accident_pressure",
       "transit_strategy": "ignore",
       "legacy_refs": [

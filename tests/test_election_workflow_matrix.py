@@ -75,6 +75,7 @@ CASES = [
     ("surgery", {"procedure": "cutting", "surgery_sign": "Aries"}),
     ("contract", {"prefer_fixed_asc": "1", "contract_mode": "new"}),
     ("business", {"business_mode": "growth", "include_traditional_timing": "1"}),
+    ("estate", {"estate_direction": "buy", "estate_participant_snap_id": "snap-estate"}),
     ("journey", {"journey_type": "short"}),
     ("haircut", {"hair_goal": "growth"}),
     ("legal", {"legal_action": "filing"}),
@@ -82,6 +83,7 @@ CASES = [
     ("viral", {"include_traditional_timing": "1"}),
     ("battle", {"action_type": "attack"}),
     ("conception", {"gender": "male"}),
+    ("lunar_fertility", {"natal_snap_id": "snap-estate", "consider_mode": "phase_and_antiphase", "level_percent": "33"}),
 ]
 
 
@@ -94,6 +96,49 @@ def test_election_routes_support_each_registered_matter(monkeypatch, matter: str
         astro_clock_api,
         "_compute_chart_for",
         lambda dt_iso, location, tz_name, house_system_code=None: (_generic_chart(), {"timestamp": dt_iso}),
+    )
+    monkeypatch.setattr(
+        astro_clock_api,
+        "_bundle_from_snap_id",
+        lambda snap_id, *, house_system_code=None, missing_error="Snap not found": {
+            "chart_data": _generic_chart(),
+            "meta": {"timestamp": "2026-03-08T00:00:00Z", "house_system_code": house_system_code},
+        },
+    )
+    monkeypatch.setattr(
+        astro_clock_api,
+        "_snaps",
+        lambda: {"snap-estate": {"label": "Estate Participant", "location": "Jerusalem"}},
+    )
+    monkeypatch.setattr(astro_clock_api, "_lunar_fertility_ephemeris_adapter", lambda: object())
+    monkeypatch.setattr(
+        astro_clock_api,
+        "scan_lunar_fertility_windows",
+        lambda natal_cd, start_dt, end_dt, **kwargs: {
+            "matter": "lunar_fertility",
+            "consider_mode": kwargs.get("consider_mode"),
+            "level_percent": kwargs.get("level_percent"),
+            "top": [
+                {
+                    "timestamp": "2026-03-08T00:00:00+00:00",
+                    "timestamp_local": "2026-03-08T00:00:00+00:00",
+                    "score": 92.0,
+                    "tags": ["Lunar fertility window", "Phase"],
+                }
+            ],
+            "series": [
+                {
+                    "timestamp": "2026-03-08T00:00:00+00:00",
+                    "timestamp_local": "2026-03-08T00:00:00+00:00",
+                    "score": 92.0,
+                    "tags": ["Lunar fertility window", "Phase"],
+                }
+            ],
+            "periods": [],
+            "anchors": [],
+            "signature": {},
+            "stats": {"attempted": 1, "favorable_total": 1, "passing_total": 1, "period_count": 0},
+        },
     )
 
     app = _make_app()

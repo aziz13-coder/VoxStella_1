@@ -131,7 +131,7 @@ def test_marriage_venus_retrograde_never_beats_direct_control():
     variant = score_marriage_election(variant_chart)
 
     assert control.value > variant.value
-    assert any("Deal-breaker: Venus retrograde" in tag for tag in variant.tags)
+    assert any("7th ruler retrograde" in tag for tag in variant.tags)
 
 
 def test_legal_mercury_retrograde_never_beats_direct_control():

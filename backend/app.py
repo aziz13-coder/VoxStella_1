@@ -39,6 +39,7 @@ import sys
 import os
 
 from datetime import datetime, timezone
+from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlparse
 
 from functools import wraps
@@ -54,7 +55,11 @@ _runtime_import_paths = extend_backend_runtime_import_paths()
 
 # UPDATED IMPORT: Use the new enhanced engine
 
-from horary_engine.engine import HoraryEngine, serialize_planet_with_solar
+from horary_engine.engine import (
+    HoraryEngine,
+    serialize_planet_with_solar,
+    serialize_reasoning_v1,
+)
 from horary_engine.serialization import (
     serialize_lunar_aspect,
     deserialize_chart_for_evaluation,
@@ -62,6 +67,7 @@ from horary_engine.serialization import (
 from horary_engine.services.geolocation import LocationError
 from evaluate_chart import evaluate_chart
 from horary_engine.utils import token_to_string
+from swisseph_state import swisseph as swe, swisseph_lock
 from process_watchdog import start_parent_watchdog
 from licensing import (
     LicenseConfigError,
@@ -71,6 +77,13 @@ from licensing import (
     verify_license_token,
 )
 from build_metadata import load_build_metadata
+from backend_instance import (
+    INSTANCE_CHALLENGE_HEADER,
+    INSTANCE_PROOF_HEADER,
+    build_backend_instance_proof,
+    is_valid_instance_challenge,
+    load_backend_instance_secret,
+)
 
 
 
@@ -138,16 +151,32 @@ if _runtime_import_paths:
 
 # Suppress noisy third-party logging
 logging.getLogger('urllib3.connectionpool').setLevel(logging.ERROR)
-logging.getLogger('geopy.geocoders').setLevel(logging.ERROR)
 
 
 
 logger = logging.getLogger(__name__)
-APP_VERSION = os.getenv("VOX_STELLA_APP_VERSION", "2.1.4")
+BACKEND_BUILD_METADATA = load_build_metadata(os.getenv("HORARY_BACKEND_DIR"))
+_BACKEND_INSTANCE_SECRET = load_backend_instance_secret()
+
+
+def _default_app_version() -> str:
+    metadata_version = BACKEND_BUILD_METADATA.get("app_version")
+    if isinstance(metadata_version, str) and metadata_version.strip():
+        return metadata_version.strip()
+    package_json_path = Path(__file__).resolve().parent.parent / "frontend" / "package.json"
+    try:
+        package_version = json.loads(package_json_path.read_text(encoding="utf-8")).get("version")
+        if isinstance(package_version, str) and package_version.strip():
+            return package_version.strip()
+    except Exception:
+        pass
+    return "3.1.0"
+
+
+APP_VERSION = os.getenv("VOX_STELLA_APP_VERSION", "").strip() or _default_app_version()
 API_VERSION = os.getenv("VOX_STELLA_API_VERSION", "2.0.0")
 ENGINE_VERSION = os.getenv("VOX_STELLA_ENGINE_VERSION", "Enhanced Traditional Horary 2.0")
-RELEASE_DATE = os.getenv("VOX_STELLA_RELEASE_DATE", "2026-04-16")
-BACKEND_BUILD_METADATA = load_build_metadata(os.getenv("HORARY_BACKEND_DIR"))
+RELEASE_DATE = os.getenv("VOX_STELLA_RELEASE_DATE", "2026-05-13")
 
 
 def _chart_request_log_summary(
@@ -190,9 +219,46 @@ def make_reason(rule: str, stage: str = "error", weight: float = 0) -> dict:
     return {"stage": stage, "rule": rule, "weight": weight}
 
 
+def _preserve_primary_reasoning(result: dict, use_reasoning_v1: bool) -> None:
+    """Keep the judgment engine's explanation authoritative and schema-stable."""
+    primary_reasoning = result.get("reasoning", [])
+    if not isinstance(primary_reasoning, list):
+        primary_reasoning = []
+    if use_reasoning_v1:
+        result.pop("rationale", None)
+        existing = result.get("reasoning_v1")
+        if not (
+            isinstance(existing, dict)
+            and existing.get("version") == "reasoning.v1"
+            and isinstance(existing.get("entries"), list)
+        ):
+            structured_reasoning = [
+                item
+                if isinstance(item, dict)
+                else make_reason(str(item), stage="reasoning")
+                for item in primary_reasoning
+            ]
+            result["reasoning_v1"] = serialize_reasoning_v1(structured_reasoning)
+    else:
+        result["rationale"] = primary_reasoning
+
+
 
 
 app = Flask(__name__)
+
+
+@app.after_request
+def attach_backend_instance_proof(response):
+    challenge = request.headers.get(INSTANCE_CHALLENGE_HEADER)
+    if _BACKEND_INSTANCE_SECRET is not None and is_valid_instance_challenge(challenge):
+        response.headers[INSTANCE_PROOF_HEADER] = build_backend_instance_proof(
+            _BACKEND_INSTANCE_SECRET,
+            challenge,
+            request.path,
+        )
+    return response
+
 
 def _cors_origins():
     raw = (os.getenv("HORARY_CORS_ORIGINS") or "").strip()
@@ -226,18 +292,18 @@ LICENSE_EXEMPT_PATHS = {
     "/api/get-timezone",
     "/api/current-time",
 }
-ASTRO_CLOCK_PUBLIC_PREFIXES = (
+ASTRO_CLOCK_PUBLIC_PATHS = {
     "/api/astro-clock/current",
     "/api/astro-clock/dashboard",
     "/api/astro-clock/planetary-hours",
     "/api/astro-clock/receptions",
     "/api/astro-clock/compass",
-)
-STREAM_TICKET_ALLOWED_PREFIXES = (
+}
+STREAM_TICKET_ALLOWED_PATHS = frozenset({
     "/api/astro-clock/stream",
     "/api/astro-clock/transits/window/stream",
     "/api/astro-clock/election/suggest/stream",
-)
+})
 _STREAM_TICKET_TTL_SECONDS = max(15, int(os.getenv("STREAM_TICKET_TTL_SECONDS", "90")))
 _STREAM_TICKET_MAX_ACTIVE = max(32, int(os.getenv("STREAM_TICKET_MAX_ACTIVE", "2048")))
 _stream_ticket_cache = OrderedDict()
@@ -271,7 +337,7 @@ def _build_stream_target(path: str, items, *, validate_path: bool) -> str:
     if validate_path:
         if not path_text.startswith("/api/astro-clock/"):
             raise ValueError("invalid stream path")
-        if not any(path_text.startswith(prefix) for prefix in STREAM_TICKET_ALLOWED_PREFIXES):
+        if path_text not in STREAM_TICKET_ALLOWED_PATHS:
             raise ValueError("unsupported stream path")
     canonical_items = _canonicalize_stream_query_items(items)
     query = urlencode(canonical_items, doseq=True)
@@ -314,15 +380,35 @@ def _prune_stream_tickets(now_ts: float) -> None:
         _stream_ticket_cache.pop(tk, None)
 
 
+def _stream_ticket_expiry_for_claims(claims: dict, now_ts: float) -> float:
+    """Cap a ticket to both its own TTL and the originating entitlement."""
+    ticket_expiry = now_ts + _STREAM_TICKET_TTL_SECONDS
+    claim_exp = claims.get("exp")
+    if claim_exp is None:
+        return ticket_expiry
+    if isinstance(claim_exp, bool):
+        return now_ts
+    try:
+        claim_expiry = float(claim_exp)
+    except (TypeError, ValueError):
+        return now_ts
+    if not math.isfinite(claim_expiry) or claim_expiry <= 0:
+        return now_ts
+    return min(ticket_expiry, claim_expiry)
+
+
 def _mint_stream_ticket(claims: dict, stream_target: str) -> str:
     now_ts = time.time()
+    ticket_expiry = _stream_ticket_expiry_for_claims(claims, now_ts)
+    if ticket_expiry <= now_ts:
+        raise ValueError("license session expired")
     ticket = secrets.token_urlsafe(32)
     with _stream_ticket_lock:
         _prune_stream_tickets(now_ts)
         _stream_ticket_cache[ticket] = {
             "claims": claims,
             "target": stream_target,
-            "exp": now_ts + _STREAM_TICKET_TTL_SECONDS,
+            "exp": ticket_expiry,
         }
         _stream_ticket_cache.move_to_end(ticket)
         while len(_stream_ticket_cache) > _STREAM_TICKET_MAX_ACTIVE:
@@ -344,6 +430,8 @@ def _consume_stream_ticket(ticket: str, stream_target: str) -> dict | None:
     claims = entry.get("claims")
     if not isinstance(claims, dict):
         return None
+    if _stream_ticket_expiry_for_claims(claims, now_ts) <= now_ts:
+        return None
     return claims
 
 
@@ -361,7 +449,7 @@ def enforce_license_guard():
     path = request.path or ""
     if path in LICENSE_EXEMPT_PATHS:
         return None
-    if any(path.startswith(prefix) for prefix in ASTRO_CLOCK_PUBLIC_PREFIXES):
+    if path in ASTRO_CLOCK_PUBLIC_PATHS:
         return None
 
     needs_license = any(path.startswith(prefix) for prefix in PROTECTED_ENDPOINT_PREFIXES)
@@ -431,7 +519,10 @@ def issue_stream_ticket():
         canonical_target = _normalize_stream_target(raw_path)
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
-    ticket = _mint_stream_ticket(claims, canonical_target)
+    try:
+        ticket = _mint_stream_ticket(claims, canonical_target)
+    except ValueError as exc:
+        return jsonify({"error": "license_invalid", "detail": str(exc)}), 403
     return jsonify({"ticket": ticket, "expires_in": _STREAM_TICKET_TTL_SECONDS})
 
 
@@ -441,17 +532,73 @@ def issue_stream_ticket():
 horary_engine = HoraryEngine()
 
 # ASTRO CLOCK: Initialize Astro Clock API (robust import)
+_ASTRO_CLOCK_BLUEPRINT_READY = False
+_ASTRO_CLOCK_BLUEPRINT_ERROR = None
+_ASTRO_CLOCK_BACKGROUND_METRICS = None
+
+
 def _register_astro_clock_blueprint():
+    global _ASTRO_CLOCK_BLUEPRINT_READY, _ASTRO_CLOCK_BLUEPRINT_ERROR
+    global _ASTRO_CLOCK_BACKGROUND_METRICS
     try:
-        from astro_clock_api import astro_clock_bp as _bp  # type: ignore
+        from astro_clock_api import (  # type: ignore
+            astro_clock_bp as _bp,
+            get_background_runtime_metrics as _background_metrics,
+        )
         app.register_blueprint(_bp)
+        _ASTRO_CLOCK_BLUEPRINT_READY = True
+        _ASTRO_CLOCK_BLUEPRINT_ERROR = None
+        _ASTRO_CLOCK_BACKGROUND_METRICS = _background_metrics
         logger.info("Astro Clock API registered (local)")
         return True
     except Exception as exc:
-        logger.error(f"Failed to register Astro Clock API from backend source: {exc}")
+        _ASTRO_CLOCK_BLUEPRINT_READY = False
+        _ASTRO_CLOCK_BLUEPRINT_ERROR = _health_error_detail(exc)
+        _ASTRO_CLOCK_BACKGROUND_METRICS = None
+        logger.exception("Failed to register Astro Clock API from backend source")
         return False
 
+
 _register_astro_clock_blueprint()
+
+
+def _readiness_snapshot() -> dict:
+    """Return cheap readiness state suitable for frequent Electron polling."""
+    astro_clock_ready = bool(_ASTRO_CLOCK_BLUEPRINT_READY) and any(
+        str(rule.rule).startswith("/api/astro-clock/")
+        for rule in app.url_map.iter_rules()
+    )
+    component = {
+        "status": "ready" if astro_clock_ready else "unavailable",
+    }
+    if not astro_clock_ready and _ASTRO_CLOCK_BLUEPRINT_ERROR:
+        component["error"] = _ASTRO_CLOCK_BLUEPRINT_ERROR
+    return {
+        "ready": astro_clock_ready,
+        "status": "ready" if astro_clock_ready else "not_ready",
+        "components": {
+            "astro_clock_blueprint": component,
+        },
+    }
+
+
+def _astro_clock_background_metrics_snapshot() -> dict:
+    if not callable(_ASTRO_CLOCK_BACKGROUND_METRICS):
+        return {
+            "available": False,
+            "error": "astro_clock_background_metrics_unavailable",
+        }
+    try:
+        return {
+            "available": True,
+            **_ASTRO_CLOCK_BACKGROUND_METRICS(),
+        }
+    except Exception as exc:
+        logger.exception("Failed to collect Astro Clock background metrics")
+        return {
+            "available": False,
+            "error": _health_error_detail(exc),
+        }
 
 
 
@@ -654,17 +801,31 @@ def health_check():
 
     }
 
+    readiness = _readiness_snapshot()
+    astro_clock_readiness = readiness["components"]["astro_clock_blueprint"]
+    health_status["ready"] = readiness["ready"]
+    health_status["services"]["astro_clock_blueprint"] = {
+        "status": (
+            "healthy"
+            if astro_clock_readiness["status"] == "ready"
+            else "unhealthy"
+        ),
+        **(
+            {"error": astro_clock_readiness["error"]}
+            if astro_clock_readiness.get("error")
+            else {}
+        ),
+    }
+
     
 
     # Test timezone finder
 
     try:
 
-        from timezonefinder import TimezoneFinder
+        from horary_engine.services.geolocation import TimezoneManager
 
-        tf = TimezoneFinder()
-
-        test_tz = tf.timezone_at(lat=51.5074, lng=-0.1278)  # London
+        test_tz = TimezoneManager().get_timezone_for_location(51.5074, -0.1278)  # London
 
         health_status['services']['timezone_finder'] = {
 
@@ -690,11 +851,9 @@ def health_check():
 
     try:
 
-        import swisseph as swe
-
-        jd = swe.julday(2025, 5, 29, 12.0)
-
-        sun_pos = swe.calc_ut(jd, swe.SUN)
+        with swisseph_lock():
+            jd = swe.julday(2025, 5, 29, 12.0)
+            sun_pos = swe.calc_ut(jd, swe.SUN)
 
         health_status['services']['swiss_ephemeris'] = {
 
@@ -716,7 +875,7 @@ def health_check():
 
     
 
-    # Test geocoding with enhanced error handling and faster timeout
+    # Test geocoding through the same shared horary-engine path used by charts.
 
     if skip_network:
 
@@ -732,19 +891,17 @@ def health_check():
 
         try:
 
-            from geopy.geocoders import Nominatim
+            from horary_engine.services.geolocation import safe_geocode
 
-            geolocator = Nominatim(user_agent="enhanced_health_check")
-
-            # Use shorter timeout and catch specific timeout errors
-
-            location = geolocator.geocode("London, UK", timeout=1)
+            lat, lon, resolved_location = safe_geocode("Greenwich, UK", timeout=1)
 
             health_status['services']['geocoding'] = {
 
-                'status': 'healthy' if location else 'degraded',
+                'status': 'healthy',
 
-                'test_result': location.address if location else None
+                'test_result': resolved_location,
+
+                'coordinates': {'latitude': lat, 'longitude': lon}
 
             }
 
@@ -819,8 +976,9 @@ def health_check():
     if 'unhealthy' in service_statuses:
 
         health_status['status'] = 'unhealthy'
+        health_status['ready'] = False
 
-        return jsonify(health_status), 200
+        return jsonify(health_status), 503
 
     elif 'degraded' in service_statuses:
 
@@ -1458,7 +1616,11 @@ def calculate_chart():
 
             logger.error(f"Chart calculation error: {result['error']}")
 
-            return jsonify(result), 500
+            is_location_error = (
+                result.get('error_type') == 'LocationError'
+                or str(result.get('judgment') or '').upper() == 'LOCATION_ERROR'
+            )
+            return jsonify(result), 400 if is_location_error else 500
 
         
 
@@ -1561,22 +1723,45 @@ def calculate_chart():
                     entry['key'] = token_to_string(entry.get('key'))
                     if 'polarity' in entry and hasattr(entry['polarity'], 'name'):
                         entry['polarity'] = entry['polarity'].name
-                result['ledger'] = ledger
-                if use_reasoning_v1:
-                    result['reasoning_v1'] = evaluation.get('rationale', [])
-                else:
-                    result['rationale'] = evaluation.get('rationale', [])
+                primary_verdict = str(result.get('judgment') or '').strip().upper()
+                secondary_verdict = str(evaluation.get('verdict') or '').strip().upper()
+                verdicts_match = bool(
+                    primary_verdict
+                    and secondary_verdict
+                    and primary_verdict == secondary_verdict
+                )
+                result['evaluation_consistency'] = {
+                    'status': (
+                        'match'
+                        if verdicts_match
+                        else (
+                            'mismatch'
+                            if primary_verdict and secondary_verdict
+                            else 'unavailable'
+                        )
+                    ),
+                    'primary_verdict': primary_verdict or None,
+                    'secondary_verdict': secondary_verdict or None,
+                }
+                result['diagnostic_evaluation'] = {
+                    'verdict': secondary_verdict or None,
+                    'agrees_with_primary': verdicts_match,
+                    'ledger': ledger,
+                    'rationale': evaluation.get('rationale', []),
+                }
+                if not verdicts_match:
+                    logger.warning(
+                        "Secondary evaluation verdict %s does not match primary judgment %s; "
+                        "keeping primary reasoning authoritative",
+                        secondary_verdict or "<missing>",
+                        primary_verdict or "<missing>",
+                    )
+                _preserve_primary_reasoning(result, use_reasoning_v1)
             else:
-                if use_reasoning_v1:
-                    result['reasoning_v1'] = result.get('reasoning', [])
-                else:
-                    result['rationale'] = result.get('reasoning', [])
+                _preserve_primary_reasoning(result, use_reasoning_v1)
         except Exception as eval_error:
             logger.warning(f"evaluate_chart failed: {eval_error}")
-            if use_reasoning_v1:
-                result['reasoning_v1'] = result.get('reasoning', [])
-            else:
-                result['rationale'] = result.get('reasoning', [])
+            _preserve_primary_reasoning(result, use_reasoning_v1)
 
         # Internal passthrough chart must never cross the JSON boundary.
         result.pop('_raw_chart', None)
@@ -1697,6 +1882,8 @@ def get_metrics():
 
             'metrics': metrics.get_stats(),
 
+            'astro_clock_background': _astro_clock_background_metrics_snapshot(),
+
             'enhanced_engine_stats': {
 
                 'version': API_VERSION,
@@ -1725,7 +1912,8 @@ def get_version():
 
     """ENHANCED: Get comprehensive API version information"""
 
-    return jsonify({
+    readiness = _readiness_snapshot()
+    response = jsonify({
 
         'app_version': APP_VERSION,
 
@@ -1736,6 +1924,12 @@ def get_version():
         'release_date': RELEASE_DATE,
 
         'backend_build': BACKEND_BUILD_METADATA,
+
+        'ready': readiness['ready'],
+
+        'status': readiness['status'],
+
+        'readiness': readiness['components'],
 
         'features': [
 
@@ -1938,6 +2132,8 @@ def get_version():
         'timestamp': datetime.now(timezone.utc).isoformat()
 
     })
+    response.status_code = 200 if readiness['ready'] else 503
+    return response
 
 
 
@@ -2222,4 +2418,4 @@ if __name__ == '__main__':
         )
     
     # Note: For high-traffic production deployments, consider using:
-    # gunicorn -w 4 -b 127.0.0.1:5000 app:app
+# gunicorn -w 4 -b 127.0.0.1:52525 app:app

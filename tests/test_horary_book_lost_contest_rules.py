@@ -54,6 +54,7 @@ class HoraryBookLostContestRulesTest(unittest.TestCase):
             analysis["significators"]["competition_family"],
             "contest_public_office",
         )
+        self.assertIsNone(analysis["immigration_analysis"])
 
     def test_champion_question_routes_as_title_defense(self):
         analysis = self.analyzer.analyze_question("Will the Champion Retain His Belt?")

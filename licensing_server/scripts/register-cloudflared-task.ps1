@@ -1,9 +1,10 @@
 param(
   [Parameter(Mandatory=$true)] [string]$TunnelName,
-  [string]$CloudflaredPath = "cloudflared.exe"
+  [string]$CloudflaredPath = "cloudflared.exe",
+  [string]$Protocol = "http2"
 )
 
-$action = New-ScheduledTaskAction -Execute "cmd.exe" -Argument "/c `"$CloudflaredPath`" tunnel run $TunnelName"
+$action = New-ScheduledTaskAction -Execute "cmd.exe" -Argument "/c `"$CloudflaredPath`" tunnel --protocol $Protocol run $TunnelName"
 $trigger = New-ScheduledTaskTrigger -AtLogOn
 $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Highest
 $settings = New-ScheduledTaskSettingsSet -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
@@ -13,4 +14,3 @@ Register-ScheduledTask -TaskName "Cloudflared Tunnel ($TunnelName)" -InputObject
 
 Write-Host "Registered Task Scheduler job: Cloudflared Tunnel ($TunnelName)" -ForegroundColor Green
 Write-Host "Starts at logon, elevated, and restarts on failure." -ForegroundColor Yellow
-

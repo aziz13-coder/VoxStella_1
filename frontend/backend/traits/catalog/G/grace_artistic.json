@@ -12,9 +12,11 @@
       { "kind": "sign_group_emphasis", "group": ["Libra","Taurus"], "min": 2.0, "weight": 6 },
       { "kind": "planet_status", "planet": "Moon", "strong": true, "weight": 4 },
       { "kind": "aspect", "pair": ["Mercury","Venus"], "type": "soft", "max_orb": 6, "weight": 6 },
-      { "kind": "house_emphasis", "houses": [5,7,10], "min_total": 2, "weight": 6 }
+      { "kind": "angle_aspect", "planet": "Venus", "type": "soft", "angle": "MC", "max_orb": 6, "weight": 10 },
+      { "kind": "house_emphasis", "houses": [5,7,10], "min_total": 2, "weight": 6 },
+      { "kind": "planet_in_house", "planet": "Venus", "houses": [5, 10], "weight": 6 },
+      { "kind": "planet_area", "planet": "Venus", "areas": ["children", "honors"], "min": 0.5, "weight": 4 }
     ],
     "dampeners": [],
     "escalators": [] }
 }
-

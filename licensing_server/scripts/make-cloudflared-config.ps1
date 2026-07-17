@@ -1,7 +1,8 @@
 param(
   [Parameter(Mandatory=$true)] [string]$TunnelUUID,
   [string]$Hostname = "license.voxstella.app",
-  [string]$OriginURL = "http://127.0.0.1:8787"
+  [string]$OriginURL = "http://127.0.0.1:8787",
+  [string]$Protocol = "http2"
 )
 
 $userProfile = $env:USERPROFILE
@@ -18,6 +19,7 @@ $cfgPath  = Join-Path $cfDir "config.yml"
 $cfg = @()
 $cfg += "tunnel: $TunnelUUID"
 $cfg += "credentials-file: $credFile"
+$cfg += "protocol: $Protocol"
 $cfg += "ingress:"
 $cfg += "  - hostname: $Hostname"
 $cfg += "    service: $OriginURL"
@@ -28,4 +30,3 @@ $cfg -join "`n" | Set-Content -Encoding UTF8 -Path $cfgPath
 Write-Host "Wrote Cloudflared config: $cfgPath" -ForegroundColor Green
 Write-Host "Expect credentials JSON at: $credFile" -ForegroundColor Yellow
 Write-Host "If you haven't logged in/created the tunnel: 'cloudflared tunnel login' then 'cloudflared tunnel create <name>'" -ForegroundColor Yellow
-

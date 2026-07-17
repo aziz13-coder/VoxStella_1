@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 Complete Traditional Horary Astrology Engine with Enhanced Configuration
 REFACTORED VERSION with YAML Configuration and Enhanced Moon Testimony
@@ -75,6 +75,8 @@ except ImportError:  # pragma: no cover - fallback when executed as script
 # Timezone handling
 import swisseph as swe
 
+from swisseph_state import swisseph_lock
+
 # Import our computational helpers
 from .calculation.helpers import (
     calculate_next_station_time,
@@ -95,9 +97,9 @@ from .services.geolocation import (
     safe_geocode,
 )
 try:
-    from ..models import Planet, Aspect, PlanetPosition, HoraryChart
+    from ..models import Planet, Aspect, PlanetPosition, HoraryChart, SolarCondition
 except ImportError:  # pragma: no cover - fallback when executed as script
-    from models import Planet, Aspect, PlanetPosition, HoraryChart
+    from models import Planet, Aspect, PlanetPosition, HoraryChart, SolarCondition
 from .dsl import (
     aspect as dsl_aspect,
     translation as dsl_translation,
@@ -120,6 +122,28 @@ USE_REASONING_V1 = os.getenv("USE_REASONING_V1", "").lower() in {"1", "true", "y
 
 # Setup module logger
 logger = logging.getLogger(__name__)
+
+
+def _solar_condition_name(value: Any) -> str:
+    """Return a display condition name from SolarAnalysis, SolarCondition, dict, or string."""
+    if not value:
+        return ""
+    if isinstance(value, dict):
+        raw = value.get("condition")
+    else:
+        raw = getattr(value, "condition", value)
+    if isinstance(raw, SolarCondition):
+        return raw.condition_name
+    name = getattr(raw, "condition_name", None)
+    if name:
+        return str(name)
+    return str(raw or "")
+
+
+def _is_solar_condition(position: Any, condition: Any) -> bool:
+    expected = _solar_condition_name(condition).strip().lower()
+    actual = _solar_condition_name(getattr(position, "solar_condition", None)).strip().lower()
+    return bool(expected and actual == expected)
 
 
 def _structure_reasoning(reasoning: List[Any]) -> List[Dict[str, Any]]:
@@ -425,22 +449,20 @@ def extract_testimonies(chart: HoraryChart, contract: Dict[str, Planet]) -> List
             primitives.append(dsl_accidental(actor, "retro"))
             
         # CRITICAL FIX: Generate combustion testimonies for house rulers
-        if hasattr(pos, 'solar_condition') and pos.solar_condition:
-            condition = pos.solar_condition.condition
-            if condition == "Combustion":
-                # Generate negative testimony for each house this planet rules
-                for house_num, ruler in getattr(chart, "house_rulers", {}).items():
-                    if ruler == planet:
-                        # Create combustion testimony
-                        primitives.append({
-                            "key": f"l{house_num}_combust",
-                            "weight": -2,  # Strong negative testimony for combustion
-                            "house": int(house_num),
-                            "family": f"l{house_num}_condition",
-                            "kind": f"l{house_num}",
-                            "polarity": "NEGATIVE",
-                            "context": f"House {house_num} ruler {planet.value} combusted - matter destroyed/hidden"
-                        })
+        if _is_solar_condition(pos, SolarCondition.COMBUSTION):
+            # Generate negative testimony for each house this planet rules
+            for house_num, ruler in getattr(chart, "house_rulers", {}).items():
+                if ruler == planet:
+                    # Create combustion testimony
+                    primitives.append({
+                        "key": f"l{house_num}_combust",
+                        "weight": -2,  # Strong negative testimony for combustion
+                        "house": int(house_num),
+                        "family": f"l{house_num}_condition",
+                        "kind": f"l{house_num}",
+                        "polarity": "NEGATIVE",
+                        "context": f"House {house_num} ruler {planet.value} combusted - matter destroyed/hidden"
+                    })
 
     # ------------------------------------------------------------------
     # Translation, collection & prohibition
@@ -645,9 +667,7 @@ def extract_testimonies(chart: HoraryChart, contract: Dict[str, Planet]) -> List
             continue
             
         # Check for disqualifying conditions before assigning "fortunate" tags
-        is_combust = (hasattr(position, 'solar_condition') and 
-                     position.solar_condition and 
-                     position.solar_condition.condition == "Combustion")
+        is_combust = _is_solar_condition(position, SolarCondition.COMBUSTION)
         
         is_severely_debilitated = position.dignity_score <= -8
         
@@ -881,7 +901,8 @@ class EnhancedTraditionalAstrologicalCalculator:
     
     def __init__(self, timezone_manager=None):
         # Set Swiss Ephemeris path
-        swe.set_ephe_path('')
+        with swisseph_lock():
+            swe.set_ephe_path('')
         
         # Initialize timezone manager (use provided or create new)
         self.timezone_manager = timezone_manager or TimezoneManager()
@@ -1714,6 +1735,7 @@ class EnhancedTraditionalHoraryJudgmentEngine:
                 analysis = chart.solar_analyses.get(planet)
                 if analysis and hasattr(analysis, 'condition'):
                     setattr(pos, 'visibility', getattr(analysis, 'condition', None))
+                    setattr(pos, 'solar_condition', analysis)
     
     def judge_question(self, question: str, location: str, 
                       date_str: Optional[str] = None, time_str: Optional[str] = None,
@@ -4896,7 +4918,7 @@ class EnhancedTraditionalHoraryJudgmentEngine:
             # Traditional rule: Even combust planets can translate light
             # but with reduced effectiveness
             combustion_penalty = 0
-            if hasattr(pos, 'solar_condition') and pos.solar_condition.condition == "Combustion":
+            if _is_solar_condition(pos, SolarCondition.COMBUSTION):
                 combustion_penalty = 15
                 confidence -= combustion_penalty
                 
@@ -5185,7 +5207,7 @@ class EnhancedTraditionalHoraryJudgmentEngine:
                         confidence = 75
                         
                         # Reduce confidence if translator is combust
-                        if hasattr(pos, 'solar_condition') and pos.solar_condition.condition == "Combustion":
+                        if _is_solar_condition(pos, SolarCondition.COMBUSTION):
                             confidence -= 10
                         
                         party_name = "seller" if party_aspect["other"] == seller else "buyer"
@@ -5200,7 +5222,7 @@ class EnhancedTraditionalHoraryJudgmentEngine:
                     elif (not party_aspect["applying"] and item_aspect["applying"]):
                         confidence = 75
                         
-                        if hasattr(pos, 'solar_condition') and pos.solar_condition.condition == "Combustion":
+                        if _is_solar_condition(pos, SolarCondition.COMBUSTION):
                             confidence -= 10
                             
                         party_name = "seller" if party_aspect["other"] == seller else "buyer"
@@ -6610,7 +6632,7 @@ class EnhancedTraditionalHoraryJudgmentEngine:
                 challenge_reasons.append("weak collector")
 
             # Check if collector is free from major afflictions
-            if hasattr(pos, 'solar_condition') and pos.solar_condition.condition == "Combustion":
+            if _is_solar_condition(pos, SolarCondition.COMBUSTION):
                 base_confidence -= 20  # Combust collector less reliable - challenge, not failure
                 challenge_reasons.append("collector combust")
 
@@ -7129,8 +7151,7 @@ class EnhancedTraditionalHoraryJudgmentEngine:
                 
         # 6. COMBUSTION AMPLIFICATION (if malefic is combust, it's chaotic)
         combustion_penalty = 0
-        solar_condition = getattr(malefic_pos, 'solar_condition', {})
-        if isinstance(solar_condition, dict) and solar_condition.get('condition') == 'Combustion':
+        if _is_solar_condition(malefic_pos, SolarCondition.COMBUSTION):
             combustion_penalty = -4  # Combust malefics are unpredictable and harmful
             
         # Calculate base malefic penalty (before sect amplification)
@@ -7719,7 +7740,7 @@ class EnhancedTraditionalHoraryJudgmentEngine:
             return None
 
         combust = False
-        if hasattr(ruler_pos, "solar_condition") and ruler_pos.solar_condition.condition == "Combustion":
+        if _is_solar_condition(ruler_pos, SolarCondition.COMBUSTION):
             combust = True
 
         return {"ruler": tenth_ruler, "combust": combust}
@@ -8048,14 +8069,22 @@ class EnhancedTraditionalHoraryJudgmentEngine:
         cazimi_planets = []
         combusted_planets = []
         under_beams_planets = []
+        ignored_combusted_planets = []
+        ignored_under_beams_planets = []
         
         for planet, analysis in solar_analyses.items():
             if analysis.condition == SolarCondition.CAZIMI:
                 cazimi_planets.append(planet)
-            elif analysis.condition == SolarCondition.COMBUSTION and not ignore_combustion:
-                combusted_planets.append(planet)
-            elif analysis.condition == SolarCondition.UNDER_BEAMS and not ignore_combustion:
-                under_beams_planets.append(planet)
+            elif analysis.condition == SolarCondition.COMBUSTION:
+                if ignore_combustion:
+                    ignored_combusted_planets.append(planet)
+                else:
+                    combusted_planets.append(planet)
+            elif analysis.condition == SolarCondition.UNDER_BEAMS:
+                if ignore_combustion:
+                    ignored_under_beams_planets.append(planet)
+                else:
+                    under_beams_planets.append(planet)
         
         # Build summary with override notes
         summary_parts = []
@@ -8066,7 +8095,7 @@ class EnhancedTraditionalHoraryJudgmentEngine:
         if under_beams_planets:
             summary_parts.append(f"Under Beams: {', '.join(p.value for p in under_beams_planets)}")
         
-        if ignore_combustion and (combusted_planets or under_beams_planets):
+        if ignore_combustion and (ignored_combusted_planets or ignored_under_beams_planets):
             summary_parts.append("(Combustion effects ignored by override)")
         
         # Convert detailed analyses for JSON serialization
@@ -8131,7 +8160,7 @@ class EnhancedTraditionalHoraryJudgmentEngine:
         if moon_void.get("void"):
             severe_object_condition = (
                 quesited_pos.dignity_score <= -5
-                or getattr(getattr(quesited_pos, "solar_condition", None), "condition", None) == "Combustion"
+                or _is_solar_condition(quesited_pos, SolarCondition.COMBUSTION)
             )
             if severe_object_condition:
                 denial_reasons.append("Moon void-of-course with a badly afflicted object significator - no recovery possible")
@@ -8349,8 +8378,7 @@ class EnhancedTraditionalHoraryJudgmentEngine:
             
             # Saturn cazimi in 4th = +4 (exact scenario from user's chart)
             if (fourth_house_ruler == Planet.SATURN and 
-                hasattr(ruler_pos, 'solar_condition') and 
-                ruler_pos.solar_condition.condition == "Cazimi"):
+                _is_solar_condition(ruler_pos, SolarCondition.CAZIMI)):
                 safety_score += 4
                 factors.append(("Saturn cazimi in 4th house (stable resolution)", 4))
             elif ruler_pos.dignity_score >= 5:  # Well-dignified L4

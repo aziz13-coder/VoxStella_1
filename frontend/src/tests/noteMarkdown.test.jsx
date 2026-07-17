@@ -39,6 +39,26 @@ Paragraph with *emphasis*.`)}
     expect(openExternal).toHaveBeenCalledWith('https://voxstella.app/docs/workspace/');
   });
 
+  it('aligns note links with the Electron HTTPS/mailto external-navigation policy', () => {
+    const openExternal = vi.fn();
+
+    const { rerender } = render(
+      <div>
+        {renderNoteMarkdown('[Reference](https://example.com/research)', { openExternal })}
+      </div>,
+    );
+    fireEvent.click(screen.getByRole('link', { name: 'Reference' }));
+    expect(openExternal).toHaveBeenCalledWith('https://example.com/research');
+
+    rerender(
+      <div>
+        {renderNoteMarkdown('[Unsafe](http://example.com)', { openExternal })}
+      </div>,
+    );
+    expect(screen.queryByRole('link', { name: 'Unsafe' })).not.toBeInTheDocument();
+    expect(screen.getByText('[Unsafe](http://example.com)')).toBeInTheDocument();
+  });
+
   it('appends note attachment templates with stable spacing', () => {
     expect(appendNoteAttachment('', 'voice')).toContain('Voice note');
     expect(appendNoteAttachment('Existing note', 'link')).toBe(

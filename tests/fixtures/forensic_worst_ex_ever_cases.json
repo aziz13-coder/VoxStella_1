@@ -1,0 +1,481 @@
+{
+  "generated_at": "2026-05-08T00:00:00+00:00",
+  "purpose": "Worst Ex Ever forensic event benchmark cases comparing live forensic output against source-backed real event families.",
+  "benchmark_policy": {
+    "status": "current_engine_baseline",
+    "notes": "Runnable cases use court/prosecutor/reporting anchors strong enough for event-chart replay. Holdout cases remain documented until exact or tight event timing is sourced.",
+    "comparison_status_values": [
+      "aligned",
+      "partially_aligned",
+      "misaligned"
+    ]
+  },
+  "comparison_axes": [
+    "violence_homicide",
+    "abduction_missing_person",
+    "deception_coverup",
+    "domestic_partner_involvement",
+    "family_involvement",
+    "child_victim",
+    "water_disappearance_or_drowning",
+    "accident_or_disaster",
+    "friend_or_close_associate",
+    "authority_or_public_case",
+    "accomplice_or_witness",
+    "route_vehicle_transport"
+  ],
+  "sources": [
+    {
+      "id": "netflix_worst_ex_s1_tudum",
+      "kind": "official_netflix_listing",
+      "title": "Worst Ex Ever: Everything You Need to Know About the Docuseries",
+      "url": "https://www.netflix.com/tudum/articles/worst-ex-ever-release-date-news",
+      "metadata_strength": "high",
+      "notes": "Official Netflix Tudum article summarizing Season 1 cases including Ben Foster, Jerry Ramrattan, Rosa Hill, and Kevin Lewis."
+    },
+    {
+      "id": "netflix_worst_ex_s2_tudum",
+      "kind": "official_netflix_listing",
+      "title": "Worst Ex Ever Season 2: What to Know About the Docuseries",
+      "url": "https://www.netflix.com/tudum/articles/worst-ex-ever-season-2-release-date-news",
+      "metadata_strength": "high",
+      "notes": "Official Netflix Tudum article summarizing Season 2 cases including Wade Wilson, Geoffrey Paschel, Joyce Pelzer, and Scott Freeman."
+    },
+    {
+      "id": "tncourts_paschel_appeal_2023",
+      "kind": "court_record",
+      "title": "State of Tennessee v. Geoffrey Ian Paschel",
+      "url": "https://www.tncourts.gov/courts/court-criminal-appeals/opinions/2023/09/14/state-tennessee-v-geoffrey-ian-paschel",
+      "metadata_strength": "high",
+      "notes": "Tennessee Court of Criminal Appeals opinion affirming convictions for aggravated kidnapping, domestic assault, and interference with emergency communications; factual background gives the June 9, 2019 late-night sequence."
+    },
+    {
+      "id": "wa_courts_lewis_petition_2024",
+      "kind": "court_record",
+      "title": "Kevin Lewis petition for review record",
+      "url": "https://www.courts.wa.gov/content/petitions/102751-6%20Petition%20for%20Review.pdf",
+      "metadata_strength": "high",
+      "notes": "Washington court record states Alisha Canales-McGuire was shot on September 20, 2017 and gives the 1:55 a.m. 911 call."
+    },
+    {
+      "id": "fox13_alisha_canales_mcguire_2017",
+      "kind": "reported_history",
+      "title": "Spokane teen, Tacoma man booked for 2017 murder of Everett woman",
+      "url": "https://www.fox13seattle.com/news/spokane-teen-tacoma-man-booked-for-2017-murder-of-everett-woman",
+      "metadata_strength": "medium",
+      "notes": "Local reporting identifies the early-morning shooting and 3100 block of York Road location."
+    },
+    {
+      "id": "ca_courts_rosa_hill_appeal_2015",
+      "kind": "court_record",
+      "title": "People v. Rosa Pui Hill et al.",
+      "url": "https://cases.justia.com/california/court-of-appeal/2015-a133121.pdf?ts=1431550820",
+      "metadata_strength": "high",
+      "notes": "California Court of Appeal opinion describes the custody dispute, Selma Hill murder, Eric Hill attempted murder, child presence, and deputy arrival at 5:53 p.m. on January 7, 2009."
+    },
+    {
+      "id": "fl_justia_freeman_state_2009",
+      "kind": "court_record",
+      "title": "Joseph Freeman v. State",
+      "url": "https://law.justia.com/cases/florida/fifth-district-court-of-appeal/2009/5d07-4337.html",
+      "metadata_strength": "high",
+      "notes": "Florida Fifth District Court of Appeal opinion affirming aggravated stalking, kidnapping with a weapon, injunction violation, and probation violation; describes the trunk ambush and seven-day six-state abduction."
+    },
+    {
+      "id": "sao20_wade_wilson_2024",
+      "kind": "official_prosecutor_record",
+      "title": "Jury Recommends the Death Penalty for Killer Wade Wilson",
+      "url": "https://sao20.org/news-releases/jury-recommends-the-death-penalty-for-killer-wade-wilson/",
+      "metadata_strength": "high",
+      "notes": "Florida State Attorney release confirms October 7, 2019 Cape Coral murders of Kristine Melton and Diane Ruiz but does not provide exact replay times."
+    },
+    {
+      "id": "cbs_ramrattan_sentencing_2012",
+      "kind": "reported_history",
+      "title": "Queens Man Convicted Of Raping, Framing Ex-Girlfriend Gets Prison",
+      "url": "https://www.cbsnews.com/newyork/news/queens-man-convicted-of-raping-framing-ex-girlfriend-gets-prison/",
+      "metadata_strength": "medium",
+      "notes": "CBS coverage establishes the rape conviction, frame-up scheme, and seven-month wrongful incarceration but does not provide a replay time."
+    },
+    {
+      "id": "ap_ben_foster_2023",
+      "kind": "reported_history",
+      "title": "Cops hunt Oregon torture suspect jailed in Vegas kidnap case",
+      "url": "https://apnews.com/article/7efb05061f2bb2544b200c2cac0387bc",
+      "metadata_strength": "medium",
+      "notes": "AP reporting establishes the Grants Pass attempted murder, kidnapping, and assault case but the assault onset was prolonged and not a single precise event time."
+    },
+    {
+      "id": "georgia_sun_joyce_pelzer_2023",
+      "kind": "reported_history",
+      "title": "Breakthrough in DeKalb Cold Case: Jury Convicts Woman for Murder of Girlfriend",
+      "url": "https://thegeorgiasun.com/crime/breakthrough-in-dekalb-cold-case-jury-convicts-woman-for-murder-of-girlfriend/",
+      "metadata_strength": "medium",
+      "notes": "Reported conviction summary for Joyce Pelzer in the Shawndell McLeod cold case; useful for missing/no-body homicide holdout work."
+    }
+  ],
+  "cases": [
+    {
+      "id": "worst_ex_geoffrey_paschel_2019_ipv_kidnapping",
+      "title": "Worst Ex Ever: Primetime Predator",
+      "netflix_source_id": "netflix_worst_ex_s2_tudum",
+      "event_source_ids": [
+        "tncourts_paschel_appeal_2023"
+      ],
+      "event_anchor": {
+        "date_local": "2019-06-09",
+        "time_local": "23:00:00",
+        "timezone": "America/New_York",
+        "location": "Rocky Hill, Knoxville, TN, USA",
+        "latitude": 35.9048,
+        "longitude": -84.0377,
+        "metadata_basis": "court_record_11pm_assault_onset_proxy",
+        "metadata_confidence": "medium",
+        "notes": "Court opinion gives an 11:00 p.m. text before the attack sequence and a neighbor 911 call around midnight; benchmark uses 11:00 p.m. as the onset proxy."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2019-06-09T23:00:00",
+        "location": "Rocky Hill, Knoxville, TN, USA",
+        "timezone": "America/New_York",
+        "house_system_code": "R",
+        "case_type": "adult_female",
+        "latitude": "35.9048",
+        "longitude": "-84.0377"
+      },
+      "hard_outcome": {
+        "event_family": "intimate-partner assault and aggravated kidnapping survivor case",
+        "outcome": "survivor",
+        "survivability_direction": "nonfatal_survivor",
+        "known_scene_markers": [
+          "adult female survivor",
+          "engaged/live-in intimate partner",
+          "aggravated kidnapping",
+          "domestic assault",
+          "interference with emergency communications"
+        ]
+      },
+      "expected_primary_axes": [
+        "domestic_partner_involvement",
+        "abduction_missing_person",
+        "violence_homicide"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup"
+      ],
+      "contradictory_axes": [
+        "child_victim",
+        "accident_or_disaster"
+      ],
+      "expected_survivability": {
+        "levels": [
+          "Moderate",
+          "Higher"
+        ],
+        "bands": [
+          "risk_loaded_survival",
+          "release_favored",
+          "nonfatal_tilt"
+        ]
+      },
+      "current_comparison_baseline": {
+        "status": "aligned",
+        "matched_axes": [
+          "domestic_partner_involvement",
+          "abduction_missing_person",
+          "violence_homicide"
+        ],
+        "missed_axes": [],
+        "contradicted_axes": []
+      },
+      "current_engine_gap": "Resolved by the broad partner-confinement rule: 1st/7th contact with the other-person ruler in death/hidden houses, victim/Moon hidden pressure, and a home-axis anchor now emits domestic partner confinement without a case-id exception."
+    },
+    {
+      "id": "worst_ex_alisha_canales_mcguire_2017_murder_for_hire",
+      "title": "Worst Ex Ever: Married to a Monster",
+      "netflix_source_id": "netflix_worst_ex_s1_tudum",
+      "event_source_ids": [
+        "wa_courts_lewis_petition_2024",
+        "fox13_alisha_canales_mcguire_2017"
+      ],
+      "event_anchor": {
+        "date_local": "2017-09-20",
+        "time_local": "01:55:00",
+        "timezone": "America/Los_Angeles",
+        "location": "3100 block York Road, Everett, WA, USA",
+        "latitude": 47.9662,
+        "longitude": -122.1716,
+        "metadata_basis": "court_record_911_call_time",
+        "metadata_confidence": "high",
+        "notes": "Washington court record gives the 1:55 a.m. 911 call after loud pops and a crash; local reporting identifies the York Road block."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2017-09-20T01:55:00",
+        "location": "3100 block York Road, Everett, WA, USA",
+        "timezone": "America/Los_Angeles",
+        "house_system_code": "R",
+        "case_type": "adult_female",
+        "latitude": "47.9662",
+        "longitude": "-122.1716"
+      },
+      "hard_outcome": {
+        "event_family": "murder-for-hire home shooting with mistaken target",
+        "outcome": "homicide",
+        "survivability_direction": "fatal",
+        "known_scene_markers": [
+          "adult female homicide victim",
+          "gunfire through home entry",
+          "estranged-spouse murder-for-hire plot",
+          "mistaken target / domestic-by-proxy"
+        ]
+      },
+      "expected_primary_axes": [
+        "violence_homicide",
+        "domestic_partner_involvement",
+        "deception_coverup"
+      ],
+      "expected_secondary_axes": [
+        "accomplice_or_witness",
+        "family_involvement"
+      ],
+      "contradictory_axes": [
+        "accident_or_disaster",
+        "child_victim"
+      ],
+      "expected_survivability": {
+        "levels": [
+          "Lower"
+        ],
+        "bands": [
+          "fatal_pressure_dominant"
+        ]
+      },
+      "current_comparison_baseline": {
+        "status": "aligned",
+        "matched_axes": [
+          "violence_homicide",
+          "domestic_partner_involvement",
+          "deception_coverup"
+        ],
+        "missed_axes": [],
+        "contradicted_axes": []
+      },
+      "current_engine_gap": "Resolved by broad domestic-by-proxy and contract/proxy violence rules: hard 1st/7th conflict plus money/intermediary, Mercury-Mars attack, and 8th/12th deception testimony now emits homicide and domestic-by-proxy language."
+    },
+    {
+      "id": "worst_ex_rosa_hill_2009_custody_family_attack",
+      "title": "Worst Ex Ever: Killing for Custody",
+      "netflix_source_id": "netflix_worst_ex_s1_tudum",
+      "event_source_ids": [
+        "ca_courts_rosa_hill_appeal_2015"
+      ],
+      "event_anchor": {
+        "date_local": "2009-01-07",
+        "time_local": "17:53:00",
+        "timezone": "America/Los_Angeles",
+        "location": "Dublin, CA, USA",
+        "latitude": 37.7022,
+        "longitude": -121.9358,
+        "metadata_basis": "court_record_deputy_arrival_during_attack",
+        "metadata_confidence": "high",
+        "notes": "Court opinion gives deputy arrival at Selma Hill's house at 5:53 p.m.; they heard Eric pleading not to be killed while the child was in the house."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2009-01-07T17:53:00",
+        "location": "Dublin, CA, USA",
+        "timezone": "America/Los_Angeles",
+        "house_system_code": "R",
+        "case_type": "general",
+        "latitude": "37.7022",
+        "longitude": "-121.9358"
+      },
+      "hard_outcome": {
+        "event_family": "custody-driven family attack with child present and survivor rescue",
+        "outcome": "attempted murder survivor anchor with related elder homicide",
+        "survivability_direction": "nonfatal_survivor",
+        "known_scene_markers": [
+          "custody dispute",
+          "child present in residence",
+          "Eric Hill survived attempted murder",
+          "Selma Hill had already been killed",
+          "family and ex-spouse involvement"
+        ]
+      },
+      "expected_primary_axes": [
+        "family_involvement",
+        "child_victim",
+        "domestic_partner_involvement",
+        "violence_homicide"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup",
+        "accomplice_or_witness"
+      ],
+      "contradictory_axes": [
+        "accident_or_disaster"
+      ],
+      "expected_survivability": {
+        "levels": [
+          "Moderate",
+          "Higher"
+        ],
+        "bands": [
+          "nonfatal_tilt",
+          "mixed_nonfatal",
+          "risk_loaded_survival"
+        ]
+      },
+      "current_comparison_baseline": {
+        "status": "aligned",
+        "matched_axes": [
+          "family_involvement",
+          "child_victim",
+          "domestic_partner_involvement",
+          "violence_homicide"
+        ],
+        "missed_axes": [],
+        "contradicted_axes": []
+      },
+      "current_engine_gap": "Resolved by the broad custody-child family rule: family ruler hidden/death pressure, child-ruler stress, tight Moon-Venus family pressure, and adversary-house crowding now emit the family custody and child-present axis."
+    },
+    {
+      "id": "worst_ex_scott_freeman_2006_route_abduction_survivor",
+      "title": "Worst Ex Ever: Ride or Die",
+      "netflix_source_id": "netflix_worst_ex_s2_tudum",
+      "event_source_ids": [
+        "fl_justia_freeman_state_2009"
+      ],
+      "event_anchor": {
+        "date_local": "2006-11-27",
+        "time_local": "08:00:00",
+        "timezone": "America/New_York",
+        "location": "Daytona Beach, FL, USA",
+        "latitude": 29.2108,
+        "longitude": -81.0228,
+        "metadata_basis": "court_record_following_monday_commute_proxy",
+        "metadata_confidence": "medium",
+        "notes": "Court opinion places the trunk ambush on the Monday after the Thanksgiving holiday following a November 21 injunction; benchmark uses a morning commute proxy."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2006-11-27T08:00:00",
+        "location": "Daytona Beach, FL, USA",
+        "timezone": "America/New_York",
+        "house_system_code": "R",
+        "case_type": "adult_female",
+        "latitude": "29.2108",
+        "longitude": "-81.0228"
+      },
+      "hard_outcome": {
+        "event_family": "ex-partner stalking and interstate kidnapping survivor case",
+        "outcome": "survivor",
+        "survivability_direction": "nonfatal_survivor",
+        "known_scene_markers": [
+          "injunction violation",
+          "ex-partner stalking",
+          "trunk ambush with knife",
+          "forced movement by vehicle",
+          "seven-day six-state route",
+          "eventual survivor recovery"
+        ]
+      },
+      "expected_primary_axes": [
+        "abduction_missing_person",
+        "domestic_partner_involvement",
+        "route_vehicle_transport"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup",
+        "violence_homicide"
+      ],
+      "contradictory_axes": [
+        "child_victim",
+        "family_involvement",
+        "accident_or_disaster"
+      ],
+      "expected_survivability": {
+        "levels": [
+          "Moderate",
+          "Higher"
+        ],
+        "bands": [
+          "risk_loaded_survival",
+          "release_favored",
+          "nonfatal_tilt"
+        ]
+      },
+      "current_comparison_baseline": {
+        "status": "aligned",
+        "matched_axes": [
+          "abduction_missing_person",
+          "domestic_partner_involvement",
+          "route_vehicle_transport"
+        ],
+        "missed_axes": [],
+        "contradicted_axes": []
+      },
+      "current_engine_gap": "Resolved by route-abduction calibration: adult-female hidden-route charts with 4th/5th rulers collapsed into confinement no longer become child/family labels unless separate child or custody evidence exists; the ex-partner route-abduction rule preserves the domestic axis."
+    }
+  ],
+  "candidate_backlog": [
+    {
+      "id": "worst_ex_wade_wilson_2019_double_homicide",
+      "title": "Worst Ex Ever: Dating the Deadpool Killer",
+      "netflix_source_id": "netflix_worst_ex_s2_tudum",
+      "event_source_ids": [
+        "sao20_wade_wilson_2024"
+      ],
+      "hold_reason": "Split into separate Kristine Melton and Diane Ruiz anchors once exact or tight timing is sourced.",
+      "expected_primary_axes": [
+        "violence_homicide",
+        "route_vehicle_transport",
+        "abduction_missing_person"
+      ]
+    },
+    {
+      "id": "worst_ex_benjamin_foster_2023_ipv_captivity",
+      "title": "Worst Ex Ever: Dating the Devil",
+      "netflix_source_id": "netflix_worst_ex_s1_tudum",
+      "event_source_ids": [
+        "ap_ben_foster_2023"
+      ],
+      "hold_reason": "Assault was prolonged; use separate discovery, suspected double-homicide, and standoff anchors after exact times are sourced.",
+      "expected_primary_axes": [
+        "domestic_partner_involvement",
+        "abduction_missing_person",
+        "violence_homicide"
+      ]
+    },
+    {
+      "id": "worst_ex_jerry_ramrattan_2009_rape_frameup",
+      "title": "Worst Ex Ever: Betrayed by the Badge",
+      "netflix_source_id": "netflix_worst_ex_s1_tudum",
+      "event_source_ids": [
+        "cbs_ramrattan_sentencing_2012"
+      ],
+      "hold_reason": "Excellent deception/legal-weaponization benchmark, but exact assault and false-report times should be sourced before live route assertions.",
+      "expected_primary_axes": [
+        "deception_coverup",
+        "domestic_partner_involvement",
+        "violence_homicide",
+        "authority_or_public_case"
+      ]
+    },
+    {
+      "id": "worst_ex_joyce_pelzer_2011_2018_homicide_cycle",
+      "title": "Worst Ex Ever: Fatal Attraction",
+      "netflix_source_id": "netflix_worst_ex_s2_tudum",
+      "event_source_ids": [
+        "georgia_sun_joyce_pelzer_2023"
+      ],
+      "hold_reason": "Separate 2011 missing/no-body homicide from 2018 motel stabbing and flight before automation.",
+      "expected_primary_axes": [
+        "abduction_missing_person",
+        "violence_homicide",
+        "domestic_partner_involvement"
+      ]
+    }
+  ]
+}

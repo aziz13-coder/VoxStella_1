@@ -1,0 +1,467 @@
+{
+  "generated_at": "2026-04-23T00:00:00+00:00",
+  "purpose": "Netflix true-crime benchmark cases comparing live forensic output against real-world event families and exact or near-exact event anchors.",
+  "benchmark_policy": {
+    "status": "current_engine_baseline",
+    "notes": "These cases are not assumed to be aligned. The benchmark freezes the current output-vs-reality comparison so later engine changes can be judged against known real-world event families.",
+    "comparison_status_values": [
+      "aligned",
+      "partially_aligned",
+      "misaligned"
+    ]
+  },
+  "sources": [
+    {
+      "id": "netflix_moriah_wilson_2026",
+      "kind": "official_netflix_listing",
+      "title": "The Truth and Tragedy of Moriah Wilson Probes a Cycling Star's Shocking Murder",
+      "url": "https://www.netflix.com/tudum/articles/moriah-wilson-cycling-murder-documentary-release-date-news",
+      "metadata_strength": "high",
+      "notes": "Official Netflix Tudum article dated March 19, 2026; states the documentary comes to Netflix April 3 and frames Wilson's death as murder."
+    },
+    {
+      "id": "fox7_moriah_wilson_response_window",
+      "kind": "reported_history",
+      "title": "APD identifies woman in East Austin suspicious death case",
+      "url": "https://www.fox7austin.com/news/woman-identified-suspicious-death-east-austin",
+      "metadata_strength": "medium",
+      "notes": "Local reporting places the emergency call just before 10 p.m. on May 11, 2022 on Maple Avenue near East 17th Street."
+    },
+    {
+      "id": "netflix_the_crash_2026",
+      "kind": "official_netflix_listing",
+      "title": "New Doc The Crash Recounts a Tragic 100 mph Wreck That Turned into a Murder Case",
+      "url": "https://www.netflix.com/tudum/articles/the-crash-release-date-news",
+      "metadata_strength": "high",
+      "notes": "Official Netflix Tudum article dated March 17, 2026; frames the Strongsville crash as a wreck that became a murder case."
+    },
+    {
+      "id": "cuyahoga_shirilla_crash_timeline",
+      "kind": "official_prosecutor_record",
+      "title": "Strongsville Woman Sentenced to Life in Prison for Intentionally Crashing Her Car and Killing Her Two Male Passengers",
+      "url": "https://www.ccprosecutor.us/strongsville-woman-sentenced-life-in-prison-crash-killed-two/",
+      "metadata_strength": "high",
+      "notes": "Official prosecutor release places the crash at approximately 5:30 a.m. on July 31, 2022, at Progress Drive and Alameda Drive."
+    },
+    {
+      "id": "netflix_elizabeth_smart_2025",
+      "kind": "official_netflix_listing",
+      "title": "Elizabeth Smart Kidnapping Documentary Release Date, Trailer, News",
+      "url": "https://www.netflix.com/tudum/articles/kidnapped-elizabeth-smart-documentary-release-date-news",
+      "metadata_strength": "high",
+      "notes": "Official Netflix Tudum listing for the Elizabeth Smart kidnapping documentary."
+    },
+    {
+      "id": "cbs_elizabeth_smart_abduction_timeline",
+      "kind": "reported_history",
+      "title": "Reward For Missing Girl Boosted",
+      "url": "https://www.cbsnews.com/news/reward-for-missing-girl-boosted/",
+      "metadata_strength": "high",
+      "notes": "Contemporaneous CBS report places the abduction at about 1 a.m. Wednesday and notes Elizabeth's younger sister witnessed it."
+    },
+    {
+      "id": "netflix_perfect_neighbor_2025",
+      "kind": "official_netflix_listing",
+      "title": "The Perfect Neighbor Documentary Reveals True Story of Ajike Owens Killing",
+      "url": "https://www.netflix.com/tudum/articles/the-perfect-neighbor-documentary-release-date-news",
+      "metadata_strength": "high",
+      "notes": "Official Netflix Tudum listing for the Ajike Owens documentary."
+    },
+    {
+      "id": "ocala_ajike_owens_call_timeline",
+      "kind": "reported_history",
+      "title": "Ajike 'AJ' Owens remembered ahead of trial",
+      "url": "https://www.ocalagazette.com/ajike-aj-owens-remembered-ahead-of-trial/",
+      "metadata_strength": "medium",
+      "notes": "Local report anchors the June 2, 2023 escalation with an 8:54 p.m. trespass call and a 9:04 p.m. call reporting gunfire involving children."
+    },
+    {
+      "id": "netflix_deadly_american_marriage_2025",
+      "kind": "official_netflix_listing",
+      "title": "A Deadly American Marriage Documentary is About Jason Corbett and Molly Martens",
+      "url": "https://www.netflix.com/tudum/articles/a-deadly-american-marriage-release-date-news",
+      "metadata_strength": "high",
+      "notes": "Official Netflix Tudum listing for the Jason Corbett and Molly Martens documentary."
+    },
+    {
+      "id": "netflix_gone_girls_lisk_2025",
+      "kind": "official_netflix_listing",
+      "title": "What Happened to Rex Heuermann? Gone Girls Long Island Serial Killer Netflix Documentary News",
+      "url": "https://www.netflix.com/tudum/articles/gone-girls-the-long-island-serial-killer-case-rex-heuermann",
+      "metadata_strength": "high",
+      "notes": "Official Netflix Tudum update for Gone Girls: The Long Island Serial Killer."
+    },
+    {
+      "id": "fox_shannan_gilbert_911_release",
+      "kind": "reported_history",
+      "title": "New York police release 911 call that revealed Long Island serial killer case",
+      "url": "https://www.foxnews.com/us/new-york-police-release-911-long-island-serial-killer",
+      "metadata_strength": "medium",
+      "notes": "Reported account of the released Shannan Gilbert 911 call that surfaced the Long Island serial killer investigation."
+    }
+  ],
+  "cases": [
+    {
+      "id": "moriah_wilson_cycling_murder",
+      "title": "The Truth and Tragedy of Moriah Wilson",
+      "netflix_source_id": "netflix_moriah_wilson_2026",
+      "event_source_ids": [
+        "fox7_moriah_wilson_response_window"
+      ],
+      "event_anchor": {
+        "date_local": "2022-05-11",
+        "time_local": "22:00:00",
+        "timezone": "America/Chicago",
+        "location": "Maple Avenue near East 17th Street, Austin, TX, USA",
+        "latitude": 30.2786,
+        "longitude": -97.7177,
+        "metadata_basis": "reported_911_response_window",
+        "metadata_confidence": "medium",
+        "notes": "Public reporting places the call just before 10 p.m.; benchmark uses 10:00 p.m. as a stable response-window anchor."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2022-05-11T22:00:00",
+        "location": "Maple Avenue near East 17th Street, Austin, TX, USA",
+        "timezone": "America/Chicago",
+        "house_system_code": "R",
+        "case_type": "adult_female",
+        "latitude": "30.2786",
+        "longitude": "-97.7177"
+      },
+      "hard_outcome": {
+        "event_family": "known-person fatal shooting",
+        "outcome": "homicide",
+        "known_scene_markers": [
+          "adult female homicide victim",
+          "known-person / romantic-rival context",
+          "post-offense evasion"
+        ]
+      },
+      "expected_primary_axes": [
+        "violence_homicide",
+        "friend_or_close_associate"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup"
+      ],
+      "contradictory_axes": [
+        "accident_or_disaster",
+        "child_victim"
+      ],
+      "current_comparison_baseline": {
+        "status": "aligned",
+        "matched_axes": [
+          "violence_homicide",
+          "friend_or_close_associate"
+        ],
+        "missed_axes": [],
+        "contradicted_axes": []
+      },
+      "current_engine_gap": "The calibrated rule layer sees the known-person violence and associate axes. Survivability now applies general known-person violent-mechanism pressure so high base vitality no longer produces a nonfatal tilt."
+    },
+    {
+      "id": "mackenzie_shirilla_the_crash",
+      "title": "The Crash",
+      "netflix_source_id": "netflix_the_crash_2026",
+      "event_source_ids": [
+        "cuyahoga_shirilla_crash_timeline"
+      ],
+      "event_anchor": {
+        "date_local": "2022-07-31",
+        "time_local": "05:30:00",
+        "timezone": "America/New_York",
+        "location": "Progress Drive and Alameda Drive, Strongsville, OH, USA",
+        "latitude": 41.3167,
+        "longitude": -81.8248,
+        "metadata_basis": "official_prosecutor_exact_crash_window",
+        "metadata_confidence": "high",
+        "notes": "Official prosecutor record gives approximately 5:30 a.m. and identifies Progress Drive / Alameda Drive."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2022-07-31T05:30:00",
+        "location": "Progress Drive and Alameda Drive, Strongsville, OH, USA",
+        "timezone": "America/New_York",
+        "house_system_code": "R",
+        "latitude": "41.3167",
+        "longitude": "-81.8248"
+      },
+      "hard_outcome": {
+        "event_family": "intentional vehicle crash homicide",
+        "outcome": "two passenger deaths and driver survivor",
+        "known_scene_markers": [
+          "vehicle crash",
+          "accident-versus-intent ambiguity",
+          "murder conviction"
+        ]
+      },
+      "expected_primary_axes": [
+        "violence_homicide",
+        "accident_or_disaster"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup"
+      ],
+      "contradictory_axes": [
+        "family_involvement",
+        "child_victim"
+      ],
+      "current_comparison_baseline": {
+        "status": "aligned",
+        "matched_axes": [
+          "violence_homicide",
+          "accident_or_disaster"
+        ],
+        "missed_axes": [],
+        "contradicted_axes": []
+      },
+      "current_engine_gap": "The calibrated rule layer catches the vehicle-crash/disaster axis and removes the false family signature. Survivability now applies general transport-crash fatal-mechanism pressure instead of treating the crash as a clean nonfatal tilt."
+    },
+    {
+      "id": "elizabeth_smart_abduction",
+      "title": "Kidnapped: Elizabeth Smart",
+      "netflix_source_id": "netflix_elizabeth_smart_2025",
+      "event_source_ids": [
+        "cbs_elizabeth_smart_abduction_timeline"
+      ],
+      "event_anchor": {
+        "date_local": "2002-06-05",
+        "time_local": "01:00:00",
+        "timezone": "America/Denver",
+        "location": "Kristianna Circle, Salt Lake City, UT, USA",
+        "latitude": 40.7792,
+        "longitude": -111.8428,
+        "metadata_basis": "contemporaneous_reported_abduction_time",
+        "metadata_confidence": "high",
+        "notes": "Contemporaneous reporting places the child abduction at about 1 a.m. and notes a sibling witness."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2002-06-05T01:00:00",
+        "location": "Kristianna Circle, Salt Lake City, UT, USA",
+        "timezone": "America/Denver",
+        "house_system_code": "R",
+        "case_type": "child",
+        "latitude": "40.7792",
+        "longitude": "-111.8428"
+      },
+      "hard_outcome": {
+        "event_family": "child abduction and survivor case",
+        "outcome": "abduction with eventual survival",
+        "known_scene_markers": [
+          "child victim",
+          "home intrusion",
+          "sibling witness",
+          "nonfatal survivor outcome"
+        ]
+      },
+      "expected_primary_axes": [
+        "abduction_missing_person",
+        "child_victim"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup",
+        "accomplice_or_witness"
+      ],
+      "contradictory_axes": [
+        "domestic_partner_involvement",
+        "family_involvement",
+        "accident_or_disaster"
+      ],
+      "current_comparison_baseline": {
+        "status": "aligned",
+        "matched_axes": [
+          "abduction_missing_person",
+          "child_victim"
+        ],
+        "missed_axes": [],
+        "contradicted_axes": []
+      },
+      "current_engine_gap": "The calibrated rule layer now uses explicit child-case context plus home-intrusion/opponent pressure to capture the child-abduction axis. Survivability remains risk-loaded rather than fatal, which fits the survivor outcome directionally."
+    },
+    {
+      "id": "ajike_owens_perfect_neighbor",
+      "title": "The Perfect Neighbor",
+      "netflix_source_id": "netflix_perfect_neighbor_2025",
+      "event_source_ids": [
+        "ocala_ajike_owens_call_timeline"
+      ],
+      "event_anchor": {
+        "date_local": "2023-06-02",
+        "time_local": "21:04:00",
+        "timezone": "America/New_York",
+        "location": "Ocala, FL, USA",
+        "latitude": 29.1872,
+        "longitude": -82.1401,
+        "metadata_basis": "reported_911_child_gunfire_call",
+        "metadata_confidence": "medium",
+        "notes": "Local reporting anchors a trespass call at 8:54 p.m. and a child gunfire call at 9:04 p.m.; benchmark uses 9:04 p.m."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2023-06-02T21:04:00",
+        "location": "Ocala, FL, USA",
+        "timezone": "America/New_York",
+        "house_system_code": "R",
+        "case_type": "adult_female",
+        "latitude": "29.1872",
+        "longitude": "-82.1401"
+      },
+      "hard_outcome": {
+        "event_family": "neighbor-conflict fatal shooting with child witnesses",
+        "outcome": "adult female homicide",
+        "known_scene_markers": [
+          "gun violence",
+          "children present / witness context",
+          "neighbor conflict rather than intimate-partner case"
+        ]
+      },
+      "expected_primary_axes": [
+        "violence_homicide",
+        "child_victim",
+        "accomplice_or_witness"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup"
+      ],
+      "contradictory_axes": [
+        "accident_or_disaster",
+        "domestic_partner_involvement"
+      ],
+      "current_comparison_baseline": {
+        "status": "aligned",
+        "matched_axes": [
+          "violence_homicide",
+          "child_victim",
+          "accomplice_or_witness"
+        ],
+        "missed_axes": [],
+        "contradicted_axes": []
+      },
+      "current_engine_gap": "The calibrated comparator and wording keep the child/witness/violence axes without treating generic home-family wording as intimate-partner involvement. Survivability now recognizes child/witness violent-event pressure as fatal mechanism evidence."
+    },
+    {
+      "id": "jason_corbett_deadly_american_marriage",
+      "title": "A Deadly American Marriage",
+      "netflix_source_id": "netflix_deadly_american_marriage_2025",
+      "event_source_ids": [
+        "netflix_deadly_american_marriage_2025"
+      ],
+      "event_anchor": {
+        "date_local": "2015-08-02",
+        "time_local": "03:00:00",
+        "timezone": "America/New_York",
+        "location": "Wallburg, NC, USA",
+        "latitude": 35.9987,
+        "longitude": -80.1398,
+        "metadata_basis": "reported_early_morning_911_proxy",
+        "metadata_confidence": "medium",
+        "notes": "Benchmark uses a 3:00 a.m. early-morning proxy for the household killing. Replace with a court-transcript timestamp if a stronger source is added."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2015-08-02T03:00:00",
+        "location": "Wallburg, NC, USA",
+        "timezone": "America/New_York",
+        "house_system_code": "R",
+        "latitude": "35.9987",
+        "longitude": "-80.1398"
+      },
+      "hard_outcome": {
+        "event_family": "domestic-family fatal assault",
+        "outcome": "adult male homicide in family home",
+        "known_scene_markers": [
+          "spouse / intimate-partner involvement",
+          "family member involvement",
+          "blunt-force fatal violence"
+        ]
+      },
+      "expected_primary_axes": [
+        "violence_homicide",
+        "domestic_partner_involvement",
+        "family_involvement"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup"
+      ],
+      "contradictory_axes": [
+        "accident_or_disaster",
+        "child_victim"
+      ],
+      "current_comparison_baseline": {
+        "status": "aligned",
+        "matched_axes": [
+          "violence_homicide",
+          "domestic_partner_involvement",
+          "family_involvement"
+        ],
+        "missed_axes": [],
+        "contradicted_axes": []
+      },
+      "current_engine_gap": "The calibrated household relationship cluster surfaces the family axis alongside domestic/partner and fatal-violence language. Survivability now recognizes household relationship harm plus malefic/deception reinforcement as fatal mechanism evidence."
+    },
+    {
+      "id": "shannan_gilbert_lisk_911_anchor",
+      "title": "Gone Girls: The Long Island Serial Killer",
+      "netflix_source_id": "netflix_gone_girls_lisk_2025",
+      "event_source_ids": [
+        "fox_shannan_gilbert_911_release"
+      ],
+      "event_anchor": {
+        "date_local": "2010-05-01",
+        "time_local": "04:51:00",
+        "timezone": "America/New_York",
+        "location": "Oak Beach, NY, USA",
+        "latitude": 40.6387,
+        "longitude": -73.2929,
+        "metadata_basis": "reported_911_call_anchor",
+        "metadata_confidence": "medium",
+        "notes": "This is a disappearance / 911-call anchor, not a confirmed murder-time anchor. It is included because it is the public event that surfaced the LISK case."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2010-05-01T04:51:00",
+        "location": "Oak Beach, NY, USA",
+        "timezone": "America/New_York",
+        "house_system_code": "R",
+        "case_type": "adult_female",
+        "latitude": "40.6387",
+        "longitude": "-73.2929"
+      },
+      "hard_outcome": {
+        "event_family": "adult female disappearance and later remains recovery near water",
+        "outcome": "missing-person case with death outcome; homicide classification remains publicly contested",
+        "known_scene_markers": [
+          "adult female missing-person emergency call",
+          "water / marsh recovery context",
+          "serial-killer investigation trigger"
+        ]
+      },
+      "expected_primary_axes": [
+        "abduction_missing_person",
+        "water_disappearance_or_drowning",
+        "violence_homicide"
+      ],
+      "expected_secondary_axes": [
+        "deception_coverup",
+        "authority_or_public_case"
+      ],
+      "contradictory_axes": [
+        "child_victim",
+        "domestic_partner_involvement"
+      ],
+      "current_comparison_baseline": {
+        "status": "aligned",
+        "matched_axes": [
+          "abduction_missing_person",
+          "water_disappearance_or_drowning",
+          "violence_homicide"
+        ],
+        "missed_axes": [],
+        "contradicted_axes": []
+      },
+      "current_engine_gap": "The calibrated rule layer now captures missing-person, water-recovery, and fatal-pressure axes without the previous child/domestic contradictions. Survivability remains risk-loaded rather than fatal because this is a 911/disappearance anchor, not a confirmed death-time anchor."
+    }
+  ]
+}

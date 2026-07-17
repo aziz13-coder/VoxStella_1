@@ -112,7 +112,7 @@ def _resolve_city_payload(raw: Any, *, allow_live_geocode: bool = False) -> Dict
         live_candidates = search_live_location_candidates(label, limit=6)
         if live_candidates:
             best = dict(live_candidates[0])
-            best["resolution_source"] = "live_geocode"
+            best["resolution_source"] = "offline_catalog_candidate"
             return best
 
     raise ValueError(f"Could not resolve benchmark location: {label}")
@@ -558,7 +558,7 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         help="Benchmark mode to run.",
     )
     parser.add_argument("--case-id", help="Run a single case_id only.")
-    parser.add_argument("--allow-live-geocode", action="store_true", help="Allow Nominatim fallback when a city is missing from the shipped catalog.")
+    parser.add_argument("--allow-live-geocode", action="store_true", help="Use expanded bundled catalog lookup when a city is missing from the primary shipped catalog match.")
     parser.add_argument("--include-disabled", action="store_true", help="Include disabled template rows.")
     parser.add_argument("--output-json", help="Write the full benchmark result to a JSON file.")
     parser.add_argument("--output-md", help="Write the Markdown summary to a file.")

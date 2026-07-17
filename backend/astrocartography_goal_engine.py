@@ -23,6 +23,8 @@ GAMBLING_SUPPORT_BODIES = {"Jupiter", "Venus", "Mercury", "Sun", "Moon"}
 GAMBLING_CAUTION_BODIES = {"Saturn", "Mars", "Neptune", "Pluto", "Uranus"}
 SUPPORTIVE_ASPECTS = {"conjunction", "sextile", "trine"}
 HARD_ASPECTS = {"square", "opposition"}
+DEFAULT_SCORE_POLARITY = "higher_is_better"
+SUPPORTED_SCORE_POLARITIES = {DEFAULT_SCORE_POLARITY, "higher_is_worse"}
 
 PLANET_STRENGTH_HOUSE_WEIGHTS = {
     1: 1.0,
@@ -38,6 +40,31 @@ PLANET_STRENGTH_HOUSE_WEIGHTS = {
     6: 0.18,
     12: 0.12,
 }
+
+
+def goal_model_score_polarity(model: Dict[str, Any]) -> str:
+    value = str((model or {}).get("score_polarity") or DEFAULT_SCORE_POLARITY).strip().lower()
+    if value in {"higher_is_worse", "warning_high_is_worse", "risk_high_is_worse"}:
+        return "higher_is_worse"
+    if value in SUPPORTED_SCORE_POLARITIES:
+        return value
+    return DEFAULT_SCORE_POLARITY
+
+
+def get_goal_score_polarity(goal_id: str) -> str:
+    try:
+        return goal_model_score_polarity(get_goal_model(goal_id))
+    except Exception:
+        return DEFAULT_SCORE_POLARITY
+
+
+def _attach_goal_score_polarity(result: Dict[str, Any], score_polarity: str) -> Dict[str, Any]:
+    if not isinstance(result, dict):
+        return result
+    goal = result.get("goal")
+    if isinstance(goal, dict):
+        goal["score_polarity"] = score_polarity
+    return result
 
 SPECULATION_SUPPORT_WEIGHTS = {
     ("Jupiter", 5): 1.8,
@@ -943,6 +970,10 @@ def _heuristic_distance_weight(distance_km: Any, max_km: float = 500.0) -> float
     return max(0.0, 1.0 - (value / max_km))
 
 
+def _is_exact_crossing(row: Dict[str, Any]) -> bool:
+    return str(row.get("kind") or "crossing").strip().lower() == "crossing"
+
+
 def _heuristic_line_contributions(
     rows: Sequence[Dict[str, Any]],
     *,
@@ -986,6 +1017,8 @@ def _heuristic_crossing_contributions(
 ) -> List[Dict[str, Any]]:
     contributions: List[Dict[str, Any]] = []
     for row in crossings or []:
+        if not _is_exact_crossing(row):
+            continue
         planets = {str(item).strip() for item in (row.get("planets") or []) if str(item).strip()}
         body_matches = planets & bodies
         if not planets or len(body_matches) < int(min_body_matches):
@@ -1019,6 +1052,8 @@ def _specific_crossing_contributions(
     contributions: List[Dict[str, Any]] = []
     normalized_pairs = {frozenset((str(left), str(right))) for left, right in pairs}
     for row in crossings or []:
+        if not _is_exact_crossing(row):
+            continue
         planets = [str(item).strip() for item in (row.get("planets") or []) if str(item).strip()]
         if frozenset(planets) not in normalized_pairs:
             continue
@@ -1668,6 +1703,8 @@ def _score_crossing_component(component: Dict[str, Any], crossings: Sequence[Dic
     falloff = str(distance.get("falloff") or "linear")
     candidates = []
     for item in crossings:
+        if not _is_exact_crossing(item):
+            continue
         pair = tuple(sorted(str(name) for name in item.get("planets") or []))
         if pair == target_pair:
             candidates.append(item)
@@ -1803,6 +1840,7 @@ def evaluate_goal_model(
     transit_multiplier: float = 0.35,
 ) -> Dict[str, Any]:
     model = get_goal_model(goal_id)
+    score_polarity = goal_model_score_polarity(model)
     transit_strategy = str(model.get("transit_strategy") or "overlay").strip().lower()
     effective_transit_rows = transit_rows
     effective_transit_crossings = transit_crossings
@@ -1813,50 +1851,62 @@ def evaluate_goal_model(
         effective_transit_multiplier = 0.0
     evaluation_strategy = str(model.get("evaluation_strategy") or "").strip().lower()
     if evaluation_strategy == "benefic_minus_malefic":
-        return evaluate_benefic_minus_malefic_heuristic(
-            result_id=str(model.get("id") or goal_id),
-            result_label=str(model.get("label") or goal_id),
-            result_summary=str(model.get("summary") or ""),
-            natal_rows=natal_rows,
-            natal_crossings=natal_crossings,
-            transit_rows=effective_transit_rows,
-            transit_crossings=effective_transit_crossings,
-            transit_multiplier=effective_transit_multiplier,
+        return _attach_goal_score_polarity(
+            evaluate_benefic_minus_malefic_heuristic(
+                result_id=str(model.get("id") or goal_id),
+                result_label=str(model.get("label") or goal_id),
+                result_summary=str(model.get("summary") or ""),
+                natal_rows=natal_rows,
+                natal_crossings=natal_crossings,
+                transit_rows=effective_transit_rows,
+                transit_crossings=effective_transit_crossings,
+                transit_multiplier=effective_transit_multiplier,
+            ),
+            score_polarity,
         )
     if evaluation_strategy == "malefic_minus_benefic":
-        return evaluate_malefic_minus_benefic_heuristic(
-            result_id=str(model.get("id") or goal_id),
-            result_label=str(model.get("label") or goal_id),
-            result_summary=str(model.get("summary") or ""),
-            natal_rows=natal_rows,
-            natal_crossings=natal_crossings,
-            transit_rows=effective_transit_rows,
-            transit_crossings=effective_transit_crossings,
-            transit_multiplier=effective_transit_multiplier,
+        return _attach_goal_score_polarity(
+            evaluate_malefic_minus_benefic_heuristic(
+                result_id=str(model.get("id") or goal_id),
+                result_label=str(model.get("label") or goal_id),
+                result_summary=str(model.get("summary") or ""),
+                natal_rows=natal_rows,
+                natal_crossings=natal_crossings,
+                transit_rows=effective_transit_rows,
+                transit_crossings=effective_transit_crossings,
+                transit_multiplier=effective_transit_multiplier,
+            ),
+            score_polarity,
         )
     if evaluation_strategy == "accident_pressure":
-        return evaluate_accident_pressure_heuristic(
-            result_id=str(model.get("id") or goal_id),
-            result_label=str(model.get("label") or goal_id),
-            result_summary=str(model.get("summary") or ""),
-            natal_rows=natal_rows,
-            natal_crossings=natal_crossings,
-            relocation=relocation,
-            transit_rows=effective_transit_rows,
-            transit_crossings=effective_transit_crossings,
-            transit_multiplier=effective_transit_multiplier,
+        return _attach_goal_score_polarity(
+            evaluate_accident_pressure_heuristic(
+                result_id=str(model.get("id") or goal_id),
+                result_label=str(model.get("label") or goal_id),
+                result_summary=str(model.get("summary") or ""),
+                natal_rows=natal_rows,
+                natal_crossings=natal_crossings,
+                relocation=relocation,
+                transit_rows=effective_transit_rows,
+                transit_crossings=effective_transit_crossings,
+                transit_multiplier=effective_transit_multiplier,
+            ),
+            score_polarity,
         )
     if evaluation_strategy == "gambling_natal_curated":
-        return evaluate_gambling_natal_curated_heuristic(
-            result_id=str(model.get("id") or goal_id),
-            result_label=str(model.get("label") or goal_id),
-            result_summary=str(model.get("summary") or ""),
-            natal_rows=natal_rows,
-            natal_crossings=natal_crossings,
-            relocation=relocation,
-            transit_rows=effective_transit_rows,
-            transit_crossings=effective_transit_crossings,
-            transit_multiplier=effective_transit_multiplier,
+        return _attach_goal_score_polarity(
+            evaluate_gambling_natal_curated_heuristic(
+                result_id=str(model.get("id") or goal_id),
+                result_label=str(model.get("label") or goal_id),
+                result_summary=str(model.get("summary") or ""),
+                natal_rows=natal_rows,
+                natal_crossings=natal_crossings,
+                relocation=relocation,
+                transit_rows=effective_transit_rows,
+                transit_crossings=effective_transit_crossings,
+                transit_multiplier=effective_transit_multiplier,
+            ),
+            score_polarity,
         )
     contributions: List[Dict[str, Any]] = []
     for component in model.get("score_components") or []:
@@ -1907,6 +1957,7 @@ def evaluate_goal_model(
             "id": model.get("id"),
             "label": model.get("label"),
             "summary": model.get("summary"),
+            "score_polarity": score_polarity,
         },
         "raw_score": round(raw_total, 3),
         "score": score,
@@ -1984,6 +2035,7 @@ def list_goal_model_summaries() -> List[Dict[str, Any]]:
                 "status": status or model.get("status"),
                 "goal_family": model.get("goal_family"),
                 "transit_strategy": model.get("transit_strategy") or "overlay",
+                "score_polarity": goal_model_score_polarity(model),
             }
         )
     return out

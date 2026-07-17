@@ -46,7 +46,11 @@ def test_compute_chart_bundle_for_retains_raw_chart(monkeypatch):
             )
 
     monkeypatch.setattr(astro_clock_api, "_engine_instance", lambda: _StubEngine())
-    monkeypatch.setattr(astro_clock_api, "_resolve_timezone_for_context", lambda tz_name, _location: tz_name or "UTC")
+    monkeypatch.setattr(
+        astro_clock_api,
+        "_resolve_timezone_for_context",
+        lambda tz_name, _location, **_kwargs: tz_name or "UTC",
+    )
 
     bundle = astro_clock_api._compute_chart_bundle_for(
         "2026-03-08T00:00:00Z",
@@ -73,13 +77,15 @@ def test_natal_bundle_from_query_uses_manual_inputs(monkeypatch):
     sentinel = _SentinelChart()
     calls = {}
 
-    def _fake_compute_bundle(dt_iso, location, tz_name, house_system_code=None):
+    def _fake_compute_bundle(dt_iso, location, tz_name, house_system_code=None, latitude=None, longitude=None):
         calls.update(
             {
                 "dt_iso": dt_iso,
                 "location": location,
                 "timezone": tz_name,
                 "house_system_code": house_system_code,
+                "latitude": latitude,
+                "longitude": longitude,
             }
         )
         return {
@@ -108,6 +114,8 @@ def test_natal_bundle_from_query_uses_manual_inputs(monkeypatch):
         "location": "Jerusalem",
         "timezone": "UTC",
         "house_system_code": "R",
+        "latitude": None,
+        "longitude": None,
     }
     assert bundle["raw_chart"] is sentinel
     assert chart_data == {"house_rulers": {"10": "Mars"}}
@@ -118,13 +126,15 @@ def test_natal_bundle_from_query_uses_snap_context(monkeypatch):
     sentinel = _SentinelChart()
     calls = {}
 
-    def _fake_compute_bundle(dt_iso, location, tz_name, house_system_code=None):
+    def _fake_compute_bundle(dt_iso, location, tz_name, house_system_code=None, latitude=None, longitude=None):
         calls.update(
             {
                 "dt_iso": dt_iso,
                 "location": location,
                 "timezone": tz_name,
                 "house_system_code": house_system_code,
+                "latitude": latitude,
+                "longitude": longitude,
             }
         )
         return {
@@ -139,12 +149,15 @@ def test_natal_bundle_from_query_uses_snap_context(monkeypatch):
         astro_clock_api,
         "_snaps",
         lambda: {
-            "snap-1": {
-                "effective_datetime": "2001-05-15T14:20:00Z",
-                "location": "Washington, District of Columbia",
-            }
-        },
-    )
+                "snap-1": {
+                    "effective_datetime": "2001-05-15T14:20:00Z",
+                    "location": "Washington, District of Columbia",
+                    "timezone": "America/New_York",
+                    "latitude": 38.9072,
+                    "longitude": -77.0369,
+                }
+            },
+        )
 
     args = MultiDict({"natal_snap_id": "snap-1", "house_system_code": "R"})
 
@@ -154,13 +167,15 @@ def test_natal_bundle_from_query_uses_snap_context(monkeypatch):
     assert calls == {
         "dt_iso": "2001-05-15T14:20:00Z",
         "location": "Washington, District of Columbia",
-        "timezone": None,
+        "timezone": "America/New_York",
         "house_system_code": "R",
+        "latitude": 38.9072,
+        "longitude": -77.0369,
     }
     assert bundle["raw_chart"] is sentinel
     assert chart_data == {"house_rulers": {"1": "Moon"}}
     assert meta == {
         "timestamp": "2001-05-15T14:20:00Z",
         "location": "Washington, District of Columbia",
-        "timezone": None,
+        "timezone": "America/New_York",
     }

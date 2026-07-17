@@ -1,4 +1,6 @@
 const fs = require('fs').promises;
+const fsSync = require('fs');
+const crypto = require('crypto');
 const path = require('path');
 
 const BLOCKED_DIRS = new Set([
@@ -49,6 +51,16 @@ async function pathExists(targetPath) {
   } catch {
     return false;
   }
+}
+
+async function hashFile(targetPath) {
+  return new Promise((resolve, reject) => {
+    const hash = crypto.createHash('sha256');
+    const stream = fsSync.createReadStream(targetPath);
+    stream.on('error', reject);
+    stream.on('data', (chunk) => hash.update(chunk));
+    stream.on('end', () => resolve(hash.digest('hex')));
+  });
 }
 
 async function collectCopyManifest(rootDir, currentDir = rootDir, manifest = []) {
@@ -143,6 +155,7 @@ async function copyDirectory(src, dest, stats) {
 async function verifyCopiedManifest(srcRoot, destRoot, manifest, stats, label) {
   const missingPaths = [];
   const mismatchedSizes = [];
+  const mismatchedHashes = [];
 
   for (const relativePath of manifest) {
     const srcPath = path.join(srcRoot, relativePath);
@@ -172,10 +185,23 @@ async function verifyCopiedManifest(srcRoot, destRoot, manifest, stats, label) {
         sourceSize: srcStat.size,
         destSize: destStat.size,
       });
+      continue;
+    }
+
+    const [sourceHash, destinationHash] = await Promise.all([
+      hashFile(srcPath),
+      hashFile(destPath),
+    ]);
+    if (sourceHash !== destinationHash) {
+      mismatchedHashes.push({
+        relativePath,
+        sourceHash,
+        destinationHash,
+      });
     }
   }
 
-  if (missingPaths.length || mismatchedSizes.length) {
+  if (missingPaths.length || mismatchedSizes.length || mismatchedHashes.length) {
     const lines = [`${label} verification failed after copy.`];
 
     if (missingPaths.length) {
@@ -193,6 +219,19 @@ async function verifyCopiedManifest(srcRoot, destRoot, manifest, stats, label) {
       });
       if (mismatchedSizes.length > 20) {
         lines.push(`  ... and ${mismatchedSizes.length - 20} more`);
+      }
+    }
+
+    if (mismatchedHashes.length) {
+      lines.push(`SHA-256 mismatches (${mismatchedHashes.length}):`);
+      mismatchedHashes.slice(0, 20).forEach((item) => {
+        lines.push(
+          `  - ${item.relativePath} ` +
+          `(source=${item.sourceHash}, destination=${item.destinationHash})`
+        );
+      });
+      if (mismatchedHashes.length > 20) {
+        lines.push(`  ... and ${mismatchedHashes.length - 20} more`);
       }
     }
 
@@ -216,12 +255,11 @@ async function copyRuntimeBundle(src, dest, stats) {
 }
 
 async function prepareBackend() {
-  console.log('Preparing backend for packaging...');
+  console.log('Preparing the compiled backend runtime for packaging...');
 
   const backendSrc = path.join(__dirname, '..', '..', 'backend');
-  const backendDest = path.join(__dirname, '..', 'backend');
-  const traitCorpusSrc = path.join(__dirname, '..', '..', 'extracted_text_docs', 'new_sources_inspection');
-  const traitCorpusDest = path.join(backendDest, 'traits', 'corpus', 'new_sources_inspection');
+  const backendRuntimeRoot = path.join(__dirname, '..', 'backend', 'runtime');
+  const runtimeBundleDest = path.join(backendRuntimeRoot, 'horary_backend');
   const stats = createCopyStats();
 
   try {
@@ -233,34 +271,15 @@ async function prepareBackend() {
       throw new Error(`Backend source directory not found: ${backendSrc}`);
     }
 
-    const backendManifest = await collectCopyManifest(backendSrc);
-    if (!backendManifest.length) {
-      throw new Error(`Backend source manifest is empty: ${backendSrc}`);
-    }
-    console.log(`Backend source manifest contains ${backendManifest.length} files`);
-
     try {
-      await fs.rm(backendDest, { recursive: true, force: true });
-      console.log('Cleaned existing backend directory');
+      await fs.rm(backendRuntimeRoot, { recursive: true, force: true });
+      console.log('Cleaned existing compiled backend runtime');
     } catch {
-      console.log('No existing backend directory to clean');
-    }
-
-    await copyDirectory(backendSrc, backendDest, stats);
-    await verifyCopiedManifest(backendSrc, backendDest, backendManifest, stats, 'backend source');
-
-    if (await pathExists(traitCorpusSrc)) {
-      const traitCorpusManifest = await collectCopyManifest(traitCorpusSrc);
-      await copyDirectory(traitCorpusSrc, traitCorpusDest, stats);
-      await verifyCopiedManifest(traitCorpusSrc, traitCorpusDest, traitCorpusManifest, stats, 'trait corpus');
-      console.log(`Trait corpus copied: ${traitCorpusSrc} -> ${traitCorpusDest}`);
-    } else {
-      console.warn(`Trait corpus source not found, skipping optional copy: ${traitCorpusSrc}`);
+      console.log('No existing compiled backend runtime to clean');
     }
 
     const executableName = process.platform === 'win32' ? 'horary_backend.exe' : 'horary_backend';
     const runtimeBundleSrc = path.join(backendSrc, 'dist', 'horary_backend');
-    const runtimeBundleDest = path.join(backendDest, 'runtime', 'horary_backend');
     const executableSrc = path.join(runtimeBundleSrc, executableName);
     const executableDest = path.join(runtimeBundleDest, executableName);
 
@@ -283,8 +302,8 @@ async function prepareBackend() {
       );
     }
 
-    const files = await fs.readdir(backendDest);
-    console.log(`Backend files copied (${files.length} top-level entries):`);
+    const files = await fs.readdir(runtimeBundleDest);
+    console.log(`Runtime files copied (${files.length} top-level entries):`);
     files.slice(0, 10).forEach((file) => {
       console.log(`  - ${file}`);
     });
@@ -296,9 +315,9 @@ async function prepareBackend() {
       `Copy stats: ${stats.filesCopied} files copied, ${stats.filesSkipped} files skipped, ` +
       `${stats.filesVerified} files verified`
     );
-    console.log('Backend prepared successfully!');
+    console.log('Compiled backend runtime prepared successfully!');
     console.log(`Copied from: ${backendSrc}`);
-    console.log(`Copied to: ${backendDest}`);
+    console.log(`Copied to: ${runtimeBundleDest}`);
   } catch (error) {
     console.error('Error preparing backend:', error);
     process.exit(1);
@@ -316,4 +335,5 @@ module.exports = {
   copyDirectory,
   copyRuntimeBundle,
   verifyCopiedManifest,
+  hashFile,
 };

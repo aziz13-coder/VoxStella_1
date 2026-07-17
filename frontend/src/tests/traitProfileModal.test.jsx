@@ -6,6 +6,7 @@ import { buildProfessionSuggestions } from '../features/astroclock/knowledgeMap.
 
 const astroClockApiMock = vi.hoisted(() => ({
   getTraitProfile: vi.fn(),
+  getDegreeHitPoints: vi.fn(),
 }));
 
 vi.mock('../features/astroclock/api.mjs', () => ({
@@ -15,6 +16,11 @@ vi.mock('../features/astroclock/api.mjs', () => ({
 describe('TraitProfileModal layout', () => {
   beforeEach(() => {
     astroClockApiMock.getTraitProfile.mockReset();
+    astroClockApiMock.getDegreeHitPoints.mockReset();
+    astroClockApiMock.getDegreeHitPoints.mockResolvedValue({
+      success: true,
+      data: { chart_meta: {}, points: [] },
+    });
     astroClockApiMock.getTraitProfile.mockResolvedValue({
       success: true,
       data: {
@@ -59,6 +65,169 @@ describe('TraitProfileModal layout', () => {
     });
   });
 
+  it('adds Points as a Trait Profile tab before All Traits and renders point rows there', async () => {
+    const topHits = [
+      {
+        key: 'career',
+        name: 'Career',
+        available: true,
+        longitude: 123.45,
+        zodiac: { formatted: '3 Leo 27' },
+        score: 1.253,
+        point_score: 1.253,
+        ui_severity: 'supportive',
+        hits: [
+          {
+            object_name: 'Jupiter',
+            aspect: 'Trine',
+            aspect_degrees: 120,
+            orb: 0.42,
+            allowed_orb: 2.5,
+            strength: 0.832,
+          },
+        ],
+      },
+      {
+        key: 'mercury_saturn',
+        name: 'Disciplined Thought',
+        available: true,
+        longitude: 210.0,
+        zodiac: { formatted: '0 Scorpio 00' },
+        score: 0.995,
+        point_score: 0.995,
+        ui_severity: 'neutral',
+        hits: [
+          {
+            object_name: 'Mercury',
+            aspect: 'Conjunction',
+            aspect_degrees: 0,
+            orb: 2.17,
+            allowed_orb: 3.71,
+            strength: 0.415,
+          },
+          {
+            object_name: 'Saturn',
+            aspect: 'Conjunction',
+            aspect_degrees: 0,
+            orb: 2.17,
+            allowed_orb: 3.35,
+            strength: 0.353,
+          },
+          {
+            object_name: 'Neptune',
+            aspect: 'Conjunction',
+            aspect_degrees: 0,
+            orb: 2.44,
+            allowed_orb: 3.16,
+            strength: 0.227,
+          },
+        ],
+      },
+      ...Array.from({ length: 9 }, (_, index) => ({
+        key: `active_point_${index + 1}`,
+        name: `Active Point ${index + 1}`,
+        available: true,
+        longitude: 220 + index,
+        zodiac: { formatted: `${index + 1} Scorpio 00` },
+        score: 0.9 - index * 0.04,
+        point_score: 0.9 - index * 0.04,
+        ui_severity: 'neutral',
+        hits: [
+          {
+            object_name: 'Venus',
+            aspect: 'Sextile',
+            aspect_degrees: 60,
+            orb: 0.5 + index / 10,
+            allowed_orb: 2.5,
+            strength: 0.8 - index / 20,
+          },
+        ],
+      })),
+    ];
+    astroClockApiMock.getDegreeHitPoints.mockResolvedValue({
+      success: true,
+      data: {
+        chart_meta: {
+          datetime_utc: '2026-03-22T04:32:00Z',
+          latitude: 31.778,
+          longitude: 35.235,
+          house_system: 'R',
+          precision: { has_exact_time: true, has_houses: true, has_manager_table: true },
+        },
+        top_hits: topHits,
+        active_count: 11,
+        points: [
+          {
+            key: 'destroyer_violence',
+            name: 'Destroyer, violence',
+            available: false,
+            longitude: null,
+            zodiac: null,
+            score: 0,
+            formula: { summary: 'Asc + Moon/Manager(1st cusp) exchange', used: 'day' },
+            hits: [],
+            unavailable_reasons: [{ code: 'manager_missing', message: 'manager object unavailable' }],
+          },
+        ],
+      },
+    });
+
+    render(
+      <TraitProfileModal
+        onClose={vi.fn()}
+        specialDegrees={[]}
+        mode="manual"
+        manualIso="2026-03-22T06:32:00"
+        manualLocation="Israel"
+        timezone="Asia/Jerusalem"
+        latitude={31.778}
+        longitude={35.235}
+        houseSystem="R"
+        fixedStarHits={[]}
+      />
+    );
+
+    await screen.findByRole('button', { name: 'Points' });
+    const tabLabels = screen.getAllByRole('button').map((button) => button.textContent);
+    expect(tabLabels.indexOf('Points')).toBeGreaterThan(-1);
+    expect(tabLabels.indexOf('Points')).toBeLessThan(tabLabels.indexOf('All Traits'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Points' }));
+
+    await waitFor(() => expect(astroClockApiMock.getDegreeHitPoints).toHaveBeenCalledWith(expect.objectContaining({
+      mode: 'manual',
+      datetime: '2026-03-22T06:32:00',
+      location: 'Israel',
+      timezone: 'Asia/Jerusalem',
+      latitude: 31.778,
+      longitude: 35.235,
+      houseSystem: 'P',
+      sexCode: '0',
+    })));
+
+    expect(screen.queryByText('Point Activations')).toBeNull();
+    expect(screen.queryByText('Tracked Points')).toBeNull();
+    expect(screen.queryByText('Modern unavailable')).toBeNull();
+    expect(screen.queryByText('Modern included')).toBeNull();
+    expect(screen.getByText('Active Points')).toBeTruthy();
+    expect(screen.getAllByTestId('trait-point-row')).toHaveLength(10);
+    expect(screen.getAllByText('Career').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('trine Jupiter').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Disciplined Thought')).toHaveLength(1);
+    expect(screen.getByText('conjunction Mercury')).toBeTruthy();
+    expect(screen.getByText('conjunction Saturn')).toBeTruthy();
+    expect(screen.getByText('conjunction Neptune')).toBeTruthy();
+    expect(screen.queryByText('Active Point 9')).toBeNull();
+    expect(screen.queryByText('Destroyer, violence')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Female' }));
+    await waitFor(() => expect(astroClockApiMock.getDegreeHitPoints).toHaveBeenLastCalledWith(expect.objectContaining({
+      sexCode: '2',
+      houseSystem: 'P',
+    })));
+    expect(document.body.textContent).not.toMatch(/Formula|Asc \+ Manager|Mercury-Saturn midpoint/i);
+    expect(document.body.textContent).not.toMatch(/parts#|midpoints#|research row|module|family score|serial_homicide|cult_mass_spree|individual_homicide|legal_research_mixed/i);
+  });
+
   it('uses the wider responsive modal and house influence grid', async () => {
     const { container } = render(
       <TraitProfileModal
@@ -74,11 +243,12 @@ describe('TraitProfileModal layout', () => {
     );
 
     await screen.findByText('House Influence');
+    fireEvent.click(screen.getByRole('button', { name: 'House Influence' }));
 
     expect(container.querySelector('.max-w-6xl')).toBeTruthy();
 
-    const houseInfluenceLabel = screen.getByText('House Influence');
-    const houseGrid = houseInfluenceLabel.nextElementSibling;
+    const houseGrid = Array.from(container.querySelectorAll('.grid'))
+      .find((el) => el.className.includes('md:grid-cols-2') && el.className.includes('xl:grid-cols-3'));
     expect(houseGrid).toBeTruthy();
     expect(houseGrid.className).toContain('md:grid-cols-2');
     expect(houseGrid.className).toContain('xl:grid-cols-3');
@@ -100,6 +270,7 @@ describe('TraitProfileModal layout', () => {
     );
 
     await screen.findByText('House Influence');
+    fireEvent.click(screen.getByRole('button', { name: 'House Influence' }));
 
     const keywordChip = screen.getByText('dispositorship');
     const keywordRow = keywordChip.closest('div');
@@ -109,6 +280,81 @@ describe('TraitProfileModal layout', () => {
     const mainRow = keywordRow.previousElementSibling;
     expect(mainRow).toBeTruthy();
     expect(within(mainRow).getByRole('button', { name: 'Details' })).toBeTruthy();
+  });
+
+  it('lets users choose a saved snap as the trait chart source', async () => {
+    const snap = {
+      id: 'snap-1',
+      label: 'Greenwich snap',
+      effective_datetime: '2026-05-05T10:45:00+00:00',
+      location: 'Greenwich, UK',
+      special_degrees: ['Regulus'],
+      dashboard: {
+        timezone: 'Europe/London',
+        latitude: 51.4769,
+        longitude: -0.0005,
+      },
+    };
+
+    render(
+      <TraitProfileModal
+        onClose={vi.fn()}
+        specialDegrees={[]}
+        mode="manual"
+        manualIso="2026-03-22T06:32:00"
+        manualLocation="Israel"
+        timezone="Asia/Jerusalem"
+        houseSystem="R"
+        fixedStarHits={[]}
+        snaps={[snap]}
+        snapsLoaded
+      />
+    );
+
+    await waitFor(() => expect(astroClockApiMock.getTraitProfile).toHaveBeenCalledTimes(1));
+    fireEvent.change(screen.getByLabelText('Saved snap'), { target: { value: 'snap-1' } });
+
+    await waitFor(() => expect(astroClockApiMock.getTraitProfile).toHaveBeenCalledTimes(2));
+    const latestRequest = astroClockApiMock.getTraitProfile.mock.calls.at(-1)[0];
+    expect(latestRequest).toMatchObject({
+      mode: 'manual',
+      datetime: snap.effective_datetime,
+      location: snap.location,
+      timezone: 'Europe/London',
+      houseSystem: 'R',
+      latitude: 51.4769,
+      longitude: -0.0005,
+      specialDegrees: ['Regulus'],
+    });
+  });
+
+  it('passes current chart coordinates in trait profile requests', async () => {
+    render(
+      <TraitProfileModal
+        onClose={vi.fn()}
+        specialDegrees={[]}
+        mode="manual"
+        manualIso="2026-03-22T06:32:00"
+        manualLocation="Israel"
+        timezone="Asia/Jerusalem"
+        latitude={31.778}
+        longitude={35.235}
+        houseSystem="R"
+        fixedStarHits={[]}
+        snaps={[]}
+      />
+    );
+
+    await waitFor(() => expect(astroClockApiMock.getTraitProfile).toHaveBeenCalledTimes(1));
+    expect(astroClockApiMock.getTraitProfile.mock.calls[0][0]).toMatchObject({
+      mode: 'manual',
+      datetime: '2026-03-22T06:32:00',
+      location: 'Israel',
+      timezone: 'Asia/Jerusalem',
+      latitude: 31.778,
+      longitude: 35.235,
+      houseSystem: 'R',
+    });
   });
 
   it('copies chart context and astrological factors into the AI prompt', async () => {
@@ -193,10 +439,10 @@ describe('TraitProfileModal layout', () => {
       />
     );
 
-    await screen.findByText('Top Neutral');
-    expect(screen.getByText('Top Positive')).toBeTruthy();
-    expect(screen.getByText('Top Neutral')).toBeTruthy();
-    expect(screen.getByText('Top Negative')).toBeTruthy();
+    await screen.findByText('Top Style');
+    expect(screen.getByText('Top Constructive')).toBeTruthy();
+    expect(screen.getByText('Top Style')).toBeTruthy();
+    expect(screen.getByText('Top Strain')).toBeTruthy();
     expect(screen.getAllByText('Self-assertion').length).toBeGreaterThan(0);
     expect(screen.getAllByText('1 related variants').length).toBeGreaterThan(0);
 
@@ -246,10 +492,10 @@ describe('TraitProfileModal layout', () => {
       />
     );
 
-    await screen.findByText('Top Neutral');
+    await screen.findByText('Top Style');
 
-    const topNeutral = screen.getByText('Top Neutral').closest('div.border');
-    const topNegative = screen.getByText('Top Negative').closest('div.border');
+    const topNeutral = screen.getByText('Top Style').closest('div.border');
+    const topNegative = screen.getByText('Top Strain').closest('div.border');
     expect(topNeutral.textContent).toContain('Neutral Trait');
     expect(topNegative.textContent).toContain('Negative Trait');
   });
@@ -285,21 +531,21 @@ describe('TraitProfileModal layout', () => {
       />
     );
 
-    await screen.findByText('Top Positive');
+    await screen.findByText('Top Constructive');
 
-    const topPositive = screen.getByText('Top Positive').closest('div.border');
-    const topNeutral = screen.getByText('Top Neutral').closest('div.border');
-    const topNegative = screen.getByText('Top Negative').closest('div.border');
+    const topPositive = screen.getByText('Top Constructive').closest('div.border');
+    const topNeutral = screen.getByText('Top Style').closest('div.border');
+    const topNegative = screen.getByText('Top Strain').closest('div.border');
 
     expect(topPositive.textContent).toContain('Curated Positive');
     expect(topPositive.textContent).not.toContain('Provisional Positive');
     expect(topNeutral.textContent).toContain('Curated Neutral');
     expect(topNegative.textContent).toContain('No results');
 
-    expect(screen.getByText('All Traits')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'All Traits' }));
     expect(screen.getByText('Provisional Positive')).toBeTruthy();
     expect(screen.getByText('Provisional Negative')).toBeTruthy();
-    expect(screen.getAllByText('Provisional source').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Provisional source')).toBeNull();
   });
 
   it('suppresses summary-ineligible specialized traits from the top split while keeping them in the full list', async () => {
@@ -333,14 +579,14 @@ describe('TraitProfileModal layout', () => {
       />
     );
 
-    await screen.findByText('Top Positive');
+    await screen.findByText('Top Constructive');
 
-    const topPositive = screen.getByText('Top Positive').closest('div.border');
-    const topNegative = screen.getByText('Top Negative').closest('div.border');
+    const topPositive = screen.getByText('Top Constructive').closest('div.border');
+    const topNegative = screen.getByText('Top Strain').closest('div.border');
 
     expect(topPositive.textContent).toContain('General Trait');
     expect(topNegative.textContent).toContain('No results');
-    expect(screen.getByText('All Traits')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'All Traits' }));
     expect(screen.getByText('Specialized Indicator')).toBeTruthy();
   });
 
@@ -384,13 +630,13 @@ describe('TraitProfileModal layout', () => {
       />
     );
 
-    await screen.findByText('Top Neutral');
+    await screen.findByText('Top Style');
 
     fireEvent.change(screen.getByLabelText('Band'), { target: { value: 'strong' } });
 
-    let topPositive = screen.getByText('Top Positive').closest('div.border');
-    let topNeutral = screen.getByText('Top Neutral').closest('div.border');
-    let topNegative = screen.getByText('Top Negative').closest('div.border');
+    let topPositive = screen.getByText('Top Constructive').closest('div.border');
+    let topNeutral = screen.getByText('Top Style').closest('div.border');
+    let topNegative = screen.getByText('Top Strain').closest('div.border');
 
     expect(topPositive.textContent).toContain('Positive Strong');
     expect(topNeutral.textContent).toContain('No results');
@@ -401,16 +647,16 @@ describe('TraitProfileModal layout', () => {
     fireEvent.click(screen.getByLabelText('Select all'));
     fireEvent.click(screen.getByLabelText('drive'));
 
-    topPositive = screen.getByText('Top Positive').closest('div.border');
-    topNeutral = screen.getByText('Top Neutral').closest('div.border');
-    topNegative = screen.getByText('Top Negative').closest('div.border');
+    topPositive = screen.getByText('Top Constructive').closest('div.border');
+    topNeutral = screen.getByText('Top Style').closest('div.border');
+    topNegative = screen.getByText('Top Strain').closest('div.border');
 
     expect(topPositive.textContent).toContain('No results');
     expect(topNeutral.textContent).toContain('Neutral Likely');
     expect(topNegative.textContent).toContain('No results');
   });
 
-  it('shows source lineage labels for non-provisional traits', async () => {
+  it('keeps source lineage labels out of the visible trait profile', async () => {
     astroClockApiMock.getTraitProfile.mockResolvedValueOnce({
       success: true,
       data: {
@@ -441,12 +687,13 @@ describe('TraitProfileModal layout', () => {
       />
     );
 
-    await screen.findByText('Top Positive');
-    expect(screen.getAllByText('Carter-derived').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Classical source').length).toBeGreaterThan(0);
+    await screen.findByText('Top Constructive');
+    expect(screen.getByText('Carter Trait')).toBeTruthy();
+    expect(screen.queryByText('Carter-derived')).toBeNull();
+    expect(screen.queryByText('Classical source')).toBeNull();
   });
 
-  it('renders layered keywords and corpus citations in expanded trait cards', async () => {
+  it('does not render source layers or corpus citations in visible trait cards', async () => {
     astroClockApiMock.getTraitProfile.mockResolvedValueOnce({
       success: true,
       data: {
@@ -515,15 +762,15 @@ describe('TraitProfileModal layout', () => {
     );
 
     await screen.findByText('All Traits');
-    expect(screen.getByText('Source Layers')).toBeTruthy();
-    expect(screen.getByText('Corpus Citations')).toBeTruthy();
-    expect(screen.getAllByText('Classical').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Modern').length).toBeGreaterThan(0);
-    expect(screen.getByText(/Scholarship depends on Mercury/)).toBeTruthy();
-    expect(screen.getByText(/Mental development shapes the person-centered life pattern/)).toBeTruthy();
+    expect(screen.getByText('Scholarship')).toBeTruthy();
+    expect(screen.queryByText('Source Layers')).toBeNull();
+    expect(screen.queryByText('Corpus Citations')).toBeNull();
+    expect(screen.queryByText('Carter-derived')).toBeNull();
+    expect(screen.queryByText(/Scholarship depends on Mercury/)).toBeNull();
+    expect(screen.queryByText(/Mental development shapes the person-centered life pattern/)).toBeNull();
   });
 
-  it('applies the source filter using enrichment layers and citation lineage', async () => {
+  it('does not expose source filtering in the visible filter bar', async () => {
     astroClockApiMock.getTraitProfile.mockResolvedValueOnce({
       success: true,
       data: {
@@ -692,15 +939,15 @@ describe('TraitProfileModal layout', () => {
       />
     );
 
-    await screen.findByText('Top Positive');
-    fireEvent.change(screen.getByLabelText('Source'), { target: { value: 'modern' } });
+    await screen.findByText('Top Constructive');
+    expect(screen.queryByLabelText('Source')).toBeNull();
 
-    const topPositive = screen.getByText('Top Positive').closest('div.border');
+    const topPositive = screen.getByText('Top Constructive').closest('div.border');
     expect(topPositive.textContent).toContain('Modern-backed Trait');
-    expect(topPositive.textContent).not.toContain('Carter Trait');
+    expect(topPositive.textContent).toContain('Carter Trait');
   });
 
-  it('shows an explicit empty-state notice when source and domain filters intersect to zero results and can reset them', async () => {
+  it('shows an explicit empty-state notice when strength and domain filters intersect to zero results and can reset them', async () => {
     astroClockApiMock.getTraitProfile.mockResolvedValueOnce({
       success: true,
       data: {
@@ -869,14 +1116,14 @@ describe('TraitProfileModal layout', () => {
       />
     );
 
-    await screen.findByText('Top Positive');
+    await screen.findByText('Top Constructive');
     fireEvent.click(screen.getByRole('button', { name: /Domains \(/ }));
     fireEvent.click(screen.getByLabelText('Select all'));
     fireEvent.click(screen.getByLabelText('social_function'));
-    fireEvent.change(screen.getByLabelText('Source'), { target: { value: 'classical' } });
+    fireEvent.change(screen.getByLabelText('Band'), { target: { value: 'weak' } });
 
     expect(screen.getByText('No traits match the current filters.')).toBeTruthy();
-    expect(screen.getByText(/Active filters: Source: Classical · Domains: 1\/2/)).toBeTruthy();
+    expect(screen.getByText(/Active filters: Band: weak.*Domains: 1\/2/)).toBeTruthy();
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Reset filters' })[0]);
     await waitFor(() => {
@@ -918,8 +1165,8 @@ describe('TraitProfileModal layout', () => {
       />
     );
 
-    await screen.findByText('Top Positive');
-    const topPositive = screen.getByText('Top Positive').closest('div.border');
+    await screen.findByText('Top Constructive');
+    const topPositive = screen.getByText('Top Constructive').closest('div.border');
     const firstLabel = topPositive.querySelector('.font-medium.text-sm');
     expect(firstLabel.textContent).toContain('Classical Trait');
   });

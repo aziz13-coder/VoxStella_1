@@ -10,6 +10,7 @@
     "base": 0,
     "boosts": [
       { "kind": "modality", "modality": "Cardinal", "min_share": 0.35, "weight": 10 },
+      { "kind": "house_emphasis", "houses": [5,10,11], "min_total": 2, "weight": 10 },
       { "kind": "planet_status", "planet": "Mars", "strong": true, "weight": 8 }
     ],
     "dampeners": [
@@ -18,4 +19,3 @@
     "escalators": []
   }
 }
-

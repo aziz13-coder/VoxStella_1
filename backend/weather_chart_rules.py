@@ -3,11 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
+from zoneinfo import ZoneInfo
 
-try:
-    import swisseph as swe  # type: ignore
-except Exception:  # pragma: no cover
-    swe = None  # type: ignore
+from swisseph_state import swisseph as swe
 
 
 BundleResolver = Callable[..., Dict[str, Any]]
@@ -51,7 +49,7 @@ class SearchCandidate:
     target_deg: float
 
 
-def _normalize_dt(value: Any) -> datetime:
+def _normalize_dt(value: Any, timezone_name: Optional[str] = None) -> datetime:
     if isinstance(value, datetime):
         dt = value
     else:
@@ -60,7 +58,13 @@ def _normalize_dt(value: Any) -> datetime:
             raise ValueError("datetime value is required")
         dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
     if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
+        tzinfo = timezone.utc
+        if timezone_name:
+            try:
+                tzinfo = ZoneInfo(str(timezone_name))
+            except Exception:
+                tzinfo = timezone.utc
+        return dt.replace(tzinfo=tzinfo).astimezone(timezone.utc)
     return dt.astimezone(timezone.utc)
 
 
@@ -521,7 +525,7 @@ def resolve_weather_chart_resolution(
     latitude: Optional[float] = None,
     longitude: Optional[float] = None,
 ) -> Dict[str, Any]:
-    anchor_dt = _normalize_dt(forecast_datetime)
+    anchor_dt = _normalize_dt(forecast_datetime, timezone_name=timezone_name)
     longitudes_at = _swe_longitudes
     seasonal = _find_latest_cardinal_ingress(anchor_dt, longitudes_at=longitudes_at)
     lunar = _find_latest_lunar_phase(anchor_dt, longitudes_at=longitudes_at)

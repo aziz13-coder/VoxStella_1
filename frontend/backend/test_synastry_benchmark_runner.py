@@ -3,9 +3,19 @@ from __future__ import annotations
 from pathlib import Path
 import sys
 
-repo_root = Path(__file__).resolve().parents[1]
+backend_dir = Path(__file__).resolve().parent
+
+
+def _repo_root() -> Path:
+    for candidate in Path(__file__).resolve().parents:
+        if (candidate / "AGENTS.md").exists() and (candidate / "backend").is_dir():
+            return candidate
+    return Path(__file__).resolve().parents[1]
+
+
+repo_root = _repo_root()
 sys.path.insert(0, str(repo_root))
-sys.path.insert(0, str(repo_root / "backend"))
+sys.path.insert(0, str(backend_dir))
 
 import synastry_benchmark_runner as runner
 from validate_synastry_benchmark_datasets import (
@@ -15,9 +25,9 @@ from validate_synastry_benchmark_datasets import (
 )
 
 
-PREDICTIVE_SAMPLE = repo_root / "backend" / "benchmarks" / "synastry" / "predictive_pairs_sample.json"
-WORK_OUTCOME_SAMPLE = repo_root / "backend" / "benchmarks" / "synastry" / "predictive_work_outcome_sample.json"
-REAL_PUBLIC = repo_root / "backend" / "benchmarks" / "synastry" / "real_public_pairs.json"
+PREDICTIVE_SAMPLE = backend_dir / "benchmarks" / "synastry" / "predictive_pairs_sample.json"
+WORK_OUTCOME_SAMPLE = backend_dir / "benchmarks" / "synastry" / "predictive_work_outcome_sample.json"
+REAL_PUBLIC = backend_dir / "benchmarks" / "synastry" / "real_public_pairs.json"
 LOGIC_SAMPLE = repo_root / "tests" / "fixtures" / "synastry_benchmark_logic_fixture.json"
 
 

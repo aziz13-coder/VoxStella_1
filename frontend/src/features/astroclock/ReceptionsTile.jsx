@@ -1,9 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { AstroClockAPI } from './api.mjs';
 
-const PlanetSymbols = {
+const monoStyle = { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace' };
+const serifStyle = { fontFamily: 'Iowan Old Style, Palatino Linotype, Book Antiqua, Georgia, serif' };
+
+const PLANET_SYMBOLS = {
   Sun: '☉',
-  Moon: '☾',
+  Moon: '☽',
   Mercury: '☿',
   Venus: '♀',
   Mars: '♂',
@@ -11,72 +14,88 @@ const PlanetSymbols = {
   Saturn: '♄',
 };
 
-const glyph = (name) => PlanetSymbols[name] || name || '?';
+const glyph = (name) => PLANET_SYMBOLS[name] || name || '?';
 
-const typeLabel = (t) => {
-  const m = String(t || '').toLowerCase();
-  if (m === 'mutual_rulership') return 'Mutual domicile';
-  if (m === 'mutual_exaltation') return 'Mutual exaltation';
-  if (m === 'mutual_term') return 'Mutual term';
-  if (m === 'mutual_face') return 'Mutual face';
-  if (m === 'mixed_reception') return 'Mixed reception';
-  return t || '—';
+const typeLabel = (value) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'mutual_rulership') return 'Mutual domicile';
+  if (normalized === 'mutual_exaltation') return 'Mutual exaltation';
+  if (normalized === 'mutual_term') return 'Mutual term';
+  if (normalized === 'mutual_face') return 'Mutual face';
+  if (normalized === 'mixed_reception') return 'Mixed reception';
+  if (normalized === 'unilateral') return 'Unilateral reception';
+  if (normalized === 'none') return 'No reception';
+  return value || 'Reception';
 };
 
-const typeAbbrev = (t) => {
-  const m = String(t || '').toLowerCase();
-  if (m === 'mutual_rulership') return 'D';
-  if (m === 'mutual_exaltation') return 'Ex';
-  if (m === 'mutual_term') return 'T';
-  if (m === 'mutual_face') return 'F';
-  if (m === 'mixed_reception') return 'Mix';
+const typeAbbrev = (value) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'mutual_rulership') return 'D';
+  if (normalized === 'mutual_exaltation') return 'Ex';
+  if (normalized === 'mutual_term') return 'T';
+  if (normalized === 'mutual_face') return 'F';
+  if (normalized === 'mixed_reception') return 'Mix';
   return 'Rec';
 };
 
-const dignityAbbrev = (d) => {
-  const m = String(d || '').toLowerCase();
-  if (m === 'domicile' || m === 'rulership' || m === 'ruler') return 'R';
-  if (m === 'exaltation' || m === 'exalted') return 'Ex';
-  if (m === 'triplicity') return 'Tri';
-  if (m === 'term' || m === 'bounds' || m === 'bound') return 'T';
-  if (m === 'face' || m === 'decan' || m === 'decanate') return 'F';
-  return d || '?';
+const dignityAbbrev = (value) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'domicile' || normalized === 'rulership' || normalized === 'ruler') return 'R';
+  if (normalized === 'exaltation' || normalized === 'exalted') return 'Ex';
+  if (normalized === 'triplicity') return 'Tri';
+  if (normalized === 'term' || normalized === 'bounds' || normalized === 'bound') return 'T';
+  if (normalized === 'face' || normalized === 'decan' || normalized === 'decanate') return 'F';
+  return value || '?';
 };
 
-const dignityTitle = (d) => {
-  const m = String(d || '').toLowerCase();
-  if (m === 'domicile' || m === 'rulership' || m === 'ruler') return 'Domicile / Rulership';
-  if (m === 'exaltation' || m === 'exalted') return 'Exaltation';
-  if (m === 'triplicity') return 'Triplicity';
-  if (m === 'term' || m === 'bounds' || m === 'bound') return 'Term / Bounds';
-  if (m === 'face' || m === 'decan' || m === 'decanate') return 'Face / Decan';
-  return d || '';
+const dignityTitle = (value) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'domicile' || normalized === 'rulership' || normalized === 'ruler') return 'Domicile / Rulership';
+  if (normalized === 'exaltation' || normalized === 'exalted') return 'Exaltation';
+  if (normalized === 'triplicity') return 'Triplicity';
+  if (normalized === 'term' || normalized === 'bounds' || normalized === 'bound') return 'Term / Bounds';
+  if (normalized === 'face' || normalized === 'decan' || normalized === 'decanate') return 'Face / Decan';
+  return value || '';
 };
 
-export default function ReceptionsTile({ dataTimestamp, receptions = null }) {
+function formatTraditional(value) {
+  if (!value) return null;
+  try {
+    if (typeof value === 'string') return typeLabel(value);
+    if (typeof value === 'object') {
+      if (value.display_text) return String(value.display_text);
+      if (value.type) return typeLabel(value.type);
+    }
+  } catch (_) {}
+  return String(value);
+}
+
+function strengthChip(value) {
+  return (
+    <span
+      className="rounded-full border border-zinc-200 bg-white px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-[0.16em] text-zinc-500"
+      style={monoStyle}
+    >
+      S{value ?? 0}
+    </span>
+  );
+}
+
+function emptyState(label) {
+  return <div className="text-[11px] text-zinc-500">{label}</div>;
+}
+
+export default function ReceptionsTile({ dataTimestamp, receptions = null, clockContext = null }) {
   const [rec, setRec] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const formatTraditional = (val) => {
-    if (!val) return null;
+  const clockContextKey = useMemo(() => {
     try {
-      if (typeof val === 'string') {
-        const m = val.toLowerCase();
-        if (m === 'mutual_rulership') return 'Mutual domicile reception';
-        if (m === 'mutual_exaltation') return 'Mutual exaltation reception';
-        if (m === 'mixed_reception') return 'Mixed reception';
-        if (m === 'unilateral') return 'Unilateral reception';
-        if (m === 'none') return 'No reception';
-        return val;
-      }
-      if (typeof val === 'object') {
-        if (val.display_text) return String(val.display_text);
-        if (val.type) return typeLabel(val.type);
-        return JSON.stringify(val);
-      }
-    } catch (_) {}
-    return String(val);
-  };
+      return JSON.stringify(clockContext || {});
+    } catch (_) {
+      return '';
+    }
+  }, [clockContext]);
 
   useEffect(() => {
     let alive = true;
@@ -84,41 +103,46 @@ export default function ReceptionsTile({ dataTimestamp, receptions = null }) {
       setRec(receptions);
       setError(null);
       setLoading(false);
-      return () => { alive = false; };
+      return () => {
+        alive = false;
+      };
     }
     setLoading(true);
     setError(null);
-    AstroClockAPI.getReceptions()
+    AstroClockAPI.getReceptions(clockContext || {})
       .then((res) => {
         if (!alive) return;
         if (res?.success) setRec(res.data || {});
       })
       .catch((err) => {
         if (!alive) return;
-        const msg = String(err?.message || '');
-        if (msg.includes('license_required') || msg.includes('license_invalid')) {
+        const message = String(err?.message || '');
+        if (message.includes('license_required') || message.includes('license_invalid')) {
           setError('License required');
           return;
         }
         setError('Failed to load');
       })
-      .finally(() => { if (alive) setLoading(false); });
-    return () => { alive = false; };
-  }, [dataTimestamp, receptions]);
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [dataTimestamp, receptions, clockContextKey]);
 
-  if (loading && !rec) return <div className="text-sm text-zinc-500">Loading…</div>;
+  if (loading && !rec) return <div className="text-sm text-zinc-500">Loading...</div>;
   if (error) return <div className="text-sm text-red-600">{error}</div>;
 
   const mutual = Array.isArray(rec?.mutual) ? rec.mutual : [];
   const unilateral = Array.isArray(rec?.top_unilateral) ? rec.top_unilateral : [];
+
   const summary = (() => {
     const raw = rec?.traditional_reception;
     if (raw && typeof raw === 'object') {
-      const type = String(raw.type || 'none');
-      const displayText = formatTraditional(raw);
       return {
-        type,
-        displayText: displayText || 'No reception',
+        type: String(raw.type || 'none'),
+        displayText: formatTraditional(raw) || 'No reception',
         mutualCount: Number(raw.mutual_count || mutual.length || 0),
         unilateralCount: Number(raw.unilateral_count || unilateral.length || 0),
       };
@@ -136,7 +160,7 @@ export default function ReceptionsTile({ dataTimestamp, receptions = null }) {
       return {
         type: 'unilateral',
         displayText: 'Unilateral reception',
-        mutualCount: mutual.length,
+        mutualCount: 0,
         unilateralCount: unilateral.length,
       };
     }
@@ -148,86 +172,84 @@ export default function ReceptionsTile({ dataTimestamp, receptions = null }) {
     };
   })();
 
-  const badge = (txt) => (
-    <span className="px-1.5 py-0.5 rounded-full border border-zinc-200 text-xs bg-white" key={txt}>{txt}</span>
-  );
-
   return (
-    <div className="text-sm space-y-3">
-      <div>
-        <div className="font-medium mb-0.5">
-          <div className="font-medium">Traditional</div>
+    <div className="space-y-3 text-sm">
+      <div className="border-b border-zinc-100 pb-3">
+        <div className="text-[1rem] leading-tight text-zinc-900" style={serifStyle}>
+          {summary.displayText}
         </div>
-        <div className="text-xs text-zinc-700">{summary.displayText}</div>
-        {(summary.mutualCount > 0 || summary.unilateralCount > 0) ? (
-          <div className="text-[11px] text-zinc-500">
-            {summary.mutualCount} mutual · {summary.unilateralCount} unilateral
-          </div>
-        ) : null}
+        <div className="mt-1 text-[11px] text-zinc-500">
+          {summary.mutualCount} mutual · {summary.unilateralCount} unilateral
+        </div>
       </div>
 
       <div>
-        <div className="font-medium mb-1">Mutual Receptions</div>
-        {mutual.length === 0 ? (
-          <div className="text-xs text-zinc-500">None</div>
-        ) : (
-          <ul className="space-y-1">
-            {mutual.map((m, i) => (
-              <li
-                key={i}
-                className="text-xs flex items-center gap-2"
-                title={`${m.p1} ↔ ${m.p2} · ${typeLabel(m.type)} · Strength ${m.strength ?? 0}`}
+        <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-400" style={monoStyle}>
+          Mutual
+        </div>
+        <div className="mt-2 space-y-2">
+          {mutual.length === 0
+            ? emptyState('No mutual receptions.')
+            : mutual.map((item, index) => (
+              <div
+                key={`mutual-${index}`}
+                className="border-t border-zinc-100 pt-2.5"
+                title={`${item.p1} ↔ ${item.p2} · ${typeLabel(item.type)}`}
               >
-                <span className="inline-flex items-center gap-1">
-                  <span className="text-base leading-none">{glyph(m.p1)}</span>
-                  <span className="mx-0.5">↔</span>
-                  <span className="text-base leading-none">{glyph(m.p2)}</span>
-                </span>
-                <span className="px-1.5 py-0.5 rounded-full border border-zinc-200 bg-white text-[10px]" title={typeLabel(m.type)}>
-                  {typeAbbrev(m.type)}
-                </span>
-                <span className="ml-auto">{badge(`S${m.strength ?? 0}`)}</span>
-              </li>
+                <div className="flex items-center gap-2">
+                  <div className="text-[14px] leading-none text-zinc-900">
+                    {glyph(item.p1)} ↔ {glyph(item.p2)}
+                  </div>
+                  <div className="rounded-full border border-zinc-200 bg-white px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-[0.16em] text-zinc-500" style={monoStyle}>
+                    {typeAbbrev(item.type)}
+                  </div>
+                  <div className="ml-auto">{strengthChip(item.strength)}</div>
+                </div>
+                <div className="mt-1 text-[11px] text-zinc-500">{typeLabel(item.type)}</div>
+              </div>
             ))}
-          </ul>
-        )}
+        </div>
       </div>
 
       <div>
-        <div className="font-medium mb-1">Unilateral Receptions</div>
-        {unilateral.length === 0 ? (
-          <div className="text-xs text-zinc-500">None</div>
-        ) : (
-          <ul className="space-y-1">
-            {unilateral.map((u, i) => (
-              <li
-                key={i}
-                className="text-xs flex items-center gap-2"
-                title={`${u.receiving} receives ${u.received} · by ${Array.isArray(u.dignities) ? u.dignities.join(', ') : ''} · Strength ${u.strength ?? 0}`}
+        <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-400" style={monoStyle}>
+          Unilateral
+        </div>
+        <div className="mt-2 space-y-2">
+          {unilateral.length === 0
+            ? emptyState('No unilateral receptions.')
+            : unilateral.map((item, index) => (
+              <div
+                key={`unilateral-${index}`}
+                className="border-t border-zinc-100 pt-2.5"
+                title={`${item.receiving} receives ${item.received}`}
               >
-                <span className="inline-flex items-center gap-1">
-                  <span className="text-base leading-none">{glyph(u.received)}</span>
-                  <span className="mx-0.5">→</span>
-                  <span className="text-base leading-none">{glyph(u.receiving)}</span>
-                </span>
-                {Array.isArray(u.dignities) && u.dignities.length ? (
-                  <span className="inline-flex items-center gap-1 ml-1">
-                    {u.dignities.map((d, idx) => (
+                <div className="flex items-center gap-2">
+                  <div className="text-[14px] leading-none text-zinc-900">
+                    {glyph(item.received)} → {glyph(item.receiving)}
+                  </div>
+                  <div className="ml-auto">{strengthChip(item.strength)}</div>
+                </div>
+                <div className="mt-1 text-[11px] text-zinc-500">
+                  {item.receiving} receives {item.received}
+                </div>
+                {Array.isArray(item.dignities) && item.dignities.length ? (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {item.dignities.map((dignity, dignityIndex) => (
                       <span
-                        key={`${i}-d-${idx}`}
-                        className="px-1 py-0.5 rounded-full border border-zinc-200 bg-white text-[10px]"
-                        title={dignityTitle(d)}
+                        key={`${index}-d-${dignityIndex}`}
+                        className="rounded-full border border-zinc-200 bg-white px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-[0.16em] text-zinc-500"
+                        style={monoStyle}
+                        title={dignityTitle(dignity)}
                       >
-                        {dignityAbbrev(d)}
+                        {dignityAbbrev(dignity)}
                       </span>
                     ))}
-                  </span>
+                  </div>
                 ) : null}
-                <span className="ml-auto">{badge(`S${u.strength ?? 0}`)}</span>
-              </li>
+              </div>
             ))}
-          </ul>
-        )}
+        </div>
       </div>
     </div>
   );

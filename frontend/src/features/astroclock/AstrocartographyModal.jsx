@@ -32,6 +32,7 @@ const BODY_OPTIONS = [
   { id: 'Neptune', short: 'Ne' },
   { id: 'Pluto', short: 'Pl' },
   { id: 'North Node', short: 'NN' },
+  { id: 'Chiron', short: 'Ch' },
 ];
 const ANGLE_OPTIONS = ['MC', 'IC', 'ASC', 'DSC'];
 const DEFAULT_VIEW = { center: [20, 0], zoom: 2 };
@@ -48,6 +49,7 @@ const BODY_LABEL_META = {
   Neptune: { short: 'Ne', symbol: '♆' },
   Pluto: { short: 'Pl', symbol: '♇' },
   'North Node': { short: 'NN', symbol: '☊' },
+  Chiron: { short: 'Ch', symbol: '⚷' },
 };
 const MAP_THEME = {
   water: '#cfe0ee',
@@ -592,6 +594,7 @@ function SelectedCitySummaryCard({
     targetResult?.location_score?.top_supports?.[0]?.label
     || targetResult?.natal?.reading?.lead_line?.label
     || '';
+  const scoreLabel = selectedGoal?.score_polarity === 'higher_is_worse' ? 'Risk score' : 'Goal score';
 
   return (
     <div className={`${astroSectionCardCls} space-y-3`}>
@@ -620,7 +623,7 @@ function SelectedCitySummaryCard({
         {viewMode === 'transit' && targetResult?.transit?.reading?.signal_score != null ? (
           <MetricChip label="Transit" value={transitSignal} tone="accent" />
         ) : null}
-        {targetResult?.location_score?.score != null ? <MetricChip label="Goal score" value={locationScore} tone="warning" /> : null}
+        {targetResult?.location_score?.score != null ? <MetricChip label={scoreLabel} value={locationScore} tone="warning" /> : null}
       </div>
       <div className={astroNestedCardCls}>
         <div className={astroSectionLabelCls}>Current scope</div>
@@ -1333,6 +1336,10 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
   const selectedGoalTier = selectedGoal ? getGoalVariantTier(selectedGoal) : '';
   const selectedGoalTierLabel = selectedGoalTier ? GOAL_GROUP_LABELS[selectedGoalTier] : '';
   const selectedGoalFamilyLabel = selectedGoal?.goal_family ? formatGoalFamilyLabel(selectedGoal.goal_family) : '';
+  const selectedGoalHigherIsWorse = selectedGoal?.score_polarity === 'higher_is_worse';
+  const atlasPinsLabel = selectedGoalHigherIsWorse ? 'Lowest-risk pins' : 'Best-match pins';
+  const atlasSearchLabel = selectedGoalHigherIsWorse ? 'Search Lowest Risk' : 'Search Best Cities';
+  const atlasScoreLabel = selectedGoalHigherIsWorse ? 'Risk score' : 'Goal score';
 
   const selectedAtlasResolution = useMemo(() => {
     return ATLAS_RESOLUTION_OPTIONS.find((item) => item.id === atlasResolution) || ATLAS_RESOLUTION_OPTIONS[1];
@@ -1486,7 +1493,7 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
           </label>
           <label className="inline-flex items-center gap-2">
             <input type="checkbox" checked={showAtlasPins} onChange={() => setShowAtlasPins((value) => !value)} />
-            <span>Best-match pins</span>
+            <span>{atlasPinsLabel}</span>
           </label>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -1562,7 +1569,7 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
                 <Popup>
                   <div className="text-sm">
                     <div className="font-medium">{targetLabel}</div>
-                    <div>Rank {index + 1} | Goal score {item?.location_score?.score ?? 'n/a'}</div>
+                    <div>Rank {index + 1} | {atlasScoreLabel} {item?.location_score?.score ?? 'n/a'}</div>
                   </div>
                 </Popup>
               </CircleMarker>
@@ -2167,7 +2174,7 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
                   </select>
                 </div>
                 <button type="button" className={actionButtonCls} onClick={handleSearchAtlas} disabled={loadingAtlas || !selectedGoalId}>
-                  {loadingAtlas ? 'Calculating...' : 'Search Best Cities'}
+                  {loadingAtlas ? 'Calculating...' : atlasSearchLabel}
                 </button>
                 {loadingAtlas && atlasProgress && (
                   <div className={`${astroMutedPanelCls} space-y-2`}>

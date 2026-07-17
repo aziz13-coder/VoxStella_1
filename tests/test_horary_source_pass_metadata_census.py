@@ -24,20 +24,20 @@ def test_source_pass_metadata_census_covers_all_completed_source_pass_cases():
     census_ids = {entry["id"] for entry in census_entries}
 
     assert census_ids == fixture_ids
-    assert len(census_entries) == 55
+    assert len(census_entries) == 73
 
 
 def test_source_pass_metadata_census_track_counts_match_first_pass_policy():
     census_entries = _load_json(CENSUS_PATH)
     track_counts = Counter(entry["replay_track"] for entry in census_entries)
 
-    assert track_counts["direct_replay"] == 0
+    assert track_counts["direct_replay"] == 1
     assert track_counts["image_reconstructable"] == 14
-    assert track_counts["doctrine_only"] == 41
+    assert track_counts["doctrine_only"] == 58
 
 
 def test_source_pass_metadata_census_slice_span_is_complete():
     census_entries = _load_json(CENSUS_PATH)
     slice_numbers = {entry["slice_number"] for entry in census_entries}
 
-    assert slice_numbers == {str(num) for num in range(2, 19)}
+    assert slice_numbers == {str(num) for num in range(2, 25)}

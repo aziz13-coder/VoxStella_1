@@ -3,7 +3,7 @@
 import datetime
 from typing import Any, Dict
 
-import swisseph as swe
+from swisseph_state import swisseph as swe
 
 from horary_config import cfg
 try:

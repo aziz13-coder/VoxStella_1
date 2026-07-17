@@ -9,6 +9,7 @@ const astroClockApiMock = vi.hoisted(() => ({
   setMode: vi.fn(),
   createStream: vi.fn(),
   listSnaps: vi.fn(),
+  getSnap: vi.fn(),
   createSnap: vi.fn(),
   deleteSnap: vi.fn(),
 }));
@@ -22,6 +23,30 @@ const synastryModalMock = vi.hoisted(() => ({
 }));
 
 const astrocartographyModalMock = vi.hoisted(() => ({
+  props: [],
+}));
+
+const traitProfileModalMock = vi.hoisted(() => ({
+  props: [],
+}));
+
+const electionModalMock = vi.hoisted(() => ({
+  props: [],
+}));
+
+const chineseAstrologyPageMock = vi.hoisted(() => ({
+  props: [],
+}));
+
+const birthCertificationModalMock = vi.hoisted(() => ({
+  props: [],
+}));
+
+const compassTileMock = vi.hoisted(() => ({
+  props: [],
+}));
+
+const degreeHitsTileMock = vi.hoisted(() => ({
   props: [],
 }));
 
@@ -60,11 +85,17 @@ vi.mock('../features/astroclock/MetricsTile.jsx', () => ({
 }));
 
 vi.mock('../features/astroclock/DegreeHitsTile.jsx', () => ({
-  default: () => <div data-testid="degree-hits-tile" />,
+  default: (props) => {
+    degreeHitsTileMock.props.push(props);
+    return <div data-testid="degree-hits-tile" />;
+  },
 }));
 
 vi.mock('../features/astroclock/TraitProfileModal.jsx', () => ({
-  default: () => null,
+  default: (props) => {
+    traitProfileModalMock.props.push(props);
+    return <div data-testid="trait-profile-modal" />;
+  },
 }));
 
 vi.mock('../features/astroclock/SynastryModal.jsx', () => ({
@@ -82,13 +113,30 @@ vi.mock('../features/astroclock/TransitsModal.jsx', () => ({
 }));
 
 vi.mock('../features/astroclock/ElectionModal.jsx', () => ({
-  default: () => null,
+  default: (props) => {
+    electionModalMock.props.push(props);
+    return props?.open ? <div data-testid="election-modal" /> : null;
+  },
 }));
 
 vi.mock('../features/astroclock/AstrocartographyModal.jsx', () => ({
   default: (props) => {
     astrocartographyModalMock.props.push(props);
     return props?.open ? <div data-testid="astrocartography-modal" /> : null;
+  },
+}));
+
+vi.mock('../features/astroclock/ChineseAstrologyPage.jsx', () => ({
+  default: (props) => {
+    chineseAstrologyPageMock.props.push(props);
+    return <div data-testid="chinese-astrology-page" />;
+  },
+}));
+
+vi.mock('../features/astroclock/BirthCertificationModal.jsx', () => ({
+  default: (props) => {
+    birthCertificationModalMock.props.push(props);
+    return props?.open ? <div data-testid="birth-certification-modal" /> : null;
   },
 }));
 
@@ -101,7 +149,10 @@ vi.mock('../features/astroclock/AspectAnalysisModal.jsx', () => ({
 }));
 
 vi.mock('../features/astroclock/CompassTile.jsx', () => ({
-  default: () => <div data-testid="compass-tile" />,
+  default: (props) => {
+    compassTileMock.props.push(props);
+    return <div data-testid="compass-tile" />;
+  },
 }));
 
 vi.mock('../features/astroclock/NamePromptModal.jsx', () => ({
@@ -115,13 +166,15 @@ vi.mock('../features/astroclock/api.mjs', () => ({
 }));
 
 import AstroClock from '../features/astroclock/AstroClock.jsx';
-import { clearAstroClockWarmState } from '../features/astroclock/astroClockViewState.mjs';
+import { clearAstroClockWarmState, writeAstroClockWarmState } from '../features/astroclock/astroClockViewState.mjs';
 
 function makeDashboard({
   timestamp = '2026-03-08T10:00:00Z',
   location = 'Jerusalem, Israel',
   timezone = 'Asia/Jerusalem',
   timezoneLabel = timezone,
+  latitude = 31.778,
+  longitude = 35.235,
 } = {}) {
   return {
     success: true,
@@ -130,6 +183,8 @@ function makeDashboard({
       location,
       timezone,
       timezone_label: timezoneLabel,
+      latitude,
+      longitude,
       planets: [],
       moon: null,
       moon_timeline: null,
@@ -152,6 +207,36 @@ function makeDashboard({
       morin_patterns: {},
     },
   };
+}
+
+async function findAnyText(text) {
+  let match = null;
+  await waitFor(() => {
+    match =
+      screen.queryAllByText(text)[0] ||
+      Array.from(document.querySelectorAll('input, textarea')).find((node) => node.value === text);
+    if (!match) {
+      throw new Error(`Unable to find text or form value: ${text}`);
+    }
+  });
+  return match;
+}
+
+async function waitForDashboardReady() {
+  await waitFor(() => {
+    expect(astroClockApiMock.getDashboard).toHaveBeenCalled();
+  });
+}
+
+function expectPremiumOffer(featureName) {
+  expect(screen.getByTestId('premium-offer-modal')).toBeInTheDocument();
+  expect(screen.getByText('$25')).toBeInTheDocument();
+  expect(screen.getByText(/Standard monthly plan: \$35/i)).toBeInTheDocument();
+  expect(screen.queryByText(/Normally \$35 \/ month/i)).not.toBeInTheDocument();
+  expect(screen.getByText(/Vox Stella Premium Desktop Monthly/i)).toBeInTheDocument();
+  expect(screen.getByText(/Unlock the full suite/i)).toBeInTheDocument();
+  expect(screen.getByText(/Save nearly 30%/i)).toBeInTheDocument();
+  expect(window.electronAPI.openExternal).not.toHaveBeenCalled();
 }
 
 const hoursResponse = {
@@ -241,6 +326,14 @@ function makeForensicPayload() {
     relationship_star_hits: {},
     receptions: { mutual: [], top_unilateral: [] },
     light_mediation: {},
+    asc_ruler_placement: {
+      ruler: 'Venus',
+      house: 6,
+      label: 'Routine Disrupted',
+      summary: 'Victim routine or ordinary pattern was interrupted; stalker or watcher testimony may be relevant.',
+      cues: ['routine activity interrupted', 'possible watcher or stalker context'],
+      source: 'McIntosh Criminal Astrology, pp. 17-19',
+    },
     planetary_meanings: {},
     house_meanings: {},
     degree_special: {},
@@ -319,6 +412,12 @@ describe('AstroClock mode flow', () => {
     transitsModalMock.props = [];
     synastryModalMock.props = [];
     astrocartographyModalMock.props = [];
+    traitProfileModalMock.props = [];
+    electionModalMock.props = [];
+    chineseAstrologyPageMock.props = [];
+    birthCertificationModalMock.props = [];
+    compassTileMock.props = [];
+    degreeHitsTileMock.props = [];
     Object.defineProperty(window.navigator, 'clipboard', {
       configurable: true,
       value: { writeText: vi.fn().mockResolvedValue(undefined) },
@@ -346,8 +445,337 @@ describe('AstroClock mode flow', () => {
     astroClockApiMock.setMode.mockResolvedValue({ success: true });
     astroClockApiMock.createStream.mockResolvedValue(null);
     astroClockApiMock.listSnaps.mockResolvedValue({ success: true, items: [] });
+    astroClockApiMock.getSnap.mockResolvedValue({ success: false });
     astroClockApiMock.createSnap.mockResolvedValue({ success: true });
     astroClockApiMock.deleteSnap.mockResolvedValue({ success: true });
+  });
+
+  it('keeps the first-run Astro Clock surface in checking state without raw fetch errors', async () => {
+    astroClockApiMock.getDashboard.mockRejectedValue(new Error('Failed to fetch'));
+    astroClockApiMock.getPlanetaryHours.mockRejectedValue(new Error('Failed to fetch'));
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="checking"
+        licenseActive
+      />
+    );
+
+    expect(
+      await screen.findByText(/waiting for the local astrology engine to finish starting/i)
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/failed to fetch/i)).not.toBeInTheDocument();
+    expect(astroClockApiMock.getDashboard).not.toHaveBeenCalled();
+    expect(astroClockApiMock.getPlanetaryHours).not.toHaveBeenCalled();
+    expect(astroClockApiMock.listSnaps).not.toHaveBeenCalled();
+  });
+
+  it('loads the dashboard after the backend moves from checking to connected', async () => {
+    const view = render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="checking"
+        licenseActive
+      />
+    );
+
+    expect(screen.getByText(/waiting for the local astrology engine/i)).toBeInTheDocument();
+
+    view.rerender(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="connected"
+        licenseActive
+      />
+    );
+
+    await findAnyText('Jerusalem, Israel');
+
+    expect(screen.queryByText(/waiting for the local astrology engine/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/failed to fetch/i)).not.toBeInTheDocument();
+    expect(astroClockApiMock.getDashboard).toHaveBeenCalled();
+  });
+
+  it('keeps the current realtime chart visible without a red banner during transient backend status drops', async () => {
+    const eventSource = { close: vi.fn(), onmessage: null, onerror: null };
+    astroClockApiMock.createStream.mockResolvedValue(eventSource);
+
+    const view = render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />
+    );
+
+    await findAnyText('Jerusalem, Israel');
+
+    view.rerender(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="offline"
+        licenseActive
+      />
+    );
+
+    expect(await findAnyText('Jerusalem, Israel')).toBeInTheDocument();
+    expect(screen.queryByText(/failed to fetch/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/could not reach the local astrology engine/i)).not.toBeInTheDocument();
+  });
+
+  it('does not reuse warm realtime coordinates during startup requests', async () => {
+    writeAstroClockWarmState({
+      mode: 'realtime',
+      autoLocation: 'Jerusalem, Israel',
+      data: makeDashboard().data,
+      hours: hoursResponse.data,
+      houseSystem: 'R',
+      snaps: [],
+      snapsLoaded: true,
+    });
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />
+    );
+
+    await waitFor(() => {
+      const setModePayload = astroClockApiMock.setMode.mock.calls.at(-1)?.[0];
+      expect(setModePayload).toMatchObject({
+        mode: 'realtime',
+        location: 'Jerusalem, Israel',
+        houseSystem: 'R',
+      });
+      expect(setModePayload?.timezone).toBeUndefined();
+      expect(setModePayload?.latitude).toBeUndefined();
+      expect(setModePayload?.longitude).toBeUndefined();
+    });
+
+    await waitFor(() => {
+      const dashboardPayload = astroClockApiMock.getDashboard.mock.calls.at(-1)?.[0];
+      expect(dashboardPayload).toMatchObject({
+        mode: 'realtime',
+        location: 'Jerusalem, Israel',
+        houseSystem: 'R',
+      });
+      expect(dashboardPayload?.timezone).toBeUndefined();
+      expect(dashboardPayload?.latitude).toBeUndefined();
+      expect(dashboardPayload?.longitude).toBeUndefined();
+    });
+  });
+
+  it('does not reuse persisted automatic coordinates before the first dashboard payload arrives', async () => {
+    global.localStorage.getItem.mockImplementation((key) => {
+      if (key === 'vox_stella_astro_clock_auto_location') return 'Jerusalem, Israel';
+      if (key === 'vox_stella_astro_clock_auto_context') {
+        return JSON.stringify({
+          location: 'Jerusalem, Israel',
+          timezone: 'Asia/Jerusalem',
+          latitude: 31.778,
+          longitude: 35.235,
+        });
+      }
+      return null;
+    });
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />
+    );
+
+    await waitFor(() => {
+      const setModePayload = astroClockApiMock.setMode.mock.calls.at(-1)?.[0];
+      expect(setModePayload).toMatchObject({
+        mode: 'realtime',
+        location: 'Jerusalem, Israel',
+        houseSystem: 'R',
+      });
+      expect(setModePayload?.timezone).toBeUndefined();
+      expect(setModePayload?.latitude).toBeUndefined();
+      expect(setModePayload?.longitude).toBeUndefined();
+    });
+  });
+
+  it('uses the explicit Astro Clock default when no applied realtime location exists', async () => {
+    astroClockApiMock.getDashboard.mockResolvedValue(
+      makeDashboard({ location: 'Greenwich, UK', timezone: 'Europe/London' })
+    );
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />
+    );
+
+    await waitFor(() => {
+      const setModePayload = astroClockApiMock.setMode.mock.calls.at(-1)?.[0];
+      expect(setModePayload).toMatchObject({
+        mode: 'realtime',
+        location: 'Greenwich, UK',
+        houseSystem: 'R',
+      });
+      expect(setModePayload?.timezone).toBeUndefined();
+      expect(setModePayload?.latitude).toBeUndefined();
+      expect(setModePayload?.longitude).toBeUndefined();
+    });
+  });
+
+  it('ignores a bare stale automatic location without a resolved context', async () => {
+    astroClockApiMock.getDashboard.mockResolvedValue(
+      makeDashboard({ location: 'Greenwich, UK', timezone: 'Europe/London' })
+    );
+    global.localStorage.getItem.mockImplementation((key) => {
+      if (key === 'vox_stella_astro_clock_auto_location') return 'Israel';
+      return null;
+    });
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />
+    );
+
+    await waitFor(() => {
+      const setModePayload = astroClockApiMock.setMode.mock.calls.at(-1)?.[0];
+      expect(setModePayload).toMatchObject({
+        mode: 'realtime',
+        location: 'Greenwich, UK',
+        houseSystem: 'R',
+      });
+    });
+    expect(document.querySelector('#astroclock-auto-location')?.value).toBe('Greenwich, UK');
+  });
+
+  it('saves realtime snaps with the active coordinate context', async () => {
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />
+    );
+
+    await findAnyText('Jerusalem, Israel');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Snap' }));
+
+    await waitFor(() => {
+      expect(astroClockApiMock.createSnap).toHaveBeenCalledWith(expect.objectContaining({
+        includeModern: false,
+        mode: 'realtime',
+        location: 'Jerusalem, Israel',
+        timezone: 'Asia/Jerusalem',
+        latitude: 31.778,
+        longitude: 35.235,
+        houseSystem: 'R',
+      }));
+    });
+  });
+
+  it('saves manual snaps with the active manual coordinate context', async () => {
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />
+    );
+
+    await findAnyText('Jerusalem, Israel');
+    fireEvent.click(screen.getByRole('button', { name: 'Manual' }));
+
+    await waitFor(() => {
+      expect(astroClockApiMock.setMode).toHaveBeenCalledWith(expect.objectContaining({
+        mode: 'manual',
+        datetime: '2026-03-08T10:00:00Z',
+      }));
+    });
+
+    astroClockApiMock.createSnap.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Snap' }));
+
+    await waitFor(() => {
+      expect(astroClockApiMock.createSnap).toHaveBeenCalledWith(expect.objectContaining({
+        includeModern: false,
+        mode: 'manual',
+        datetime: '2026-03-08T10:00:00Z',
+        location: 'Jerusalem, Israel',
+        timezone: 'Asia/Jerusalem',
+        latitude: 31.778,
+        longitude: 35.235,
+        houseSystem: 'R',
+      }));
+    });
+  });
+
+  it('refreshes saved snaps before building the search index when the local list is empty', async () => {
+    const snapSummary = {
+      id: 'snap-search',
+      label: 'Legacy Search Snap',
+      effective_datetime: '1996-09-07T11:15:00Z',
+      location: 'Las Vegas',
+      summary: { moon_sign: 'Leo' },
+    };
+    const fullSnap = {
+      ...snapSummary,
+      dashboard: {
+        planets: [{ planet: 'Sun', sign: 'Leo', house: 10 }],
+        top_aspects: [{ planet1: 'Moon', aspect: 'Trine', planet2: 'Venus' }],
+      },
+    };
+    astroClockApiMock.listSnaps
+      .mockResolvedValueOnce({ success: true, items: [] })
+      .mockResolvedValue({ success: true, items: [snapSummary] });
+    astroClockApiMock.getSnap.mockResolvedValue({ success: true, snap: fullSnap });
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />
+    );
+
+    await waitFor(() => {
+      expect(astroClockApiMock.listSnaps).toHaveBeenCalled();
+    });
+    const callsBeforeSearch = astroClockApiMock.listSnaps.mock.calls.length;
+
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+
+    await waitFor(() => {
+      expect(astroClockApiMock.listSnaps.mock.calls.length).toBeGreaterThan(callsBeforeSearch);
+    });
+    await waitFor(() => {
+      expect(astroClockApiMock.getSnap).toHaveBeenCalledWith('snap-search');
+    });
+    expect(await screen.findByText('Legacy Search Snap')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText(/Search label/i), { target: { value: 'moon trine venus' } });
+    expect(await screen.findByText('Legacy Search Snap')).toBeInTheDocument();
   });
 
   it('freezes the current chart when Manual is clicked so the controls stay coherent', async () => {
@@ -360,7 +788,7 @@ describe('AstroClock mode flow', () => {
       />
     );
 
-    await screen.findByText('Jerusalem, Israel');
+    await findAnyText('Jerusalem, Israel');
 
     fireEvent.click(screen.getByRole('button', { name: 'Manual' }));
 
@@ -393,7 +821,7 @@ describe('AstroClock mode flow', () => {
       />
     );
 
-    await screen.findByText('Jerusalem, Israel');
+    await findAnyText('Jerusalem, Israel');
 
     astroClockApiMock.setMode.mockClear();
     astroClockApiMock.getDashboard.mockClear();
@@ -454,6 +882,124 @@ describe('AstroClock mode flow', () => {
     });
   });
 
+  it('lets Realtime interrupt a stuck manual transition', async () => {
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />
+    );
+
+    await findAnyText('Jerusalem, Israel');
+
+    astroClockApiMock.setMode.mockClear();
+    astroClockApiMock.getDashboard.mockClear();
+    astroClockApiMock.getPlanetaryHours.mockClear();
+    astroClockApiMock.setMode.mockImplementation((payload = {}) => {
+      if (payload?.mode === 'manual') {
+        return new Promise((_resolve, reject) => {
+          payload?.signal?.addEventListener?.('abort', () => {
+            const error = new Error('manual transition aborted');
+            error.name = 'AbortError';
+            reject(error);
+          });
+        });
+      }
+      return Promise.resolve({ success: true });
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Manual' }));
+
+    await waitFor(() => {
+      expect(astroClockApiMock.setMode).toHaveBeenCalledWith(expect.objectContaining({
+        mode: 'manual',
+      }));
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Realtime' }));
+
+    await waitFor(() => {
+      expect(astroClockApiMock.setMode).toHaveBeenCalledWith(expect.objectContaining({
+        mode: 'realtime',
+      }));
+    });
+
+    expect(screen.queryByText(/failed to switch astro clock/i)).not.toBeInTheDocument();
+  });
+
+  it('lets a saved snap load interrupt a stuck saved snap transition', async () => {
+    const firstSnap = {
+      id: 'snap-one',
+      label: 'First Snap',
+      effective_datetime: '1999-01-01T00:00:00Z',
+      location: 'First Place',
+      special_degrees: [],
+    };
+    const secondSnap = {
+      id: 'snap-two',
+      label: 'Second Snap',
+      effective_datetime: '2000-02-02T00:00:00Z',
+      location: 'Second Place',
+      dashboard: { timezone: 'UTC', timezone_label: 'UTC' },
+      special_degrees: [],
+    };
+    astroClockApiMock.listSnaps.mockResolvedValue({
+      success: true,
+      items: [firstSnap, secondSnap],
+    });
+    astroClockApiMock.getSnap.mockImplementation((id, opts = {}) => {
+      if (id === 'snap-one') {
+        return new Promise((_resolve, reject) => {
+          opts?.signal?.addEventListener?.('abort', () => {
+            const error = new Error('first snap load aborted');
+            error.name = 'AbortError';
+            reject(error);
+          });
+        });
+      }
+      return Promise.resolve({ success: true, snap: secondSnap });
+    });
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />
+    );
+
+    await screen.findByText('First Snap');
+    await screen.findByText('Second Snap');
+    const loadButtons = screen.getAllByRole('button', { name: 'Load' });
+
+    fireEvent.click(loadButtons[0]);
+
+    await waitFor(() => {
+      expect(astroClockApiMock.getSnap).toHaveBeenCalledWith(
+        'snap-one',
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
+    });
+
+    fireEvent.click(loadButtons[1]);
+
+    await waitFor(() => {
+      expect(astroClockApiMock.getSnap).toHaveBeenCalledWith(
+        'snap-two',
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
+      expect(astroClockApiMock.setMode).toHaveBeenCalledWith(expect.objectContaining({
+        mode: 'manual',
+        datetime: '2000-02-02T00:00:00Z',
+        location: 'Second Place',
+      }));
+    });
+    expect(screen.queryByText(/failed to load the selected snap/i)).not.toBeInTheDocument();
+  });
+
   it('rehydrates the last astro clock snapshot immediately after a remount', async () => {
     const eventSource = { close: vi.fn() };
     astroClockApiMock.createStream.mockResolvedValue(eventSource);
@@ -467,7 +1013,7 @@ describe('AstroClock mode flow', () => {
       />
     );
 
-    await screen.findByText('Jerusalem, Israel');
+    await findAnyText('Jerusalem, Israel');
     firstPass.unmount();
 
     let resolveDashboard;
@@ -491,7 +1037,7 @@ describe('AstroClock mode flow', () => {
       />
     );
 
-    expect(screen.getByText('Jerusalem, Israel')).toBeInTheDocument();
+    expect(await findAnyText('Jerusalem, Israel')).toBeInTheDocument();
 
     resolveDashboard?.(makeDashboard());
     resolveHours?.(hoursResponse);
@@ -520,7 +1066,7 @@ describe('AstroClock mode flow', () => {
       />
     );
 
-    await screen.findByText('Jerusalem, Israel');
+    await findAnyText('Jerusalem, Israel');
 
     astroClockApiMock.getDashboard.mockClear();
     astroClockApiMock.getPlanetaryHours.mockClear();
@@ -558,7 +1104,7 @@ describe('AstroClock mode flow', () => {
       />
     );
 
-    await screen.findByText('Jerusalem, Israel');
+    await findAnyText('Jerusalem, Israel');
 
     astroClockApiMock.getDashboard.mockClear();
 
@@ -594,7 +1140,7 @@ describe('AstroClock mode flow', () => {
       />
     );
 
-    await screen.findByText('Jerusalem, Israel');
+    await findAnyText('Jerusalem, Israel');
 
     astroClockApiMock.getDashboard.mockClear();
     astroClockApiMock.getDashboard.mockImplementation(
@@ -838,7 +1384,7 @@ describe('AstroClock mode flow', () => {
       />
     );
 
-    await screen.findByText('Jerusalem, Israel');
+    await findAnyText('Jerusalem, Israel');
 
     fireEvent.click(screen.getByRole('button', { name: 'Manual' }));
 
@@ -874,7 +1420,7 @@ describe('AstroClock mode flow', () => {
       />
     );
 
-    await screen.findByText('Greenwich, UK');
+    await findAnyText('Greenwich, UK');
 
     fireEvent.click(screen.getByRole('button', { name: 'Manual' }));
 
@@ -909,6 +1455,8 @@ describe('AstroClock mode flow', () => {
         location: 'Israel',
       });
       expect(setModePayload?.timezone).toBeUndefined();
+      expect(setModePayload?.latitude).toBeUndefined();
+      expect(setModePayload?.longitude).toBeUndefined();
     });
 
     await waitFor(() => {
@@ -926,7 +1474,353 @@ describe('AstroClock mode flow', () => {
       });
       expect(dashboardPayload?.timezone).toBeUndefined();
       expect(hoursPayload?.timezone).toBeUndefined();
+      expect(dashboardPayload?.latitude).toBeUndefined();
+      expect(dashboardPayload?.longitude).toBeUndefined();
+      expect(hoursPayload?.latitude).toBeUndefined();
+      expect(hoursPayload?.longitude).toBeUndefined();
     });
+  });
+
+  it('does not reuse stale dashboard coordinates for an unsnapped manual forensic chart', async () => {
+    astroClockApiMock.getDashboard.mockResolvedValue(makeDashboard({
+      timestamp: '2005-10-19T11:15:00Z',
+      location: 'Sadr City, Baghdad, Iraq',
+      timezone: 'Asia/Baghdad',
+      timezoneLabel: 'Asia/Baghdad (UTC+03:00)',
+      latitude: 51.4769,
+      longitude: -0.0005,
+    }));
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />
+    );
+
+    await findAnyText('Sadr City, Baghdad, Iraq');
+    fireEvent.click(screen.getByRole('button', { name: 'Manual' }));
+
+    await waitFor(() => {
+      const initialManualPayload = astroClockApiMock.setMode.mock.calls.at(-1)?.[0];
+      expect(initialManualPayload).toMatchObject({
+        mode: 'manual',
+        location: 'Sadr City, Baghdad, Iraq',
+      });
+      expect(initialManualPayload?.latitude).toBeUndefined();
+      expect(initialManualPayload?.longitude).toBeUndefined();
+    });
+
+    astroClockApiMock.setMode.mockClear();
+    astroClockApiMock.getDashboard.mockClear();
+    astroClockApiMock.getPlanetaryHours.mockClear();
+
+    fireEvent.change(document.querySelector('#astroclock-manual-date'), {
+      target: { value: '2005-10-19' },
+    });
+    fireEvent.change(document.querySelector('#astroclock-manual-time'), {
+      target: { value: '14:15' },
+    });
+    fireEvent.change(document.querySelector('#astroclock-manual-location'), {
+      target: { value: 'Sadr City, Baghdad, Iraq' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+
+    await waitFor(() => {
+      const setModePayload = astroClockApiMock.setMode.mock.calls.at(-1)?.[0];
+      expect(setModePayload).toMatchObject({
+        mode: 'manual',
+        datetime: '2005-10-19T14:15:00',
+        location: 'Sadr City, Baghdad, Iraq',
+      });
+      expect(setModePayload?.latitude).toBeUndefined();
+      expect(setModePayload?.longitude).toBeUndefined();
+
+      const dashboardPayload = astroClockApiMock.getDashboard.mock.calls.at(-1)?.[0];
+      const hoursPayload = astroClockApiMock.getPlanetaryHours.mock.calls.at(-1)?.[0];
+      expect(dashboardPayload?.latitude).toBeUndefined();
+      expect(dashboardPayload?.longitude).toBeUndefined();
+      expect(hoursPayload?.latitude).toBeUndefined();
+      expect(hoursPayload?.longitude).toBeUndefined();
+    });
+
+    astroClockApiMock.getForensic.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Forensic' }));
+
+    await waitFor(() => {
+      const forensicPayload = astroClockApiMock.getForensic.mock.calls.at(-1)?.[0];
+      expect(forensicPayload).toMatchObject({
+        mode: 'manual',
+        datetime: '2005-10-19T14:15:00',
+        location: 'Sadr City, Baghdad, Iraq',
+        timezone: 'Asia/Baghdad',
+      });
+      expect(forensicPayload?.latitude).toBeUndefined();
+      expect(forensicPayload?.longitude).toBeUndefined();
+    });
+  });
+
+  it('snaps the applied manual chart instead of later draft control edits', async () => {
+    astroClockApiMock.getDashboard.mockImplementation(async (payload = {}) => {
+      if (payload?.mode === 'manual' && payload?.location === 'Israel') {
+        return makeDashboard({
+          timestamp: '1990-01-13T10:00:00Z',
+          location: 'Israel',
+          timezone: 'Asia/Jerusalem',
+          latitude: 30.8124,
+          longitude: 34.8595,
+        });
+      }
+      return makeDashboard({
+        timestamp: '2026-03-08T10:00:00Z',
+        location: 'Greenwich, UK',
+        timezone: 'Europe/London',
+        latitude: 51.4769,
+        longitude: -0.0005,
+      });
+    });
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />
+    );
+
+    await findAnyText('Greenwich, UK');
+    fireEvent.click(screen.getByRole('button', { name: 'Manual' }));
+
+    await waitFor(() => {
+      expect(astroClockApiMock.setMode).toHaveBeenCalledWith(expect.objectContaining({
+        mode: 'manual',
+        location: 'Greenwich, UK',
+      }));
+    });
+
+    const dateInput = document.querySelector('input[type="date"]');
+    const timeInput = document.querySelector('input[type="time"]');
+    const locationInput = document.querySelector('input[type="text"][placeholder="e.g., London, UK"]');
+
+    fireEvent.change(dateInput, { target: { value: '1990-01-13' } });
+    fireEvent.change(timeInput, { target: { value: '12:00' } });
+    fireEvent.change(locationInput, { target: { value: 'Israel' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+
+    await waitFor(() => {
+      expect(astroClockApiMock.getDashboard).toHaveBeenCalledWith(expect.objectContaining({
+        mode: 'manual',
+        datetime: '1990-01-13T12:00:00',
+        location: 'Israel',
+      }));
+    });
+
+    fireEvent.change(locationInput, { target: { value: 'Berlin, Germany' } });
+    astroClockApiMock.createSnap.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Snap' }));
+
+    await waitFor(() => {
+      const snapPayload = astroClockApiMock.createSnap.mock.calls.at(-1)?.[0];
+      expect(snapPayload).toMatchObject({
+        mode: 'manual',
+        datetime: '1990-01-13T12:00:00',
+        location: 'Israel',
+        timezone: 'Asia/Jerusalem',
+        latitude: 30.8124,
+        longitude: 34.8595,
+      });
+      expect(snapPayload?.location).not.toBe('Berlin, Germany');
+      expect(snapPayload?.dashboard).toMatchObject({
+        timestamp: '1990-01-13T10:00:00Z',
+        location: 'Israel',
+        timezone: 'Asia/Jerusalem',
+        latitude: 30.8124,
+        longitude: 34.8595,
+      });
+    });
+  });
+
+  it('keeps the applied manual snap context across feature branches', async () => {
+    const appliedDashboard = makeDashboard({
+      timestamp: '1990-01-13T10:00:00Z',
+      location: 'Israel',
+      timezone: 'Asia/Jerusalem',
+      latitude: 30.8124,
+      longitude: 34.8595,
+    });
+    const savedSnap = {
+      id: 'snap-manual',
+      label: 'Manual Israel snap',
+      effective_datetime: '1990-01-13T10:00:00+00:00',
+      location: 'Israel',
+      timezone: 'Asia/Jerusalem',
+      timezone_label: 'Asia/Jerusalem',
+      latitude: 30.8124,
+      longitude: 34.8595,
+      dashboard: appliedDashboard.data,
+      special_degrees: [],
+    };
+    let snapCreated = false;
+
+    astroClockApiMock.getDashboard.mockImplementation(async (payload = {}) => (
+      payload?.mode === 'manual'
+        ? appliedDashboard
+        : makeDashboard({
+            timestamp: '2026-03-08T10:00:00Z',
+            location: 'Greenwich, UK',
+            timezone: 'Europe/London',
+            latitude: 51.4769,
+            longitude: -0.0005,
+          })
+    ));
+    astroClockApiMock.listSnaps.mockImplementation(async () => ({
+      success: true,
+      items: snapCreated ? [savedSnap] : [],
+    }));
+    astroClockApiMock.createSnap.mockImplementation(async (payload = {}) => {
+      snapCreated = true;
+      savedSnap.dashboard = payload.dashboard;
+      return { success: true, data: { id: 'snap-manual', label: savedSnap.label } };
+    });
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />
+    );
+
+    await findAnyText('Greenwich, UK');
+    fireEvent.click(screen.getByRole('button', { name: 'Manual' }));
+
+    await waitFor(() => {
+      expect(astroClockApiMock.setMode).toHaveBeenCalledWith(expect.objectContaining({
+        mode: 'manual',
+        location: 'Greenwich, UK',
+      }));
+      expect(screen.getByRole('button', { name: 'Apply' })).toBeInTheDocument();
+    });
+
+    const dateInput = document.querySelector('input[type="date"]');
+    const timeInput = document.querySelector('input[type="time"]');
+    const locationInput = document.querySelector('input[type="text"][placeholder="e.g., London, UK"]');
+
+    fireEvent.change(dateInput, { target: { value: '1990-01-13' } });
+    fireEvent.change(timeInput, { target: { value: '12:00' } });
+    fireEvent.change(locationInput, { target: { value: 'Israel' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+
+    await waitFor(() => {
+      expect(astroClockApiMock.getDashboard).toHaveBeenCalledWith(expect.objectContaining({
+        mode: 'manual',
+        datetime: '1990-01-13T12:00:00',
+        location: 'Israel',
+      }));
+    });
+
+    fireEvent.change(locationInput, { target: { value: 'Berlin, Germany' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Snap' }));
+
+    await waitFor(() => {
+      const snapPayload = astroClockApiMock.createSnap.mock.calls.at(-1)?.[0];
+      expect(snapPayload).toMatchObject({
+        mode: 'manual',
+        datetime: '1990-01-13T12:00:00',
+        location: 'Israel',
+        timezone: 'Asia/Jerusalem',
+        latitude: 30.8124,
+        longitude: 34.8595,
+      });
+      expect(snapPayload?.location).not.toBe('Berlin, Germany');
+      expect(snapPayload?.dashboard).toMatchObject({
+        timestamp: '1990-01-13T10:00:00Z',
+        location: 'Israel',
+        timezone: 'Asia/Jerusalem',
+        latitude: 30.8124,
+        longitude: 34.8595,
+      });
+    });
+
+    await waitFor(() => expect(astroClockApiMock.listSnaps).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Synastry' }));
+    await waitFor(() => expect(screen.getByTestId('synastry-modal')).toBeInTheDocument());
+    expect(synastryModalMock.props.at(-1)).toMatchObject({
+      activeSnapId: 'snap-manual',
+    });
+    expect(synastryModalMock.props.at(-1)?.snaps).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'snap-manual', location: 'Israel' }),
+    ]));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Trait Profile' }));
+    await waitFor(() => expect(screen.getByTestId('trait-profile-modal')).toBeInTheDocument());
+    expect(traitProfileModalMock.props.at(-1)).toMatchObject({
+      activeSnapId: 'snap-manual',
+      manualIso: '1990-01-13T12:00:00',
+      manualLocation: 'Israel',
+      timezone: 'Asia/Jerusalem',
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Transits' }));
+    await waitFor(() => expect(screen.getByTestId('transits-modal')).toBeInTheDocument());
+    expect(transitsModalMock.props.at(-1)?.initialNatalContext).toMatchObject({
+      snapId: 'snap-manual',
+      date: '1990-01-13',
+      time: '12:00',
+      location: 'Israel',
+      timezone: 'Asia/Jerusalem',
+      houseSystem: 'R',
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Astrocartography' }));
+    await waitFor(() => expect(screen.getByTestId('astrocartography-modal')).toBeInTheDocument());
+    expect(astrocartographyModalMock.props.at(-1)).toMatchObject({
+      activeSnapId: 'snap-manual',
+    });
+    expect(astrocartographyModalMock.props.at(-1)?.initialTransitContext).toMatchObject({
+      snapId: 'snap-manual',
+      location: 'Israel',
+      timezone: 'Asia/Jerusalem',
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Election' }));
+    await waitFor(() => expect(screen.getByTestId('election-modal')).toBeInTheDocument());
+    expect(electionModalMock.props.at(-1)).toMatchObject({
+      activeSnapId: 'snap-manual',
+    });
+    expect(electionModalMock.props.at(-1)?.snaps).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'snap-manual' }),
+    ]));
+
+    astroClockApiMock.getForensic.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Forensic' }));
+    await waitFor(() => {
+      expect(astroClockApiMock.getForensic).toHaveBeenCalledWith(expect.objectContaining({
+        mode: 'manual',
+        datetime: '1990-01-13T12:00:00',
+        location: 'Israel',
+        timezone: 'Asia/Jerusalem',
+        latitude: 30.8124,
+        longitude: 34.8595,
+        houseSystem: 'R',
+      }));
+    });
+    expect(astroClockApiMock.getForensic.mock.calls.at(-1)?.[0]?.location).not.toBe('Berlin, Germany');
+
+    fireEvent.click(screen.getByRole('button', { name: /Copy Prompt/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Natal prompt (copy)' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Mock Submit Prompt' }));
+
+    await waitFor(() => expect(window.navigator.clipboard.writeText).toHaveBeenCalled());
+    const copied = String(window.navigator.clipboard.writeText.mock.calls.at(-1)?.[0] || '');
+    expect(copied).toContain('"timestamp": "1990-01-13T10:00:00Z"');
+    expect(copied).toContain('"location": "Israel"');
+    expect(copied).not.toContain('Berlin, Germany');
   });
 
   it('reconciles loaded snaps back into a coherent realtime chart context', async () => {
@@ -977,9 +1871,9 @@ describe('AstroClock mode flow', () => {
 
     const dateInput = document.querySelector('input[type="date"]');
     const timeInput = document.querySelector('input[type="time"]');
-    const locationInput = document.querySelector('input[type="text"][placeholder="e.g., London, UK"]');
 
     await waitFor(() => {
+      const locationInput = document.querySelector('#astroclock-manual-location');
       expect(dateInput?.value).toBe('1946-06-13');
       expect(timeInput?.value).toBe('10:14');
       expect(locationInput?.value).toBe('New York');
@@ -989,17 +1883,18 @@ describe('AstroClock mode flow', () => {
 
     await waitFor(() => {
       const realtimeSetMode = astroClockApiMock.setMode.mock.calls.at(-1)?.[0];
+      const autoLocationInput = document.querySelector('#astroclock-auto-location');
       expect(realtimeSetMode).toMatchObject({
         mode: 'realtime',
+        location: 'Jerusalem, Israel',
         houseSystem: 'R',
       });
-      expect(realtimeSetMode?.location).toBeUndefined();
       expect(dateInput?.value).toBe('2026-03-08');
       expect(timeInput?.value).toBe('12:00');
-      expect(locationInput?.value).toBe('Jerusalem, Israel');
+      expect(autoLocationInput?.value).toBe('Jerusalem, Israel');
     });
 
-    expect(screen.getByText('Asia/Jerusalem (UTC+02:00)')).toBeInTheDocument();
+    expect(await findAnyText('Asia/Jerusalem (UTC+02:00)')).toBeInTheDocument();
 
     astroClockApiMock.getDashboard.mockClear();
     astroClockApiMock.getPlanetaryHours.mockClear();
@@ -1017,7 +1912,7 @@ describe('AstroClock mode flow', () => {
     });
   });
 
-  it('keeps chart-header location edits inside manual mode instead of forcing realtime', async () => {
+  it('keeps manual location edits inside manual mode instead of forcing realtime', async () => {
     astroClockApiMock.getDashboard.mockImplementation(async (payload = {}) => {
       if (payload?.mode === 'manual' && payload?.location === 'Berlin, Germany') {
         return makeDashboard({
@@ -1044,7 +1939,7 @@ describe('AstroClock mode flow', () => {
       />
     );
 
-    await screen.findByText('Jerusalem, Israel');
+    await findAnyText('Jerusalem, Israel');
     fireEvent.click(screen.getByRole('button', { name: 'Manual' }));
 
     await waitFor(() => {
@@ -1059,16 +1954,15 @@ describe('AstroClock mode flow', () => {
     astroClockApiMock.getDashboard.mockClear();
     astroClockApiMock.getPlanetaryHours.mockClear();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
-    fireEvent.change(screen.getByPlaceholderText('City, Country or lat,lon'), {
+    const locationInput = document.querySelector('input[type="text"][placeholder="e.g., London, UK"]');
+    fireEvent.change(locationInput, {
       target: { value: 'Berlin, Germany' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Set' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
 
     await waitFor(() => {
       expect(astroClockApiMock.setMode).toHaveBeenCalledWith(expect.objectContaining({
         mode: 'manual',
-        datetime: '2026-03-08T10:00:00Z',
         location: 'Berlin, Germany',
       }));
     });
@@ -1077,15 +1971,28 @@ describe('AstroClock mode flow', () => {
       payload?.mode === 'realtime' && payload?.location === 'Berlin, Germany'
     ))).toBe(false);
 
-    const locationInput = document.querySelector('input[type="text"][placeholder="e.g., London, UK"]');
     await waitFor(() => {
       expect(locationInput?.value).toBe('Berlin, Germany');
     });
 
-    expect(screen.getByText('Europe/Berlin (UTC+01:00)')).toBeInTheDocument();
+    const timezoneMatches = await screen.findAllByText(
+      (_, node) => node?.textContent?.includes('Europe/Berlin (UTC+01:00)') ?? false
+    );
+    expect(timezoneMatches.length).toBeGreaterThan(0);
   });
 
-  it('does not let realtime draft inputs override the active live chart context', async () => {
+  it('lets automatic location edits update the active live chart context', async () => {
+    astroClockApiMock.getDashboard.mockImplementation(async (payload = {}) => {
+      if (payload?.mode === 'realtime' && payload?.location === 'New York') {
+        return makeDashboard({
+          location: 'New York',
+          timezone: 'America/New_York',
+          timezoneLabel: 'America/New_York (UTC-04:00)',
+        });
+      }
+      return makeDashboard();
+    });
+
     render(
       <AstroClock
         darkMode={false}
@@ -1095,26 +2002,186 @@ describe('AstroClock mode flow', () => {
       />
     );
 
-    await screen.findByText('Jerusalem, Israel');
+    await findAnyText('Jerusalem, Israel');
 
-    const locationInput = document.querySelector('input[type="text"][placeholder="e.g., London, UK"]');
+    const locationInput = document.querySelector('#astroclock-auto-location');
     fireEvent.change(locationInput, {
       target: { value: 'New York' },
     });
 
+    astroClockApiMock.setMode.mockClear();
     astroClockApiMock.getDashboard.mockClear();
     astroClockApiMock.getPlanetaryHours.mockClear();
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Refresh' })[0]);
 
     await waitFor(() => {
+      expect(astroClockApiMock.setMode).toHaveBeenCalledTimes(1);
+      const setModePayload = astroClockApiMock.setMode.mock.calls.at(-1)?.[0];
+      expect(setModePayload).toMatchObject({
+        mode: 'realtime',
+        location: 'New York',
+        houseSystem: 'R',
+      });
+      expect(setModePayload?.datetime).toBeUndefined();
+      expect(setModePayload?.timezone).toBeUndefined();
+      expect(setModePayload?.latitude).toBeUndefined();
+      expect(setModePayload?.longitude).toBeUndefined();
+
       const dashboardPayload = astroClockApiMock.getDashboard.mock.calls.at(-1)?.[0];
       expect(dashboardPayload).toMatchObject({
+        mode: 'realtime',
+        location: 'New York',
+        houseSystem: 'R',
+      });
+      expect(dashboardPayload?.datetime).toBeUndefined();
+    });
+
+    expect(await findAnyText('America/New_York (UTC-04:00)')).toBeInTheDocument();
+  });
+
+  it('keeps automatic location edits as drafts until refresh after returning from manual', async () => {
+    const eventSource = { close: vi.fn(), onmessage: null, onerror: null };
+    astroClockApiMock.createStream.mockResolvedValue(eventSource);
+    astroClockApiMock.getDashboard.mockImplementation(async (payload = {}) => {
+      if (payload?.mode === 'realtime' && payload?.location === 'New York') {
+        return makeDashboard({
+          location: 'New York',
+          timezone: 'America/New_York',
+          timezoneLabel: 'America/New_York (UTC-04:00)',
+        });
+      }
+      return makeDashboard({
+        timestamp: payload?.datetime || '2026-03-08T10:00:00Z',
+        location: 'Jerusalem, Israel',
+        timezone: 'Asia/Jerusalem',
+        timezoneLabel: 'Asia/Jerusalem (UTC+02:00)',
+      });
+    });
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />
+    );
+
+    await findAnyText('Jerusalem, Israel');
+    fireEvent.click(screen.getByRole('button', { name: 'Manual' }));
+
+    await waitFor(() => {
+      expect(astroClockApiMock.setMode).toHaveBeenCalledWith(expect.objectContaining({
+        mode: 'manual',
+        location: 'Jerusalem, Israel',
+      }));
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Realtime' }));
+
+    await waitFor(() => {
+      expect(astroClockApiMock.setMode.mock.calls.at(-1)?.[0]).toMatchObject({
         mode: 'realtime',
         location: 'Jerusalem, Israel',
         houseSystem: 'R',
       });
-      expect(dashboardPayload?.datetime).toBeUndefined();
+      expect(typeof eventSource.onmessage).toBe('function');
+    });
+
+    astroClockApiMock.setMode.mockClear();
+    astroClockApiMock.getDashboard.mockClear();
+    astroClockApiMock.getPlanetaryHours.mockClear();
+
+    const locationInput = document.querySelector('#astroclock-auto-location');
+    fireEvent.change(locationInput, {
+      target: { value: 'New York' },
+    });
+
+    await act(async () => {
+      eventSource.onmessage?.({ data: 'tick-with-draft-location' });
+    });
+
+    await waitFor(() => {
+      expect(astroClockApiMock.getDashboard).toHaveBeenCalledTimes(1);
+    });
+    const heartbeatPayload = astroClockApiMock.getDashboard.mock.calls.at(-1)?.[0];
+    expect(heartbeatPayload).toMatchObject({
+      mode: 'realtime',
+      location: 'Jerusalem, Israel',
+      houseSystem: 'R',
+    });
+    expect(heartbeatPayload?.timezone).toBeUndefined();
+
+    astroClockApiMock.setMode.mockClear();
+    astroClockApiMock.getDashboard.mockClear();
+    astroClockApiMock.getPlanetaryHours.mockClear();
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Refresh' })[0]);
+
+    await waitFor(() => {
+      expect(astroClockApiMock.setMode.mock.calls.at(-1)?.[0]).toMatchObject({
+        mode: 'realtime',
+        location: 'New York',
+        houseSystem: 'R',
+      });
+      expect(astroClockApiMock.getDashboard.mock.calls.at(-1)?.[0]).toMatchObject({
+        mode: 'realtime',
+        location: 'New York',
+        houseSystem: 'R',
+      });
+    });
+  });
+
+  it('does not replay stale coordinates when refreshing an auto-filled realtime location', async () => {
+    astroClockApiMock.getDashboard.mockResolvedValue(makeDashboard({
+      location: 'Sadr City, Baghdad, Iraq',
+      timezone: 'Europe/London',
+      timezoneLabel: 'Europe/London (UTC+01:00)',
+      latitude: 51.4769,
+      longitude: -0.0005,
+    }));
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />
+    );
+
+    await findAnyText('Sadr City, Baghdad, Iraq');
+
+    astroClockApiMock.setMode.mockClear();
+    astroClockApiMock.getDashboard.mockClear();
+    astroClockApiMock.getPlanetaryHours.mockClear();
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Refresh' })[0]);
+
+    await waitFor(() => {
+      const setModePayload = astroClockApiMock.setMode.mock.calls.at(-1)?.[0];
+      expect(setModePayload).toMatchObject({
+        mode: 'realtime',
+        location: 'Sadr City, Baghdad, Iraq',
+        houseSystem: 'R',
+      });
+      expect(setModePayload?.timezone).toBeUndefined();
+      expect(setModePayload?.latitude).toBeUndefined();
+      expect(setModePayload?.longitude).toBeUndefined();
+
+      const dashboardPayload = astroClockApiMock.getDashboard.mock.calls.at(-1)?.[0];
+      const hoursPayload = astroClockApiMock.getPlanetaryHours.mock.calls.at(-1)?.[0];
+      expect(dashboardPayload).toMatchObject({
+        mode: 'realtime',
+        location: 'Sadr City, Baghdad, Iraq',
+      });
+      expect(dashboardPayload?.timezone).toBeUndefined();
+      expect(dashboardPayload?.latitude).toBeUndefined();
+      expect(dashboardPayload?.longitude).toBeUndefined();
+      expect(hoursPayload?.timezone).toBeUndefined();
+      expect(hoursPayload?.latitude).toBeUndefined();
+      expect(hoursPayload?.longitude).toBeUndefined();
     });
   });
 
@@ -1130,7 +2197,7 @@ describe('AstroClock mode flow', () => {
       />
     );
 
-    expect(await screen.findByText('Jerusalem, Israel')).toBeInTheDocument();
+    expect(await findAnyText('Jerusalem, Israel')).toBeInTheDocument();
     expect(screen.queryByText('Request timed out after 30s')).not.toBeInTheDocument();
     expect(screen.getByText('Saved snaps are not loaded yet. Click Refresh when you need them.')).toBeInTheDocument();
   });
@@ -1149,7 +2216,7 @@ describe('AstroClock mode flow', () => {
       />
     );
 
-    await screen.findByText('Jerusalem, Israel');
+    await findAnyText('Jerusalem, Israel');
 
     fireEvent.click(screen.getByRole('button', { name: 'Transits' }));
 
@@ -1162,7 +2229,23 @@ describe('AstroClock mode flow', () => {
     expect(latestProps?.open).toBe(true);
   });
 
-  it('redirects unverified packaged users to the website instead of opening astrocartography', async () => {
+  it('shows Placidus as a selectable Astro Clock house system', async () => {
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />
+    );
+
+    await findAnyText('Jerusalem, Israel');
+
+    const selector = screen.getByTitle('House system');
+    expect(within(selector).getByRole('option', { name: 'Placidus (P)' })).toBeInTheDocument();
+  });
+
+  it('opens the in-app premium offer instead of the website for locked astrocartography', async () => {
     window.IS_PACKAGED = true;
 
     render(
@@ -1174,12 +2257,249 @@ describe('AstroClock mode flow', () => {
       />
     );
 
-    await screen.findByText('Jerusalem, Israel');
+    await waitForDashboardReady();
 
     fireEvent.click(screen.getByRole('button', { name: 'Astrocartography' }));
 
-    expect(window.electronAPI.openExternal).toHaveBeenCalledWith('https://voxstella.app/product');
+    expectPremiumOffer('Astrocartography');
     expect(screen.queryByTestId('astrocartography-modal')).not.toBeInTheDocument();
+  });
+
+  it('passes the same premium gate into the Directional 3D tile action', async () => {
+    window.IS_PACKAGED = true;
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive={false}
+      />
+    );
+
+    await waitForDashboardReady();
+
+    const latestProps = compassTileMock.props.at(-1);
+    expect(latestProps?.directional3dLocked).toBe(true);
+    expect(latestProps?.directional3dLockedTitle).toBe('Premium feature - unlock Vox Stella to use this workflow');
+
+    act(() => {
+      latestProps?.onDirectional3dLocked?.();
+    });
+
+    expectPremiumOffer('Directional 3D');
+  });
+
+  it('passes the same premium gate into the Degree Hits More action', async () => {
+    window.IS_PACKAGED = true;
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive={false}
+      />
+    );
+
+    await waitForDashboardReady();
+
+    const latestProps = degreeHitsTileMock.props.at(-1);
+    expect(latestProps?.detailsLocked).toBe(true);
+    expect(latestProps?.detailsLockedTitle).toBe('Premium feature - unlock Vox Stella to use this workflow');
+
+    act(() => {
+      latestProps?.onDetailsLocked?.();
+    });
+
+    expectPremiumOffer('Degree Hits');
+  });
+
+  it('opens the in-app premium offer instead of Chinese Astrology for unverified packaged users', async () => {
+    window.IS_PACKAGED = true;
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive={false}
+      />
+    );
+
+    await waitForDashboardReady();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Chinese Astrology' }));
+
+    expectPremiumOffer('Chinese Astrology');
+    expect(screen.queryByTestId('chinese-astrology-page')).not.toBeInTheDocument();
+  });
+
+  it('allows unverified packaged users to use realtime mode', async () => {
+    window.IS_PACKAGED = true;
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive={false}
+      />
+    );
+
+    await findAnyText('Jerusalem, Israel');
+
+    expect(screen.getByRole('button', { name: 'Realtime' })).toHaveClass('bg-zinc-900');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Manual' }));
+
+    await waitFor(() => {
+      expect(astroClockApiMock.setMode).toHaveBeenCalledWith(expect.objectContaining({
+        mode: 'manual',
+      }));
+    });
+
+    astroClockApiMock.setMode.mockClear();
+    window.electronAPI.openExternal.mockClear();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Realtime' }));
+
+    await waitFor(() => {
+      expect(astroClockApiMock.setMode).toHaveBeenCalledWith(expect.objectContaining({
+        mode: 'realtime',
+      }));
+    });
+
+    expect(window.electronAPI.openExternal).not.toHaveBeenCalled();
+  });
+
+  it('does not consume a packaged feature click while license status is still loading', async () => {
+    window.IS_PACKAGED = true;
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive={false}
+        licenseChecking
+      />
+    );
+
+    await findAnyText('Jerusalem, Israel');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Synastry' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('synastry-modal')).toBeInTheDocument();
+    });
+    expect(window.electronAPI.openExternal).not.toHaveBeenCalled();
+  });
+
+  it('shows the premium action rail above the clock controls for unverified packaged users', async () => {
+    window.IS_PACKAGED = true;
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive={false}
+      />
+    );
+
+    await waitForDashboardReady();
+
+    const synastryButton = screen.getByRole('button', { name: 'Synastry' });
+    const realtimeButton = screen.getByRole('button', { name: 'Realtime' });
+    const certificationButton = screen.getByRole('button', { name: 'Certification' });
+    const copyPromptButton = screen.getByRole('button', { name: /Copy Prompt/ });
+
+    expect(synastryButton.compareDocumentPosition(realtimeButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(synastryButton).toHaveClass('bg-red-600');
+    expect(certificationButton).toHaveClass('bg-red-600');
+    expect(copyPromptButton).toHaveClass('bg-red-600');
+  });
+
+  it('opens Certification from the action rail and keeps Copy Prompt beside Apply', async () => {
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />
+    );
+
+    await waitForDashboardReady();
+
+    const forensicButton = screen.getByRole('button', { name: 'Forensic' });
+    const certificationButton = screen.getByRole('button', { name: 'Certification' });
+    const copyPromptButton = screen.getByRole('button', { name: 'Copy Prompt' });
+    const applyButton = screen.getByRole('button', { name: 'Apply' });
+    const controlStrip = screen.getByTestId('astro-clock-control-strip');
+
+    expect(forensicButton.compareDocumentPosition(certificationButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(applyButton.compareDocumentPosition(copyPromptButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(controlStrip).toHaveClass('md:min-w-[1152px]');
+    expect(controlStrip).toHaveClass('lg:min-w-[1160px]');
+    expect(copyPromptButton).toHaveClass('h-9');
+    expect(copyPromptButton).toHaveClass('w-9');
+    expect(copyPromptButton).toHaveClass('rounded-full');
+
+    fireEvent.click(certificationButton);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('birth-certification-modal')).toBeInTheDocument();
+    });
+    expect(birthCertificationModalMock.props.at(-1)).toMatchObject({
+      open: true,
+      manualLocation: 'Jerusalem, Israel',
+      timezone: 'Asia/Jerusalem',
+      latitude: 31.778,
+      longitude: 35.235,
+      houseSystem: 'R',
+    });
+  });
+
+  it('opens the in-app premium offer from Certification for unverified packaged users', async () => {
+    window.IS_PACKAGED = true;
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive={false}
+      />
+    );
+
+    await waitForDashboardReady();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Certification' }));
+
+    expectPremiumOffer('Certification');
+    expect(screen.queryByTestId('birth-certification-modal')).not.toBeInTheDocument();
+  });
+
+  it('opens the in-app premium offer from the premium copy prompt utility', async () => {
+    window.IS_PACKAGED = true;
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive={false}
+      />
+    );
+
+    await waitForDashboardReady();
+
+    fireEvent.click(screen.getByRole('button', { name: /Copy Prompt/ }));
+
+    expectPremiumOffer('AI prompt utility');
+    expect(screen.queryByRole('button', { name: 'Natal prompt (copy)' })).not.toBeInTheDocument();
   });
 
   it('opens astrocartography for verified packaged users', async () => {
@@ -1194,7 +2514,7 @@ describe('AstroClock mode flow', () => {
       />
     );
 
-    await screen.findByText('Jerusalem, Israel');
+    await findAnyText('Jerusalem, Israel');
 
     fireEvent.click(screen.getByRole('button', { name: 'Astrocartography' }));
 
@@ -1207,6 +2527,31 @@ describe('AstroClock mode flow', () => {
     expect(latestProps?.open).toBe(true);
   });
 
+  it('opens Chinese Astrology for verified packaged users', async () => {
+    window.IS_PACKAGED = true;
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />
+    );
+
+    await findAnyText('Jerusalem, Israel');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Chinese Astrology' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('chinese-astrology-page')).toBeInTheDocument();
+    });
+
+    expect(window.electronAPI.openExternal).not.toHaveBeenCalled();
+    const latestProps = chineseAstrologyPageMock.props.at(-1);
+    expect(latestProps?.activeSnapId).toBe('');
+  });
+
   it('opens the synastry modal for licensed users from the AstroClock action row', async () => {
     render(
       <AstroClock
@@ -1217,7 +2562,7 @@ describe('AstroClock mode flow', () => {
       />
     );
 
-    await screen.findByText('Jerusalem, Israel');
+    await findAnyText('Jerusalem, Israel');
 
     fireEvent.click(screen.getByRole('button', { name: 'Synastry' }));
 
@@ -1230,6 +2575,30 @@ describe('AstroClock mode flow', () => {
     expect(latestProps?.defaultHouseSystem).toBeUndefined();
   });
 
+  it('opens synastry without waiting for a realtime pause snapshot', async () => {
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />
+    );
+
+    await findAnyText('Jerusalem, Israel');
+
+    astroClockApiMock.setMode.mockClear();
+    astroClockApiMock.setMode.mockImplementation(() => new Promise(() => {}));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Synastry' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('synastry-modal')).toBeInTheDocument();
+    });
+
+    expect(astroClockApiMock.setMode).not.toHaveBeenCalled();
+  });
+
   it('passes the active loaded snap context into the transit modal', async () => {
     astroClockApiMock.listSnaps.mockResolvedValue({
       success: true,
@@ -1239,7 +2608,12 @@ describe('AstroClock mode flow', () => {
           label: 'Snap 1948-05-14 14:00:00+00:00 - israel',
           effective_datetime: '1948-05-14T14:00:00Z',
           location: 'israel',
-          dashboard: { timezone_label: 'Asia/Jerusalem' },
+          dashboard: {
+            timezone: 'Asia/Jerusalem',
+            timezone_label: 'Asia/Jerusalem',
+            latitude: 31.778,
+            longitude: 35.235,
+          },
           special_degrees: [],
         },
       ],
@@ -1262,6 +2636,9 @@ describe('AstroClock mode flow', () => {
         mode: 'manual',
         datetime: '1948-05-14T14:00:00Z',
         location: 'israel',
+        timezone: 'Asia/Jerusalem',
+        latitude: 31.778,
+        longitude: 35.235,
       }));
     });
 
@@ -1278,7 +2655,77 @@ describe('AstroClock mode flow', () => {
       time: '16:00',
       location: 'israel',
       timezone: 'Asia/Jerusalem',
+      latitude: 31.778,
+      longitude: 35.235,
       houseSystem: 'R',
+    });
+  });
+
+  it('hydrates legacy snap details before applying manual context', async () => {
+    astroClockApiMock.listSnaps.mockResolvedValue({
+      success: true,
+      items: [
+        {
+          id: 'snap-legacy',
+          label: 'Snap 1990-01-13 19:33:00+00:00 - israel',
+          effective_datetime: '1990-01-13T19:33:00+00:00',
+          location: 'israel',
+          dashboard: {
+            timezone: null,
+            timezone_label: null,
+            latitude: null,
+            longitude: null,
+          },
+          special_degrees: [],
+        },
+      ],
+    });
+    astroClockApiMock.getSnap.mockResolvedValue({
+      success: true,
+      snap: {
+        id: 'snap-legacy',
+        label: 'Snap 1990-01-13 19:33:00+00:00 - israel',
+        effective_datetime: '1990-01-13T19:33:00+00:00',
+        location: 'israel',
+        timezone: 'Asia/Jerusalem',
+        timezone_label: 'Asia/Jerusalem',
+        latitude: 30.8124,
+        longitude: 34.8595,
+        dashboard: {
+          timezone: 'Asia/Jerusalem',
+          timezone_label: 'Asia/Jerusalem',
+          latitude: 30.8124,
+          longitude: 34.8595,
+        },
+        special_degrees: [],
+      },
+    });
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />
+    );
+
+    expect(await screen.findByText('Snap 1990-01-13 19:33:00+00:00 - israel')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Load' }));
+
+    await waitFor(() => {
+      expect(astroClockApiMock.getSnap).toHaveBeenCalledWith(
+        'snap-legacy',
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
+      expect(astroClockApiMock.setMode).toHaveBeenCalledWith(expect.objectContaining({
+        mode: 'manual',
+        datetime: '1990-01-13T19:33:00+00:00',
+        location: 'israel',
+        timezone: 'Asia/Jerusalem',
+        latitude: 30.8124,
+        longitude: 34.8595,
+      }));
     });
   });
 
@@ -1312,7 +2759,7 @@ describe('AstroClock mode flow', () => {
     );
 
     await screen.findByText('Snap 1948-05-14 14:00:00+00:00 - israel');
-    await screen.findByText('israel');
+    await findAnyText('israel');
 
     fireEvent.click(screen.getByRole('button', { name: 'Transits' }));
 
@@ -1341,9 +2788,9 @@ describe('AstroClock mode flow', () => {
       />
     );
 
-    await screen.findByText('Jerusalem, Israel');
+    await findAnyText('Jerusalem, Israel');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Copy Prompt ▾' }));
+    fireEvent.click(screen.getByRole('button', { name: /Copy Prompt/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Natal prompt (copy)' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Mock Submit Prompt' }));
 
@@ -1390,7 +2837,10 @@ describe('AstroClock mode flow', () => {
       const sawManualRefresh = astroClockApiMock.getDashboard.mock.calls.some(([payload]) => (
         payload?.mode === 'manual' &&
         payload?.datetime === '2026-03-08T10:00:00Z' &&
-        payload?.location === 'Jerusalem, Israel'
+        payload?.location === 'Jerusalem, Israel' &&
+        payload?.timezone === 'Asia/Jerusalem' &&
+        payload?.latitude === 31.778 &&
+        payload?.longitude === 35.235
       ));
       expect(sawManualRefresh).toBe(true);
     });
@@ -1404,7 +2854,66 @@ describe('AstroClock mode flow', () => {
         datetime: '2026-03-08T10:00:00Z',
         location: 'Jerusalem, Israel',
         timezone: 'Asia/Jerusalem',
+        latitude: 31.778,
+        longitude: 35.235,
         houseSystem: 'R',
+      }));
+    });
+  });
+
+  it('lets forensic switch from the current chart to a saved snap context', async () => {
+    astroClockApiMock.listSnaps.mockResolvedValue({
+      success: true,
+      items: [
+        {
+          id: 'snap-vegas',
+          label: 'Snap 1996-09-07 11:15:00+00:00 - Las Vegas',
+          effective_datetime: '1996-09-07T11:15:00Z',
+          location: 'Las Vegas, Nevada',
+          dashboard: {
+            timezone: 'America/Los_Angeles',
+            timezone_label: 'America/Los_Angeles',
+            latitude: 36.1699,
+            longitude: -115.1398,
+          },
+          special_degrees: [],
+        },
+      ],
+    });
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />
+    );
+
+    expect(await screen.findByText('Snap 1996-09-07 11:15:00+00:00 - Las Vegas')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Forensic' }));
+
+    await waitFor(() => {
+      expect(astroClockApiMock.getForensic).toHaveBeenCalledWith(expect.objectContaining({
+        location: 'Jerusalem, Israel',
+        timezone: 'Asia/Jerusalem',
+      }));
+    });
+
+    astroClockApiMock.getForensic.mockClear();
+    fireEvent.click(await screen.findByRole('button', { name: 'Saved Snap' }));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Forensic saved snap')).toHaveValue('snap-vegas');
+      expect(astroClockApiMock.getForensic).toHaveBeenCalledWith(expect.objectContaining({
+        mode: 'manual',
+        datetime: '1996-09-07T11:15:00Z',
+        location: 'Las Vegas, Nevada',
+        timezone: 'America/Los_Angeles',
+        latitude: 36.1699,
+        longitude: -115.1398,
+        houseSystem: 'R',
+        caseType: 'general',
       }));
     });
   });
@@ -1433,6 +2942,320 @@ describe('AstroClock mode flow', () => {
     expect(await screen.findByText(/Associate\/public-network link/i)).toBeInTheDocument();
     expect(await screen.findByText(/Survivability signal:/i)).toBeInTheDocument();
     expect(await screen.findByText(/\(fatal pressure dominates\)/i)).toBeInTheDocument();
+  });
+
+  it('shows forensic fetch failures in the dossier findings view', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    astroClockApiMock.getForensic.mockRejectedValueOnce(new Error('Forensic backend down'));
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />
+    );
+
+    await screen.findByRole('button', { name: 'Forensic' });
+    fireEvent.click(screen.getByRole('button', { name: 'Forensic' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(/forensic dossier/i);
+    expect(alert).toHaveTextContent(/Forensic backend down/i);
+    expect(screen.queryByText(/Abduction fetch failed/i)).not.toBeInTheDocument();
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('escapes forensic report HTML and does not attempt a denied popup after Electron export failure', async () => {
+    const rawLocation = '<img src=x onerror=alert(1)>';
+    const exportReport = vi.fn().mockResolvedValue({ ok: false, error: 'PDF generation failed' });
+    Object.defineProperty(window, 'electronAPI', {
+      configurable: true,
+      writable: true,
+      value: {
+        openExternal: vi.fn(),
+        exportReport,
+      },
+    });
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
+    astroClockApiMock.getForensic.mockResolvedValue({
+      ...makeForensicPayload(),
+      location: rawLocation,
+      timezone_label: '<b>Unsafe TZ</b>',
+    });
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />
+    );
+
+    await screen.findByRole('button', { name: 'Forensic' });
+    fireEvent.click(screen.getByRole('button', { name: 'Forensic' }));
+
+    expect(await screen.findByText('Directional Findings')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Export PDF' }));
+
+    await waitFor(() => expect(exportReport).toHaveBeenCalledTimes(1));
+    const html = exportReport.mock.calls[0][0]?.html || '';
+    expect(html).not.toContain(rawLocation);
+    expect(html).not.toContain('<img src=x');
+    expect(html).not.toContain('<b>Unsafe TZ</b>');
+    expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;');
+    expect(html).toContain('&lt;b&gt;Unsafe TZ&lt;/b&gt;');
+    expect(await screen.findByText('Export failed: PDF generation failed')).toBeInTheDocument();
+    expect(openSpy).not.toHaveBeenCalled();
+
+    openSpy.mockRestore();
+  });
+
+  it('ignores stale forensic responses after switching case type', async () => {
+    let resolveGeneral;
+    let resolveChild;
+    const generalPromise = new Promise((resolve) => { resolveGeneral = resolve; });
+    const childPromise = new Promise((resolve) => { resolveChild = resolve; });
+    astroClockApiMock.getForensic
+      .mockReturnValueOnce(generalPromise)
+      .mockReturnValueOnce(childPromise);
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />
+    );
+
+    await screen.findByRole('button', { name: 'Forensic' });
+    fireEvent.click(screen.getByRole('button', { name: 'Forensic' }));
+
+    await waitFor(() => {
+      expect(astroClockApiMock.getForensic).toHaveBeenCalledWith(expect.objectContaining({
+        caseType: 'general',
+      }));
+    });
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Child' }));
+
+    await waitFor(() => {
+      expect(astroClockApiMock.getForensic).toHaveBeenCalledWith(expect.objectContaining({
+        caseType: 'child',
+      }));
+    });
+
+    await act(async () => {
+      resolveChild({
+        ...makeForensicPayload(),
+        location: 'Child case current',
+        survivability: {
+          level: 'Moderate',
+          score: 0,
+          outcome_band: 'release_favored',
+          case_type: 'child',
+          victim_significators: ['Mercury', 'Moon'],
+          breakdown: { fatal_pressure: 0, danger: 0 },
+          note: 'Current child response',
+        },
+        relationship_status: {
+          primary_label: 'family',
+          labels: ['family'],
+          confidence: 'High',
+          scores: { family: 3 },
+          evidence: { family: ['child current'] },
+        },
+      });
+      await childPromise;
+    });
+
+    expect((await screen.findAllByText('Child case current')).length).toBeGreaterThanOrEqual(1);
+
+    await act(async () => {
+      resolveGeneral({
+        ...makeForensicPayload(),
+        location: 'Stale general case',
+        survivability: {
+          level: 'Lower',
+          score: -4,
+          outcome_band: 'fatal_pressure_dominant',
+          case_type: 'general',
+          victim_significators: ['Venus', 'Moon'],
+          breakdown: { fatal_pressure: 5, danger: 3 },
+          note: 'Stale general response',
+        },
+      });
+      await generalPromise;
+    });
+
+    expect(screen.queryAllByText('Stale general case')).toHaveLength(0);
+    expect(screen.getAllByText('Child case current').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('includes backend relationship status in forensic raw evidence', async () => {
+    astroClockApiMock.getForensic.mockResolvedValue({
+      ...makeForensicPayload(),
+      relationship_status: {
+        primary_label: 'family',
+        labels: ['family'],
+        confidence: 'High',
+        scores: { family: 3.4 },
+        evidence: { family: ['home-axis cluster'] },
+      },
+    });
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />
+    );
+
+    await screen.findByRole('button', { name: 'Forensic' });
+    fireEvent.click(screen.getByRole('button', { name: 'Forensic' }));
+
+    expect(await screen.findByText('Directional Findings')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Raw' }));
+
+    expect(await screen.findByText(/relationship_status/)).toBeInTheDocument();
+    expect(screen.getByText(/home-axis cluster/)).toBeInTheDocument();
+  });
+
+  it('presents simple lowercase forensic locations with title casing in the dossier header', async () => {
+    astroClockApiMock.getForensic.mockResolvedValue({
+      ...makeForensicPayload(),
+      location: 'london',
+      timezone: 'Europe/London',
+      timezone_label: 'Europe/London (UTC+01:00)',
+    });
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />
+    );
+
+    await screen.findByRole('button', { name: 'Forensic' });
+    fireEvent.click(screen.getByRole('button', { name: 'Forensic' }));
+
+    expect((await screen.findAllByText('London')).length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryAllByText('london')).toHaveLength(0);
+  });
+
+  it('renders forensic light-mediation impact without internal calibration wording', async () => {
+    astroClockApiMock.getForensic.mockResolvedValue({
+      ...makeForensicPayload(),
+      survivability: {
+        level: 'Lower',
+        score: 3.85,
+        outcome_band: 'fatal_pressure_dominant',
+        case_type: 'adult_female',
+        victim_significators: ['Jupiter', 'Moon'],
+        breakdown: {
+          vitality: 7,
+          accidental: 1.1,
+          support: 0,
+          recovery_support: 0.25,
+          light_mediation: 0.25,
+          moon: -0.5,
+          danger: 0,
+          fatal_pressure: 4,
+        },
+        evidence: {
+          light_mediation: ['favorable collection by Moon +0.25 recovery support'],
+        },
+        light_mediation_impact: {
+          effect: 'recovery_support',
+          tilt: 'recovery_mitigated',
+          light_mediation_score: 0.25,
+          score_without_light_mediation: 3.6,
+          score_delta: 0.25,
+          level_without_light_mediation: 'Lower',
+          outcome_band_without_light_mediation: 'fatal_pressure_dominant',
+          level_changed: false,
+          band_changed: false,
+          visibility: 'raw_only',
+        },
+        note: 'Fatal mechanism testimony outweighs base vitality unless rescue or recovery support is strong.',
+      },
+    });
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />
+    );
+
+    await screen.findByRole('button', { name: 'Forensic' });
+    fireEvent.click(screen.getByRole('button', { name: 'Forensic' }));
+
+    expect(await screen.findByText('Light Mediation Impact')).toBeInTheDocument();
+    expect(await screen.findByText('+0.25 recovery support')).toBeInTheDocument();
+    expect(await screen.findByText('recovery mitigated')).toBeInTheDocument();
+    expect(await screen.findByText('Without light mediation: +3.6 · Lower · fatal-pressure dominant')).toBeInTheDocument();
+    expect(screen.queryByText(/Visible as raw score movement/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Final level and band stayed stable/i)).not.toBeInTheDocument();
+  });
+
+  it('renders the McIntosh ASC-ruler placement in the victim tab', async () => {
+    astroClockApiMock.getForensic.mockResolvedValue(makeForensicPayload());
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />
+    );
+
+    await screen.findByRole('button', { name: 'Forensic' });
+    fireEvent.click(screen.getByRole('button', { name: 'Forensic' }));
+
+    expect(await screen.findByText('Directional Findings')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Victim' }));
+
+    expect(await screen.findByText(/ASC-ruler placement/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Venus in H6/i)).toBeInTheDocument();
+    expect(await screen.findByText(/routine activity interrupted/i)).toBeInTheDocument();
+  });
+
+  it('renders forensic current-chart time in the chart timezone, not the browser timezone', async () => {
+    astroClockApiMock.getForensic.mockResolvedValue({
+      ...makeForensicPayload(),
+      timestamp: '2022-07-31T09:30:00+00:00',
+      location: 'Strongsville, Ohio',
+      timezone: 'America/New_York',
+      timezone_label: 'America/New_York (UTC-04:00)',
+    });
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />
+    );
+
+    await screen.findByRole('button', { name: 'Forensic' });
+    fireEvent.click(screen.getByRole('button', { name: 'Forensic' }));
+
+    expect((await screen.findAllByText('Strongsville, Ohio')).length).toBeGreaterThanOrEqual(1);
+    expect(await screen.findByText(/05:30\s*AM/i)).toBeInTheDocument();
+    expect(screen.getByText('America/New_York (UTC-04:00)')).toBeInTheDocument();
   });
 
   it('renders a replay-slice public assassination payload cleanly in the frontend modal', async () => {

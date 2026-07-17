@@ -49,7 +49,9 @@ def _run_git(args: list[str], *, cwd: Path) -> Optional[str]:
     except Exception:
         return None
     output = (result.stdout or "").strip()
-    return output or None
+    # An empty status is a successful, clean Git probe. Keep it distinct from
+    # None, which is reserved for an unavailable or failed Git command.
+    return output
 
 
 def detect_git_metadata(repo_root: Optional[Path | str] = None) -> Dict[str, Any]:
@@ -57,7 +59,8 @@ def detect_git_metadata(repo_root: Optional[Path | str] = None) -> Dict[str, Any
     commit = _run_git(["rev-parse", "HEAD"], cwd=cwd)
     short_commit = _run_git(["rev-parse", "--short", "HEAD"], cwd=cwd)
     branch = _run_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=cwd)
-    status = _run_git(["status", "--short"], cwd=cwd)
+    tree = _run_git(["rev-parse", "HEAD^{tree}"], cwd=cwd)
+    status = _run_git(["status", "--short", "--untracked-files=all"], cwd=cwd)
     payload: Dict[str, Any] = {
         "available": bool(commit or short_commit or branch),
     }
@@ -67,6 +70,8 @@ def detect_git_metadata(repo_root: Optional[Path | str] = None) -> Dict[str, Any
         payload["short_commit"] = short_commit
     if branch:
         payload["branch"] = branch
+    if tree:
+        payload["tree"] = tree
     if status is not None:
         payload["dirty"] = bool(status.strip())
     return payload

@@ -3,17 +3,36 @@ const { app, BrowserWindow, ipcMain, dialog, shell, session } = require('electro
 const path = require('path');
 const crypto = require('crypto');
 const { spawn, spawnSync } = require('child_process');
-const http = require('http');
 const fs = require('fs');
 const {
   DEFAULT_BACKEND_PORT,
-  buildAppOrigins,
-  buildBackendLocalOrigins,
   createApiBaseUrl,
   normalizePort,
   resolveBackendPort,
 } = require('./main/backend-port');
+const { requestJsonWithDeadline } = require('./main/backend-http');
 const { configureRuntimeEnv } = require('./main/runtime-env');
+const {
+  PRODUCTION_LICENSE_PUBLIC_KEY_SHA256,
+  PRODUCTION_LICENSE_SERVER_ORIGIN,
+  buildPayPalCheckoutUrl,
+  isAllowedExternalUrl,
+  isAllowedRendererUrl,
+  validatePackagedLicenseConfig,
+  validateReportPayload,
+} = require('./main/security-policy');
+const {
+  validatePackagedBackendSmoke,
+  writeSmokeResultFile,
+} = require('./main/smoke-contract');
+const {
+  INSTANCE_CHALLENGE_HEADER,
+  INSTANCE_PROOF_HEADER,
+  INSTANCE_SECRET_ENV,
+  createBackendInstanceChallenge,
+  createBackendInstanceSecret,
+  verifyBackendInstanceProof,
+} = require('./main/backend-instance-auth');
 // Optional modules (exist if installed)
 let initAutoUpdater; try { ({ initAutoUpdater } = require('./main/updater')); } catch (_) {}
 let LicenseManager; try { ({ LicenseManager } = require('./main/license')); } catch (_) {}
@@ -21,20 +40,65 @@ let LicenseManager; try { ({ LicenseManager } = require('./main/license')); } ca
 const CONFIGURED_BACKEND_PORT = process.env.HORARY_PORT;
 let PORT = normalizePort(CONFIGURED_BACKEND_PORT, DEFAULT_BACKEND_PORT);
 let API_BASE_URL = createApiBaseUrl(PORT);
-let BACKEND_LOCAL_ORIGINS = buildBackendLocalOrigins(PORT);
-let APP_ORIGINS = buildAppOrigins(PORT);
-const EXTERNAL_HOST_ALLOWLIST = new Set([
-  'voxstella.app',
-  'www.voxstella.app',
-]);
 const OSM_TILE_HOST_SUFFIX = '.tile.openstreetmap.org';
 const OSM_TILE_REFERER = 'https://voxstella.app/';
+const PACKAGED_RENDERER_ENTRY = path.join(__dirname, 'dist', 'index.html');
+const DEVELOPMENT_RENDERER_ORIGINS = ['http://localhost:5173'];
+const SMOKE_TEST_MODE =
+  process.argv.includes('--smoke-test') ||
+  process.env.VOX_STELLA_SMOKE_TEST === '1';
+const MAIN_LOG_MAX_BYTES = Math.max(
+  1024 * 1024,
+  Number(process.env.VOX_STELLA_MAIN_LOG_MAX_BYTES || 5 * 1024 * 1024),
+);
+const BACKEND_LOG_MAX_BYTES = Math.max(
+  1024 * 1024,
+  Number(process.env.VOX_STELLA_BACKEND_LOG_MAX_BYTES || 10 * 1024 * 1024),
+);
+
+function ensureLogDir(logDir) {
+  if (!logDir) return false;
+  try {
+    if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+function rotateLogIfLarge(filePath, maxBytes) {
+  if (!filePath || !Number.isFinite(maxBytes) || maxBytes <= 0) return;
+  try {
+    if (!fs.existsSync(filePath)) return;
+    const stat = fs.statSync(filePath);
+    if (!stat || stat.size < maxBytes) return;
+    const rotatedPath = `${filePath}.1`;
+    try {
+      if (fs.existsSync(rotatedPath)) fs.unlinkSync(rotatedPath);
+    } catch (_) {}
+    fs.renameSync(filePath, rotatedPath);
+  } catch (_) {}
+}
+
+function serializeLogArg(arg) {
+  if (arg instanceof Error) return arg.stack || arg.message;
+  if (typeof arg === 'string') return arg;
+  try {
+    return JSON.stringify(arg);
+  } catch (_) {
+    return String(arg);
+  }
+}
+
+function formatLogLine(level, args) {
+  const timestamp = new Date().toISOString();
+  const message = (args || []).map(serializeLogArg).join(' ');
+  return `[${timestamp}] [${String(level || 'log').toUpperCase()}] ${message}\n`;
+}
 
 function applyBackendPort(nextPort) {
   PORT = normalizePort(nextPort, DEFAULT_BACKEND_PORT);
   API_BASE_URL = createApiBaseUrl(PORT);
-  BACKEND_LOCAL_ORIGINS = buildBackendLocalOrigins(PORT);
-  APP_ORIGINS = buildAppOrigins(PORT);
   process.env.HORARY_PORT = String(PORT);
   process.env.API_BASE_URL = API_BASE_URL;
 }
@@ -65,23 +129,61 @@ function configureMapTileRequestHeaders() {
   );
 }
 
+function denySessionPermissions(targetSession, { allowTrustedClipboardWrite = false } = {}) {
+  if (!targetSession) return;
+  const canWriteClipboard = (webContents, permission) => (
+    allowTrustedClipboardWrite &&
+    permission === 'clipboard-sanitized-write' &&
+    webContents === mainWindow?.webContents &&
+    !mainWindow?.isDestroyed() &&
+    isAllowedAppNavigation(webContents.getURL?.() || '')
+  );
+  try {
+    targetSession.setPermissionCheckHandler?.((webContents, permission) => (
+      canWriteClipboard(webContents, permission)
+    ));
+  } catch (_) {}
+  try {
+    targetSession.setPermissionRequestHandler?.((webContents, permission, callback) => {
+      callback(canWriteClipboard(webContents, permission));
+    });
+  } catch (_) {}
+  try {
+    targetSession.setDevicePermissionHandler?.(() => false);
+  } catch (_) {}
+  try {
+    targetSession.setUSBProtectedClassesHandler?.(() => []);
+  } catch (_) {}
+}
+
+function configureRendererSessionSecurity() {
+  const ses = session.defaultSession;
+  denySessionPermissions(ses, { allowTrustedClipboardWrite: true });
+}
+
 let mainWindow = null;
 let backendProc = null;
 let closed = false;
 let backendKillStarted = false;
 let licenseManager = null;
 let backendLogDir = null;
+let mainLogPath = null;
 let backendRestartAttempts = 0;
 let backendRestartTimer = null;
 let backendParentStateFile = null;
 let backendHeartbeatTimer = null;
 let ipcHandlersRegistered = false;
 let backendLicenseSessionSecretB64 = null;
+let backendInstanceSecretB64 = null;
+let packagedLicensePublicKeySha256 = null;
 let backendStatus = 'checking';
 let backendStartupDeadlineMs = 0;
 let backendStatusPollTimer = null;
 let backendStatusProbePromise = null;
 let backendConsecutiveProbeFailures = 0;
+let backendRecoveryInProgress = false;
+let fatalExitStarted = false;
+let initialBackendReadinessPending = false;
 const MAX_BACKEND_RESTARTS = (() => {
   const raw = Number(process.env.VOX_STELLA_BACKEND_RESTARTS || 3);
   return Number.isFinite(raw) && raw >= 0 ? Math.floor(raw) : 3;
@@ -102,6 +204,49 @@ const BACKEND_STATUS_PING_TIMEOUT_MS = Math.max(
   1000,
   Number(process.env.VOX_STELLA_BACKEND_STATUS_PING_TIMEOUT_MS || DEFAULT_BACKEND_STATUS_PING_TIMEOUT_MS),
 );
+
+function configureMainFileLogging(logDir) {
+  if (mainLogPath || !ensureLogDir(logDir)) return;
+  mainLogPath = path.join(logDir, 'main.log');
+  rotateLogIfLarge(mainLogPath, MAIN_LOG_MAX_BYTES);
+  const originalConsole = {
+    log: console.log.bind(console),
+    warn: console.warn.bind(console),
+    error: console.error.bind(console),
+  };
+  const writeLine = (level, args) => {
+    try {
+      fs.appendFileSync(mainLogPath, formatLogLine(level, args), 'utf8');
+    } catch (_) {}
+  };
+  console.log = (...args) => {
+    originalConsole.log(...args);
+    writeLine('log', args);
+  };
+  console.warn = (...args) => {
+    originalConsole.warn(...args);
+    writeLine('warn', args);
+  };
+  console.error = (...args) => {
+    originalConsole.error(...args);
+    writeLine('error', args);
+  };
+  console.log(`[diagnostics] main log: ${mainLogPath}`);
+}
+
+function getDiagnosticsLogPaths() {
+  let logDir = backendLogDir;
+  if (!logDir) {
+    try {
+      logDir = path.join(app.getPath('userData'), 'logs');
+    } catch (_) {}
+  }
+  return {
+    logDir,
+    mainLogPath: mainLogPath || (logDir ? path.join(logDir, 'main.log') : null),
+    backendLogPath: logDir ? path.join(logDir, 'backend.log') : null,
+  };
+}
 
 function broadcastBackendStatus() {
   try {
@@ -149,33 +294,36 @@ function isReachableVersionPayload(parsed) {
   );
 }
 
-function probeBackendReachabilityOnce(timeoutMs = BACKEND_STATUS_PING_TIMEOUT_MS) {
-  return new Promise((resolve) => {
-    const req = http.get(`${API_BASE_URL}/api/version`, { timeout: timeoutMs }, (res) => {
-      let body = '';
-      res.setEncoding('utf8');
-      res.on('data', (chunk) => {
-        if (body.length < 32768) body += chunk;
-      });
-      res.on('end', () => {
-        if (res.statusCode !== 200) {
-          resolve(false);
-          return;
-        }
-        try {
-          const parsed = JSON.parse(body || '{}');
-          resolve(isReachableVersionPayload(parsed));
-        } catch (_) {
-          resolve(false);
-        }
-      });
-    });
-    req.on('error', () => resolve(false));
-    req.on('timeout', () => {
-      req.destroy();
-      resolve(false);
-    });
+async function requestBackendJson(pathname, timeoutMs = BACKEND_STATUS_PING_TIMEOUT_MS) {
+  const requestUrl = new URL(`${API_BASE_URL}${pathname}`);
+  const proofPathname = requestUrl.pathname;
+  const challenge = app.isPackaged ? createBackendInstanceChallenge() : null;
+  const response = await requestJsonWithDeadline(requestUrl, {
+    timeoutMs,
+    headers: challenge ? { [INSTANCE_CHALLENGE_HEADER]: challenge } : {},
   });
+  if (
+    response.ok &&
+    app.isPackaged &&
+    !verifyBackendInstanceProof(
+      backendInstanceSecretB64,
+      challenge,
+      proofPathname,
+      response.headers?.[String(INSTANCE_PROOF_HEADER).toLowerCase()],
+    )
+  ) {
+    return {
+      ok: false,
+      statusCode: response.statusCode,
+      error: 'invalid_instance_proof',
+    };
+  }
+  return response;
+}
+
+async function probeBackendReachabilityOnce(timeoutMs = BACKEND_STATUS_PING_TIMEOUT_MS) {
+  const response = await requestBackendJson('/api/version', timeoutMs);
+  return Boolean(response.ok && isReachableVersionPayload(response.payload));
 }
 
 async function refreshBackendStatus(options = {}) {
@@ -193,6 +341,16 @@ async function refreshBackendStatus(options = {}) {
     }
     const nextStatus = reachable ? 'connected' : getBackendStatusAfterProbeFailure();
     setBackendStatus(nextStatus, { force: forceBroadcast });
+    if (
+      nextStatus === 'offline' &&
+      app.isPackaged &&
+      !closed &&
+      !backendKillStarted &&
+      backendProc &&
+      !backendProc.killed
+    ) {
+      void recoverUnresponsiveBackend('health-probe-failures');
+    }
     return nextStatus;
   })();
   try {
@@ -272,28 +430,12 @@ function stopBackendHeartbeat() {
   }
 }
 
-function isAllowedExternalUrl(rawUrl) {
-  try {
-    const parsed = new URL(rawUrl);
-    const host = (parsed.hostname || '').toLowerCase();
-    const origin = parsed.origin;
-    if (BACKEND_LOCAL_ORIGINS.has(origin)) return true;
-    if (parsed.protocol !== 'https:') return false;
-    if (EXTERNAL_HOST_ALLOWLIST.has(host)) return true;
-    return false;
-  } catch (_) {
-    return false;
-  }
-}
-
 function isAllowedAppNavigation(rawUrl) {
-  try {
-    const parsed = new URL(rawUrl);
-    if (parsed.protocol === 'file:') return true;
-    return APP_ORIGINS.has(parsed.origin);
-  } catch (_) {
-    return false;
-  }
+  return isAllowedRendererUrl(rawUrl, {
+    isPackaged: app.isPackaged,
+    packagedEntryPath: PACKAGED_RENDERER_ENTRY,
+    developmentOrigins: DEVELOPMENT_RENDERER_ORIGINS,
+  });
 }
 
 function loadLicenseConfig() {
@@ -369,14 +511,42 @@ function resolveBackendCommand() {
 }
 
 async function ensurePackagedLicenseSecurityContext() {
-  if (!app.isPackaged || !LicenseManager) return;
+  if (!app.isPackaged) return;
+  if (typeof LicenseManager !== 'function') {
+    throw new Error('Packaged licensing module is unavailable');
+  }
+  const trustedConfig = validatePackagedLicenseConfig(RUNTIME_LICENSE_CONFIG, {
+    expectedPublicKeySha256: PRODUCTION_LICENSE_PUBLIC_KEY_SHA256,
+    expectedServerOrigin: PRODUCTION_LICENSE_SERVER_ORIGIN,
+  });
   if (!licenseManager) {
-    licenseManager = new LicenseManager(app);
+    licenseManager = new LicenseManager(app, trustedConfig);
   }
+  const managerConfig = validatePackagedLicenseConfig(
+    {
+      serverUrl: licenseManager.serverUrl,
+      publicKeyB64: licenseManager.publicKeyB64,
+    },
+    {
+      expectedPublicKeySha256: PRODUCTION_LICENSE_PUBLIC_KEY_SHA256,
+      expectedServerOrigin: PRODUCTION_LICENSE_SERVER_ORIGIN,
+    },
+  );
+  if (
+    managerConfig.serverUrl !== trustedConfig.serverUrl ||
+    managerConfig.publicKeyB64 !== trustedConfig.publicKeyB64
+  ) {
+    throw new Error('Packaged license manager configuration does not match the bundled trust root');
+  }
+  packagedLicensePublicKeySha256 = crypto
+    .createHash('sha256')
+    .update(Buffer.from(trustedConfig.publicKeyB64, 'base64'))
+    .digest('hex');
   const deviceId = await licenseManager.getDeviceId().catch(() => null);
-  if (deviceId) {
-    process.env.VOX_STELLA_DEVICE_ID = deviceId;
+  if (typeof deviceId !== 'string' || deviceId.trim().length < 32) {
+    throw new Error('Packaged device identity could not be derived');
   }
+  process.env.VOX_STELLA_DEVICE_ID = deviceId.trim();
   if (!backendLicenseSessionSecretB64) {
     backendLicenseSessionSecretB64 = crypto.randomBytes(32).toString('base64');
   }
@@ -388,24 +558,40 @@ async function startBackend(logDir) {
   markBackendStarting();
   const resolved = resolveBackendCommand();
   if (!resolved) {
+    if (app.isPackaged) {
+      throw new Error('Packaged backend executable is missing');
+    }
     console.warn('Backend executable not found. Assuming an external backend is running.');
     return null;
   }
   await ensurePackagedLicenseSecurityContext();
   const parentStateFile = startBackendHeartbeat(logDir);
   const env = { ...process.env, HORARY_PORT: String(PORT) };
-  const captureBackendToFile = !app.isPackaged || process.env.VOX_STELLA_CAPTURE_BACKEND_STDIO === '1';
+  const captureBackendToFile = process.env.VOX_STELLA_CAPTURE_BACKEND_STDIO !== '0';
   env.VOX_STELLA_PARENT_PID = String(process.pid);
   env.VOX_STELLA_APP_VERSION = app.getVersion();
   if (parentStateFile) env.VOX_STELLA_PARENT_STATE_FILE = parentStateFile;
   // Never inherit license bypass flags unless explicitly enabled in dev.
   delete env.LICENSE_BYPASS;
   delete env.ALLOW_DEV_LICENSE_BYPASS;
+  delete env.LICENSE_SERVER_URL;
+  delete env.LICENSE_PUBLIC_KEY_B64;
+  delete env[INSTANCE_SECRET_ENV];
   env.APP_IS_PACKAGED = app.isPackaged ? '1' : '0';
+  if (app.isPackaged) {
+    if (!backendInstanceSecretB64) {
+      backendInstanceSecretB64 = createBackendInstanceSecret();
+    }
+    env[INSTANCE_SECRET_ENV] = backendInstanceSecretB64;
+  }
   if (!app.isPackaged && process.env.ALLOW_DEV_LICENSE_BYPASS === '1') {
     env.ALLOW_DEV_LICENSE_BYPASS = '1';
   }
-  if (!env.LICENSE_PUBLIC_KEY_B64 && RUNTIME_LICENSE_CONFIG.publicKeyB64) {
+  if (app.isPackaged && RUNTIME_LICENSE_CONFIG.publicKeyB64) {
+    env.LICENSE_PUBLIC_KEY_B64 = String(RUNTIME_LICENSE_CONFIG.publicKeyB64).trim();
+  } else if (!app.isPackaged && process.env.LICENSE_PUBLIC_KEY_B64) {
+    env.LICENSE_PUBLIC_KEY_B64 = String(process.env.LICENSE_PUBLIC_KEY_B64).trim();
+  } else if (!env.LICENSE_PUBLIC_KEY_B64 && RUNTIME_LICENSE_CONFIG.publicKeyB64) {
     env.LICENSE_PUBLIC_KEY_B64 = String(RUNTIME_LICENSE_CONFIG.publicKeyB64).trim();
   }
   // Speed up research compile by default in packaged builds
@@ -436,14 +622,15 @@ async function startBackend(logDir) {
     });
     
     console.log(`Backend process spawned with PID: ${child.pid}`);
-    // Keep stdout/stderr drained, but avoid persisting chart payloads in packaged builds
-    // unless log capture is explicitly enabled for diagnostics.
+    // Keep stdout/stderr drained and persist bounded diagnostics for installed builds.
+    // Set VOX_STELLA_CAPTURE_BACKEND_STDIO=0 to disable this capture.
     try {
       let logStream = null;
       let logPath = null;
       if (captureBackendToFile) {
-        if (logDir && !fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
+        if (logDir) ensureLogDir(logDir);
         logPath = logDir ? path.join(logDir, 'backend.log') : path.join(resolved.cwd, 'backend.log');
+        rotateLogIfLarge(logPath, BACKEND_LOG_MAX_BYTES);
         logStream = fs.createWriteStream(logPath, { flags: 'a' });
       }
       
@@ -478,7 +665,9 @@ async function startBackend(logDir) {
         if (backendProc && backendProc.pid === child.pid) {
           backendProc = null;
           markBackendStarting();
-          scheduleBackendRestart(`exit:${code ?? 'unknown'}`);
+          if (!initialBackendReadinessPending) {
+            scheduleBackendRestart(`exit:${code ?? 'unknown'}`);
+          }
         }
       }
     });
@@ -487,8 +676,11 @@ async function startBackend(logDir) {
       console.error('Backend process error:', error);
       if (!closed && !backendKillStarted) {
         if (backendProc && backendProc.pid === child.pid) {
+          backendProc = null;
           markBackendStarting();
-          scheduleBackendRestart('spawn-error');
+          if (!initialBackendReadinessPending) {
+            scheduleBackendRestart('spawn-error');
+          }
         }
       }
     });
@@ -500,14 +692,84 @@ async function startBackend(logDir) {
   }
 }
 
+function terminateBackendChild(child, { forceAfterMs = 2000 } = {}) {
+  return new Promise((resolve) => {
+    if (!child) {
+      resolve();
+      return;
+    }
+    let settled = false;
+    let forceTimer = null;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      if (forceTimer) clearTimeout(forceTimer);
+      resolve();
+    };
+    try {
+      child.once?.('exit', finish);
+      child.once?.('error', finish);
+    } catch (_) {}
+    try {
+      child.kill('SIGTERM');
+    } catch (_) {
+      finish();
+      return;
+    }
+    if (settled) return;
+    forceTimer = setTimeout(() => {
+      try {
+        if (process.platform === 'win32' && child.pid) {
+          spawnSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], {
+            windowsHide: true,
+            stdio: 'ignore',
+          });
+        } else {
+          child.kill('SIGKILL');
+        }
+      } catch (_) {}
+      finish();
+    }, forceAfterMs);
+    if (typeof forceTimer.unref === 'function') forceTimer.unref();
+  });
+}
+
+async function recoverUnresponsiveBackend(reason = 'unresponsive') {
+  if (
+    backendRecoveryInProgress ||
+    !app.isPackaged ||
+    closed ||
+    backendKillStarted ||
+    backendRestartTimer
+  ) {
+    return;
+  }
+  const child = backendProc;
+  if (!child) {
+    scheduleBackendRestart(reason);
+    return;
+  }
+  backendRecoveryInProgress = true;
+  backendProc = null;
+  markBackendStarting();
+  console.warn(`[backend] terminating unresponsive process ${child.pid || 'unknown'} after ${reason}`);
+  try {
+    await terminateBackendChild(child);
+  } finally {
+    backendRecoveryInProgress = false;
+  }
+  scheduleBackendRestart(reason);
+}
+
 function scheduleBackendRestart(reason = 'unknown') {
   if (!app.isPackaged || closed || backendKillStarted) return;
-  markBackendStarting();
   if (backendRestartTimer) return;
   if (backendRestartAttempts >= MAX_BACKEND_RESTARTS) {
     console.error(`[backend] restart limit reached (${MAX_BACKEND_RESTARTS}). Last reason: ${reason}`);
+    setBackendStatus('offline', { force: true });
     return;
   }
+  markBackendStarting();
   const nextAttempt = backendRestartAttempts + 1;
   const delayMs = Math.min(1000 * (2 ** (nextAttempt - 1)), 15000);
   backendRestartAttempts = nextAttempt;
@@ -527,45 +789,52 @@ function scheduleBackendRestart(reason = 'unknown') {
     if (!isWithinBackendStartupWindow()) {
       setBackendStatus('offline', { force: true });
     }
-    try {
-      if (backendProc && !backendProc.killed) {
-        backendProc.kill('SIGTERM');
-      }
-    } catch (_) {}
+    const failedChild = backendProc;
+    backendProc = null;
+    await terminateBackendChild(failedChild);
     scheduleBackendRestart('restart-timeout');
   }, delayMs);
 }
 
-function waitForBackendReachability(timeoutMs = 12000) {
+async function waitForBackendReachability(timeoutMs = 12000) {
   const deadline = Date.now() + timeoutMs;
-  return new Promise((resolve) => {
-    const attempt = () => {
-      if (Date.now() > deadline) return resolve(false);
-      const req = http.get(`${API_BASE_URL}/api/version`, { timeout: 1500 }, (res) => {
-        let body = '';
-        res.setEncoding('utf8');
-        res.on('data', (chunk) => {
-          if (body.length < 32768) body += chunk;
-        });
-        res.on('end', () => {
-          if (res.statusCode !== 200) {
-            setTimeout(attempt, 400);
-            return;
-          }
-          try {
-            const parsed = JSON.parse(body || '{}');
-            if (isReachableVersionPayload(parsed)) {
-              resolve(true);
-              return;
-            }
-          } catch (_) {}
-          setTimeout(attempt, 400);
-        });
-      });
-      req.on('error', () => setTimeout(attempt, 400));
-      req.on('timeout', () => { req.destroy(); setTimeout(attempt, 300); });
-    };
-    attempt();
+  while (Date.now() <= deadline) {
+    if (await probeBackendReachabilityOnce(1500)) return true;
+    if (app.isPackaged && initialBackendReadinessPending && !backendProc) return false;
+    await new Promise((resolve) => setTimeout(resolve, 400));
+  }
+  return false;
+}
+
+function isTrustedIpcEvent(event) {
+  try {
+    const sender = event?.sender;
+    const windowContents = mainWindow?.webContents;
+    if (
+      !sender ||
+      !windowContents ||
+      mainWindow.isDestroyed() ||
+      sender !== windowContents ||
+      sender.isDestroyed?.()
+    ) {
+      return false;
+    }
+    const senderFrame = event?.senderFrame;
+    if (senderFrame?.parent) return false;
+    const senderUrl = senderFrame?.url || sender.getURL?.() || '';
+    return isAllowedAppNavigation(senderUrl);
+  } catch (_) {
+    return false;
+  }
+}
+
+function registerTrustedIpcHandler(channel, handler) {
+  ipcMain.handle(channel, async (event, ...args) => {
+    if (!isTrustedIpcEvent(event)) {
+      console.warn(`[ipc] rejected untrusted sender for ${channel}`);
+      throw new Error('Unauthorized IPC sender');
+    }
+    return handler(event, ...args);
   });
 }
 
@@ -580,28 +849,54 @@ function registerCoreIpcHandlers() {
         if (!licenseManager) {
           licenseManager = new LicenseManager(app);
         }
-        ipcMain.handle('license:get-status', async () => licenseManager.getStatus());
-        ipcMain.handle('license:activate', async (_e, payload) => {
+        registerTrustedIpcHandler('license:get-status', async () => licenseManager.getStatus());
+        registerTrustedIpcHandler('license:activate', async (_e, payload) => {
           const result = await licenseManager.activate(payload || {});
           return result;
         });
-        ipcMain.handle('license:deactivate', async () => licenseManager.deactivate());
-        ipcMain.handle('license:get-token', async () => licenseManager.getToken());
-        ipcMain.handle('license:verify', async () => licenseManager.verifyOnline());
+        registerTrustedIpcHandler('license:activate-paypal-subscription', async (_e, payload) => {
+          const result = await licenseManager.activatePayPalSubscription(payload || {});
+          return result;
+        });
+        registerTrustedIpcHandler('license:activate-paypal-purchase', async (_e, payload) => {
+          const result = await licenseManager.activatePayPalPurchase(payload || {});
+          return result;
+        });
+        registerTrustedIpcHandler('license:deactivate', async () => licenseManager.deactivate());
+        registerTrustedIpcHandler('license:get-token', async () => licenseManager.getToken());
+        registerTrustedIpcHandler('license:verify', async () => licenseManager.verifyOnline());
       } else {
         // Dev mode: expose permissive stubs so features are unlocked during development
-        ipcMain.handle('license:get-status', async () => ({ active: true, plan: 'dev', exp: null }));
-        ipcMain.handle('license:activate', async () => ({ ok: true, status: { active: true, plan: 'dev' } }));
-        ipcMain.handle('license:deactivate', async () => ({ ok: true }));
-        ipcMain.handle('license:get-token', async () => 'dev-token');
-        ipcMain.handle('license:verify', async () => ({ ok: true }));
+        registerTrustedIpcHandler('license:get-status', async () => ({ active: true, plan: 'dev', exp: null }));
+        registerTrustedIpcHandler('license:activate', async () => ({ ok: true, status: { active: true, plan: 'dev' } }));
+        registerTrustedIpcHandler('license:activate-paypal-subscription', async () => ({ ok: true, status: { active: true, plan: 'dev' } }));
+        registerTrustedIpcHandler('license:activate-paypal-purchase', async () => ({ ok: true, status: { active: true, plan: 'dev' } }));
+        registerTrustedIpcHandler('license:deactivate', async () => ({ ok: true }));
+        registerTrustedIpcHandler('license:get-token', async () => 'dev-token');
+        registerTrustedIpcHandler('license:verify', async () => ({ ok: true }));
       }
     }
   } catch (e) {
     console.warn('License manager init failed:', e);
   }
 
-  ipcMain.handle('shell:open-external', async (_event, rawUrl) => {
+  registerTrustedIpcHandler('license:open-paypal-checkout', async () => {
+    const configuredServerUrl = app.isPackaged
+      ? licenseManager?.serverUrl
+      : (licenseManager?.serverUrl || RUNTIME_LICENSE_CONFIG.serverUrl || 'https://license.voxstella.app');
+    const checkoutUrl = buildPayPalCheckoutUrl(configuredServerUrl);
+    if (!checkoutUrl) {
+      return { ok: false, error: 'checkout_url_unavailable' };
+    }
+    try {
+      await shell.openExternal(checkoutUrl);
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, error: String(error?.message || error) };
+    }
+  });
+
+  registerTrustedIpcHandler('shell:open-external', async (_event, rawUrl) => {
     if (typeof rawUrl !== 'string' || !rawUrl.trim()) return { ok: false, error: 'invalid_url' };
     if (!isAllowedExternalUrl(rawUrl)) return { ok: false, error: 'url_not_allowed' };
     try {
@@ -612,15 +907,30 @@ function registerCoreIpcHandlers() {
     }
   });
 
-  ipcMain.handle('backend:get-status', async () => ({ status: backendStatus }));
-  ipcMain.handle('backend:refresh-status', async () => {
+  registerTrustedIpcHandler('backend:get-status', async () => ({ status: backendStatus }));
+  registerTrustedIpcHandler('backend:refresh-status', async () => {
     const status = await refreshBackendStatus({ timeoutMs: BACKEND_STATUS_PING_TIMEOUT_MS, forceBroadcast: true });
     return { status };
   });
+
+  registerTrustedIpcHandler('diagnostics:get-log-paths', async () => ({ ok: true, ...getDiagnosticsLogPaths() }));
+  registerTrustedIpcHandler('diagnostics:open-log-folder', async () => {
+    const paths = getDiagnosticsLogPaths();
+    if (!paths.logDir) return { ok: false, error: 'log_dir_unavailable' };
+    ensureLogDir(paths.logDir);
+    try {
+      const error = await shell.openPath(paths.logDir);
+      if (error) return { ok: false, error, path: paths.logDir };
+      return { ok: true, path: paths.logDir, ...paths };
+    } catch (err) {
+      return { ok: false, error: String(err?.message || err), path: paths.logDir };
+    }
+  });
+  registerTrustedIpcHandler('report:export', handleReportExport);
 }
 
 async function createWindow() {
-  mainWindow = new BrowserWindow({
+  const window = new BrowserWindow({
     width: 1280,
     height: 880,
     backgroundColor: '#0b1020',
@@ -629,46 +939,154 @@ async function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      navigateOnDragDrop: false,
     },
     show: false,
   });
+  mainWindow = window;
+  denySessionPermissions(window.webContents.session, { allowTrustedClipboardWrite: true });
 
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+  let windowShown = false;
+  const showMainWindow = () => {
+    if (windowShown || window.isDestroyed()) return;
+    windowShown = true;
+    window.show();
+  };
+  window.once('ready-to-show', showMainWindow);
+  window.webContents.once('did-finish-load', () => setTimeout(showMainWindow, 250));
+  const showFallbackTimer = setTimeout(showMainWindow, 5000);
+  if (typeof showFallbackTimer.unref === 'function') {
+    showFallbackTimer.unref();
+  }
+
+  window.webContents.setWindowOpenHandler(({ url }) => {
     if (isAllowedExternalUrl(url)) {
       shell.openExternal(url).catch(() => {});
     }
     return { action: 'deny' };
   });
-  mainWindow.webContents.on('will-navigate', (event, url) => {
+  const guardNavigation = (event, url) => {
     if (isAllowedAppNavigation(url)) return;
     event.preventDefault();
     if (isAllowedExternalUrl(url)) {
       shell.openExternal(url).catch(() => {});
     }
-  });
+  };
+  window.webContents.on('will-navigate', guardNavigation);
+  window.webContents.on('will-redirect', guardNavigation);
+  window.webContents.on('will-attach-webview', (event) => event.preventDefault());
 
   // Inject API base early via preload (window.API_BASE_URL)
   process.env.API_BASE_URL = API_BASE_URL;
 
   if (!app.isPackaged) {
     // Dev: load Vite dev server or local file
-    await mainWindow.loadURL('http://localhost:5173/index.html');
+    await window.loadURL('http://localhost:5173/index.html');
   } else {
     // Prod: load built files
-    await mainWindow.loadFile(path.join(__dirname, 'dist', 'index.html'));
+    await window.loadFile(PACKAGED_RENDERER_ENTRY);
   }
 
-  mainWindow.once('ready-to-show', () => mainWindow.show());
   broadcastBackendStatus();
-  mainWindow.on('closed', () => { mainWindow = null; });
+  window.on('closed', () => {
+    clearTimeout(showFallbackTimer);
+    if (mainWindow === window) mainWindow = null;
+  });
+  return window;
 }
 
-app.whenReady().then(async () => {
+async function waitForSmokeReadiness(timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  let lastVersionResponse = null;
+  let lastHealthResponse = null;
+  while (Date.now() < deadline) {
+    lastVersionResponse = await requestBackendJson('/api/version', 3000);
+    if (lastVersionResponse.ok && isReachableVersionPayload(lastVersionResponse.payload)) {
+      lastHealthResponse = await requestBackendJson('/api/health?skip_network=true', 10000);
+      if (lastHealthResponse.ok && lastHealthResponse.payload?.ready === true) {
+        return {
+          versionPayload: lastVersionResponse.payload,
+          healthPayload: lastHealthResponse.payload,
+        };
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, 400));
+  }
+  const versionError = lastVersionResponse?.error || `http_${lastVersionResponse?.statusCode || 'unavailable'}`;
+  const healthError = lastHealthResponse?.error || `http_${lastHealthResponse?.statusCode || 'unavailable'}`;
+  throw new Error(`backend readiness timed out (version=${versionError}, health=${healthError})`);
+}
+
+async function runSmokeTest() {
+  if (!app.isPackaged) {
+    throw new Error('packaged smoke test must run from a packaged Electron application');
+  }
+  if (!backendProc) {
+    throw new Error('packaged backend process did not start');
+  }
+  const configuredTimeout = Number(process.env.VOX_STELLA_SMOKE_TIMEOUT_MS || 60000);
+  const timeoutMs = Number.isFinite(configuredTimeout)
+    ? Math.min(Math.max(Math.floor(configuredTimeout), 5000), 180000)
+    : 60000;
+  const { versionPayload, healthPayload } = await waitForSmokeReadiness(timeoutMs);
+  const result = validatePackagedBackendSmoke(versionPayload, healthPayload, {
+    expectedVersion: app.getVersion(),
+    expectedCommit: process.env.VOX_STELLA_EXPECTED_COMMIT,
+    requireCleanBuild: process.env.VOX_STELLA_SMOKE_REQUIRE_CLEAN_BUILD === '1',
+  });
+  if (!result.ok) {
+    throw new Error(result.errors.join('; '));
+  }
+  if (!/^[0-9a-f]{64}$/.test(packagedLicensePublicKeySha256 || '')) {
+    throw new Error('packaged licensing trust-root fingerprint is unavailable');
+  }
+  result.licensePublicKeySha256 = packagedLicensePublicKeySha256;
+  console.log(`[smoke] PASS ${JSON.stringify(result)}`);
+  return result;
+}
+
+async function startInitialBackend(logDir) {
+  if (!app.isPackaged) {
+    return startBackend(logDir);
+  }
+  const maxAttempts = CONFIGURED_BACKEND_PORT ? 1 : 3;
+  initialBackendReadinessPending = true;
+  try {
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      if (attempt > 1) {
+        const retryPort = await resolveBackendPort({
+          appIsPackaged: true,
+          configuredPort: CONFIGURED_BACKEND_PORT,
+        });
+        applyBackendPort(retryPort);
+        configureRuntimeEnv({ appIsPackaged: true, apiBaseUrl: API_BASE_URL, env: process.env });
+        console.warn(`[backend] retrying initial authenticated startup on port ${PORT}`);
+      }
+      backendProc = await startBackend(logDir);
+      if (backendProc && await waitForBackendReachability(BACKEND_STATUS_BOOT_GRACE_MS)) {
+        backendRestartAttempts = 0;
+        setBackendStatus('connected', { force: true });
+        return backendProc;
+      }
+      const failedChild = backendProc;
+      backendProc = null;
+      await terminateBackendChild(failedChild);
+    }
+  } finally {
+    initialBackendReadinessPending = false;
+  }
+  throw new Error('Packaged backend failed authenticated readiness checks');
+}
+
+async function startApplication() {
   let logDir = null;
   try {
     logDir = path.join(app.getPath('userData'), 'logs');
   } catch (_) {}
   backendLogDir = logDir;
+  configureMainFileLogging(logDir);
   const selectedPort = await resolveBackendPort({
     appIsPackaged: app.isPackaged,
     configuredPort: CONFIGURED_BACKEND_PORT,
@@ -676,8 +1094,37 @@ app.whenReady().then(async () => {
   applyBackendPort(selectedPort);
   console.log(`[backend] selected port ${PORT} (${app.isPackaged ? 'packaged' : 'development'} runtime)`);
   configureMapTileRequestHeaders();
+  configureRendererSessionSecurity();
   configureRuntimeEnv({ appIsPackaged: app.isPackaged, apiBaseUrl: API_BASE_URL, env: process.env });
-  backendProc = await startBackend(logDir);
+  backendProc = await startInitialBackend(logDir);
+  if (SMOKE_TEST_MODE) {
+    let exitCode = 0;
+    try {
+      const result = await runSmokeTest();
+      const resultPath = writeSmokeResultFile(
+        process.env.VOX_STELLA_SMOKE_RESULT_PATH,
+        { ok: true, result },
+      );
+      if (resultPath) console.log(`[smoke] result file: ${resultPath}`);
+    } catch (error) {
+      exitCode = 1;
+      const errorMessage = String(error?.message || error);
+      console.error(`[smoke] FAIL ${errorMessage}`);
+      try {
+        writeSmokeResultFile(
+          process.env.VOX_STELLA_SMOKE_RESULT_PATH,
+          { ok: false, error: errorMessage },
+        );
+      } catch (resultError) {
+        console.error(`[smoke] result file failed: ${String(resultError?.message || resultError)}`);
+      }
+    } finally {
+      shutdownBackend();
+      process.exitCode = exitCode;
+      app.exit(exitCode);
+    }
+    return;
+  }
   registerCoreIpcHandlers();
   await createWindow();
   startBackendStatusMonitor();
@@ -686,63 +1133,105 @@ app.whenReady().then(async () => {
   });
 
   // Initialize auto-updater IPC (no-op if module not installed)
-  try { if (initAutoUpdater) initAutoUpdater(ipcMain, mainWindow); } catch (e) { console.warn('Updater init failed:', e); }
+  try {
+    if (initAutoUpdater) {
+      initAutoUpdater(ipcMain, () => mainWindow, { authorizeIpc: isTrustedIpcEvent });
+    }
+  } catch (e) {
+    console.warn('Updater init failed:', e);
+  }
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    if (BrowserWindow.getAllWindows().length === 0) void createWindow();
   });
-});
-
-// Report export: render provided HTML in an offscreen window and save as PDF
-function sanitizeReportHtml(input) {
-  let html = String(input || '');
-  // Strip scripts and inline handlers from renderer-provided markup.
-  html = html.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '');
-  html = html.replace(/\son\w+=(\"[^\"]*\"|'[^']*'|[^\s>]+)/gi, '');
-  html = html.replace(/javascript:/gi, '');
-  return html;
 }
 
-ipcMain.handle('report:export', async (_e, payload) => {
-  try {
-    const html = String(payload?.html || '');
-    const pageSize = payload?.pageSize || 'A4';
-    if (!html) throw new Error('Empty report HTML');
-    const safeHtml = sanitizeReportHtml(html);
+function withTimeout(promise, timeoutMs, label) {
+  let timer = null;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`${label} timed out`)), timeoutMs);
+    }),
+  ]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
+}
 
-    const win = new BrowserWindow({
+function configureReportWindowSecurity(win, expectedUrl) {
+  denySessionPermissions(win.webContents.session);
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  win.webContents.on('will-attach-webview', (event) => event.preventDefault());
+  win.webContents.on('will-navigate', (event, url) => {
+    if (url === expectedUrl) return;
+    event.preventDefault();
+  });
+  win.webContents.on('will-redirect', (event) => event.preventDefault());
+  try {
+    win.webContents.session.webRequest.onBeforeRequest(
+      { urls: ['<all_urls>'] },
+      (_details, callback) => callback({ cancel: true }),
+    );
+  } catch (_) {}
+}
+
+async function handleReportExport(_event, payload) {
+  let win = null;
+  try {
+    const {
+      html,
+      pageSize,
+      title,
+      defaultPath,
+    } = validateReportPayload(payload);
+    const saveDialogOptions = {
+      title,
+      defaultPath,
+      filters: [{ name: 'PDF', extensions: ['pdf'] }],
+      properties: ['showOverwriteConfirmation', 'createDirectory'],
+    };
+    const saveResult = mainWindow && !mainWindow.isDestroyed()
+      ? await dialog.showSaveDialog(mainWindow, saveDialogOptions)
+      : await dialog.showSaveDialog(saveDialogOptions);
+    if (saveResult.canceled || !saveResult.filePath) {
+      return { ok: false, error: 'Save canceled' };
+    }
+    const filePath = /\.pdf$/i.test(saveResult.filePath)
+      ? saveResult.filePath
+      : `${saveResult.filePath}.pdf`;
+    const reportUrl = `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
+    win = new BrowserWindow({
       show: false,
       webPreferences: {
         sandbox: true,
         contextIsolation: true,
         nodeIntegration: false,
         javascript: false,
+        webSecurity: true,
+        allowRunningInsecureContent: false,
+        navigateOnDragDrop: false,
+        partition: 'report-export',
       },
     });
-    await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(safeHtml));
-    // Wait a short moment for fonts/images
-    await new Promise(r => setTimeout(r, 200));
-    const pdf = await win.webContents.printToPDF({
+    configureReportWindowSecurity(win, reportUrl);
+    await withTimeout(win.loadURL(reportUrl), 15000, 'Report rendering');
+    const pdf = await withTimeout(win.webContents.printToPDF({
       marginsType: 1,
       printBackground: true,
       pageSize,
       landscape: false,
-    });
-    win.destroy();
-
-    const { filePath, canceled } = await dialog.showSaveDialog({
-      title: 'Save Forensic Report',
-      defaultPath: 'ForensicReport.pdf',
-      filters: [{ name: 'PDF', extensions: ['pdf'] }],
-    });
-    if (canceled || !filePath) return { ok: false, error: 'Save canceled' };
-    fs.writeFileSync(filePath, pdf);
+    }), 30000, 'PDF generation');
+    await fs.promises.writeFile(filePath, pdf, { flag: 'w' });
     return { ok: true, path: filePath };
   } catch (e) {
     console.error('report:export failed:', e);
     return { ok: false, error: String(e?.message || e) };
+  } finally {
+    try {
+      if (win && !win.isDestroyed()) win.destroy();
+    } catch (_) {}
   }
-});
+}
 
 function shutdownBackend() {
   if (backendKillStarted) return;
@@ -752,7 +1241,7 @@ function shutdownBackend() {
   backendRestartAttempts = 0;
   stopBackendStatusMonitor();
   stopBackendHeartbeat();
-  if (backendProc && !backendProc.killed) {
+  if (backendProc && backendProc.exitCode == null && backendProc.signalCode == null) {
     try {
       if (process.platform === 'win32') {
         // Graceful first
@@ -773,6 +1262,20 @@ function shutdownBackend() {
   }
 }
 
+function terminateApplication(reason, error, exitCode) {
+  if (fatalExitStarted) return;
+  fatalExitStarted = true;
+  const detail = error instanceof Error
+    ? (error.stack || error.message)
+    : String(error || reason);
+  console.error(`[fatal] ${reason}: ${detail}`);
+  shutdownBackend();
+  process.exitCode = exitCode;
+  try {
+    app.exit(exitCode);
+  } catch (_) {}
+}
+
 app.on('before-quit', shutdownBackend);
 app.on('will-quit', shutdownBackend);
 app.on('window-all-closed', () => {
@@ -783,8 +1286,24 @@ app.on('window-all-closed', () => {
 });
 
 // Extra safety: kill backend on process exit or signals
-process.on('exit', shutdownBackend);
-process.on('SIGINT', shutdownBackend);
-process.on('SIGTERM', shutdownBackend);
-process.on('uncaughtException', shutdownBackend);
-process.on('unhandledRejection', shutdownBackend);
+process.once('exit', shutdownBackend);
+process.once('SIGINT', () => terminateApplication('SIGINT', 'interrupt signal', 130));
+process.once('SIGTERM', () => terminateApplication('SIGTERM', 'termination signal', 143));
+process.once('uncaughtException', (error) => terminateApplication('uncaughtException', error, 1));
+process.once('unhandledRejection', (reason) => terminateApplication('unhandledRejection', reason, 1));
+
+app.whenReady()
+  .then(startApplication)
+  .catch((error) => {
+    if (SMOKE_TEST_MODE) {
+      try {
+        writeSmokeResultFile(
+          process.env.VOX_STELLA_SMOKE_RESULT_PATH,
+          { ok: false, error: String(error?.message || error) },
+        );
+      } catch (resultError) {
+        console.error(`[smoke] result file failed: ${String(resultError?.message || resultError)}`);
+      }
+    }
+    terminateApplication('startup', error, 1);
+  });

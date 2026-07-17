@@ -8,6 +8,41 @@ from typing import Any, Dict, List
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT_PATH = ROOT / "backend" / "knowledge" / "astrocartography" / "place_goal_models.runtime.json"
+FRONTEND_OUTPUT_PATH = ROOT / "frontend" / "backend" / "knowledge" / "astrocartography" / "place_goal_models.runtime.json"
+OUTPUT_PATHS = (OUTPUT_PATH, FRONTEND_OUTPUT_PATH)
+REQUIRED_MODEL_IDS = {
+    "education",
+    "love",
+    "work",
+    "money",
+    "home",
+    "partners",
+    "beliefs",
+    "friends",
+    "career",
+    "sex",
+    "personal_growth",
+    "communication",
+    "conflict",
+    "love_commitment",
+    "money_stable_income",
+    "career_public_profile",
+    "home_retreat",
+    "gambling_luck",
+    "health_risk",
+    "body_presence",
+    "risk_pressure",
+    "protective_places",
+    "accident_prone",
+    "travel_fun",
+    "travel_relax",
+}
+PRESERVE_EXISTING_MODEL_IDS = {
+    # The live gambling model is a curated relocation scorer. The older
+    # generator template is retained only as historical source text and must
+    # not overwrite the runtime model when rebuilding.
+    "gambling_luck",
+}
 
 
 def _distance(max_km: float = 300.0, falloff: str = "linear") -> Dict[str, Any]:
@@ -359,6 +394,7 @@ def _new_models() -> List[Dict[str, Any]]:
             "summary": "Warning-oriented natal-only model for places with acute accident, collision, and crash pressure. Higher scores mean more accident-prone places.",
             "description": "Built from the subtype accident-pressure research pass rather than the generic risk lens. It emphasizes Mars, Uranus, Pluto, Saturn, and Chiron around angular lines and accident-pattern crossings, then blends in bodily-risk relocation metrics. Transit overlay is intentionally ignored because the accident benchmark got worse when transit was added.",
             "goal_family": "risk",
+            "score_polarity": "higher_is_worse",
             "evaluation_strategy": "accident_pressure",
             "transit_strategy": "ignore",
             "legacy_refs": [
@@ -654,7 +690,7 @@ def _new_models() -> List[Dict[str, Any]]:
                 constraint_component("uncertainty", "gte", 0.5, "High instability should reduce fun-travel rankings.", add=-2.8, polarity="caution"),
                 constraint_component("travel_joy", "lt", 0.15, "Places with almost no travel-joy signature should not rank like leisure destinations.", cap_score=10.0, polarity="caution"),
             ],
-            "normalization": {"method": "bounded_linear", "min_score": -12, "max_score": 30},
+            "normalization": {"method": "bounded_linear", "min_score": -12, "max_score": 34},
         },
         {
             "id": "travel_relax",
@@ -697,7 +733,7 @@ def _new_models() -> List[Dict[str, Any]]:
                 constraint_component("uncertainty", "gte", 0.45, "Strong instability should sharply reduce restorative travel suitability.", add=-3.0, polarity="caution"),
                 constraint_component("restoration", "lt", 0.15, "Places with almost no restoration signal should not rank as retreat destinations.", cap_score=10.0, polarity="caution"),
             ],
-            "normalization": {"method": "bounded_linear", "min_score": -12, "max_score": 30},
+            "normalization": {"method": "bounded_linear", "min_score": -12, "max_score": 34},
         },
         {
             "id": "gambling_luck",
@@ -742,6 +778,7 @@ def _new_models() -> List[Dict[str, Any]]:
             "summary": "Warning-oriented model that ranks places where injury, illness pressure, and bodily strain are more likely to surface. Higher scores mean worse places.",
             "description": "Built as an explicit caution model rather than a positive destination goal. It uses the planetary caution layer for Mars, Saturn, Uranus, Neptune, and Pluto, the ASC as the body axis, and Morin-style 6th, 8th, and 12th-house health and danger semantics. High scores are a warning signal, not a recommendation.",
             "goal_family": "risk",
+            "score_polarity": "higher_is_worse",
             "legacy_refs": [
                 legacy_ref("WORK__SERVICE _SICKNESS_.HYP", "hyp", notes=["External work-service-sickness hybrid family reviewed on 2026-04-05."]),
                 doc_ref("horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md", notes=["Mars conflict/haste, Saturn heaviness, Uranus shock, Neptune confusion, Pluto crisis, and the ASC/body framing come from the core astrocartography reference layer."]),
@@ -915,17 +952,44 @@ def build_payload() -> Dict[str, Any]:
     for model in _patched_core_models(models_by_id):
         models_by_id[str(model["id"]).strip().lower()] = model
     for model in _new_models():
-        models_by_id[str(model["id"]).strip().lower()] = model
+        model_id = str(model["id"]).strip().lower()
+        if model_id in PRESERVE_EXISTING_MODEL_IDS and model_id in models_by_id:
+            continue
+        models_by_id[model_id] = model
     payload["generated_on"] = str(date.today())
     payload["generator"] = "scripts/build_astrocartography_goal_models.py"
     payload["models"] = list(models_by_id.values())
+    _validate_payload(payload)
     return payload
+
+
+def _validate_payload(payload: Dict[str, Any]) -> None:
+    models = {
+        str(model.get("id") or "").strip().lower(): model
+        for model in payload.get("models") or []
+        if isinstance(model, dict) and str(model.get("id") or "").strip()
+    }
+    missing = sorted(REQUIRED_MODEL_IDS - set(models))
+    if missing:
+        raise RuntimeError(f"Refusing to write incomplete astrocartography goal payload; missing models: {', '.join(missing)}")
+
+    gambling = models.get("gambling_luck") or {}
+    if str(gambling.get("evaluation_strategy") or "").strip().lower() != "gambling_natal_curated":
+        raise RuntimeError("Refusing to overwrite the curated Gambling Luck runtime model with a stale template")
+
+    for model_id in ("health_risk", "accident_prone"):
+        model = models.get(model_id) or {}
+        if str(model.get("score_polarity") or "").strip().lower() != "higher_is_worse":
+            raise RuntimeError(f"Refusing to write {model_id} without higher_is_worse score polarity")
 
 
 def main() -> None:
     payload = build_payload()
-    OUTPUT_PATH.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    print(f"Wrote {len(payload.get('models') or [])} astrocartography goal models to {OUTPUT_PATH}")
+    text = json.dumps(payload, indent=2, ensure_ascii=False) + "\n"
+    for path in OUTPUT_PATHS:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+    print(f"Wrote {len(payload.get('models') or [])} astrocartography goal models to {', '.join(str(path) for path in OUTPUT_PATHS)}")
 
 
 if __name__ == "__main__":

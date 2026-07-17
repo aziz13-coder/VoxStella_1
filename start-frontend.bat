@@ -59,26 +59,13 @@ echo Dependencies repaired successfully!
     echo.
 )
 
-REM Ensure stale Vite listeners on 5173 are cleared to avoid strictPort failures
-echo Checking for existing frontend listeners on port 5173...
-set "FOUND_FRONTEND_PORT=0"
-for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:"127\.0\.0\.1:5173 .*LISTENING"') do (
-    set "FOUND_FRONTEND_PORT=1"
-    echo Stopping existing process on port 5173 ^(PID %%P^)...
-    taskkill /PID %%P /F >nul 2>&1
-)
-for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:"\[::1\]:5173 .*LISTENING"') do (
-    set "FOUND_FRONTEND_PORT=1"
-    echo Stopping existing process on port 5173 ^(PID %%P^)...
-    taskkill /PID %%P /F >nul 2>&1
-)
-if "%FOUND_FRONTEND_PORT%"=="1" (
-    timeout /t 1 >nul
-)
+REM Never kill an arbitrary listener. Refuse startup and identify the owner.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\assert-port-available.ps1" -Port 5173 -Purpose "Vite browser development server"
+if errorlevel 1 exit /b 1
 
 echo Starting frontend development server...
 echo The application will open in your browser at http://localhost:5173
-echo NOTE: Backend API must also be running at http://localhost:5000 (use start-backend.bat)
+echo NOTE: Backend API must also be running at http://127.0.0.1:52525 (use start-backend.bat)
 echo NOTE: start-backend.bat enables local dev license bypass by default; use --strict-license to disable it.
 echo NOTE: This script runs the browser dev server only.
 echo NOTE: For Electron desktop dev mode, use start-electron-dev.bat instead.
@@ -87,7 +74,7 @@ echo Press Ctrl+C to stop the server
 echo.
 
 REM Start the development server
-set "VITE_API_BASE_URL=http://127.0.0.1:5000"
+set "VITE_API_BASE_URL=http://127.0.0.1:52525"
 npm run dev
 
 REM If we reach here, the server was stopped

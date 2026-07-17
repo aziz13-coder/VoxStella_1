@@ -12,8 +12,11 @@ from __future__ import annotations
 import csv
 import copy
 import hashlib
+import inspect
 import json
+import math
 import os
+import queue
 import sys
 import logging
 import threading
@@ -24,6 +27,7 @@ from collections import Counter
 from datetime import datetime, timezone, time as dt_time, timedelta
 from pathlib import Path
 from time import perf_counter
+from types import SimpleNamespace
 from typing import Any, Dict, Optional, Tuple, List, Iterable, Set
 from uuid import uuid4
 from zoneinfo import ZoneInfo
@@ -32,6 +36,10 @@ from flask import Blueprint, jsonify, request, Response, stream_with_context, ha
 from functools import wraps
 
 from astro_clock_engine import AstroClockEngine, AstroClockSettings, ClockMode
+from astro_dispositors import (
+    calculate_dispositor_chains,
+    compute_final_dispositors as compute_classical_final_dispositors,
+)
 from planetary_hours import PlanetaryHoursCalculator, DailyPlanetaryHours, PlanetaryHour
 from horary_engine.services.geolocation import safe_geocode, LocationError, TimezoneManager
 from horary_engine.serialization import deserialize_chart_for_evaluation
@@ -45,11 +53,32 @@ from astro_clock_metrics import compute_metrics
 from cusp_aspects import compute_cusp_aspects
 from planetary_aspects_precise import compute_planetary_aspects_precise
 from almutens import compute_chart_almutens
+from astro_clock_points import compute_symbolic_points_payload
+from research_lab import (
+    analyze_research_snapshots,
+    build_run_id,
+    generate_matched_control_rows,
+    list_evaluator_catalog,
+    normalize_chart_rows,
+)
+
+POINTS_HOUSE_SYSTEM_CODE = 'P'
 from asteroids import (
     compute_asteroid_positions,
     _resolve_ephemeris_path as _resolve_synastry_ephemeris_path,
 )
+from swisseph_state import (
+    require_swisseph,
+    swisseph_ephemeris_path,
+    swisseph_lock,
+)
 from moon_day import compute_moon_day
+from election_models.lunar_fertility import (
+    SwissEphemerisAdapter as LunarFertilityEphemerisAdapter,
+    group_lunar_fertility_periods,
+    normalize_consider_mode as normalize_lunar_fertility_consider_mode,
+    scan_lunar_fertility_windows,
+)
 from flask import stream_with_context
 
 try:
@@ -101,22 +130,288 @@ _ATLAS_SEARCH_SESSION_MAX = max(8, int(os.environ.get("VOX_STELLA_ATLAS_SEARCH_S
 _ATLAS_SEARCH_SESSION_TTL_SECONDS = max(60.0, float(os.environ.get("VOX_STELLA_ATLAS_SEARCH_SESSION_TTL_SECONDS", "1800")))
 _mundane_scan_sessions: Dict[str, Dict[str, Any]] = {}
 _mundane_scan_lock = threading.Lock()
+_MUNDANE_SCAN_SESSION_MAX = max(8, int(os.environ.get("VOX_STELLA_MUNDANE_SCAN_SESSION_MAX", "48")))
+_MUNDANE_SCAN_SESSION_TTL_SECONDS = max(60.0, float(os.environ.get("VOX_STELLA_MUNDANE_SCAN_SESSION_TTL_SECONDS", "1800")))
 _weather_scan_sessions: Dict[str, Dict[str, Any]] = {}
 _weather_scan_lock = threading.Lock()
+_WEATHER_SCAN_SESSION_MAX = max(8, int(os.environ.get("VOX_STELLA_WEATHER_SCAN_SESSION_MAX", "48")))
+_WEATHER_SCAN_SESSION_TTL_SECONDS = max(60.0, float(os.environ.get("VOX_STELLA_WEATHER_SCAN_SESSION_TTL_SECONDS", "1800")))
+_RESEARCH_SESSION_MAX = max(8, int(os.environ.get("VOX_STELLA_RESEARCH_SESSION_MAX", "48")))
+_RESEARCH_SESSION_TTL_SECONDS = max(60.0, float(os.environ.get("VOX_STELLA_RESEARCH_SESSION_TTL_SECONDS", "3600")))
+_BACKGROUND_WORKER_COUNT = max(1, min(8, int(os.environ.get("VOX_STELLA_BACKGROUND_WORKERS", "2"))))
+_BACKGROUND_QUEUE_MAX = max(1, min(64, int(os.environ.get("VOX_STELLA_BACKGROUND_QUEUE_MAX", "4"))))
 _research_cache_dir = Path(__file__).resolve().parent / 'research' / '.cache'
 _research_default_time = "23:30"
 _research_default_location = "Tel Aviv, Israel"
-_research_default_coords = (32.0853, 34.7818)
 _research_default_tz = "Asia/Jerusalem"
 _ASTRO_PERF_STACK: ContextVar[Tuple[str, ...]] = ContextVar('astro_perf_stack', default=())
 _ASTRO_PERF_REQUEST: ContextVar[Optional[str]] = ContextVar('astro_perf_request', default=None)
 _BUSINESS_BETA_EXTRACTION_LEVEL_DEFAULT = 67.0
 _BUSINESS_BETA_EXTRACTION_MODES = {'total', 'detail'}
 _BUSINESS_BETA_EXTRACTION_SCOPES = {'all', 'current', 'selected'}
+_ESTATE_EXTRACTION_LEVEL_DEFAULT = 67.0
+_ESTATE_EXTRACTION_MODES = _BUSINESS_BETA_EXTRACTION_MODES
+_ESTATE_EXTRACTION_SCOPES = _BUSINESS_BETA_EXTRACTION_SCOPES
+_LUNAR_FERTILITY_LEVEL_DEFAULT = 33.0
+_BACKGROUND_STOP = object()
 
 
-def _validate_stream_scan_bounds(start_dt: datetime, end_dt: datetime, step_minutes: int) -> Tuple[Optional[int], Optional[str]]:
-    """Validate stream scan ranges to prevent unbounded CPU usage."""
+class _BoundedDaemonExecutor:
+    """Small process-local worker pool with bounded queued work.
+
+    Jobs and their session state are intentionally restart-volatile: daemon
+    workers never keep the packaged backend alive during shutdown.
+    """
+
+    def __init__(self, max_workers: int, max_queue: int):
+        self.max_workers = max(1, int(max_workers))
+        self.max_queue = max(1, int(max_queue))
+        self._queue: queue.Queue = queue.Queue(maxsize=self.max_queue)
+        self._start_lock = threading.Lock()
+        self._stats_lock = threading.Lock()
+        self._started = False
+        self._closed = False
+        self._workers: List[threading.Thread] = []
+        self._stats = {
+            'accepted': 0,
+            'rejected': 0,
+            'running': 0,
+            'completed': 0,
+            'failed': 0,
+        }
+
+    def _ensure_started(self) -> None:
+        if self._started or self._closed:
+            return
+        with self._start_lock:
+            if self._started or self._closed:
+                return
+            for index in range(self.max_workers):
+                worker = threading.Thread(
+                    target=self._worker,
+                    name=f'astro-background-{index + 1}',
+                    daemon=True,
+                )
+                worker.start()
+                self._workers.append(worker)
+            self._started = True
+
+    def _worker(self) -> None:
+        while True:
+            try:
+                item = self._queue.get(timeout=0.25)
+            except queue.Empty:
+                if self._closed:
+                    return
+                continue
+            if item is _BACKGROUND_STOP:
+                self._queue.task_done()
+                return
+            job_name, callback = item
+            with self._stats_lock:
+                self._stats['running'] += 1
+            try:
+                callback()
+            except Exception:
+                with self._stats_lock:
+                    self._stats['failed'] += 1
+                logger.exception("Unhandled Astro Clock background job failure: %s", job_name)
+            finally:
+                with self._stats_lock:
+                    self._stats['running'] -= 1
+                    self._stats['completed'] += 1
+                self._queue.task_done()
+
+    def submit(self, job_name: str, callback) -> bool:
+        self._ensure_started()
+        with self._start_lock:
+            if self._closed:
+                with self._stats_lock:
+                    self._stats['rejected'] += 1
+                return False
+            try:
+                self._queue.put_nowait((str(job_name), callback))
+            except queue.Full:
+                with self._stats_lock:
+                    self._stats['rejected'] += 1
+                return False
+        with self._stats_lock:
+            self._stats['accepted'] += 1
+        return True
+
+    def shutdown(self, *, wait: bool = False) -> None:
+        with self._start_lock:
+            if self._closed:
+                workers = list(self._workers)
+            else:
+                self._closed = True
+                workers = list(self._workers)
+                for _ in workers:
+                    try:
+                        self._queue.put_nowait(_BACKGROUND_STOP)
+                    except queue.Full:
+                        break
+        if wait:
+            for worker in workers:
+                worker.join(timeout=2.0)
+
+    def snapshot(self) -> Dict[str, Any]:
+        with self._stats_lock:
+            stats = dict(self._stats)
+        return {
+            **stats,
+            'workers': self.max_workers,
+            'queue_capacity': self.max_queue,
+            'queued': self._queue.qsize(),
+            'closed': self._closed,
+        }
+
+
+_previous_background_executor = globals().get('_background_executor')
+if _previous_background_executor is not None:
+    try:
+        _previous_background_executor.shutdown(wait=False)
+    except Exception:
+        logger.exception("Failed to close previous Astro Clock background executor")
+
+
+_background_executor = _BoundedDaemonExecutor(
+    _BACKGROUND_WORKER_COUNT,
+    _BACKGROUND_QUEUE_MAX,
+)
+
+
+class _BackgroundCapacityError(RuntimeError):
+    pass
+
+
+def _submit_background_job(job_name: str, callback) -> bool:
+    return _background_executor.submit(job_name, callback)
+
+
+def _background_runtime_payload(
+    workflow: str,
+    *,
+    session_max: int,
+    session_ttl_seconds: float,
+) -> Dict[str, Any]:
+    return {
+        'workflow': workflow,
+        'session_persistence': 'process_memory',
+        'restart_volatile': True,
+        'session_max': int(session_max),
+        'terminal_session_ttl_seconds': float(session_ttl_seconds),
+        'executor': _background_executor.snapshot(),
+    }
+
+
+def _prune_terminal_sessions_locked(
+    sessions: Dict[str, Dict[str, Any]],
+    *,
+    is_terminal,
+    max_sessions: int,
+    ttl_seconds: float,
+    now: Optional[float] = None,
+    reserve: int = 0,
+) -> bool:
+    current_time = now if now is not None else perf_counter()
+    expired_ids = []
+    for session_id, session in list(sessions.items()):
+        if not is_terminal(session):
+            continue
+        updated_at = float(session.get('updated_at') or session.get('created_at') or current_time)
+        if (current_time - updated_at) >= ttl_seconds:
+            expired_ids.append(session_id)
+    for session_id in expired_ids:
+        sessions.pop(session_id, None)
+
+    target_size = max(0, int(max_sessions) - max(0, int(reserve)))
+    removable = []
+    for session_id, session in sessions.items():
+        if not is_terminal(session):
+            continue
+        updated_at = float(session.get('updated_at') or session.get('created_at') or current_time)
+        removable.append((updated_at, session_id))
+    removable.sort()
+    for _, session_id in removable:
+        if len(sessions) <= target_size:
+            break
+        sessions.pop(session_id, None)
+    return len(sessions) <= target_size
+
+
+def _initialize_background_session(
+    sessions: Dict[str, Dict[str, Any]],
+    lock: threading.Lock,
+    session_id: str,
+    initial: Dict[str, Any],
+    *,
+    is_terminal,
+    max_sessions: int,
+    ttl_seconds: float,
+) -> bool:
+    with lock:
+        now = perf_counter()
+        has_capacity = _prune_terminal_sessions_locked(
+            sessions,
+            is_terminal=is_terminal,
+            max_sessions=max_sessions,
+            ttl_seconds=ttl_seconds,
+            now=now,
+            reserve=1,
+        )
+        if not has_capacity:
+            return False
+        sessions[session_id] = {
+            'session_id': session_id,
+            'created_at': now,
+            'updated_at': now,
+            **initial,
+        }
+        return True
+
+
+def _session_store_metrics(
+    sessions: Dict[str, Dict[str, Any]],
+    lock: threading.Lock,
+    *,
+    prune_locked,
+    is_terminal,
+) -> Dict[str, int]:
+    with lock:
+        prune_locked()
+        values = list(sessions.values())
+        terminal = sum(1 for session in values if is_terminal(session))
+        return {
+            'total': len(values),
+            'active': len(values) - terminal,
+            'terminal': terminal,
+        }
+
+
+def _background_busy_response(workflow: str):
+    return jsonify({
+        'success': False,
+        'error': f'{workflow} background capacity is full; retry later',
+        'retryable': True,
+        'runtime': {
+            'session_persistence': 'process_memory',
+            'restart_volatile': True,
+            'executor': _background_executor.snapshot(),
+        },
+    }), 503
+
+
+def _missing_volatile_session_response(workflow: str):
+    return jsonify({
+        'success': False,
+        'error': f'{workflow} session not found; process-local sessions are lost when the backend restarts',
+        'restart_volatile': True,
+    }), 404
+
+
+def _validate_transit_scan_bounds(start_dt: datetime, end_dt: datetime, step_minutes: int) -> Tuple[Optional[int], Optional[str]]:
+    """Validate transit scan ranges to prevent unbounded CPU usage."""
     if end_dt <= start_dt:
         return None, "End must be after start"
     if step_minutes < 1:
@@ -135,6 +430,107 @@ def _validate_stream_scan_bounds(start_dt: datetime, end_dt: datetime, step_minu
             f"Requested scan would process {total_steps} steps; max is {_STREAM_MAX_STEPS}"
         )
     return max(1, total_steps), None
+
+
+def _validate_stream_scan_bounds(start_dt: datetime, end_dt: datetime, step_minutes: int) -> Tuple[Optional[int], Optional[str]]:
+    """Backward-compatible wrapper for callers that still use the old name."""
+    return _validate_transit_scan_bounds(start_dt, end_dt, step_minutes)
+
+
+def _parse_transit_scan_datetime(value: Any, label: str) -> Tuple[Optional[datetime], Optional[str]]:
+    if value in (None, "", "null"):
+        return None, f"{label} is required"
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed, None
+    except Exception:
+        return None, f"Invalid {label}"
+
+
+def _parse_transit_scan_step(value: Any, default: int = 60) -> Tuple[Optional[int], Optional[str]]:
+    raw = default if value in (None, "", "null") else value
+    try:
+        step = int(raw)
+    except Exception:
+        return None, "Invalid step_minutes"
+    if step < 1:
+        return None, "step_minutes must be >= 1"
+    return step, None
+
+
+def _parse_transit_range_hours(value: Any, default: float = 12.0) -> Tuple[Optional[float], Optional[str]]:
+    raw = default if value in (None, "", "null") else value
+    try:
+        hours = float(raw)
+    except Exception:
+        return None, "Invalid range_hours"
+    if hours <= 0:
+        return None, "range_hours must be > 0"
+    return hours, None
+
+
+def _parse_transit_limit(value: Any, default: int = 40, max_value: int = 200) -> Tuple[Optional[int], Optional[str]]:
+    raw = default if value in (None, "", "null") else value
+    try:
+        limit = int(raw)
+    except Exception:
+        return None, "Invalid limit"
+    if limit < 1:
+        return None, "limit must be >= 1"
+    return min(limit, max_value), None
+
+
+def _validate_transit_scan_request_bounds(
+    start: Any,
+    end: Any,
+    step_minutes: int,
+) -> Tuple[Optional[datetime], Optional[datetime], Optional[int], Optional[str]]:
+    start_dt, start_error = _parse_transit_scan_datetime(start, "start")
+    if start_error:
+        return None, None, None, start_error
+    end_dt, end_error = _parse_transit_scan_datetime(end, "end")
+    if end_error:
+        return None, None, None, end_error
+    total_steps, bounds_error = _validate_transit_scan_bounds(start_dt, end_dt, step_minutes)
+    if bounds_error:
+        return start_dt, end_dt, None, bounds_error
+    return start_dt, end_dt, total_steps, None
+
+
+def _apply_transit_hit_filters(
+    hits: List[Dict[str, Any]],
+    flt_transiting: Optional[List[str]] = None,
+    flt_natal: Optional[List[str]] = None,
+    flt_aspects: Optional[List[str]] = None,
+) -> List[Dict[str, Any]]:
+    filtered = list(hits or [])
+    if flt_transiting:
+        allowed = {str(item) for item in flt_transiting}
+        filtered = [h for h in filtered if str(h.get('transiting')) in allowed]
+    if flt_natal:
+        allowed = {str(item) for item in flt_natal}
+        filtered = [
+            h for h in filtered
+            if str(h.get('natal')) in allowed or str(h.get('target_label')) in allowed
+        ]
+    if flt_aspects:
+        allowed = {str(item) for item in flt_aspects}
+        filtered = [h for h in filtered if str(h.get('aspect')) in allowed]
+    return filtered
+
+
+def _sort_transit_hits_for_display(hits: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Keep the transit engine's domain-aware priority order intact.
+
+    The enrichment pipeline already emits a deliberate order that balances
+    direct planet hits, angles, cusps, and antiscia. Re-sorting only by raw
+    significance lets high-scoring generic rows crowd out lower-significance
+    but domain-specific signals such as marriage or conflict. Predictor rows
+    have their own explicit ranking and do not depend on this order.
+    """
+    return list(hits or [])
 
 
 def _parse_local_time_bound(raw_value: Optional[str], *, label: str) -> Tuple[Optional[int], Optional[str]]:
@@ -285,6 +681,36 @@ def _parse_business_beta_level_percent(raw_value: Any) -> float:
     return value
 
 
+def _parse_estate_level_percent(raw_value: Any) -> float:
+    try:
+        value = float(raw_value)
+    except Exception:
+        return _ESTATE_EXTRACTION_LEVEL_DEFAULT
+    if value < 0.0:
+        return 0.0
+    if value > 100.0:
+        return 100.0
+    return value
+
+
+def _parse_lunar_fertility_level_percent(raw_value: Any) -> float:
+    try:
+        value = float(raw_value)
+    except Exception:
+        return _LUNAR_FERTILITY_LEVEL_DEFAULT
+    if value < 0.0:
+        return 0.0
+    if value > 100.0:
+        return 100.0
+    return value
+
+
+def _lunar_fertility_ephemeris_adapter() -> LunarFertilityEphemerisAdapter:
+    return LunarFertilityEphemerisAdapter(
+        ephemeris_path=_resolve_synastry_ephemeris_path()
+    )
+
+
 def _resolve_business_beta_line_selection(
     line_order: List[str],
     *,
@@ -314,6 +740,8 @@ def _extract_business_beta_periods(
     level_percent: float,
     current_line_id: Optional[str] = None,
     selected_line_ids: Optional[Iterable[str]] = None,
+    row_prefix: str = 'business_beta',
+    period_id_prefix: str = 'business-beta-period',
 ) -> Dict[str, Any]:
     copied_rows = [copy.deepcopy(row) for row in rows if isinstance(row, dict)]
     line_order: List[str] = []
@@ -406,10 +834,10 @@ def _extract_business_beta_periods(
             )
 
         row['score'] = round(selected_metric_total, 2) if resolved_selected_line_ids else round(aggregate_score, 2)
-        row['business_beta_pass'] = bool(row_passes)
-        row['business_beta_line_states'] = line_states
-        row['business_beta_selected_line_ids'] = list(resolved_selected_line_ids)
-        row['business_beta_selected_threshold'] = round(selected_threshold_total, 2)
+        row[f'{row_prefix}_pass'] = bool(row_passes)
+        row[f'{row_prefix}_line_states'] = line_states
+        row[f'{row_prefix}_selected_line_ids'] = list(resolved_selected_line_ids)
+        row[f'{row_prefix}_selected_threshold'] = round(selected_threshold_total, 2)
         extraction_rows.append(row)
         if row_passes:
             period_rows.append(row)
@@ -448,7 +876,7 @@ def _extract_business_beta_periods(
         end_row = period_rows_list[-1]
         period_payloads.append(
             {
-                'id': f'business-beta-period:{index}',
+                'id': f'{period_id_prefix}:{index}',
                 'start': start_row.get('timestamp'),
                 'start_local': start_row.get('timestamp_local'),
                 'end': end_row.get('timestamp'),
@@ -487,10 +915,35 @@ def _extract_business_beta_periods(
     }
 
 
+def _extract_estate_periods(
+    rows: List[Dict[str, Any]],
+    *,
+    step_td: timedelta,
+    display_mode: str,
+    scope: str,
+    level_percent: float,
+    current_line_id: Optional[str] = None,
+    selected_line_ids: Optional[Iterable[str]] = None,
+) -> Dict[str, Any]:
+    return _extract_business_beta_periods(
+        rows,
+        step_td=step_td,
+        display_mode=display_mode,
+        scope=scope,
+        level_percent=level_percent,
+        current_line_id=current_line_id,
+        selected_line_ids=selected_line_ids,
+        row_prefix='estate',
+        period_id_prefix='estate-period',
+    )
+
+
 def _engine_instance() -> AstroClockEngine:
     global _engine
     if _engine is None:
-        _engine = AstroClockEngine()
+        with _engine_lock:
+            if _engine is None:
+                _engine = AstroClockEngine()
     return _engine
 
 
@@ -505,19 +958,41 @@ def _traits_engine_instance():
     return _traits_engine
 
 
+def _evaluate_traits_profile(engine: Any, metrics: Dict[str, Any], summary_context: str) -> Dict[str, Any]:
+    evaluate = getattr(engine, 'evaluate')
+    try:
+        params = inspect.signature(evaluate).parameters
+        supports_summary_context = (
+            'summary_context' in params
+            or any(param.kind == inspect.Parameter.VAR_KEYWORD for param in params.values())
+        )
+    except (TypeError, ValueError):
+        supports_summary_context = True
+
+    if supports_summary_context:
+        profile = evaluate(metrics, summary_context=summary_context)
+    else:
+        profile = evaluate(metrics)
+
+    return profile if isinstance(profile, dict) else {}
+
+
 def _tz_instance() -> TimezoneManager:
     global _tz_mgr
     if _tz_mgr is None:
-        _tz_mgr = TimezoneManager()
+        with _engine_lock:
+            if _tz_mgr is None:
+                _tz_mgr = TimezoneManager()
     return _tz_mgr
 
 
 def _ph_instance(lat: float, lon: float) -> PlanetaryHoursCalculator:
     global _ph_calc, _ph_coords
-    if _ph_calc is None or _ph_coords != (lat, lon):
-        _ph_calc = PlanetaryHoursCalculator(latitude=lat, longitude=lon)
-        _ph_coords = (lat, lon)
-    return _ph_calc
+    with _engine_lock:
+        if _ph_calc is None or _ph_coords != (lat, lon):
+            _ph_calc = PlanetaryHoursCalculator(latitude=lat, longitude=lon)
+            _ph_coords = (lat, lon)
+        return _ph_calc
 
 
 def _research_mode_enabled() -> bool:
@@ -1614,11 +2089,14 @@ def _retry_enrich_transit_hits(
         return hits
 
 
-def _parse_iso_datetime(value: Any) -> Optional[datetime]:
+def _parse_optional_iso_datetime(value: Any) -> Optional[datetime]:
     if value in (None, ""):
         return None
+    raw = str(value).strip()
+    if not raw or raw.lower() in {"none", "null"}:
+        return None
     try:
-        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        return datetime.fromisoformat(raw.replace("Z", "+00:00"))
     except Exception:
         return None
 
@@ -1637,7 +2115,7 @@ def _resolve_natal_datetime(
             meta_ts = args.get("natal_datetime")
         except Exception:
             meta_ts = None
-    return _parse_iso_datetime(meta_ts)
+    return _parse_optional_iso_datetime(meta_ts)
 
 
 def _pd_windows_cache_key(
@@ -2088,6 +2566,17 @@ def _predictor_peak_sort_key(row: Dict[str, Any]) -> Tuple[float, float, float, 
     )
 
 
+def _predictor_peak_identity(row: Dict[str, Any]) -> Tuple[str, str, str]:
+    summary = row.get('_predictor_peak_summary') if isinstance(row, dict) else None
+    if not isinstance(summary, dict):
+        summary = _predictor_peak_summary(row if isinstance(row, dict) else {})
+    return (
+        str(summary.get('event_type') or '').strip().lower(),
+        str(summary.get('life_area') or '').strip().lower(),
+        str(summary.get('transit') or summary.get('description') or '').strip().lower(),
+    )
+
+
 def _build_predictor_peak_rows(
     series: List[Dict[str, Any]],
     limit: int = 10,
@@ -2161,16 +2650,140 @@ def _build_predictor_peak_rows(
 
     selected: List[Dict[str, Any]] = []
     selected_times: List[datetime] = []
+    selected_identity_times: List[Tuple[Tuple[str, str, str], Optional[datetime]]] = []
+    selected_support_signatures: Set[Tuple[Tuple[str, str, str], float, float]] = set()
     for candidate in ordered_candidates:
+        identity = _predictor_peak_identity(candidate)
         candidate_dt = _parse_predictor_iso(candidate.get('timestamp'))
-        if candidate_dt is not None and any(
+        if any(identity):
+            summary = candidate.get('_predictor_peak_summary')
+            if not isinstance(summary, dict):
+                summary = _predictor_peak_summary(candidate)
+            support_signature = (
+                identity,
+                round(_prediction_numeric(summary.get('support_focus')), 3),
+                round(_prediction_numeric(summary.get('support_score')), 3),
+            )
+            if support_signature in selected_support_signatures:
+                continue
+            same_identity = [
+                chosen_dt
+                for chosen_identity, chosen_dt in selected_identity_times
+                if chosen_identity == identity
+            ]
+            if candidate_dt is None:
+                if same_identity:
+                    continue
+            elif any(
+                chosen_dt is None
+                or abs((candidate_dt - chosen_dt).total_seconds()) / 60.0 < min_peak_gap_minutes
+                for chosen_dt in same_identity
+            ):
+                continue
+        elif candidate_dt is not None and any(
             abs((candidate_dt - chosen_dt).total_seconds()) / 60.0 < min_peak_gap_minutes
             for chosen_dt in selected_times
         ):
             continue
         selected.append(candidate)
+        if any(identity):
+            selected_identity_times.append((identity, candidate_dt))
+            selected_support_signatures.add(support_signature)
         if candidate_dt is not None:
             selected_times.append(candidate_dt)
+        if len(selected) >= max(1, int(limit or 10)):
+            break
+
+    return selected
+
+
+def _predictor_group_peak_summary(group: Dict[str, Any]) -> Dict[str, Any]:
+    occurrences = group.get('occurrences') if isinstance(group, dict) else []
+    dominant_timestamp = str(group.get('dominant_timestamp') or '') if isinstance(group, dict) else ''
+    support_score = 0.0
+    if isinstance(occurrences, list) and occurrences:
+        dominant_occurrence = None
+        for occ in occurrences:
+            if isinstance(occ, dict) and dominant_timestamp and str(occ.get('date') or '') == dominant_timestamp:
+                dominant_occurrence = occ
+                break
+        if dominant_occurrence is None:
+            dominant_occurrence = max(
+                (occ for occ in occurrences if isinstance(occ, dict)),
+                key=lambda occ: _prediction_numeric(occ.get('support_score')),
+                default=None,
+            )
+        if isinstance(dominant_occurrence, dict):
+            support_score = _prediction_numeric(dominant_occurrence.get('support_score'))
+    if support_score <= 0.0:
+        support_score = _prediction_numeric(group.get('support_density'))
+
+    return {
+        'event_type': group.get('event_type'),
+        'life_area': group.get('life_area'),
+        'description': group.get('description') or group.get('label'),
+        'transit': group.get('transit') or group.get('dominant_transit'),
+        'support_focus': _prediction_numeric(group.get('support_focus')),
+        'support_score': support_score,
+        'domain_alignment': _prediction_numeric(group.get('domain_alignment_max')),
+        'probability': _prediction_numeric(group.get('probability_max')),
+        'keyword_tokens': list(group.get('keyword_tokens') or group.get('tags') or []),
+    }
+
+
+def _build_predictor_group_peak_rows(
+    series: List[Dict[str, Any]],
+    grouped_predictions: List[Dict[str, Any]],
+    limit: int = 10,
+) -> List[Dict[str, Any]]:
+    if not isinstance(grouped_predictions, list) or not grouped_predictions:
+        return []
+
+    safe_series = [row for row in series if isinstance(row, dict)] if isinstance(series, list) else []
+    selected: List[Dict[str, Any]] = []
+    selected_identities: Set[Tuple[str, str, str]] = set()
+
+    for group in sorted((g for g in grouped_predictions if isinstance(g, dict)), key=_predictor_group_sort_key):
+        summary = _predictor_group_peak_summary(group)
+        identity = (
+            str(summary.get('event_type') or '').strip().lower(),
+            str(summary.get('life_area') or '').strip().lower(),
+            str(summary.get('transit') or summary.get('description') or '').strip().lower(),
+        )
+        if any(identity) and identity in selected_identities:
+            continue
+
+        dominant_dt = _parse_predictor_iso(group.get('dominant_timestamp'))
+        start_dt = _parse_predictor_iso(group.get('start') or group.get('window_start'))
+        end_dt = _parse_predictor_iso(group.get('end') or group.get('window_end'))
+        target_dt = dominant_dt
+        if target_dt is None and start_dt is not None and end_dt is not None:
+            target_dt = start_dt + ((end_dt - start_dt) / 2)
+
+        matching_rows = [row for row in safe_series if _row_matches_prediction_group(row, group)]
+        candidate_rows = matching_rows or safe_series
+        representative: Dict[str, Any]
+        if candidate_rows:
+            def _distance_key(row: Dict[str, Any]) -> Tuple[float, Tuple[float, float, float, float, float, str, str]]:
+                row_dt = _parse_predictor_iso(row.get('timestamp'))
+                if target_dt is None or row_dt is None:
+                    distance = float('inf')
+                else:
+                    distance = abs((row_dt - target_dt).total_seconds())
+                return (distance, _predictor_peak_sort_key(row))
+
+            representative = dict(sorted(candidate_rows, key=_distance_key)[0])
+        else:
+            representative = {
+                'timestamp': group.get('dominant_timestamp') or group.get('start') or group.get('window_start'),
+                'count': group.get('count'),
+                'step_score': group.get('support_focus') or group.get('support_score'),
+                'tone': 'mixed',
+            }
+        representative['_predictor_peak_summary'] = summary
+        selected.append(representative)
+        if any(identity):
+            selected_identities.add(identity)
         if len(selected) >= max(1, int(limit or 10)):
             break
 
@@ -2193,6 +2806,8 @@ def _error_handler(f):
         try:
             return f(*args, **kwargs)
         except LocationError as e:
+            return jsonify({'success': False, 'error': str(e)}), 400
+        except ValueError as e:
             return jsonify({'success': False, 'error': str(e)}), 400
         except Exception as e:
             incident_id = uuid4().hex[:12]
@@ -2259,6 +2874,9 @@ def _serialize_real_time(data) -> Dict[str, Any]:
             'final_dispositor': getattr(v, 'final_dispositor', None),
             'mutual_reception': bool(getattr(v, 'mutual_reception', False)),
             'reception_partner': getattr(v, 'reception_partner', None),
+            'terminal_type': getattr(v, 'terminal_type', None),
+            'has_final_dispositor': bool(getattr(v, 'has_final_dispositor', False)),
+            'cycle': list(getattr(v, 'cycle', []) or []),
             'chain': list(getattr(v, 'chain', []) or []),
         } for k, v in (getattr(data, 'dispositor_chains', {}) or {}).items()},
         'current_aspects': getattr(data, 'current_aspects', []),
@@ -2277,6 +2895,35 @@ def _normalized_planet_rows(planets: Any) -> List[Dict[str, Any]]:
     if isinstance(planets, list):
         return [dict(row) for row in planets if isinstance(row, dict)]
     return []
+
+
+def _build_dispositors_payload(rt: Dict[str, Any], chart_data: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    raw_dispositor_chains = (rt or {}).get('dispositor_chains') or {}
+    try:
+        planet_rows_for_dispositors = _normalized_planet_rows(chart_data.get('planets')) if isinstance(chart_data, dict) else []
+        if planet_rows_for_dispositors:
+            raw_dispositor_chains = calculate_dispositor_chains(planet_rows_for_dispositors)
+    except Exception:
+        raw_dispositor_chains = (rt or {}).get('dispositor_chains') or {}
+
+    def _chain_get(chain_obj: Any, key: str, default: Any = None) -> Any:
+        if isinstance(chain_obj, dict):
+            return chain_obj.get(key, default)
+        return getattr(chain_obj, key, default)
+
+    return {
+        k: {
+            'dispositor': _chain_get(chain, 'dispositor'),
+            'chain': list(_chain_get(chain, 'chain', []) or []),
+            'final_dispositor': _chain_get(chain, 'final_dispositor'),
+            'mutual_reception': bool(_chain_get(chain, 'mutual_reception', False)),
+            'reception_partner': _chain_get(chain, 'reception_partner'),
+            'terminal_type': _chain_get(chain, 'terminal_type'),
+            'has_final_dispositor': bool(_chain_get(chain, 'has_final_dispositor', False)),
+            'cycle': list(_chain_get(chain, 'cycle', []) or []),
+        }
+        for k, chain in raw_dispositor_chains.items()
+    }
 
 
 def _synastry_chart_snapshot_from_chart_data(chart_data: Any) -> Dict[str, Any]:
@@ -2331,6 +2978,125 @@ def _has_synastry_chart_snapshot(chart_data: Any) -> bool:
     return bool(_normalized_planet_rows(chart_data.get('planets')))
 
 
+def _snap_coordinate_pair(*sources: Any) -> Optional[Tuple[float, float]]:
+    for source in sources:
+        coords = _coords_from_request_args(source)
+        if coords is not None:
+            return coords
+    return None
+
+
+def _dashboard_from_snap_payload(payload: Any) -> Optional[Dict[str, Any]]:
+    if not isinstance(payload, dict):
+        return None
+    dashboard = payload.get('dashboard')
+    if not isinstance(dashboard, dict):
+        return None
+    if not (
+        dashboard.get('timestamp')
+        or _normalized_planet_rows(dashboard.get('planets'))
+        or dashboard.get('house_cusps')
+        or dashboard.get('houses')
+    ):
+        return None
+    return copy.deepcopy(dashboard)
+
+
+def _normalize_snap_certification_payload(value: Any) -> Optional[Dict[str, Any]]:
+    if not isinstance(value, dict):
+        return None
+    payload = copy.deepcopy(value)
+    payload['kind'] = 'birth_time_certification'
+    payload['status'] = _first_nonempty_text(payload.get('status'), 'insufficient_data')
+    payload['confidence'] = _first_nonempty_text(payload.get('confidence'), 'none')
+    return payload
+
+
+def _snap_certification_summary(certification: Any) -> Optional[Dict[str, Any]]:
+    if not isinstance(certification, dict):
+        return None
+    selected = certification.get('selected_candidate')
+    if not isinstance(selected, dict):
+        selected = {}
+    summary = {
+        'kind': 'birth_time_certification',
+        'status': _first_nonempty_text(certification.get('status'), 'insufficient_data'),
+        'confidence': _first_nonempty_text(certification.get('confidence'), 'none'),
+    }
+    strength = selected.get('strength')
+    if strength is not None:
+        try:
+            summary['strength'] = float(strength)
+        except (TypeError, ValueError):
+            pass
+    return summary
+
+
+def _timestamp_from_snap_dashboard(
+    dashboard: Optional[Dict[str, Any]],
+    active_settings: Optional[AstroClockSettings],
+    eng: AstroClockEngine,
+) -> datetime:
+    custom = getattr(active_settings, 'custom_time', None)
+    if isinstance(custom, datetime):
+        if custom.tzinfo is None:
+            return custom.replace(tzinfo=timezone.utc)
+        return custom.astimezone(timezone.utc)
+    if isinstance(dashboard, dict):
+        for key in ('timestamp', 'effective_datetime'):
+            raw = dashboard.get(key)
+            if raw in (None, '', 'null'):
+                continue
+            try:
+                parsed = _parse_iso_datetime(raw)
+                if parsed.tzinfo is None:
+                    return parsed.replace(tzinfo=timezone.utc)
+                return parsed.astimezone(timezone.utc)
+            except Exception:
+                pass
+    try:
+        effective = eng.get_effective_datetime()
+        if isinstance(effective, datetime):
+            if effective.tzinfo is None:
+                return effective.replace(tzinfo=timezone.utc)
+            return effective.astimezone(timezone.utc)
+    except Exception:
+        pass
+    return datetime.now(timezone.utc)
+
+
+def _chart_result_from_snap_dashboard(dashboard: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    chart_data = _synastry_chart_snapshot_from_dashboard(dashboard or {})
+    house_cusps = chart_data.get('house_cusps')
+    if house_cusps and 'houses' not in chart_data:
+        chart_data['houses'] = copy.deepcopy(house_cusps)
+    return {'chart_data': chart_data}
+
+
+def _apply_snap_dashboard_context(
+    dashboard: Dict[str, Any],
+    timestamp: datetime,
+    active_settings: Optional[AstroClockSettings],
+) -> Dict[str, Any]:
+    out = copy.deepcopy(dashboard)
+    out['timestamp'] = timestamp.isoformat()
+    if active_settings is not None:
+        location = getattr(active_settings, 'location', None)
+        timezone_name = getattr(active_settings, 'timezone', None)
+        house_system = getattr(active_settings, 'house_system_code', None)
+        coords = _coords_from_settings(active_settings)
+        if location:
+            out['location'] = location
+        if timezone_name:
+            out['timezone'] = timezone_name
+            out.setdefault('timezone_label', timezone_name)
+        if house_system:
+            out['house_system_code'] = house_system
+        if coords:
+            out['latitude'], out['longitude'] = coords
+    return out
+
+
 def _normalize_synastry_profile_hint(value: Any) -> Optional[str]:
     raw = str(value or '').strip().lower()
     if raw in {'f', 'female', 'feminine', 'woman', 'girl'}:
@@ -2364,6 +3130,97 @@ def _compact_dashboard(data) -> Dict[str, Any]:
     cd = rt.get('chart_data') or {}
     rt['planets'] = _normalized_planet_rows(cd.get('planets'))
     return rt
+
+
+def _house_area_map_for_traits() -> Dict[int, str]:
+    try:
+        from determinations import _house_domain_map as _hm
+
+        return _hm()
+    except Exception:
+        return {
+            1: 'life',
+            2: 'wealth',
+            3: 'short_travel',
+            4: 'home',
+            5: 'children',
+            6: 'health',
+            7: 'relationships',
+            8: 'death',
+            9: 'belief',
+            10: 'honors',
+            11: 'friends',
+            12: 'secrets',
+        }
+
+
+def _build_planet_area_scores_from_house_influences(
+    house_infl: Dict[str, Any],
+) -> Tuple[Dict[str, Dict[str, float]], Dict[str, Dict[str, Dict[str, float]]]]:
+    """Return Morin determination scores for TraitEngine planet_area rules.
+
+    The score is intentionally not a decorative per-planet max.  A planet-area
+    route must be strong in two ways:
+      - relative: the area is important for that planet's own determinations;
+      - absolute: the area has real weight compared with the chart's strongest
+        planet-area determination.
+
+    score = sqrt(relative_strength * absolute_strength)
+    """
+    house_to_area = _house_area_map_for_traits()
+    raw: Dict[str, Dict[str, float]] = {}
+    for hrow in (house_infl or {}).get('houses', []) or []:
+        try:
+            hnum = int(hrow.get('house'))
+        except Exception:
+            continue
+        area = house_to_area.get(hnum)
+        if not area:
+            continue
+        for inf in (hrow.get('influences') or []):
+            try:
+                planet = str(inf.get('planet') or '').strip()
+                if not planet:
+                    continue
+                value = abs(float(inf.get('value') or 0.0))
+                if value <= 0.0:
+                    continue
+                raw.setdefault(planet, {})[area] = raw.get(planet, {}).get(area, 0.0) + value
+            except Exception:
+                continue
+
+    global_max = 0.0
+    for area_map in raw.values():
+        for value in area_map.values():
+            global_max = max(global_max, abs(float(value or 0.0)))
+    if global_max <= 0.0:
+        return {}, {}
+
+    scores: Dict[str, Dict[str, float]] = {}
+    details: Dict[str, Dict[str, Dict[str, float]]] = {}
+    for planet, area_map in raw.items():
+        try:
+            planet_max = max(abs(float(v or 0.0)) for v in area_map.values())
+        except Exception:
+            planet_max = 0.0
+        if planet_max <= 0.0:
+            continue
+        for area, raw_value in area_map.items():
+            try:
+                value = abs(float(raw_value or 0.0))
+                relative = max(0.0, min(1.0, value / planet_max))
+                absolute = max(0.0, min(1.0, value / global_max))
+                score = math.sqrt(relative * absolute) if relative > 0.0 and absolute > 0.0 else 0.0
+                scores.setdefault(planet, {})[area] = round(score, 4)
+                details.setdefault(planet, {})[area] = {
+                    'score': round(score, 4),
+                    'relative_strength': round(relative, 4),
+                    'absolute_strength': round(absolute, 4),
+                    'raw_value': round(value, 4),
+                }
+            except Exception:
+                continue
+    return scores, details
 
 
 def _dedupe_aspect_rows(rows: Iterable[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -2404,6 +3261,117 @@ def _dedupe_aspect_rows(rows: Iterable[Dict[str, Any]]) -> List[Dict[str, Any]]:
     ordered = list(chosen.values()) + passthrough
     ordered.sort(key=_rank)
     return ordered
+
+
+def _normalize_aspect_rows_for_forensic(rows: Iterable[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    normalized: List[Dict[str, Any]] = []
+    for raw in rows or []:
+        if not isinstance(raw, dict):
+            continue
+        row = dict(raw)
+        if not row.get('aspect') and row.get('type'):
+            row['aspect'] = row.get('type')
+        if 'applying' not in row and row.get('phase') is not None:
+            row['applying'] = str(row.get('phase') or '').strip().lower() == 'applying'
+        normalized.append(row)
+    return normalized
+
+
+_HEALTHCARE_CONTEXT_TOKENS = {
+    "hospital",
+    "hospitals",
+    "clinic",
+    "clinics",
+    "medical",
+    "healthcare",
+    "infirmary",
+    "ward",
+    "nicu",
+    "neonatal",
+    "maternity",
+    "nursing",
+    "nurse",
+    "nurses",
+    "doctor",
+    "doctors",
+    "physician",
+    "physicians",
+    "hospice",
+}
+_CAREGIVER_CONTEXT_TOKENS = {
+    "caregiver",
+    "caregivers",
+    "caretaker",
+    "caretakers",
+    "childcare",
+    "daycare",
+    "nursery",
+    "nanny",
+    "babysitter",
+    "babysitting",
+    "housekeeper",
+    "maid",
+    "servant",
+    "servants",
+}
+_HEALTHCARE_CONTEXT_PHRASES = {
+    "care home",
+    "children's hospital",
+    "childrens hospital",
+    "emergency department",
+    "intensive care",
+    "special care baby unit",
+    "health centre",
+    "health center",
+    "medical centre",
+    "medical center",
+}
+
+
+def _context_tokens(*values: Any) -> Set[str]:
+    text = " ".join(str(value or "").lower() for value in values if value is not None)
+    for char in ",.;:/\\()[]{}\"'`|+-_":
+        text = text.replace(char, " ")
+    return {part.strip() for part in text.split() if part.strip()}
+
+
+def _contains_context_phrase(phrases: Set[str], *values: Any) -> bool:
+    blob = " ".join(str(value or "").lower() for value in values if value is not None)
+    return any(phrase in blob for phrase in phrases)
+
+
+def _infer_forensic_case_context(case_type: str, dashboard: Dict[str, Any], settings: Any = None) -> Dict[str, Any]:
+    child_case = bool(case_type == 'child')
+    adult_female_case = bool(case_type == 'adult_female')
+    values = [
+        request.args.get('location') if has_request_context() else None,
+        request.args.get('context') if has_request_context() else None,
+        request.args.get('case_context') if has_request_context() else None,
+        request.args.get('case_notes') if has_request_context() else None,
+        request.args.get('notes') if has_request_context() else None,
+        dashboard.get('location') if isinstance(dashboard, dict) else None,
+        dashboard.get('timezone_label') if isinstance(dashboard, dict) else None,
+        getattr(settings, 'location', None),
+    ]
+    tokens = _context_tokens(*values)
+    healthcare_context = bool(
+        tokens & _HEALTHCARE_CONTEXT_TOKENS
+        or _contains_context_phrase(_HEALTHCARE_CONTEXT_PHRASES, *values)
+    )
+    caregiver_context = bool(tokens & _CAREGIVER_CONTEXT_TOKENS)
+    if has_request_context():
+        healthcare_context = healthcare_context or _truthy_env(request.args.get('healthcare_context'))
+        caregiver_context = caregiver_context or _truthy_env(request.args.get('caregiver_context'))
+    institutional_care_context = healthcare_context or caregiver_context
+    return {
+        'case_type': case_type,
+        'child_case': child_case,
+        'adult_female_case': adult_female_case,
+        'healthcare_context': healthcare_context,
+        'caregiver_context': caregiver_context,
+        'institutional_care_context': institutional_care_context,
+        'healthcare_child_context': bool(child_case and institutional_care_context),
+    }
 
 
 def _top_aspects_from_runtime(rt: Dict[str, Any], cd: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -2482,23 +3450,37 @@ def _solar_conditions_from_chart(planets: List[Dict[str, Any]], cd: Dict[str, An
     return solar_conditions
 
 
+def _timezone_label_from_parts(tz_name: Any, local_iso: Any, utc_iso: Any = None) -> Optional[str]:
+    if not (tz_name and local_iso):
+        return None
+    try:
+        loc_dt = datetime.fromisoformat(str(local_iso).replace('Z', '+00:00'))
+        delta = loc_dt.utcoffset()
+        if delta is None and utc_iso:
+            utc_dt = datetime.fromisoformat(str(utc_iso).replace('Z', '+00:00'))
+            # Fall back to wall-clock difference when serialized timestamps are naive.
+            delta = loc_dt.replace(tzinfo=None) - utc_dt.replace(tzinfo=None)
+        if delta is None:
+            return str(tz_name)
+        delta_min = int(round(delta.total_seconds() / 60.0))
+        sign = '+' if delta_min >= 0 else '-'
+        hh = abs(delta_min) // 60
+        mm = abs(delta_min) % 60
+        return f"{tz_name} (UTC{sign}{hh:02d}:{mm:02d})"
+    except Exception:
+        return None
+
+
 def _timezone_label_from_chart_data(cd: Dict[str, Any]) -> Optional[str]:
     try:
         tzinfo = cd.get('timezone_info') if isinstance(cd, dict) else None
         if not isinstance(tzinfo, dict):
             return None
-        tz_name = tzinfo.get('timezone')
-        local_iso = tzinfo.get('local_time')
-        utc_iso = tzinfo.get('utc_time')
-        if not (tz_name and local_iso and utc_iso):
-            return None
-        loc_dt = datetime.fromisoformat(str(local_iso).replace('Z', '+00:00'))
-        utc_dt = datetime.fromisoformat(str(utc_iso).replace('Z', '+00:00'))
-        delta_min = int((loc_dt - utc_dt).total_seconds() // 60)
-        sign = '+' if delta_min >= 0 else '-'
-        hh = abs(delta_min) // 60
-        mm = abs(delta_min) % 60
-        return f"{tz_name} (UTC{sign}{hh:02d}:{mm:02d})"
+        return _timezone_label_from_parts(
+            tzinfo.get('timezone'),
+            tzinfo.get('local_time'),
+            tzinfo.get('utc_time'),
+        )
     except Exception:
         return None
 
@@ -2513,50 +3495,98 @@ def _lightweight_receptions_payload(chart_result: Dict[str, Any], cd: Dict[str, 
     return _extract_receptions_payload(chart_result)
 
 
-def _build_traits_chart_snapshot(data, rt: Dict[str, Any], cd: Dict[str, Any], special_degrees: List[str]) -> Dict[str, Any]:
+def _build_traits_chart_snapshot(
+    data,
+    rt: Dict[str, Any],
+    cd: Dict[str, Any],
+    special_degrees: List[str],
+    dashboard_payload: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
     active_settings = getattr(data, 'settings', None)
     active_location = getattr(active_settings, 'location', None)
     active_timezone = getattr(active_settings, 'timezone', None)
-    planets = rt.get('planets') if isinstance(rt.get('planets'), list) else []
+    dashboard = dashboard_payload if isinstance(dashboard_payload, dict) else {}
+
+    def dashboard_list(key: str) -> Optional[List[Any]]:
+        value = dashboard.get(key)
+        return copy.deepcopy(value) if isinstance(value, list) else None
+
+    def dashboard_dict(key: str) -> Optional[Dict[str, Any]]:
+        value = dashboard.get(key)
+        return copy.deepcopy(value) if isinstance(value, dict) else None
+
+    planets = dashboard_list('planets')
+    if planets is None:
+        planets = rt.get('planets') if isinstance(rt.get('planets'), list) else []
+
     moon_state = rt.get('moon_state') if isinstance(rt.get('moon_state'), dict) else {}
-    moon = None
+    moon = dashboard_dict('moon')
     try:
-        mp = next((p for p in planets if p.get('planet') == 'Moon'), None)
-        if mp:
-            moon = {
-                'void_of_course': bool(moon_state.get('void_of_course')),
-                'sign': mp.get('sign'),
-                'longitude': mp.get('longitude'),
-                'house': mp.get('house'),
-                'last_aspect': moon_state.get('last_aspect'),
-                'next_aspect': moon_state.get('next_aspect'),
-            }
+        if moon is None:
+            mp = next((p for p in planets if p.get('planet') == 'Moon'), None)
+            if mp:
+                moon = {
+                    'void_of_course': bool(moon_state.get('void_of_course')),
+                    'sign': mp.get('sign'),
+                    'longitude': mp.get('longitude'),
+                    'house': mp.get('house'),
+                    'last_aspect': moon_state.get('last_aspect'),
+                    'next_aspect': moon_state.get('next_aspect'),
+                }
     except Exception:
         moon = None
 
-    return {
-        'timestamp': rt.get('timestamp'),
-        'location': active_location,
-        'timezone': active_timezone,
-        'timezone_label': _timezone_label_from_chart_data(cd),
-        'house_system': getattr(active_settings, 'house_system_code', None),
-        'ascendant': cd.get('ascendant'),
-        'midheaven': cd.get('midheaven'),
-        'planets': planets,
-        'moon': moon,
-        'moon_timeline': None,
-        'solar_conditions': _solar_conditions_from_chart(planets, cd),
-        'top_aspects': _top_aspects_from_runtime(rt, cd),
-        'morin_aspects': [],
-        'fixed_star_hits': [],
-        'house_cusps': cd.get('houses') or cd.get('house_cusps') or [],
-        'house_rulers': cd.get('house_rulers') or {},
-        'receptions': _lightweight_receptions_payload(
+    solar_conditions = dashboard_dict('solar_conditions')
+    if solar_conditions is None:
+        solar_conditions = _solar_conditions_from_chart(planets, cd)
+
+    top_aspects = dashboard_list('top_aspects')
+    if top_aspects is None:
+        top_aspects = _top_aspects_from_runtime(rt, cd)
+
+    house_cusps = dashboard_list('house_cusps')
+    if house_cusps is None:
+        house_cusps = cd.get('houses') or cd.get('house_cusps') or []
+
+    house_rulers = dashboard_dict('house_rulers')
+    if house_rulers is None:
+        house_rulers = cd.get('house_rulers') or {}
+
+    receptions = dashboard_dict('receptions')
+    if receptions is None:
+        receptions = _lightweight_receptions_payload(
             data.chart_result if isinstance(data.chart_result, dict) else {},
             cd,
+        ) or {}
+
+    special_degree_snapshot = dashboard_list('special_degrees')
+    if special_degree_snapshot is None:
+        special_degree_snapshot = special_degrees
+
+    return {
+        'timestamp': dashboard.get('timestamp') or rt.get('timestamp'),
+        'location': dashboard.get('location') or active_location,
+        'timezone': dashboard.get('timezone') or active_timezone,
+        'timezone_label': dashboard.get('timezone_label') or _timezone_label_from_chart_data(cd),
+        'house_system': (
+            dashboard.get('house_system')
+            or dashboard.get('house_system_code')
+            or getattr(active_settings, 'house_system_code', None)
         ),
-        'special_degrees': special_degrees,
-        'morin_patterns': None,
+        'ascendant': dashboard.get('ascendant') if dashboard.get('ascendant') is not None else cd.get('ascendant'),
+        'midheaven': dashboard.get('midheaven') if dashboard.get('midheaven') is not None else cd.get('midheaven'),
+        'planets': planets,
+        'moon': moon,
+        'moon_timeline': dashboard_dict('moon_timeline'),
+        'solar_conditions': solar_conditions,
+        'top_aspects': top_aspects,
+        'morin_aspects': dashboard_list('morin_aspects') or [],
+        'fixed_star_hits': dashboard_list('fixed_star_hits') or [],
+        'house_cusps': house_cusps,
+        'house_rulers': house_rulers,
+        'receptions': receptions,
+        'special_degrees': special_degree_snapshot,
+        'morin_patterns': dashboard_dict('morin_patterns') or {},
     }
 
 
@@ -2566,7 +3596,7 @@ def get_current():
     with _astro_perf_span('route.current'):
         eng = _engine_instance()
         with _astro_perf_span('route.current.get_current_data'):
-            data = eng.get_current_data()
+            data, _active_settings = _data_for_request_clock_context(eng)
         with _astro_perf_span('route.current.serialize'):
             payload = _serialize_real_time(data)
     return _json_ok(payload)
@@ -2578,6 +3608,7 @@ def _build_dashboard_payload(
     include_modern: bool = False,
     include_morin: bool = False,
     special_degrees: Optional[List[str]] = None,
+    extend_modern_chart_data: bool = True,
 ) -> Dict[str, Any]:
     with _astro_perf_span(
         'helper.build_dashboard_payload.setup',
@@ -2586,6 +3617,19 @@ def _build_dashboard_payload(
     ):
         rt = _serialize_real_time(data)
         cd = rt.get('chart_data') or {}
+        if isinstance(cd, dict) and include_modern and extend_modern_chart_data:
+            ts_iso = rt.get('timestamp')
+            if not ts_iso:
+                try:
+                    ts_iso = data.timestamp.isoformat()
+                except Exception:
+                    ts_iso = None
+            cd = _extend_chart_data_for_synastry(
+                cd,
+                {'timestamp': ts_iso},
+                include_modern=True,
+                include_chiron=False,
+            )
         try:
             chart_result = data.chart_result if isinstance(data.chart_result, dict) else json.loads(data.chart_result)
         except Exception:
@@ -2593,6 +3637,11 @@ def _build_dashboard_payload(
         active_settings = getattr(data, 'settings', None)
         active_location = getattr(active_settings, 'location', None) or eng.settings.location
         active_timezone = getattr(active_settings, 'timezone', None) or eng.settings.timezone
+        active_coords = _coords_from_settings(active_settings)
+        if active_coords is None:
+            active_coords = _coords_from_chart_data(cd)
+        if active_coords is None and active_location:
+            active_coords = _ensure_coords_for_location(active_location, settings_hint=active_settings)
     # Normalize planets list for tiles
     planets = cd.get('planets') or []
     if isinstance(planets, dict):
@@ -2833,14 +3882,7 @@ def _build_dashboard_payload(
     # Dispositors
     dispositors = {}
     try:
-        for k, chain in (rt.get('dispositor_chains') or {}).items():
-            dispositors[k] = {
-                'dispositor': chain.get('dispositor'),
-                'chain': list(chain.get('chain') or []),
-                'final_dispositor': chain.get('final_dispositor'),
-                'mutual_reception': bool(chain.get('mutual_reception')),
-                'reception_partner': chain.get('reception_partner'),
-            }
+        dispositors = _build_dispositors_payload(rt, cd)
     except Exception:
         dispositors = {}
 
@@ -2849,17 +3891,11 @@ def _build_dashboard_payload(
     try:
         tzinfo = cd.get('timezone_info') if isinstance(cd, dict) else None
         if isinstance(tzinfo, dict):
-            tz_name = tzinfo.get('timezone')
-            local_iso = tzinfo.get('local_time')
-            utc_iso = tzinfo.get('utc_time')
-            if tz_name and local_iso and utc_iso:
-                from datetime import datetime as _dt
-                loc_dt = _dt.fromisoformat(local_iso.replace('Z','+00:00'))
-                utc_dt = _dt.fromisoformat(utc_iso.replace('Z','+00:00'))
-                delta_min = int((loc_dt - utc_dt).total_seconds() // 60)
-                sign = '+' if delta_min >= 0 else '-'
-                hh = abs(delta_min)//60; mm = abs(delta_min)%60
-                timezone_label = f"{tz_name} (UTC{sign}{hh:02d}:{mm:02d})"
+            timezone_label = _timezone_label_from_parts(
+                tzinfo.get('timezone'),
+                tzinfo.get('local_time'),
+                tzinfo.get('utc_time'),
+            )
     except Exception:
         timezone_label = None
 
@@ -2901,6 +3937,20 @@ def _build_dashboard_payload(
                 "ephemeris_available": False,
             }
 
+    with _astro_perf_span('helper.build_dashboard_payload.compass'):
+        try:
+            compass = _build_local_space_compass_payload(
+                cd,
+                getattr(data, 'timestamp', None),
+                active_settings,
+                include_modern=include_modern,
+            )
+        except (LocationError, ValueError):
+            compass = None
+        except Exception:
+            logger.exception("Failed to compute dashboard compass payload")
+            compass = None
+
     morin_payload = _empty_morin_dashboard_payload()
     if include_morin:
         with _astro_perf_span('helper.build_dashboard_payload.morin'):
@@ -2919,6 +3969,8 @@ def _build_dashboard_payload(
         'location': active_location,
         'timezone': active_timezone,
         'timezone_label': timezone_label,
+        'latitude': (active_coords[0] if active_coords else None),
+        'longitude': (active_coords[1] if active_coords else None),
         'planets': planets,
         'moon': moon,
         'moon_timeline': moon_timeline,
@@ -2931,6 +3983,8 @@ def _build_dashboard_payload(
         'sect': sect,
         'dispositors': dispositors,
         'cusp_aspects': cusp_aspects,
+        'ascendant': cd.get('ascendant'),
+        'midheaven': cd.get('midheaven'),
         'house_cusps': cd.get('houses') or cd.get('house_cusps') or [],
         'house_rulers': cd.get('house_rulers') or {},
         'receptions': receptions,
@@ -2938,6 +3992,7 @@ def _build_dashboard_payload(
         'metrics': metrics,
         'almutens': almutens,
         'asteroids': asteroids,
+        'compass': compass,
         'morin_aspects': morin_payload['morin_aspects'],
         'morin_antiscia': morin_payload['morin_antiscia'],
         'morin_contra_antiscia': morin_payload['morin_contra_antiscia'],
@@ -2969,6 +4024,156 @@ def get_dashboard():
     return _json_ok(payload)
 
 
+@astro_clock_bp.route('/points/degree-hits', methods=['GET'])
+@_error_handler
+def get_points_degree_hits():
+    with _astro_perf_span('route.points_degree_hits'):
+        eng = _engine_instance()
+        data, active_settings = _data_for_request_clock_context(
+            eng,
+            house_system_override=POINTS_HOUSE_SYSTEM_CODE,
+        )
+        rt = _serialize_real_time(data)
+        cd = rt.get('chart_data') or {}
+        ts_iso = rt.get('timestamp')
+        if isinstance(cd, dict):
+            cd = _extend_chart_data_for_points(cd, ts_iso)
+            cd = _with_points_exact_geometry(cd, _points_raw_chart(data))
+        coords = _coords_from_settings(active_settings)
+        house_system = POINTS_HOUSE_SYSTEM_CODE
+        payload = compute_symbolic_points_payload(
+            cd,
+            timestamp_iso=ts_iso,
+            sex_code=request.args.get('sex_code'),
+            latitude=(coords[0] if coords else None),
+            longitude=(coords[1] if coords else None),
+            house_system=house_system,
+        )
+    return _json_ok(payload)
+
+
+def _points_raw_chart(data: Any) -> Any:
+    chart_result = getattr(data, 'chart_result', None)
+    if isinstance(chart_result, dict):
+        return chart_result.get('_raw_chart')
+    return None
+
+
+def _points_raw_value(raw_chart: Any, *names: str) -> Any:
+    if raw_chart is None:
+        return None
+    for name in names:
+        if isinstance(raw_chart, dict) and name in raw_chart:
+            return raw_chart.get(name)
+        value = getattr(raw_chart, name, None)
+        if value is not None:
+            return value
+    return None
+
+
+def _points_finite_float(value: Any) -> Optional[float]:
+    try:
+        number = float(value)
+    except Exception:
+        return None
+    return number if math.isfinite(number) else None
+
+
+def _points_exact_float_list(value: Any) -> List[float]:
+    if not isinstance(value, (list, tuple)):
+        return []
+    out: List[float] = []
+    for item in value[:12]:
+        number = _points_finite_float(item)
+        if number is None:
+            return []
+        out.append(number)
+    return out if len(out) == 12 else []
+
+
+def _with_points_exact_geometry(chart_data: Dict[str, Any], raw_chart: Any) -> Dict[str, Any]:
+    out = dict(chart_data or {})
+    exact_houses = _points_exact_float_list(_points_raw_value(raw_chart, 'houses', 'house_cusps'))
+    if exact_houses:
+        out['house_cusps_exact'] = list(exact_houses)
+        out['houses_exact'] = list(exact_houses)
+
+    ascendant = _points_finite_float(_points_raw_value(raw_chart, 'ascendant', 'asc'))
+    if ascendant is None and exact_houses:
+        ascendant = exact_houses[0]
+    if ascendant is not None:
+        out['ascendant_exact'] = ascendant
+
+    midheaven = _points_finite_float(_points_raw_value(raw_chart, 'midheaven', 'mc', 'medium_coeli'))
+    if midheaven is None and exact_houses:
+        midheaven = exact_houses[9]
+    if midheaven is not None:
+        out['midheaven_exact'] = midheaven
+
+    return out
+
+
+def _extend_chart_data_for_points(chart_data: Dict[str, Any], timestamp_iso: Optional[str]) -> Dict[str, Any]:
+    out = _extend_chart_data_for_synastry(
+        chart_data,
+        {'timestamp': timestamp_iso},
+        include_modern=True,
+        include_chiron=True,
+    )
+
+    def _upsert_planet(name: str, payload: Dict[str, Any]) -> None:
+        planets = out.get('planets')
+        merged = dict(payload or {})
+        merged.setdefault('planet', name)
+        if isinstance(planets, dict):
+            row = dict(merged)
+            row.pop('planet', None)
+            planets[name] = row
+            return
+        if isinstance(planets, list):
+            for idx, row in enumerate(planets):
+                if not isinstance(row, dict):
+                    continue
+                row_name = str(row.get('planet') or row.get('name') or '').strip()
+                if row_name == name:
+                    planets[idx] = merged
+                    return
+            planets.append(merged)
+            return
+        row = dict(merged)
+        row.pop('planet', None)
+        out['planets'] = {name: row}
+
+    try:
+        asteroids_payload = compute_asteroid_positions(out, timestamp_iso, include_point_dependencies=True)
+    except Exception:
+        asteroids_payload = None
+    if isinstance(asteroids_payload, dict):
+        out['points_asteroids'] = asteroids_payload
+        for item in asteroids_payload.get('items') or []:
+            if not isinstance(item, dict):
+                continue
+            name = str(item.get('name') or '').strip()
+            if name not in {'Ceres', 'Pallas', 'Juno', 'Vesta', 'Proserpina', 'Eros', 'Lilith', 'Selena'}:
+                continue
+            _upsert_planet(
+                name,
+                {
+                    'planet': name,
+                    'longitude': item.get('longitude'),
+                    'latitude': item.get('latitude'),
+                    'house': item.get('house'),
+                    'sign': item.get('sign'),
+                    'degree_in_sign': item.get('degree_in_sign'),
+                    'retrograde': item.get('retrograde'),
+                    'speed': item.get('speed'),
+                    'tier': item.get('tier'),
+                    'galaxy_body_id': item.get('galaxy_body_id'),
+                },
+            )
+    return out
+
+
 def _is_placeholder_tz(t: Optional[str]) -> bool:
     if not t:
         return True
@@ -2976,15 +4181,19 @@ def _is_placeholder_tz(t: Optional[str]) -> bool:
     return s in ("UTC", "Etc/UTC", "Etc/GMT", "GMT")
 
 
+def _valid_explicit_timezone(timezone_name: Optional[str]) -> Optional[str]:
+    tz = str(timezone_name).strip() if timezone_name is not None else ""
+    if not tz or _is_placeholder_tz(tz):
+        return None
+    try:
+        ZoneInfo(tz)
+        return tz
+    except Exception:
+        return None
+
+
 def _normalize_location_key(location: Optional[str]) -> str:
     return " ".join(str(location or "").strip().lower().split())
-
-
-def _default_coords_for_location(location: Optional[str]) -> Optional[Tuple[float, float]]:
-    normalized = _normalize_location_key(location)
-    if normalized in {"greenwich", "greenwich uk", "greenwich, uk"}:
-        return (51.4769, -0.0005)
-    return None
 
 
 def _coords_from_settings(settings: Optional[AstroClockSettings]) -> Optional[Tuple[float, float]]:
@@ -2998,6 +4207,23 @@ def _coords_from_settings(settings: Optional[AstroClockSettings]) -> Optional[Tu
         return (float(lat), float(lon))
     except Exception:
         return None
+
+
+def _coords_from_chart_data(chart_data: Any) -> Optional[Tuple[float, float]]:
+    if not isinstance(chart_data, dict):
+        return None
+    try:
+        tz_info = chart_data.get("timezone_info")
+        coords = tz_info.get("coordinates") if isinstance(tz_info, dict) else None
+        if not isinstance(coords, dict):
+            return None
+        lat = float(coords.get("latitude"))
+        lon = float(coords.get("longitude"))
+    except Exception:
+        return None
+    if not (-90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0):
+        return None
+    return (lat, lon)
 
 
 def _coords_from_request_args(args: Any, *, strict: bool = False) -> Optional[Tuple[float, float]]:
@@ -3072,6 +4298,7 @@ def _resolve_timezone_for_context(
     location: Optional[str],
     *,
     coords: Optional[Tuple[float, float]] = None,
+    lookup_coords: bool = True,
 ) -> Optional[str]:
     tz = str(timezone_name).strip() if timezone_name is not None else None
     if tz and (not _is_placeholder_tz(tz)):
@@ -3080,7 +4307,7 @@ def _resolve_timezone_for_context(
             return tz
         except Exception:
             tz = None
-    if coords is None and location:
+    if coords is None and location and lookup_coords:
         coords = _ensure_coords_for_location(location)
     if coords:
         try:
@@ -3144,25 +4371,30 @@ def _localize(dt: datetime, tz: Optional[str]) -> datetime:
 def _ensure_coords_for_location(
     location: Optional[str],
     settings_hint: Optional[AstroClockSettings] = None,
+    *,
+    trust_settings: bool = True,
 ) -> Optional[Tuple[float, float]]:
     if not location:
         return None
-    default_coords = _default_coords_for_location(location)
-    if default_coords is not None:
-        return default_coords
-    for candidate in (
-        settings_hint,
-        getattr(_engine, "settings", None) if _engine is not None else None,
-    ):
-        if _settings_match_location(candidate, location):
-            coords = _coords_from_settings(candidate)
-            if coords:
-                return coords
+    if trust_settings:
+        for candidate in (
+            settings_hint,
+            getattr(_engine, "settings", None) if _engine is not None else None,
+        ):
+            if _settings_match_location(candidate, location):
+                coords = _coords_from_settings(candidate)
+                if coords:
+                    return coords
     try:
         lat, lon, _ = safe_geocode(location)
         return (lat, lon)
     except Exception:
         return None
+
+
+def _legacy_snap_coords_from_location(location: Optional[str]) -> Optional[Tuple[float, float]]:
+    """SNAP_COMPAT_READER: only resolve old saved snaps/charts that predate lat/lon storage."""
+    return _ensure_coords_for_location(location, trust_settings=False)
 
 
 @astro_clock_bp.route('/planetary-hours', methods=['GET'])
@@ -3190,9 +4422,9 @@ def get_planetary_hours():
     active_timezone = getattr(active_settings, 'timezone', None) or eng.settings.timezone
     coords = _ensure_coords_for_location(active_location, settings_hint=active_settings)
     if coords is None:
-        # Use engine-set coords if available, else default to Greenwich
-        lat = float(getattr(active_settings, 'latitude', None)) if getattr(active_settings, 'latitude', None) is not None else 51.4769
-        lon = float(getattr(active_settings, 'longitude', None)) if getattr(active_settings, 'longitude', None) is not None else -0.0005
+        if active_location:
+            raise LocationError(f"Unable to resolve location for planetary hours: {active_location}")
+        raise LocationError("Planetary hours require a resolved location")
     else:
         lat, lon = coords
     calc = _ph_instance(lat, lon)
@@ -3223,14 +4455,67 @@ def _snap_store_path() -> Path:
     """Resolve a user-writable snap storage path."""
     explicit_dir = (os.environ.get("HORARY_DATA_DIR") or "").strip()
     if explicit_dir:
-        base = Path(explicit_dir)
+        return Path(explicit_dir) / "snaps_store.json"
+    local_appdata = (os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA") or "").strip()
+    if local_appdata:
+        base = Path(local_appdata) / "VoxStella"
     else:
-        local_appdata = (os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA") or "").strip()
-        if local_appdata:
-            base = Path(local_appdata) / "VoxStella" / "backend"
-        else:
-            base = Path(tempfile.gettempdir()) / "VoxStella" / "backend"
+        base = Path(tempfile.gettempdir()) / "VoxStella"
+    return base / "backend" / "snaps_store.json"
+
+
+def _legacy_snap_store_path() -> Optional[Path]:
+    """Return the pre-backend-subfolder snap store path for migration."""
+    if (os.environ.get("HORARY_DATA_DIR") or "").strip():
+        return None
+    local_appdata = (os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA") or "").strip()
+    if local_appdata:
+        base = Path(local_appdata) / "VoxStella"
+    else:
+        base = Path(tempfile.gettempdir()) / "VoxStella"
     return base / "snaps_store.json"
+
+
+def _load_snap_file(path: Path) -> List[Dict[str, Any]]:
+    try:
+        with path.open("r", encoding="utf-8-sig") as handle:
+            data = json.load(handle)
+    except Exception:
+        return []
+    snaps = data.get("snaps", []) if isinstance(data, dict) else []
+    return [snap for snap in snaps if isinstance(snap, dict)]
+
+
+def _merge_legacy_snap_store(current_path: Path) -> None:
+    """Copy legacy user snaps forward without deleting the legacy file."""
+    legacy_path = _legacy_snap_store_path()
+    if not legacy_path or legacy_path == current_path or not legacy_path.exists():
+        return
+    legacy_snaps = _load_snap_file(legacy_path)
+    if not legacy_snaps:
+        return
+    current_snaps = _load_snap_file(current_path) if current_path.exists() else []
+    merged_by_key: Dict[str, Dict[str, Any]] = {}
+    order: List[str] = []
+    for snap in legacy_snaps + current_snaps:
+        key = str(snap.get("id") or json.dumps(snap, sort_keys=True, default=str))
+        if key not in merged_by_key:
+            order.append(key)
+        merged_by_key[key] = snap
+    merged = [merged_by_key[key] for key in order]
+    current_ids = {str(snap.get("id") or json.dumps(snap, sort_keys=True, default=str)) for snap in current_snaps}
+    legacy_ids = {str(snap.get("id") or json.dumps(snap, sort_keys=True, default=str)) for snap in legacy_snaps}
+    if legacy_ids.issubset(current_ids):
+        return
+    try:
+        current_path.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path = current_path.with_suffix(current_path.suffix + ".tmp")
+        with tmp_path.open("w", encoding="utf-8") as handle:
+            json.dump({"snaps": merged}, handle, ensure_ascii=False)
+        os.replace(tmp_path, current_path)
+        logger.info("Migrated %d legacy Astro Clock snaps into %s", len(legacy_ids - current_ids), current_path)
+    except Exception as exc:
+        logger.warning("Failed to migrate legacy Astro Clock snaps from %s: %s", legacy_path, exc)
 
 
 def _snaps() -> SnapStore:
@@ -3240,43 +4525,179 @@ def _snaps() -> SnapStore:
             max_snaps = int(os.environ.get("HORARY_MAX_SNAPS", "500"))
         except Exception:
             max_snaps = 500
-        _snap_store = SnapStore(str(_snap_store_path()), max_snaps=max_snaps)
+        snap_path = _snap_store_path()
+        _merge_legacy_snap_store(snap_path)
+        _snap_store = SnapStore(str(snap_path), max_snaps=max_snaps)
     return _snap_store
+
+
+def _settings_for_payload_clock_context(
+    eng: AstroClockEngine,
+    payload: Any,
+) -> Tuple[AstroClockSettings, bool]:
+    """Resolve POST body clock settings without generating a chart."""
+    body = payload if isinstance(payload, dict) else {}
+    q_mode = str(body.get('mode') or '').strip().lower()
+    q_dt = body.get('datetime')
+    q_loc = body.get('location')
+    q_tz = body.get('timezone')
+    q_house = body.get('house_system_code') or body.get('house_system') or body.get('houseSystem')
+    q_coords = _coords_from_request_args(body, strict=True)
+
+    use_override = bool(q_mode or q_dt or q_loc or q_tz or q_house or q_coords)
+    with _engine_lock:
+        prev = copy.copy(eng.settings)
+    if not use_override:
+        return prev, False
+
+    local_location = q_loc or prev.location
+    location_changed = bool(q_loc) and not _settings_match_location(prev, local_location)
+    local_coords = q_coords
+    explicit_tz = _valid_explicit_timezone(q_tz)
+    if local_coords is None:
+        if q_loc and not explicit_tz:
+            local_coords = _ensure_coords_for_location(local_location, trust_settings=False)
+        else:
+            local_coords = _coords_from_settings(prev) if _settings_match_location(prev, local_location) else None
+    if q_tz is not None or q_loc or q_coords:
+        if local_coords is None and local_location and not explicit_tz and not (q_tz and not _is_placeholder_tz(q_tz)):
+            local_coords = _ensure_coords_for_location(local_location, trust_settings=not bool(q_loc))
+        local_tz = _resolve_timezone_for_context(
+            q_tz,
+            local_location,
+            coords=local_coords,
+            lookup_coords=False,
+        ) or (None if location_changed else prev.timezone)
+    else:
+        local_tz = prev.timezone
+
+    custom_override = prev.custom_time
+    paused_override = prev.paused_at
+    mode_override = prev.mode
+    if q_mode == 'manual':
+        mode_override = ClockMode.MANUAL
+    elif q_mode == 'realtime':
+        mode_override = ClockMode.REALTIME
+    elif q_mode == 'paused':
+        mode_override = ClockMode.PAUSED
+
+    if q_dt:
+        custom_override, normalized_tz = _normalize_manual_datetime(
+            q_dt,
+            timezone_name=local_tz or q_tz,
+            location=local_location,
+        )
+        local_tz = normalized_tz or local_tz
+        if q_mode != 'paused':
+            mode_override = ClockMode.MANUAL
+
+    if mode_override == ClockMode.REALTIME:
+        custom_override = None
+        paused_override = None
+    elif mode_override == ClockMode.MANUAL:
+        paused_override = None
+
+    local = AstroClockSettings(
+        mode=mode_override,
+        location=local_location,
+        custom_time=custom_override,
+        timezone=local_tz,
+        latitude=(local_coords[0] if local_coords else None),
+        longitude=(local_coords[1] if local_coords else None),
+        paused_at=paused_override,
+        house_system_code=q_house or getattr(prev, 'house_system_code', None),
+    )
+    if local.mode == ClockMode.MANUAL and local.location and not local.timezone:
+        coords = local_coords or _ensure_coords_for_location(
+            local.location,
+            settings_hint=local,
+            trust_settings=not bool(q_loc),
+        )
+        if coords:
+            lat, lon = coords
+            guess = _tz_instance().get_timezone_for_location(lat, lon)
+            if guess:
+                local.timezone = guess
+
+    return local, True
+
+
+def _data_for_payload_clock_context(eng: AstroClockEngine, payload: Any):
+    """Resolve Astro Clock data from a POST body without mutating engine state."""
+    local, use_override = _settings_for_payload_clock_context(eng, payload)
+    if not use_override:
+        data = eng.get_current_data()
+        active_settings = getattr(data, 'settings', None) or eng.settings
+        return data, active_settings
+
+    data = eng.get_current_data(settings=local)
+    active_settings = getattr(data, 'settings', None) or local
+    return data, active_settings
 
 
 @astro_clock_bp.route('/snap', methods=['POST'])
 @_error_handler
 def create_snap():
     eng = _engine_instance()
-    data = eng.get_current_data()
     payload = request.get_json() or {}
+    payload_dashboard = _dashboard_from_snap_payload(payload)
+    certification_payload = _normalize_snap_certification_payload(
+        payload.get('certification')
+        or ((payload_dashboard or {}).get('certification') if isinstance(payload_dashboard, dict) else None)
+    )
+    try:
+        if payload_dashboard is not None:
+            active_settings, _use_override = _settings_for_payload_clock_context(eng, payload)
+            timestamp = _timestamp_from_snap_dashboard(payload_dashboard, active_settings, eng)
+            dash = _apply_snap_dashboard_context(payload_dashboard, timestamp, active_settings)
+            chart_result = _chart_result_from_snap_dashboard(dash)
+            data = SimpleNamespace(
+                timestamp=timestamp,
+                settings=active_settings,
+                chart_result=chart_result,
+                moon_state=None,
+                dispositor_chains={},
+                current_aspects=[],
+            )
+        else:
+            data, active_settings = _data_for_payload_clock_context(eng, payload)
+    except LocationError as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 400
     label = payload.get('label') or 'Snapshot'
     include_modern = bool(payload.get('include_modern'))
     special_degrees = _normalize_special_degree_tokens(payload.get('special_degrees'))
-    dash = _build_dashboard_payload(eng, data, include_modern=include_modern, special_degrees=special_degrees)
-    chart_result = data.chart_result
-    if isinstance(chart_result, str):
-        try:
-            chart_result = json.loads(chart_result)
-        except Exception:
-            chart_result = {}
-    chart_snapshot = _synastry_chart_snapshot_from_chart_data(
-        _extract_chart_data_from_result(chart_result if isinstance(chart_result, dict) else {})
-    )
+    if payload_dashboard is None:
+        dash = _build_dashboard_payload(eng, data, include_modern=include_modern, special_degrees=special_degrees)
+        chart_result = data.chart_result
+        if isinstance(chart_result, str):
+            try:
+                chart_result = json.loads(chart_result)
+            except Exception:
+                chart_result = {}
+        chart_snapshot = _synastry_chart_snapshot_from_chart_data(
+            _extract_chart_data_from_result(chart_result if isinstance(chart_result, dict) else {})
+        )
+    else:
+        chart_snapshot = _synastry_chart_snapshot_from_dashboard(dash)
+    if certification_payload:
+        dash['certification'] = copy.deepcopy(certification_payload)
+    certification_summary = _snap_certification_summary(certification_payload)
     profile_hint = _extract_synastry_profile_hint(
         payload,
         chart_result if isinstance(chart_result, dict) else {},
         chart_snapshot,
     )
-    active_settings = getattr(data, 'settings', None)
     active_location = getattr(active_settings, 'location', None) or eng.settings.location
     active_timezone = getattr(active_settings, 'timezone', None) or eng.settings.timezone
+    active_coords = _coords_from_settings(active_settings)
+    if active_coords is None and active_location:
+        active_coords = _ensure_coords_for_location(active_location, settings_hint=active_settings)
 
     # Summary for listing/search
     # Planetary hour ruler
     hour_ruler = None
     try:
-        coords = _ensure_coords_for_location(active_location, settings_hint=active_settings)
+        coords = active_coords
         if coords:
             lat, lon = coords
             calc = _ph_instance(lat, lon)
@@ -3300,24 +4721,34 @@ def create_snap():
         sect_info = None
 
     from uuid import uuid4
+    summary = {
+        'hour_ruler': hour_ruler,
+        'moon_sign': moon_sign,
+        'chart_sect': (sect_info or {}).get('chart_sect'),
+        'sect_light': (sect_info or {}).get('sect_light'),
+        'profile_hint': profile_hint,
+    }
+    if certification_summary:
+        summary['certification'] = certification_summary
+
     snap = {
         'id': str(uuid4()),
         'label': label,
         'effective_datetime': data.timestamp.isoformat(),
         'location': active_location,
+        'timezone': active_timezone,
+        'timezone_label': dash.get('timezone_label'),
+        'latitude': (active_coords[0] if active_coords else None),
+        'longitude': (active_coords[1] if active_coords else None),
         'special_degrees': special_degrees,
-        'summary': {
-            'hour_ruler': hour_ruler,
-            'moon_sign': moon_sign,
-            'chart_sect': (sect_info or {}).get('chart_sect'),
-            'sect_light': (sect_info or {}).get('sect_light'),
-            'profile_hint': profile_hint,
-        },
+        'summary': summary,
         'chart_snapshot': chart_snapshot,
         'dashboard': dash,
     }
     if profile_hint:
         snap['profile_hint'] = profile_hint
+    if certification_payload:
+        snap['certification'] = certification_payload
     store = _snaps()
     store.add(snap)
     return _json_ok({'id': snap['id'], 'label': label})
@@ -3330,19 +4761,32 @@ def list_snaps():
     items = []
     for snap in store.list():
         dashboard = snap.get('dashboard') if isinstance(snap, dict) else {}
+        timezone_value = snap.get('timezone') or (dashboard or {}).get('timezone')
+        timezone_label = snap.get('timezone_label') or (dashboard or {}).get('timezone_label')
+        latitude = snap.get('latitude')
+        longitude = snap.get('longitude')
+        certification_payload = _normalize_snap_certification_payload(
+            snap.get('certification') or (dashboard or {}).get('certification')
+        )
+        certification_summary = (snap.get('summary') or {}).get('certification') or _snap_certification_summary(certification_payload)
+        summary = {
+            **(snap.get('summary') or {}),
+            'profile_hint': snap.get('profile_hint') or (snap.get('summary') or {}).get('profile_hint'),
+        }
+        if certification_summary:
+            summary['certification'] = certification_summary
         items.append({
             'id': snap.get('id'),
             'label': snap.get('label'),
             'effective_datetime': snap.get('effective_datetime'),
             'location': snap.get('location'),
-            'summary': {
-                **(snap.get('summary') or {}),
-                'profile_hint': snap.get('profile_hint') or (snap.get('summary') or {}).get('profile_hint'),
-            },
+            'summary': summary,
             'special_degrees': snap.get('special_degrees') or [],
             'dashboard': {
-                'timezone': (dashboard or {}).get('timezone'),
-                'timezone_label': (dashboard or {}).get('timezone_label'),
+                'timezone': timezone_value,
+                'timezone_label': timezone_label,
+                'latitude': latitude if latitude is not None else (dashboard or {}).get('latitude'),
+                'longitude': longitude if longitude is not None else (dashboard or {}).get('longitude'),
             },
         })
     # Frontend expects success flag and top-level items
@@ -3350,14 +4794,390 @@ def list_snaps():
     return _j({'success': True, 'items': items})
 
 
+def _hydrate_snap_payload(snap: Any) -> Optional[Dict[str, Any]]:
+    if not isinstance(snap, dict):
+        return None
+    hydrated = dict(snap)
+    dashboard = hydrated.get('dashboard') if isinstance(hydrated.get('dashboard'), dict) else {}
+    dashboard = dict(dashboard)
+
+    timestamp_value = hydrated.get('effective_datetime') or dashboard.get('timestamp')
+    location_value = hydrated.get('location') or dashboard.get('location')
+    coords = _coords_from_request_args(hydrated) or _coords_from_request_args(dashboard)
+    if coords is None and location_value:
+        coords = _legacy_snap_coords_from_location(location_value)
+
+    timezone_value = hydrated.get('timezone') or dashboard.get('timezone')
+    timezone_label = hydrated.get('timezone_label') or dashboard.get('timezone_label')
+    if not timezone_value:
+        timezone_value = _resolve_timezone_for_context(None, location_value, coords=coords)
+    if not timezone_label and timezone_value:
+        timezone_label = timezone_value
+    certification_payload = _normalize_snap_certification_payload(
+        hydrated.get('certification') or dashboard.get('certification')
+    )
+
+    hydrated['effective_datetime'] = timestamp_value
+    hydrated['location'] = location_value
+    hydrated['timezone'] = timezone_value
+    hydrated['timezone_label'] = timezone_label
+    hydrated['latitude'] = float(coords[0]) if coords else None
+    hydrated['longitude'] = float(coords[1]) if coords else None
+    dashboard['timestamp'] = dashboard.get('timestamp') or timestamp_value
+    dashboard['location'] = dashboard.get('location') or location_value
+    dashboard['timezone'] = timezone_value
+    dashboard['timezone_label'] = timezone_label
+    dashboard['latitude'] = float(coords[0]) if coords else None
+    dashboard['longitude'] = float(coords[1]) if coords else None
+    if certification_payload:
+        hydrated['certification'] = certification_payload
+        dashboard['certification'] = certification_payload
+        summary = dict(hydrated.get('summary') or {})
+        summary.setdefault('certification', _snap_certification_summary(certification_payload))
+        hydrated['summary'] = summary
+    hydrated['dashboard'] = dashboard
+    return hydrated
+
+
 @astro_clock_bp.route('/snaps/<snap_id>', methods=['GET'])
 @_error_handler
 def get_snap(snap_id: str):
     store = _snaps()
-    snap = store.get(snap_id)
+    snap = _hydrate_snap_payload(store.get(snap_id))
     if not snap:
         return jsonify({'success': False, 'error': 'Not found'}), 404
     return jsonify({'success': True, 'snap': snap})
+
+
+def _first_nonempty_text(*values: Any) -> Optional[str]:
+    for value in values:
+        if value is None:
+            continue
+        text = str(value).strip()
+        if text:
+            return text
+    return None
+
+
+def _truthy_payload_flag(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    return str(value).strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
+def _chinese_astrology_birth_context(payload: Dict[str, Any]):
+    from chinese_astrology import BirthContext
+
+    body = payload if isinstance(payload, dict) else {}
+    nested_birth = body.get('birth') if isinstance(body.get('birth'), dict) else {}
+    snap_id = _first_nonempty_text(
+        body.get('snap_id'),
+        body.get('natal_snap_id'),
+        nested_birth.get('snap_id'),
+        request.args.get('snap_id'),
+        request.args.get('natal_snap_id'),
+    )
+    snap = None
+    source = 'direct_input'
+    snap_label = None
+    if snap_id:
+        snap = _hydrate_snap_payload(_snaps().get(snap_id))
+        if not snap:
+            raise ValueError('Saved snap not found')
+        source = 'saved_snap'
+        snap_label = _first_nonempty_text(snap.get('label'), snap.get('id'), 'Saved snap')
+
+    dashboard = snap.get('dashboard') if isinstance(snap, dict) and isinstance(snap.get('dashboard'), dict) else {}
+    dt_raw = _first_nonempty_text(
+        snap.get('effective_datetime') if snap else None,
+        dashboard.get('timestamp') if snap else None,
+        body.get('datetime'),
+        body.get('birth_datetime'),
+        body.get('natal_datetime'),
+        nested_birth.get('datetime'),
+    )
+    time_raw = _first_nonempty_text(
+        body.get('time'),
+        body.get('birth_time'),
+        body.get('natal_time'),
+        nested_birth.get('time'),
+    )
+    date_raw = _first_nonempty_text(
+        body.get('date'),
+        body.get('birth_date'),
+        body.get('natal_date'),
+        nested_birth.get('date'),
+    )
+    hour_known = True
+    if not dt_raw:
+        if not date_raw:
+            raise ValueError('Birth date/time or saved snap is required')
+        hour_known = bool(time_raw)
+        dt_raw = f"{date_raw}T{time_raw or '12:00'}"
+
+    location = _first_nonempty_text(
+        snap.get('location') if snap else None,
+        dashboard.get('location') if snap else None,
+        body.get('location'),
+        body.get('birth_location'),
+        body.get('natal_location'),
+        nested_birth.get('location'),
+    )
+    timezone_name = _first_nonempty_text(
+        snap.get('timezone') if snap else None,
+        dashboard.get('timezone') if snap else None,
+        snap.get('timezone_label') if snap else None,
+        dashboard.get('timezone_label') if snap else None,
+        body.get('timezone'),
+        body.get('birth_timezone'),
+        body.get('natal_timezone'),
+        nested_birth.get('timezone'),
+    )
+    coords = None
+    if snap:
+        coords = _coords_from_request_args(snap) or _coords_from_request_args(dashboard)
+    if coords is None:
+        coords = _coords_from_request_args(body, strict=False) or _coords_from_request_args(nested_birth, strict=False)
+    if coords is not None:
+        timezone_name = _resolve_timezone_for_context(
+            timezone_name,
+            location,
+            coords=coords,
+            lookup_coords=False,
+        ) or timezone_name
+
+    dt_utc, resolved_timezone = _normalize_manual_datetime(
+        dt_raw,
+        timezone_name=timezone_name,
+        location=location,
+    )
+    if dt_utc is None:
+        raise ValueError('Birth date/time is required')
+    timezone_final = resolved_timezone or timezone_name or 'UTC'
+    time_precision = _first_nonempty_text(
+        snap.get('time_precision') if snap else None,
+        body.get('time_precision'),
+        nested_birth.get('time_precision'),
+    ) or ('exact' if hour_known else 'unknown')
+    if str(time_precision).strip().lower() == 'unknown':
+        hour_known = False
+
+    calculation_sex = _first_nonempty_text(
+        body.get('calculation_sex'),
+        body.get('sex'),
+        body.get('gender'),
+        nested_birth.get('calculation_sex'),
+    )
+    solar_time_mode = _first_nonempty_text(
+        body.get('solar_time_mode'),
+        body.get('hour_time_mode'),
+        nested_birth.get('solar_time_mode'),
+        nested_birth.get('hour_time_mode'),
+    )
+    use_true_solar_time = (
+        _truthy_payload_flag(body.get('use_true_solar_time'))
+        or _truthy_payload_flag(body.get('true_solar_time'))
+        or _truthy_payload_flag(nested_birth.get('use_true_solar_time'))
+        or str(solar_time_mode or '').strip().lower() in {
+            'true_solar',
+            'true_solar_time',
+            'real_solar',
+            'real_solar_time',
+            'rst',
+        }
+    )
+    day_boundary_rule = _first_nonempty_text(
+        body.get('day_boundary_rule'),
+        body.get('day_boundary'),
+        nested_birth.get('day_boundary_rule'),
+        nested_birth.get('day_boundary'),
+    )
+    if _truthy_payload_flag(body.get('true_solar_day_boundary')) or _truthy_payload_flag(nested_birth.get('true_solar_day_boundary')):
+        day_boundary_rule = 'true_solar_midnight'
+    hour_pillar_variant = _first_nonempty_text(
+        body.get('hour_pillar_variant'),
+        body.get('zi_hour_rule'),
+        body.get('late_zi_rule'),
+        nested_birth.get('hour_pillar_variant'),
+        nested_birth.get('zi_hour_rule'),
+    )
+    if _truthy_payload_flag(body.get('late_zi_next_day')) or _truthy_payload_flag(nested_birth.get('late_zi_next_day')):
+        hour_pillar_variant = 'late_zi_next_day'
+    luck_direction_rule = _first_nonempty_text(
+        body.get('luck_direction_rule'),
+        body.get('luck_pillar_direction_rule'),
+        nested_birth.get('luck_direction_rule'),
+        nested_birth.get('luck_pillar_direction_rule'),
+    )
+    if coords is None and (use_true_solar_time or str(day_boundary_rule or '').strip().lower() in {'true_solar', 'true_solar_midnight', 'true_solar_date'}) and location:
+        coords = _ensure_coords_for_location(location, trust_settings=False)
+        if coords is not None:
+            timezone_name = _resolve_timezone_for_context(
+                timezone_name,
+                location,
+                coords=coords,
+                lookup_coords=False,
+            ) or timezone_name
+            timezone_final = timezone_name or timezone_final
+
+    missing_inputs: List[Dict[str, str]] = []
+    if _truthy_payload_flag(body.get('include_luck_pillars')) and not calculation_sex:
+        missing_inputs.append({
+            'field': 'calculation_sex',
+            'message': 'Calculation sex is required before Luck Pillars can be generated.',
+        })
+
+    return BirthContext(
+        dt_utc=dt_utc,
+        timezone=timezone_final,
+        location=location,
+        latitude=(coords[0] if coords else None),
+        longitude=(coords[1] if coords else None),
+        time_precision=str(time_precision),
+        source=source,
+        source_snap_id=snap_id,
+        snap_label=snap_label,
+        calculation_sex=calculation_sex,
+        include_luck_pillars=_truthy_payload_flag(body.get('include_luck_pillars')),
+        use_true_solar_time=use_true_solar_time,
+        day_boundary_rule=day_boundary_rule or 'civil_midnight',
+        hour_pillar_variant=hour_pillar_variant or 'standard_zi_hour',
+        luck_direction_rule=luck_direction_rule or 'year_stem_polarity',
+        hour_known=hour_known,
+        missing_inputs=tuple(missing_inputs),
+    )
+
+
+@astro_clock_bp.route('/chinese-astrology/bazi', methods=['POST'])
+@_error_handler
+def chinese_astrology_bazi():
+    from chinese_astrology import build_bazi_profile
+
+    payload = request.get_json(silent=True) or {}
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'error': 'JSON object body is required'}), 400
+    try:
+        context = _chinese_astrology_birth_context(payload)
+        profile = build_bazi_profile(context)
+    except ValueError as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 400
+    except LocationError as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 400
+    return _json_ok(profile)
+
+
+@astro_clock_bp.route('/chinese-astrology/compatibility', methods=['POST'])
+@_error_handler
+def chinese_astrology_compatibility():
+    from chinese_astrology import analyze_pair_relationships, build_bazi_profile
+
+    payload = request.get_json(silent=True) or {}
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'error': 'JSON object body is required'}), 400
+
+    primary_snap_id = _first_nonempty_text(
+        payload.get('primary_snap_id'),
+        payload.get('snap_a_id'),
+        payload.get('participant_a_snap_id'),
+        payload.get('snap_id'),
+        payload.get('natal_snap_id'),
+        request.args.get('primary_snap_id'),
+        request.args.get('snap_a_id'),
+        request.args.get('participant_a_snap_id'),
+    )
+    relationship_snap_id = _first_nonempty_text(
+        payload.get('relationship_snap_id'),
+        payload.get('comparison_snap_id'),
+        payload.get('snap_b_id'),
+        payload.get('participant_b_snap_id'),
+        request.args.get('relationship_snap_id'),
+        request.args.get('comparison_snap_id'),
+        request.args.get('snap_b_id'),
+        request.args.get('participant_b_snap_id'),
+    )
+    relationship_context = _first_nonempty_text(
+        payload.get('relationship_context'),
+        payload.get('pair_context'),
+        payload.get('relationship_type'),
+        request.args.get('relationship_context'),
+        request.args.get('pair_context'),
+        request.args.get('relationship_type'),
+    ) or 'general'
+    legacy_calculation_sex = _first_nonempty_text(
+        payload.get('calculation_sex'),
+        payload.get('sex'),
+        payload.get('gender'),
+    )
+    primary_calculation_sex = _first_nonempty_text(
+        payload.get('primary_calculation_sex'),
+        payload.get('primary_sex'),
+        payload.get('participant_a_calculation_sex'),
+        legacy_calculation_sex,
+    )
+    relationship_calculation_sex = _first_nonempty_text(
+        payload.get('relationship_calculation_sex'),
+        payload.get('relationship_sex'),
+        payload.get('participant_b_calculation_sex'),
+        legacy_calculation_sex,
+    )
+    if not primary_snap_id or not relationship_snap_id:
+        return jsonify({'success': False, 'error': 'Two saved snaps are required for Chinese Astrology compatibility'}), 400
+    if str(primary_snap_id) == str(relationship_snap_id):
+        return jsonify({'success': False, 'error': 'Choose two different saved snaps for Chinese Astrology compatibility'}), 400
+
+    try:
+        primary_payload = {
+            **payload,
+            'snap_id': primary_snap_id,
+            'natal_snap_id': primary_snap_id,
+            'calculation_sex': primary_calculation_sex,
+        }
+        relationship_payload = {
+            **payload,
+            'snap_id': relationship_snap_id,
+            'natal_snap_id': relationship_snap_id,
+            'calculation_sex': relationship_calculation_sex,
+        }
+        primary_profile = build_bazi_profile(_chinese_astrology_birth_context(primary_payload))
+        relationship_profile = build_bazi_profile(_chinese_astrology_birth_context(relationship_payload))
+        compatibility = analyze_pair_relationships(
+            primary_profile,
+            relationship_profile,
+            relationship_context=relationship_context,
+        )
+    except ValueError as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 400
+    except LocationError as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 400
+    return _json_ok({
+        'primary': primary_profile,
+        'relationship': relationship_profile,
+        'compatibility': compatibility,
+    })
+
+
+@astro_clock_bp.route('/chinese-astrology/iching-oracle', methods=['POST'])
+@_error_handler
+def chinese_astrology_iching_oracle():
+    from chinese_astrology import cast_iching_oracle
+
+    payload = request.get_json(silent=True) or {}
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'error': 'JSON object body is required'}), 400
+    try:
+        oracle = cast_iching_oracle(
+            question=payload.get('question') or '',
+            method=payload.get('method') or payload.get('casting_method') or 'coins',
+            lines=payload.get('lines'),
+            coins=payload.get('coins'),
+            seed=payload.get('seed'),
+            coin_value_scheme=payload.get('coin_value_scheme') or payload.get('coinValueScheme') or 'heads_2_tails_3',
+        )
+    except ValueError as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 400
+    return _json_ok({'oracle': oracle})
 
 
 @astro_clock_bp.route('/snaps/<snap_id>', methods=['DELETE'])
@@ -3376,6 +5196,10 @@ def set_mode():
     mode = str(payload.get('mode') or '').lower()
     if mode not in {'realtime', 'manual', 'paused'}:
         return jsonify({'success': False, 'error': 'Invalid mode'}), 400
+    try:
+        requested_coords = _coords_from_request_args(payload, strict=True)
+    except LocationError as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 400
     with _engine_lock:
         if mode == 'manual':
             dt = payload.get('datetime')
@@ -3384,16 +5208,40 @@ def set_mode():
             house_code = payload.get('house_system_code') or payload.get('house_system')
             try:
                 target_location = loc or eng.settings.location
-                coords = (
-                    _coords_from_settings(eng.settings)
-                    if _settings_match_location(eng.settings, target_location)
-                    else None
+                location_changed = bool(loc) and not _settings_match_location(eng.settings, target_location)
+                coords = requested_coords
+                coords_lookup_attempted = False
+                explicit_tz = _valid_explicit_timezone(tz)
+                if coords is None:
+                    if loc and not explicit_tz:
+                        coords_lookup_attempted = True
+                        coords = _ensure_coords_for_location(target_location, trust_settings=False)
+                    else:
+                        coords = (
+                            _coords_from_settings(eng.settings)
+                            if _settings_match_location(eng.settings, target_location)
+                            else None
+                        )
+                if coords is None and target_location and not explicit_tz and not (tz and not _is_placeholder_tz(tz)):
+                    coords_lookup_attempted = True
+                    coords = _ensure_coords_for_location(target_location, trust_settings=not bool(loc))
+                resolved_tz = _resolve_timezone_for_context(
+                    tz,
+                    target_location,
+                    coords=coords,
+                    lookup_coords=False,
                 )
-                if coords is None and target_location:
-                    coords = _ensure_coords_for_location(target_location)
+                if coords is None and target_location and not resolved_tz and not coords_lookup_attempted:
+                    coords = _ensure_coords_for_location(target_location, trust_settings=not bool(loc))
+                    resolved_tz = _resolve_timezone_for_context(
+                        tz,
+                        target_location,
+                        coords=coords,
+                        lookup_coords=False,
+                    )
                 custom, resolved_tz = _normalize_manual_datetime(
                     dt,
-                    timezone_name=_resolve_timezone_for_context(tz, target_location, coords=coords),
+                    timezone_name=resolved_tz,
                     location=target_location,
                 )
             except Exception:
@@ -3408,7 +5256,7 @@ def set_mode():
                 eng.settings.mode.__class__.MANUAL,
                 location=(loc or eng.settings.location),
                 custom_time=custom,
-                timezone=(resolved_tz or tz or eng.settings.timezone),
+                timezone=(resolved_tz or tz or (None if location_changed else eng.settings.timezone)),
                 latitude=(coords[0] if coords else None),
                 longitude=(coords[1] if coords else None),
             )
@@ -3424,17 +5272,41 @@ def set_mode():
                     eng.update_settings(house_system_code=house_code)
             except Exception:
                 pass
-            if loc or tz:
+            if loc or tz or requested_coords is not None:
                 try:
                     realtime_location = loc or eng.settings.location
-                    coords = (
-                        _coords_from_settings(eng.settings)
-                        if _settings_match_location(eng.settings, realtime_location)
-                        else None
+                    location_changed = bool(loc) and not _settings_match_location(eng.settings, realtime_location)
+                    coords = requested_coords
+                    coords_lookup_attempted = False
+                    explicit_tz = _valid_explicit_timezone(tz)
+                    if coords is None:
+                        if loc and not explicit_tz:
+                            coords_lookup_attempted = True
+                            coords = _ensure_coords_for_location(realtime_location, trust_settings=False)
+                        else:
+                            coords = (
+                                _coords_from_settings(eng.settings)
+                                if _settings_match_location(eng.settings, realtime_location)
+                                else None
+                            )
+                    if coords is None and realtime_location and not explicit_tz and not (tz and not _is_placeholder_tz(tz)):
+                        coords_lookup_attempted = True
+                        coords = _ensure_coords_for_location(realtime_location, trust_settings=not bool(loc))
+                    realtime_tz = _resolve_timezone_for_context(
+                        tz,
+                        realtime_location,
+                        coords=coords,
+                        lookup_coords=False,
                     )
-                    if coords is None and realtime_location:
-                        coords = _ensure_coords_for_location(realtime_location)
-                    realtime_tz = _resolve_timezone_for_context(tz, realtime_location, coords=coords) or eng.settings.timezone
+                    if coords is None and realtime_location and not realtime_tz and not coords_lookup_attempted:
+                        coords = _ensure_coords_for_location(realtime_location, trust_settings=not bool(loc))
+                        realtime_tz = _resolve_timezone_for_context(
+                            tz,
+                            realtime_location,
+                            coords=coords,
+                            lookup_coords=False,
+                        )
+                    realtime_tz = realtime_tz or (None if location_changed else eng.settings.timezone)
                     eng.set_mode(
                         eng.settings.mode.__class__.REALTIME,
                         location=realtime_location,
@@ -3442,11 +5314,12 @@ def set_mode():
                         latitude=(coords[0] if coords else None),
                         longitude=(coords[1] if coords else None),
                     )
-                except Exception:
-                    eng.resume_realtime()
+                except Exception as exc:
+                    return jsonify({'success': False, 'error': str(exc) or 'Unable to update realtime location'}), 400
             else:
                 eng.resume_realtime()
-    return _json_ok({'mode': eng.settings.mode.value})
+        updated_mode = eng.settings.mode.value
+    return _json_ok({'mode': updated_mode})
 
 
 @astro_clock_bp.route('/location', methods=['POST'])
@@ -3457,18 +5330,32 @@ def set_location():
     if not loc:
         return jsonify({'success': False, 'error': 'location is required'}), 400
     eng = _engine_instance()
-    with _engine_lock:
-        eng.update_settings(location=loc)
-    # refresh planetary hours coordinates cache
-    coords = _ensure_coords_for_location(loc)
+    # Resolve outside the shared-state critical section, then commit the
+    # location, coordinates, and timezone as one coherent settings update.
+    coords = _ensure_coords_for_location(loc, trust_settings=False)
+    resolved_tz = None
     if coords:
         try:
             lat, lon = coords
-            with _engine_lock:
-                eng.update_settings(latitude=lat, longitude=lon)
+            resolved_tz = _tz_instance().get_timezone_for_location(lat, lon)
         except Exception:
-            pass
-    return _json_ok({'location': eng.settings.location})
+            coords = None
+            resolved_tz = None
+    with _engine_lock:
+        eng.update_settings(
+            location=loc,
+            latitude=(coords[0] if coords else None),
+            longitude=(coords[1] if coords else None),
+            timezone=resolved_tz,
+        )
+        updated_location = eng.settings.location
+        updated_timezone = eng.settings.timezone
+    return _json_ok({
+        'location': updated_location,
+        'timezone': updated_timezone,
+        'latitude': (coords[0] if coords else None),
+        'longitude': (coords[1] if coords else None),
+    })
 
 
 @astro_clock_bp.route('/receptions', methods=['GET'])
@@ -3481,7 +5368,7 @@ def get_receptions():
     TraditionalReceptionCalculator so dev parity matches packaged builds.
     """
     eng = _engine_instance()
-    data = eng.get_current_data()
+    data, _active_settings = _data_for_request_clock_context(eng)
     try:
         chart = data.chart_result if isinstance(data.chart_result, dict) else json.loads(data.chart_result)
     except Exception:
@@ -3492,44 +5379,76 @@ def get_receptions():
 @astro_clock_bp.route('/compass', methods=['GET'])
 @_error_handler
 def get_compass():
-    """Approximate compass bearings for planets based on chart longitudes.
-
-    We align Ascendant to 90° (East) and rotate ecliptic longitudes into a
-    simple compass frame (0=N at top). This is a visualization aid for the
-    dashboard and not a true horizon projection.
-    """
+    """Return local-space compass bearings for the active chart context."""
     include_modern = (request.args.get('include_modern', '0').lower() in {'1', 'true', 'yes'})
     eng = _engine_instance()
-    data = eng.get_current_data()
+    data, active_settings = _data_for_request_clock_context(eng)
     try:
         chart = data.chart_result if isinstance(data.chart_result, dict) else json.loads(data.chart_result)
     except Exception:
         chart = {}
     cd = chart.get('chart_data', {}) if isinstance(chart, dict) else {}
-    asc = float(cd.get('ascendant') or 0.0)
-    planets = cd.get('planets') or {}
-    # normalize to dict mapping
-    if isinstance(planets, list):
-        pm = {}
-        for p in planets:
-            try:
-                pm[p.get('planet')] = p
-            except Exception:
-                continue
-        planets = pm
-    out = []
-    classical = {'Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn'}
-    for name, info in planets.items():
-        if not include_modern and name not in classical:
-            continue
-        try:
-            lon = float(info.get('longitude') or 0.0)
-        except Exception:
-            lon = 0.0
-        # Rotate so Asc is East (90°). Compass is 0=N at top.
-        az = (lon - asc + 90.0) % 360.0
-        out.append({'planet': name, 'azimuth_deg': az})
-    return _json_ok({'azimuths': out, 'ascendant': asc})
+    try:
+        payload = _build_local_space_compass_payload(
+            cd,
+            getattr(data, 'timestamp', None),
+            active_settings,
+            include_modern=include_modern,
+        )
+    except (LocationError, ValueError) as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 400
+    except Exception:
+        logger.exception('Failed to compute local-space compass bearings')
+        return jsonify({'success': False, 'error': 'Local-space calculation is unavailable'}), 503
+    return _json_ok(payload)
+
+
+@astro_clock_bp.route('/directional-3d', methods=['GET'])
+@_error_handler
+def get_directional_3d():
+    """Return geometry rows for the advanced Directional chart view."""
+    include_modern = (request.args.get('include_modern', '0').lower() in {'1', 'true', 'yes'})
+    eng = _engine_instance()
+    data, active_settings = _data_for_request_clock_context(eng)
+    try:
+        chart = data.chart_result if isinstance(data.chart_result, dict) else json.loads(data.chart_result)
+    except Exception:
+        chart = {}
+    cd = chart.get('chart_data', {}) if isinstance(chart, dict) else {}
+    try:
+        payload = _build_directional_3d_payload(
+            cd,
+            getattr(data, 'timestamp', None),
+            active_settings,
+            include_modern=include_modern,
+        )
+    except (LocationError, ValueError) as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 400
+    except Exception:
+        logger.exception('Failed to compute Directional 3D geometry')
+        return jsonify({'success': False, 'error': 'Directional 3D calculation is unavailable'}), 503
+    return _json_ok(payload)
+
+
+@astro_clock_bp.route('/certification/rectify', methods=['POST'])
+@_error_handler
+def birth_time_certification_rectify():
+    """Run a birth-time rectification scan for certification review."""
+    body = request.get_json(silent=True)
+    if body is None:
+        body = {}
+    if not isinstance(body, dict):
+        return jsonify({'success': False, 'error': 'JSON object body is required'}), 400
+    try:
+        from birth_certification import rectify_birth_time_from_payload
+
+        payload = rectify_birth_time_from_payload(body)
+    except ValueError as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 400
+    except RuntimeError as exc:
+        logger.exception('Birth-time certification calculation unavailable')
+        return jsonify({'success': False, 'error': str(exc)}), 503
+    return _json_ok(payload)
 
 
 @astro_clock_bp.route('/stream', methods=['GET'])
@@ -3631,7 +5550,9 @@ def _future_cusp_phase_chart_data(
 def _compute_chart_bundle_for(dt_iso: Optional[str], location: Optional[str], timezone: Optional[str],
                               house_system_code: Optional[str] = None,
                               latitude: Optional[float] = None,
-                              longitude: Optional[float] = None) -> Dict[str, Any]:
+                              longitude: Optional[float] = None,
+                              include_modern: bool = False,
+                              include_chiron: bool = False) -> Dict[str, Any]:
     """Return an internal chart bundle for a given datetime/location.
 
     This keeps the public `(chart_data, meta)` contract stable while allowing
@@ -3646,7 +5567,9 @@ def _compute_chart_bundle_for(dt_iso: Optional[str], location: Optional[str], ti
         house_system_code=house_system_code,
     ):
         eng = _engine_instance()
-        resolved_location = location or eng.settings.location
+        with _engine_lock:
+            default_settings = copy.copy(eng.settings)
+        resolved_location = location or default_settings.location
         resolved_coords = None
         if latitude is not None and longitude is not None:
             try:
@@ -3655,13 +5578,14 @@ def _compute_chart_bundle_for(dt_iso: Optional[str], location: Optional[str], ti
                 resolved_coords = None
         if resolved_coords is None:
             resolved_coords = (
-                _coords_from_settings(eng.settings)
-                if _settings_match_location(eng.settings, resolved_location)
+                _coords_from_settings(default_settings)
+                if _settings_match_location(default_settings, resolved_location)
                 else None
             )
-        if resolved_coords is None and resolved_location:
-            resolved_coords = _ensure_coords_for_location(resolved_location)
         resolved_tz = _resolve_timezone_for_context(timezone, resolved_location, coords=resolved_coords)
+        if resolved_coords is None and resolved_location and not resolved_tz:
+            resolved_coords = _ensure_coords_for_location(resolved_location)
+            resolved_tz = _resolve_timezone_for_context(timezone, resolved_location, coords=resolved_coords)
         custom = None
         parsed_tz = None
         if dt_iso:
@@ -3679,15 +5603,24 @@ def _compute_chart_bundle_for(dt_iso: Optional[str], location: Optional[str], ti
             mode=ClockMode.MANUAL if custom else ClockMode.REALTIME,
             location=resolved_location,
             custom_time=custom,
-            timezone=tz or eng.settings.timezone,
+            timezone=tz or default_settings.timezone,
             latitude=(resolved_coords[0] if resolved_coords else None),
             longitude=(resolved_coords[1] if resolved_coords else None),
             paused_at=None,
-            house_system_code=house_system_code or getattr(eng.settings, 'house_system_code', None),
+            house_system_code=house_system_code or getattr(default_settings, 'house_system_code', None),
         )
         with _astro_perf_span('helper.compute_chart_bundle_for.get_current_data'):
             with _engine_lock:
                 data = eng.get_current_data(settings=local)
+        if resolved_coords is None:
+            try:
+                chart_result = data.chart_result if isinstance(data.chart_result, dict) else json.loads(data.chart_result)
+            except Exception:
+                chart_result = {}
+            resolved_coords = _coords_from_chart_data(_extract_chart_data_from_result(chart_result))
+            if resolved_coords:
+                local.latitude = resolved_coords[0]
+                local.longitude = resolved_coords[1]
     tz_name = local.timezone
     try:
         ts_local = _localize(data.timestamp, tz_name)
@@ -3703,7 +5636,15 @@ def _compute_chart_bundle_for(dt_iso: Optional[str], location: Optional[str], ti
         'latitude': (resolved_coords[0] if resolved_coords else None),
         'longitude': (resolved_coords[1] if resolved_coords else None),
     }
-    return _build_chart_bundle(getattr(data, 'chart_result', {}), meta)
+    bundle = _build_chart_bundle(getattr(data, 'chart_result', {}), meta)
+    if include_modern or include_chiron:
+        bundle['chart_data'] = _extend_chart_data_for_synastry(
+            bundle.get('chart_data') or {},
+            bundle.get('meta') or meta,
+            include_modern=include_modern,
+            include_chiron=include_chiron,
+        )
+    return bundle
 
 
 def _compute_chart_for(dt_iso: Optional[str], location: Optional[str], timezone: Optional[str],
@@ -3764,16 +5705,18 @@ def _synastry_house_for_longitude(lon: float, cusps: List[float]) -> Optional[in
     return None
 
 
-def _configure_synastry_ephemeris_path(swe_module: Any) -> None:
-    try:
-        swe_module.set_ephe_path(_resolve_synastry_ephemeris_path() or '')
-    except Exception:
-        pass
+@contextmanager
+def _configure_synastry_ephemeris_path(swe_module: Any):
+    with swisseph_ephemeris_path(
+        _resolve_synastry_ephemeris_path() or '',
+        swe_module=swe_module,
+    ):
+        yield
 
 
 def _synastry_point_capability(meta: Dict[str, Any]) -> Dict[str, bool]:
     try:
-        import swisseph as _swe  # type: ignore
+        _swe = require_swisseph()
         timestamp = str((meta or {}).get('timestamp') or '').strip()
         if not timestamp:
             return {"modern_supported": False, "chiron_supported": False}
@@ -3788,28 +5731,27 @@ def _synastry_point_capability(meta: Dict[str, Any]) -> Dict[str, bool]:
             + (dt_utc.microsecond / 3_600_000_000.0)
         )
         jd_ut = _swe.julday(dt_utc.year, dt_utc.month, dt_utc.day, hour_decimal, _swe.GREG_CAL)
-        _configure_synastry_ephemeris_path(_swe)
+        with _configure_synastry_ephemeris_path(_swe):
+            modern_supported = True
+            for key in ("URANUS", "NEPTUNE", "PLUTO"):
+                point_id = getattr(_swe, key, None)
+                if point_id is None:
+                    modern_supported = False
+                    break
+                try:
+                    _swe.calc_ut(jd_ut, point_id, _swe.FLG_SWIEPH | _swe.FLG_SPEED)
+                except Exception:
+                    modern_supported = False
+                    break
 
-        modern_supported = True
-        for key in ("URANUS", "NEPTUNE", "PLUTO"):
-            point_id = getattr(_swe, key, None)
-            if point_id is None:
-                modern_supported = False
-                break
-            try:
-                _swe.calc_ut(jd_ut, point_id, _swe.FLG_SWIEPH | _swe.FLG_SPEED)
-            except Exception:
-                modern_supported = False
-                break
-
-        chiron_supported = False
-        point_id = getattr(_swe, "CHIRON", None)
-        if point_id is not None:
-            try:
-                _swe.calc_ut(jd_ut, point_id, _swe.FLG_SWIEPH | _swe.FLG_SPEED)
-                chiron_supported = True
-            except Exception:
-                chiron_supported = False
+            chiron_supported = False
+            point_id = getattr(_swe, "CHIRON", None)
+            if point_id is not None:
+                try:
+                    _swe.calc_ut(jd_ut, point_id, _swe.FLG_SWIEPH | _swe.FLG_SPEED)
+                    chiron_supported = True
+                except Exception:
+                    chiron_supported = False
         return {
             "modern_supported": bool(modern_supported),
             "chiron_supported": bool(chiron_supported),
@@ -3829,7 +5771,7 @@ def _extend_chart_data_for_synastry(
         return chart_data
 
     try:
-        import swisseph as _swe  # type: ignore
+        _swe = require_swisseph()
     except Exception:
         return chart_data
 
@@ -3849,7 +5791,6 @@ def _extend_chart_data_for_synastry(
             + (dt_utc.microsecond / 3_600_000_000.0)
         )
         jd_ut = _swe.julday(dt_utc.year, dt_utc.month, dt_utc.day, hour_decimal, _swe.GREG_CAL)
-        _configure_synastry_ephemeris_path(_swe)
     except Exception:
         return chart_data
 
@@ -3896,33 +5837,48 @@ def _extend_chart_data_for_synastry(
             merged['planet'] = name
             planets.append(merged)
 
-    for name in targets:
-        if name in existing_names:
-            continue
-        swe_key = _SYN_AUGMENT_POINT_IDS.get(name)
-        point_id = getattr(_swe, swe_key, None) if swe_key else None
-        if point_id is None:
-            continue
-        try:
-            pos, _ = _swe.calc_ut(jd_ut, point_id, flags)
-        except Exception:
-            continue
-        lon = float(pos[0]) % 360.0
-        lat = float(pos[1])
-        speed = float(pos[3]) if len(pos) > 3 else 0.0
-        payload = {
-            'longitude': lon,
-            'latitude': lat,
-            'house': _synastry_house_for_longitude(lon, cusps),
-            'sign': _synastry_sign_name_from_longitude(lon),
-            'dignity_score': 0,
-            'essential_dignity': 0,
-            'accidental_dignity': 0,
-            'retrograde': speed < 0.0,
-            'speed': speed,
-            'degree_in_sign': lon % 30.0,
-        }
-        _upsert(name, payload)
+    with _configure_synastry_ephemeris_path(_swe):
+        for name in targets:
+            if name in existing_names:
+                continue
+            swe_key = _SYN_AUGMENT_POINT_IDS.get(name)
+            point_id = getattr(_swe, swe_key, None) if swe_key else None
+            pos = None
+            if point_id is not None:
+                try:
+                    pos, _ = _swe.calc_ut(jd_ut, point_id, flags)
+                except Exception:
+                    pos = None
+            if pos is None:
+                fallback_position = None
+                if name == "Chiron":
+                    try:
+                        from astrocartography_service import fallback_chiron_ecliptic_position
+                        fallback_position = fallback_chiron_ecliptic_position(jd_ut)
+                    except Exception:
+                        fallback_position = None
+                if not fallback_position:
+                    continue
+                lon = float(fallback_position.get("longitude") or 0.0) % 360.0
+                lat = float(fallback_position.get("latitude") or 0.0)
+                speed = float(fallback_position.get("speed") or 0.0)
+            else:
+                lon = float(pos[0]) % 360.0
+                lat = float(pos[1])
+                speed = float(pos[3]) if len(pos) > 3 else 0.0
+            payload = {
+                'longitude': lon,
+                'latitude': lat,
+                'house': _synastry_house_for_longitude(lon, cusps),
+                'sign': _synastry_sign_name_from_longitude(lon),
+                'dignity_score': 0,
+                'essential_dignity': 0,
+                'accidental_dignity': 0,
+                'retrograde': speed < 0.0,
+                'speed': speed,
+                'degree_in_sign': lon % 30.0,
+            }
+            _upsert(name, payload)
 
     return out
 
@@ -4020,14 +5976,18 @@ def _extend_chart_data_for_marriage_beta(
     return out
 
 
-def _data_for_request_clock_context(eng: AstroClockEngine):
+def _data_for_request_clock_context(eng: AstroClockEngine, *, house_system_override: Optional[str] = None):
     """Resolve Astro Clock data for the current request without mutating engine state."""
     q_mode = str(request.args.get('mode') or '').strip().lower()
     q_dt = request.args.get('datetime')
     q_loc = request.args.get('location')
     q_tz = request.args.get('timezone')
-    q_house = request.args.get('house_system_code') or request.args.get('house_system')
+    q_house = house_system_override or request.args.get('house_system_code') or request.args.get('house_system')
     q_coords = _coords_from_request_args(request.args, strict=True)
+    if q_coords is not None and q_loc and abs(q_coords[0]) < 1e-9 and abs(q_coords[1]) < 1e-9:
+        resolved_coords = _ensure_coords_for_location(q_loc, trust_settings=False)
+        if resolved_coords is not None:
+            q_coords = resolved_coords
 
     use_override = bool(q_mode or q_dt or q_loc or q_tz or q_house or q_coords)
     with _astro_perf_span(
@@ -4046,16 +6006,29 @@ def _data_for_request_clock_context(eng: AstroClockEngine):
             active_settings = getattr(data, 'settings', None) or eng.settings
             return data, active_settings
 
-        prev = eng.settings
+        with _engine_lock:
+            prev = copy.copy(eng.settings)
         local_location = q_loc or prev.location
+        location_changed = bool(q_loc) and not _settings_match_location(prev, local_location)
         local_coords = q_coords
+        explicit_tz = _valid_explicit_timezone(q_tz)
         if local_coords is None:
-            local_coords = _coords_from_settings(prev) if _settings_match_location(prev, local_location) else None
-        if q_tz is not None or q_loc or q_coords:
+            if q_loc and not explicit_tz:
+                local_coords = _ensure_coords_for_location(local_location, trust_settings=False)
+            else:
+                local_coords = _coords_from_settings(prev) if _settings_match_location(prev, local_location) else None
+        explicit_clock_context = q_tz is not None or q_loc or q_coords
+        resolved_context_tz = None
+        if explicit_clock_context:
             with _astro_perf_span('helper.data_for_request_clock_context.resolve_location_timezone'):
-                if local_coords is None and local_location:
-                    local_coords = _ensure_coords_for_location(local_location)
-                local_tz = _resolve_timezone_for_context(q_tz, local_location, coords=local_coords) or prev.timezone
+                if local_coords is None and local_location and not explicit_tz and not (q_tz and not _is_placeholder_tz(q_tz)):
+                    local_coords = _ensure_coords_for_location(local_location, trust_settings=not bool(q_loc))
+                resolved_context_tz = _resolve_timezone_for_context(
+                    q_tz,
+                    local_location,
+                    coords=local_coords,
+                )
+                local_tz = resolved_context_tz or (None if location_changed else prev.timezone)
         else:
             local_tz = prev.timezone
         custom_override = prev.custom_time
@@ -4070,10 +6043,13 @@ def _data_for_request_clock_context(eng: AstroClockEngine):
             mode_override = ClockMode.PAUSED
 
         if q_dt:
+            normalization_tz = resolved_context_tz or q_tz
+            if not explicit_clock_context:
+                normalization_tz = local_tz
             with _astro_perf_span('helper.data_for_request_clock_context.normalize_manual_datetime'):
                 custom_override, normalized_tz = _normalize_manual_datetime(
                     q_dt,
-                    timezone_name=q_tz,
+                    timezone_name=normalization_tz,
                     location=local_location,
                 )
             local_tz = normalized_tz or local_tz
@@ -4098,7 +6074,11 @@ def _data_for_request_clock_context(eng: AstroClockEngine):
         )
         if local.mode == ClockMode.MANUAL and local.location and not local.timezone:
             with _astro_perf_span('helper.data_for_request_clock_context.infer_manual_timezone'):
-                coords = local_coords or _ensure_coords_for_location(local.location, settings_hint=local)
+                coords = local_coords or _ensure_coords_for_location(
+                    local.location,
+                    settings_hint=local,
+                    trust_settings=not bool(q_loc),
+                )
                 if coords:
                     lat, lon = coords
                     guess = _tz_instance().get_timezone_for_location(lat, lon)
@@ -4109,6 +6089,900 @@ def _data_for_request_clock_context(eng: AstroClockEngine):
             data = eng.get_current_data(settings=local)
         active_settings = getattr(data, 'settings', None) or local
         return data, active_settings
+
+
+def _select_compass_planets(
+    chart_data: Optional[Dict[str, Any]],
+    *,
+    include_modern: bool = False,
+) -> Tuple[float, List[Tuple[str, Dict[str, Any]]]]:
+    cd = chart_data if isinstance(chart_data, dict) else {}
+    asc = float(cd.get('ascendant') or 0.0)
+    planets = cd.get('planets') or {}
+    if isinstance(planets, list):
+        planet_map: Dict[str, Dict[str, Any]] = {}
+        for row in planets:
+            if not isinstance(row, dict):
+                continue
+            name = str(row.get('planet') or '').strip()
+            if not name:
+                continue
+            planet_map[name] = row
+        planets = planet_map
+    classical = {'Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn'}
+    selected: List[Tuple[str, Dict[str, Any]]] = []
+    for name, info in planets.items():
+        if not include_modern and name not in classical:
+            continue
+        if not isinstance(info, dict):
+            continue
+        selected.append((name, info))
+    return asc, selected
+
+
+def _build_local_space_compass_payload(
+    chart_data: Optional[Dict[str, Any]],
+    timestamp: Any,
+    active_settings: Optional[AstroClockSettings],
+    *,
+    include_modern: bool = False,
+) -> Dict[str, Any]:
+    asc, selected = _select_compass_planets(chart_data, include_modern=include_modern)
+    if not selected:
+        return {
+            'azimuths': [],
+            'ascendant': asc,
+            'source': 'local_space',
+            'has_altitude': True,
+        }
+
+    timestamp_iso = None
+    if isinstance(timestamp, datetime):
+        try:
+            timestamp_iso = timestamp.astimezone(timezone.utc).isoformat()
+        except Exception:
+            timestamp_iso = timestamp.isoformat()
+    elif timestamp:
+        timestamp_iso = str(timestamp)
+    if not timestamp_iso:
+        raise ValueError('Compass requires an active chart timestamp')
+
+    coords = _coords_from_settings(active_settings)
+    if coords is None:
+        location = getattr(active_settings, 'location', None)
+        if location:
+            coords = _ensure_coords_for_location(location, settings_hint=active_settings)
+    if coords is None:
+        raise LocationError('Compass requires chart coordinates')
+
+    try:
+        from forensic.local_space import compute_local_space
+
+        altaz = compute_local_space(
+            timestamp_iso,
+            float(coords[0]),
+            float(coords[1]),
+            [name for name, _info in selected],
+        )
+    except Exception as exc:
+        raise RuntimeError('Local-space calculation is unavailable') from exc
+
+    local_rows = []
+    for name, info in selected:
+        payload = altaz.get(name)
+        if not isinstance(payload, dict):
+            continue
+        item = {
+            'planet': name,
+            'azimuth_deg': float(payload.get('azimuth_deg') or 0.0),
+        }
+        if payload.get('altitude_deg') is not None:
+            item['altitude_deg'] = float(payload.get('altitude_deg'))
+        try:
+            item['longitude_deg'] = float(info.get('longitude'))
+        except Exception:
+            pass
+        local_rows.append(item)
+
+    if not local_rows:
+        raise RuntimeError('Local-space calculation returned no bearings')
+
+    return {
+        'azimuths': local_rows,
+        'ascendant': asc,
+        'latitude': float(coords[0]),
+        'longitude': float(coords[1]),
+        'source': 'local_space',
+        'has_altitude': any('altitude_deg' in row for row in local_rows),
+    }
+
+
+DIRECTIONAL_3D_DEFAULT_ROTATION = 9.0
+DIRECTIONAL_3D_DEFAULT_TILT = 19.0
+DIRECTIONAL_3D_SYMBOLS: Dict[str, str] = {
+    'Sun': '☉',
+    'Moon': '☽',
+    'Mercury': '☿',
+    'Venus': '♀',
+    'Mars': '♂',
+    'Jupiter': '♃',
+    'Saturn': '♄',
+    'Uranus': '♅',
+    'Neptune': '♆',
+    'Pluto': '♇',
+    'Chiron': '⚷',
+    'North Node': '☊',
+    'South Node': '☋',
+}
+DIRECTIONAL_3D_SWISSEPH_KEYS: Dict[str, str] = {
+    'Sun': 'SUN',
+    'Moon': 'MOON',
+    'Mercury': 'MERCURY',
+    'Venus': 'VENUS',
+    'Mars': 'MARS',
+    'Jupiter': 'JUPITER',
+    'Saturn': 'SATURN',
+    'Uranus': 'URANUS',
+    'Neptune': 'NEPTUNE',
+    'Pluto': 'PLUTO',
+    'Chiron': 'CHIRON',
+    'North Node': 'MEAN_NODE',
+    'True Node': 'TRUE_NODE',
+}
+
+
+def _directional_number(value: Any, default: Optional[float] = None) -> Optional[float]:
+    try:
+        number = float(value)
+    except Exception:
+        return default
+    if not math.isfinite(number):
+        return default
+    return number
+
+
+def _directional_round(value: Any, places: int = 3, default: Optional[float] = None) -> Optional[float]:
+    number = _directional_number(value, default)
+    if number is None:
+        return None
+    return round(number, places)
+
+
+def _directional_wrap_degrees(value: float) -> float:
+    wrapped = math.fmod(float(value), 360.0)
+    if wrapped < 0:
+        wrapped += 360.0
+    return wrapped
+
+
+def _directional_timestamp_iso(timestamp: Any, *, label: str) -> str:
+    if isinstance(timestamp, datetime):
+        dt = timestamp
+    elif timestamp:
+        text = str(timestamp)
+        if text.endswith('Z'):
+            text = f"{text[:-1]}+00:00"
+        try:
+            dt = datetime.fromisoformat(text)
+        except Exception as exc:
+            raise ValueError(f'{label} requires a valid chart timestamp') from exc
+    else:
+        raise ValueError(f'{label} requires an active chart timestamp')
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc).isoformat()
+
+
+def _directional_jd_ut(timestamp_iso: str) -> float:
+    try:
+        _swe = require_swisseph()
+    except Exception as exc:
+        raise RuntimeError('Swiss Ephemeris is unavailable') from exc
+    dt = datetime.fromisoformat(str(timestamp_iso).replace('Z', '+00:00'))
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    dt_utc = dt.astimezone(timezone.utc)
+    hour_decimal = (
+        dt_utc.hour
+        + (dt_utc.minute / 60.0)
+        + (dt_utc.second / 3600.0)
+        + (dt_utc.microsecond / 3_600_000_000.0)
+    )
+    return float(_swe.julday(dt_utc.year, dt_utc.month, dt_utc.day, hour_decimal, getattr(_swe, 'GREG_CAL', 1)))
+
+
+def _directional_mean_obliquity_from_jd(jd_ut: float) -> float:
+    # Fallback only: use a mean-obliquity polynomial when no chart/JD
+    # obliquity service is available.
+    t = (float(jd_ut) - 2451545.0) / 36525.0
+    seconds = 21.448 - (46.8150 * t) - (0.00059 * t * t) + (0.001813 * t * t * t)
+    return 23.0 + (26.0 / 60.0) + (seconds / 3600.0)
+
+
+def _directional_chart_obliquity(chart_data: Optional[Dict[str, Any]], timestamp_iso: str) -> Tuple[float, str]:
+    cd = chart_data if isinstance(chart_data, dict) else {}
+    candidates: List[Any] = [
+        cd.get('obliquity'),
+        cd.get('true_obliquity'),
+        cd.get('mean_obliquity'),
+        cd.get('epsilon'),
+    ]
+    for nested_key in ('astronomy', 'ephemeris', 'chart_info'):
+        nested = cd.get(nested_key)
+        if isinstance(nested, dict):
+            candidates.extend([
+                nested.get('obliquity'),
+                nested.get('true_obliquity'),
+                nested.get('mean_obliquity'),
+                nested.get('epsilon'),
+            ])
+    for value in candidates:
+        number = _directional_number(value)
+        if number is not None and 0.0 < abs(number) < 90.0:
+            return float(number), 'chart'
+
+    try:
+        _swe = require_swisseph()
+
+        jd_ut = _directional_jd_ut(timestamp_iso)
+        with _configure_synastry_ephemeris_path(_swe):
+            result, _flags = _swe.calc_ut(jd_ut, getattr(_swe, 'ECL_NUT', -1))
+        if result and len(result) > 0:
+            number = _directional_number(result[0])
+            if number is not None and 0.0 < abs(number) < 90.0:
+                return float(number), 'swisseph'
+    except Exception:
+        pass
+
+    try:
+        return _directional_mean_obliquity_from_jd(_directional_jd_ut(timestamp_iso)), 'mean_formula'
+    except Exception:
+        return 23.4392911, 'mean_formula'
+
+
+def _directional_ecliptic_to_equatorial(
+    longitude_deg: float,
+    latitude_deg: float,
+    obliquity_deg: float,
+) -> Tuple[float, float]:
+    lon = math.radians(_directional_wrap_degrees(longitude_deg))
+    lat = math.radians(float(latitude_deg))
+    eps = math.radians(float(obliquity_deg))
+    right_ascension = math.atan2(
+        math.sin(lon) * math.cos(eps) - math.tan(lat) * math.sin(eps),
+        math.cos(lon),
+    )
+    declination = math.asin(
+        math.sin(lat) * math.cos(eps) + math.cos(lat) * math.sin(eps) * math.sin(lon)
+    )
+    return _directional_wrap_degrees(math.degrees(right_ascension)), math.degrees(declination)
+
+
+def _directional_ecliptic_to_equatorial_with_rates(
+    longitude_deg: float,
+    latitude_deg: float,
+    longitude_speed_deg: float,
+    latitude_speed_deg: float,
+    obliquity_deg: float,
+) -> Tuple[float, float, float, float]:
+    lon = math.radians(_directional_wrap_degrees(longitude_deg))
+    lat = math.radians(float(latitude_deg))
+    lon_speed = math.radians(float(longitude_speed_deg))
+    lat_speed = math.radians(float(latitude_speed_deg))
+    eps = math.radians(float(obliquity_deg))
+
+    cos_lat = math.cos(lat)
+    sin_lat = math.sin(lat)
+    cos_lon = math.cos(lon)
+    sin_lon = math.sin(lon)
+    cos_eps = math.cos(eps)
+    sin_eps = math.sin(eps)
+
+    x = cos_lat * cos_lon
+    y = cos_lat * sin_lon
+    z = sin_lat
+
+    equ_x = x
+    equ_y = (y * cos_eps) - (z * sin_eps)
+    equ_z = (y * sin_eps) + (z * cos_eps)
+
+    dx = (-sin_lat * lat_speed * cos_lon) - (cos_lat * sin_lon * lon_speed)
+    dy = (-sin_lat * lat_speed * sin_lon) + (cos_lat * cos_lon * lon_speed)
+    dz = cos_lat * lat_speed
+
+    d_equ_x = dx
+    d_equ_y = (dy * cos_eps) - (dz * sin_eps)
+    d_equ_z = (dy * sin_eps) + (dz * cos_eps)
+
+    ra_denominator = (equ_x * equ_x) + (equ_y * equ_y)
+    if ra_denominator <= 1e-15:
+        ra_speed = 0.0
+    else:
+        ra_speed = (equ_x * d_equ_y - equ_y * d_equ_x) / ra_denominator
+
+    dec_denominator = math.sqrt(max(1e-15, 1.0 - (equ_z * equ_z)))
+    dec_speed = d_equ_z / dec_denominator
+    right_ascension = math.atan2(equ_y, equ_x)
+    declination = math.asin(max(-1.0, min(1.0, equ_z)))
+    return (
+        _directional_wrap_degrees(math.degrees(right_ascension)),
+        math.degrees(declination),
+        math.degrees(ra_speed),
+        math.degrees(dec_speed),
+    )
+
+
+def _directional_horizontal_from_equatorial(
+    timestamp_iso: str,
+    observer_latitude: float,
+    observer_longitude: float,
+    right_ascension_deg: float,
+    declination_deg: float,
+) -> Tuple[float, float]:
+    try:
+        from forensic.local_space import _az_alt_from_ra_dec, _jd_ut_from_iso, _lst_hours
+
+        jd_ut = _jd_ut_from_iso(timestamp_iso)
+        sidereal_hours = _lst_hours(jd_ut, observer_longitude)
+        horizontal = _az_alt_from_ra_dec(
+            right_ascension_deg / 15.0,
+            declination_deg,
+            observer_latitude,
+            sidereal_hours,
+        )
+        return (
+            _directional_wrap_degrees(horizontal.get('azimuth_deg')),
+            float(horizontal.get('altitude_deg') or 0.0),
+        )
+    except Exception as exc:
+        raise RuntimeError('Directional 3D horizon coordinates are unavailable') from exc
+
+
+def _directional_horizontal_from_ecliptic(
+    timestamp_iso: str,
+    observer_latitude: float,
+    observer_longitude: float,
+    ecliptic_longitude_deg: float,
+    ecliptic_latitude_deg: float,
+    obliquity_deg: float,
+) -> Tuple[float, float, str]:
+    try:
+        _swe = require_swisseph()
+
+        jd_ut = _directional_jd_ut(timestamp_iso)
+        with swisseph_lock():
+            result = _swe.azalt(
+                jd_ut,
+                getattr(_swe, 'ECL2HOR', 0),
+                (float(observer_longitude), float(observer_latitude), 0.0),
+                0.0,
+                0.0,
+                (
+                    _directional_wrap_degrees(ecliptic_longitude_deg),
+                    float(ecliptic_latitude_deg),
+                    1.0,
+                ),
+            )
+        altitude = result[1] if len(result) > 1 else result[2]
+        return _directional_wrap_degrees(float(result[0])), float(altitude), 'swisseph_azalt'
+    except Exception:
+        equ_longitude, equ_latitude = _directional_ecliptic_to_equatorial(
+            ecliptic_longitude_deg,
+            ecliptic_latitude_deg,
+            obliquity_deg,
+        )
+        hor_longitude, hor_latitude = _directional_horizontal_from_equatorial(
+            timestamp_iso,
+            observer_latitude,
+            observer_longitude,
+            equ_longitude,
+            equ_latitude,
+        )
+        return hor_longitude, hor_latitude, 'equatorial_fallback'
+
+
+def _directional_shift_timestamp_iso(timestamp_iso: str, delta_seconds: float) -> str:
+    dt = datetime.fromisoformat(str(timestamp_iso).replace('Z', '+00:00'))
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return (dt.astimezone(timezone.utc) + timedelta(seconds=float(delta_seconds))).isoformat()
+
+
+def _directional_signed_degree_delta(end_degrees: float, start_degrees: float) -> float:
+    return ((_directional_wrap_degrees(end_degrees) - _directional_wrap_degrees(start_degrees) + 540.0) % 360.0) - 180.0
+
+
+def _directional_horizontal_rates_from_ecliptic(
+    timestamp_iso: str,
+    observer_latitude: float,
+    observer_longitude: float,
+    ecliptic_longitude_deg: float,
+    ecliptic_latitude_deg: float,
+    ecliptic_longitude_speed: float,
+    ecliptic_latitude_speed: Optional[float],
+    obliquity_deg: float,
+    object_type: str,
+) -> Tuple[float, Optional[float], str, str]:
+    if object_type == 'cusp':
+        return 0.0, 0.0, 'cusp_static', 'cusp_static'
+
+    step_seconds = 300.0
+    step_days = step_seconds / 86400.0
+    latitude_speed = float(ecliptic_latitude_speed) if ecliptic_latitude_speed is not None else 0.0
+    before_timestamp = _directional_shift_timestamp_iso(timestamp_iso, -step_seconds)
+    after_timestamp = _directional_shift_timestamp_iso(timestamp_iso, step_seconds)
+    try:
+        before_longitude, before_latitude, _before_source = _directional_horizontal_from_ecliptic(
+            before_timestamp,
+            observer_latitude,
+            observer_longitude,
+            ecliptic_longitude_deg - (float(ecliptic_longitude_speed) * step_days),
+            ecliptic_latitude_deg - (latitude_speed * step_days),
+            obliquity_deg,
+        )
+        after_longitude, after_latitude, _after_source = _directional_horizontal_from_ecliptic(
+            after_timestamp,
+            observer_latitude,
+            observer_longitude,
+            ecliptic_longitude_deg + (float(ecliptic_longitude_speed) * step_days),
+            ecliptic_latitude_deg + (latitude_speed * step_days),
+            obliquity_deg,
+        )
+    except Exception:
+        return 0.0, None, 'static_zero', 'unavailable'
+
+    divisor_days = 2.0 * step_days
+    longitude_rate = _directional_signed_degree_delta(after_longitude, before_longitude) / divisor_days
+    latitude_rate = (float(after_latitude) - float(before_latitude)) / divisor_days
+    return longitude_rate, latitude_rate, 'finite_difference', 'finite_difference'
+
+
+def _directional_equatorial_from_swiss(
+    name: str,
+    timestamp_iso: str,
+) -> Optional[Tuple[float, float, float, Optional[float]]]:
+    swe_key = DIRECTIONAL_3D_SWISSEPH_KEYS.get(str(name or '').strip())
+    if not swe_key:
+        return None
+    try:
+        _swe = require_swisseph()
+
+        point_id = getattr(_swe, swe_key, None)
+        if point_id is None:
+            return None
+        jd_ut = _directional_jd_ut(timestamp_iso)
+        flags = (
+            getattr(_swe, 'FLG_SWIEPH', getattr(_swe, 'SEFLG_SWIEPH', 2))
+            | getattr(_swe, 'FLG_SPEED', getattr(_swe, 'SEFLG_SPEED', 256))
+            | getattr(_swe, 'FLG_EQUATORIAL', getattr(_swe, 'SEFLG_EQUATORIAL', 2048))
+        )
+        with _configure_synastry_ephemeris_path(_swe):
+            pos, _ret = _swe.calc_ut(jd_ut, point_id, flags)
+        return (
+            _directional_wrap_degrees(float(pos[0])),
+            float(pos[1]),
+            float(pos[3]) if len(pos) > 3 else 0.0,
+            float(pos[4]) if len(pos) > 4 else None,
+        )
+    except Exception:
+        return None
+
+
+def _directional_equatorial_from_fields(info: Dict[str, Any]) -> Optional[Tuple[float, float, Optional[float], Optional[float]]]:
+    equ_longitude = None
+    equ_latitude = None
+    for key in ('equatorial_longitude', 'equ_longitude', 'equ_lon', 'right_ascension', 'ra'):
+        number = _directional_number(info.get(key))
+        if number is not None:
+            equ_longitude = number
+            break
+    for key in ('equatorial_latitude', 'equ_latitude', 'equ_lat', 'declination', 'dec'):
+        number = _directional_number(info.get(key))
+        if number is not None:
+            equ_latitude = number
+            break
+    if equ_longitude is None or equ_latitude is None:
+        return None
+    equ_speed = None
+    for key in ('equatorial_speed', 'equ_speed', 'ra_speed', 'right_ascension_speed'):
+        equ_speed = _directional_number(info.get(key))
+        if equ_speed is not None:
+            break
+    equ_latitude_speed = None
+    for key in ('equatorial_latitude_speed', 'equ_latitude_speed', 'equ_lat_speed', 'declination_speed', 'dec_speed'):
+        equ_latitude_speed = _directional_number(info.get(key))
+        if equ_latitude_speed is not None:
+            break
+    return _directional_wrap_degrees(equ_longitude), float(equ_latitude), equ_speed, equ_latitude_speed
+
+
+def _directional_ecliptic_latitude_speed_from_fields(info: Dict[str, Any]) -> Optional[float]:
+    for key in ('latitude_speed', 'ecliptic_latitude_speed', 'lat_speed', 'latspeed', 'betaspeed', 'beta_speed'):
+        number = _directional_number(info.get(key))
+        if number is not None:
+            return number
+    return None
+
+
+def _directional_coordinate_triplet(
+    longitude_deg: float,
+    latitude_deg: float,
+    speed: float,
+    *,
+    object_id: str,
+    name: str,
+    info: Optional[Dict[str, Any]],
+    object_type: str,
+    ecliptic_speed_source: str,
+    ecliptic_latitude_speed: Optional[float],
+    timestamp_iso: str,
+    observer_latitude: float,
+    observer_longitude: float,
+    obliquity_deg: float,
+) -> Tuple[Dict[str, float], Dict[str, float], Dict[str, float], Dict[str, Dict[str, str]], List[Dict[str, str]]]:
+    eql_longitude = _directional_wrap_degrees(longitude_deg)
+    eql_latitude = float(latitude_deg)
+    equ_speed = float(speed)
+    equ_speed_provider = None
+    equ_latitude_speed_provider = None
+    data_gaps: List[Dict[str, str]] = []
+    if object_type == 'cusp':
+        equ_longitude, equ_latitude = eql_longitude, 0.0
+        equ_speed = 0.0
+        equ_latitude_speed = 0.0
+        equ_source = 'cusp_static'
+        equ_speed_source = 'cusp_static'
+        equ_latitude_speed_source = 'cusp_static'
+        eql_source = 'house_cusp'
+        eql_speed_source = 'cusp_static'
+    else:
+        equ_values = _directional_equatorial_from_fields(info or {})
+        if equ_values is None:
+            equ_source = 'derived_from_ecliptic'
+            if ecliptic_latitude_speed is not None and ecliptic_speed_source != 'default_zero':
+                equ_longitude, equ_latitude, equ_speed, equ_latitude_speed = _directional_ecliptic_to_equatorial_with_rates(
+                    eql_longitude,
+                    eql_latitude,
+                    speed,
+                    ecliptic_latitude_speed,
+                    obliquity_deg,
+                )
+                equ_speed_source = 'derived'
+                equ_latitude_speed_source = 'derived'
+            else:
+                equ_longitude, equ_latitude = _directional_ecliptic_to_equatorial(
+                    eql_longitude,
+                    eql_latitude,
+                    obliquity_deg,
+                )
+                swiss_values = _directional_equatorial_from_swiss(name, timestamp_iso)
+                if swiss_values is not None:
+                    _swiss_longitude, _swiss_latitude, swiss_speed, swiss_latitude_speed = swiss_values
+                    equ_speed = float(swiss_speed)
+                    equ_speed_source = 'native'
+                    equ_speed_provider = 'swisseph'
+                    equ_latitude_speed = float(swiss_latitude_speed) if swiss_latitude_speed is not None else None
+                    equ_latitude_speed_source = 'native' if swiss_latitude_speed is not None else 'unavailable'
+                    equ_latitude_speed_provider = 'swisseph' if swiss_latitude_speed is not None else None
+                else:
+                    equ_speed_source = 'fallback'
+                    equ_latitude_speed = None
+                    equ_latitude_speed_source = 'unavailable'
+        else:
+            equ_longitude, equ_latitude, maybe_speed, maybe_latitude_speed = equ_values
+            equ_source = 'chart_equatorial'
+            swiss_values = None
+            if maybe_speed is not None:
+                equ_speed = float(maybe_speed)
+                equ_speed_source = 'native'
+            else:
+                swiss_values = _directional_equatorial_from_swiss(name, timestamp_iso)
+                if swiss_values is not None:
+                    _swiss_longitude, _swiss_latitude, swiss_speed, swiss_latitude_speed = swiss_values
+                    equ_speed = float(swiss_speed)
+                    equ_speed_source = 'native'
+                    equ_speed_provider = 'swisseph'
+                    if maybe_latitude_speed is None:
+                        equ_latitude_speed = float(swiss_latitude_speed) if swiss_latitude_speed is not None else None
+                        equ_latitude_speed_source = 'native' if swiss_latitude_speed is not None else 'unavailable'
+                        equ_latitude_speed_provider = 'swisseph' if swiss_latitude_speed is not None else None
+                else:
+                    equ_speed_source = 'fallback'
+            if maybe_latitude_speed is not None:
+                equ_latitude_speed = float(maybe_latitude_speed)
+                equ_latitude_speed_source = 'native'
+            elif swiss_values is None:
+                equ_latitude_speed = None
+                equ_latitude_speed_source = 'unavailable'
+        eql_source = 'chart_ecliptic'
+        eql_speed_source = ecliptic_speed_source or 'default_zero'
+        if equ_speed_source == 'fallback':
+            data_gaps.append({
+                'code': 'equatorial_speed_fallback',
+                'object_id': object_id,
+                'object': str(name),
+            })
+    hor_longitude, hor_latitude, hor_source = _directional_horizontal_from_ecliptic(
+        timestamp_iso,
+        observer_latitude,
+        observer_longitude,
+        eql_longitude,
+        eql_latitude,
+        obliquity_deg,
+    )
+    hor_speed, hor_latitude_speed, hor_speed_source, hor_latitude_speed_source = _directional_horizontal_rates_from_ecliptic(
+        timestamp_iso,
+        observer_latitude,
+        observer_longitude,
+        eql_longitude,
+        eql_latitude,
+        speed,
+        ecliptic_latitude_speed,
+        obliquity_deg,
+        object_type,
+    )
+    equ_meta = {
+        'source': equ_source,
+        'speed_source': equ_speed_source,
+        'latitude_speed_source': equ_latitude_speed_source,
+    }
+    if equ_speed_provider:
+        equ_meta['speed_provider'] = equ_speed_provider
+    if equ_latitude_speed_provider:
+        equ_meta['latitude_speed_provider'] = equ_latitude_speed_provider
+    return (
+        {
+            'longitude': _directional_round(eql_longitude, 3, 0.0),
+            'latitude': _directional_round(eql_latitude, 3, 0.0),
+            'speed': _directional_round(speed, 3, 0.0),
+        },
+        {
+            'longitude': _directional_round(equ_longitude, 3, 0.0),
+            'latitude': _directional_round(equ_latitude, 3, 0.0),
+            'speed': _directional_round(equ_speed, 3, 0.0),
+            'latitude_speed': _directional_round(equ_latitude_speed, 3, None),
+        },
+        {
+            'longitude': _directional_round(hor_longitude, 3, 0.0),
+            'latitude': _directional_round(hor_latitude, 3, 0.0),
+            'speed': _directional_round(hor_speed, 3, 0.0),
+            'latitude_speed': _directional_round(hor_latitude_speed, 3, None),
+        },
+        {
+            'EQL': {
+                'source': eql_source,
+                'speed_source': eql_speed_source,
+            },
+            'EQU': {
+                **equ_meta,
+            },
+            'HOR': {
+                'source': hor_source,
+                'speed_source': hor_speed_source,
+                'latitude_speed_source': hor_latitude_speed_source,
+            },
+        },
+        data_gaps,
+    )
+
+
+def _directional_object_row(
+    *,
+    object_id: str,
+    object_index: int,
+    name: str,
+    symbol: str,
+    object_type: str,
+    info: Optional[Dict[str, Any]],
+    longitude_deg: float,
+    latitude_deg: float,
+    speed: float,
+    ecliptic_speed_source: str,
+    ecliptic_latitude_speed: Optional[float],
+    bfull: bool,
+    timestamp_iso: str,
+    observer_latitude: float,
+    observer_longitude: float,
+    obliquity_deg: float,
+) -> Dict[str, Any]:
+    eql, equ, hor, coordinate_meta, data_gaps = _directional_coordinate_triplet(
+        longitude_deg,
+        latitude_deg,
+        speed,
+        object_id=object_id,
+        name=name,
+        info=info,
+        object_type=object_type,
+        ecliptic_speed_source=ecliptic_speed_source,
+        ecliptic_latitude_speed=ecliptic_latitude_speed,
+        timestamp_iso=timestamp_iso,
+        observer_latitude=observer_latitude,
+        observer_longitude=observer_longitude,
+        obliquity_deg=obliquity_deg,
+    )
+    return {
+        'object_id': object_id,
+        'object_index': object_index,
+        'name': name,
+        'symbol': symbol,
+        'object_type': object_type,
+        'buse': True,
+        'bfull': bool(bfull),
+        'EQL': eql,
+        'EQU': equ,
+        'HOR': hor,
+        'coordinate_meta': coordinate_meta,
+        '_data_gaps': data_gaps,
+    }
+
+
+def _chart_house_cusps(chart_data: Optional[Dict[str, Any]]) -> List[float]:
+    cd = chart_data if isinstance(chart_data, dict) else {}
+    raw_cusps = cd.get('house_cusps') or cd.get('houses') or []
+    if isinstance(raw_cusps, dict):
+        values = [raw_cusps.get(str(index)) or raw_cusps.get(index) for index in range(1, 13)]
+    else:
+        values = list(raw_cusps) if isinstance(raw_cusps, (list, tuple)) else []
+    cusps: List[float] = []
+    for value in values[:12]:
+        number = _directional_number(value)
+        if number is not None:
+            cusps.append(number)
+    return cusps
+
+
+def _directional_planet_entries(chart_data: Optional[Dict[str, Any]]) -> List[Tuple[str, Dict[str, Any]]]:
+    cd = chart_data if isinstance(chart_data, dict) else {}
+    planets = cd.get('planets') or {}
+    entries: List[Tuple[str, Dict[str, Any]]] = []
+    if isinstance(planets, dict):
+        iterable = planets.items()
+    elif isinstance(planets, list):
+        prepared: List[Tuple[str, Dict[str, Any]]] = []
+        for row in planets:
+            if not isinstance(row, dict):
+                continue
+            name = str(row.get('planet') or row.get('name') or row.get('object') or '').strip()
+            if name:
+                prepared.append((name, row))
+        iterable = prepared
+    else:
+        iterable = []
+    for name, info in iterable:
+        if not isinstance(info, dict):
+            continue
+        if info.get('bnotuse') is True or info.get('not_use') is True or info.get('usable') is False:
+            continue
+        if _directional_number(info.get('longitude')) is None:
+            continue
+        clean_name = str(name or '').strip()
+        if clean_name:
+            entries.append((clean_name, info))
+    return entries
+
+
+def _directional_coords_from_context(active_settings: Optional[AstroClockSettings]) -> Optional[Tuple[float, float]]:
+    coords = _coords_from_settings(active_settings)
+    location = getattr(active_settings, 'location', None)
+    if coords is not None:
+        lat, lon = coords
+        if not (abs(float(lat)) < 1e-9 and abs(float(lon)) < 1e-9 and location):
+            return coords
+    if location:
+        resolved = _ensure_coords_for_location(location, settings_hint=active_settings, trust_settings=False)
+        if resolved is not None:
+            return resolved
+    return coords
+
+
+def _build_directional_3d_payload(
+    chart_data: Optional[Dict[str, Any]],
+    timestamp: Any,
+    active_settings: Optional[AstroClockSettings],
+    *,
+    include_modern: bool = False,
+) -> Dict[str, Any]:
+    timestamp_iso = _directional_timestamp_iso(timestamp, label='Directional 3D')
+    coords = _directional_coords_from_context(active_settings)
+    if coords is None:
+        raise LocationError('Directional 3D requires chart coordinates')
+
+    latitude = float(coords[0])
+    longitude = float(coords[1])
+    obliquity, obliquity_source = _directional_chart_obliquity(chart_data, timestamp_iso)
+    selected_planets = _directional_planet_entries(chart_data)
+    rows: List[Dict[str, Any]] = []
+    data_gaps: List[Dict[str, str]] = []
+    object_index = 0
+
+    for name, info in selected_planets:
+        ecliptic_longitude = _directional_number(info.get('longitude'))
+        if ecliptic_longitude is None:
+            continue
+        ecliptic_latitude = _directional_number(info.get('latitude'), 0.0) or 0.0
+        speed = _directional_number(info.get('speed')) if info.get('speed') is not None else None
+        ecliptic_speed_source = 'native' if speed is not None else ''
+        if speed is None:
+            speed = _directional_number(info.get('lonspeed')) if info.get('lonspeed') is not None else None
+            ecliptic_speed_source = 'native' if speed is not None else ''
+        if speed is None:
+            speed = 0.0
+            ecliptic_speed_source = 'default_zero'
+        ecliptic_latitude_speed = _directional_ecliptic_latitude_speed_from_fields(info)
+        row = _directional_object_row(
+            object_id=f'planet:{name}',
+            object_index=object_index,
+            name=name,
+            symbol=DIRECTIONAL_3D_SYMBOLS.get(name, name[:2].strip() or name),
+            object_type='planet',
+            info=info,
+            longitude_deg=ecliptic_longitude,
+            latitude_deg=ecliptic_latitude,
+            speed=speed,
+            ecliptic_speed_source=ecliptic_speed_source,
+            ecliptic_latitude_speed=ecliptic_latitude_speed,
+            bfull=True,
+            timestamp_iso=timestamp_iso,
+            observer_latitude=latitude,
+            observer_longitude=longitude,
+            obliquity_deg=obliquity,
+        )
+        data_gaps.extend(row.pop('_data_gaps', []))
+        rows.append(row)
+        object_index += 1
+
+    for house_index, cusp_longitude in enumerate(_chart_house_cusps(chart_data), start=1):
+        row = _directional_object_row(
+            object_id=f'house:{house_index}',
+            object_index=object_index,
+            name=f'House {house_index}',
+            symbol=f'H{house_index}',
+            object_type='cusp',
+            info={},
+            longitude_deg=cusp_longitude,
+            latitude_deg=0.0,
+            speed=0.0,
+            ecliptic_speed_source='cusp_static',
+            ecliptic_latitude_speed=0.0,
+            bfull=False,
+            timestamp_iso=timestamp_iso,
+            observer_latitude=latitude,
+            observer_longitude=longitude,
+            obliquity_deg=obliquity,
+        )
+        data_gaps.extend(row.pop('_data_gaps', []))
+        rows.append(row)
+        object_index += 1
+
+    cd = chart_data if isinstance(chart_data, dict) else {}
+    house_system = (
+        getattr(active_settings, 'house_system_code', None)
+        or cd.get('house_system_code')
+        or cd.get('house_system')
+        or ''
+    )
+    house_system_safety_override = False
+    if abs(obliquity) > (90.0 - abs(latitude)):
+        house_system_safety_override = True
+        if str(house_system).strip().upper() not in {'P', 'PLACIDUS'}:
+            house_system = 'P'
+
+    return {
+        'systems': ['EQL', 'EQU', 'HOR'],
+        'chart_info': {
+            'utc_datetime': timestamp_iso,
+            'latitude': _directional_round(latitude, 6, 0.0),
+            'longitude': _directional_round(longitude, 6, 0.0),
+            'rotation': DIRECTIONAL_3D_DEFAULT_ROTATION,
+            'tilt': DIRECTIONAL_3D_DEFAULT_TILT,
+            'house_system': house_system,
+            'house_system_safety_override': house_system_safety_override,
+            'obliquity': _directional_round(obliquity, 6, 23.439291),
+            'obliquity_source': obliquity_source,
+            'data_gaps': data_gaps,
+        },
+        'objects': rows,
+    }
 
 
 def _mundane_active_clock_context() -> Dict[str, Any]:
@@ -4195,13 +7069,20 @@ def _bundle_from_snap_id(
     house_system_code: Optional[str] = None,
     missing_error: str = 'Snap not found',
 ) -> Dict[str, Any]:
-    snap = _snaps().get(snap_id)
+    snap = _hydrate_snap_payload(_snaps().get(snap_id))
     if not snap:
         raise ValueError(missing_error)
     dt = snap.get('effective_datetime')
     loc = snap.get('location')
     tz = snap.get('timezone')
-    return _compute_chart_bundle_for(dt, loc, tz, house_system_code=house_system_code)
+    return _compute_chart_bundle_for(
+        dt,
+        loc,
+        tz,
+        house_system_code=house_system_code,
+        latitude=snap.get('latitude'),
+        longitude=snap.get('longitude'),
+    )
 
 
 def _natal_bundle_from_query(args) -> Dict[str, Any]:
@@ -4216,7 +7097,15 @@ def _natal_bundle_from_query(args) -> Dict[str, Any]:
     house = args.get('house_system_code') or None
     if not nat_dt or not nat_loc:
         raise ValueError('natal_datetime and natal_location required')
-    return _compute_chart_bundle_for(nat_dt, nat_loc, nat_tz, house_system_code=house)
+    coords = _coords_from_request_args(args)
+    return _compute_chart_bundle_for(
+        nat_dt,
+        nat_loc,
+        nat_tz,
+        house_system_code=house,
+        latitude=(coords[0] if coords else None),
+        longitude=(coords[1] if coords else None),
+    )
 
 
 def _transit_bundle_from_query(args, natal_meta: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
@@ -4227,7 +7116,27 @@ def _transit_bundle_from_query(args, natal_meta: Optional[Dict[str, Any]] = None
     transit_loc = args.get('transit_location') or fallback_meta.get('location')
     transit_tz = args.get('transit_timezone') or fallback_meta.get('timezone')
     house = args.get('house_system_code') or None
-    return _compute_chart_bundle_for(transit_dt, transit_loc, transit_tz, house_system_code=house)
+    coords = None
+    if (
+        transit_loc
+        and fallback_meta.get('location')
+        and _normalize_location_key(transit_loc) == _normalize_location_key(fallback_meta.get('location'))
+    ):
+        try:
+            lat = fallback_meta.get('latitude')
+            lon = fallback_meta.get('longitude')
+            if lat is not None and lon is not None:
+                coords = (float(lat), float(lon))
+        except Exception:
+            coords = None
+    return _compute_chart_bundle_for(
+        transit_dt,
+        transit_loc,
+        transit_tz,
+        house_system_code=house,
+        latitude=(coords[0] if coords else None),
+        longitude=(coords[1] if coords else None),
+    )
 
 
 def _astrocartography_target_analysis(
@@ -4248,6 +7157,7 @@ def _astrocartography_target_analysis(
         EXTENDED_READING_RADIUS_KM,
         build_paran_candidates_for_point,
         build_delineation_report,
+        build_goal_scoring_context,
         build_intersection_workspace,
         build_location_reading,
         build_local_space_workspace,
@@ -4256,6 +7166,7 @@ def _astrocartography_target_analysis(
     from astrocartography_goal_engine import (
         evaluate_goal_model,
         extract_relocation_features,
+        goal_model_score_polarity,
         summarize_relocation_features,
     )
     from astrocartography_goal_models import get_goal_model
@@ -4314,6 +7225,7 @@ def _astrocartography_target_analysis(
     }
 
     transit_reading = None
+    transit_scoring = None
     transit_crossings = None
     transit_intersections = None
     transit_parans = None
@@ -4367,6 +7279,10 @@ def _astrocartography_target_analysis(
         resolved_name or target_location,
         None,
         house_system_code=house_system_code,
+        latitude=float(latitude),
+        longitude=float(longitude),
+        include_modern=True,
+        include_chiron=True,
     )
     relocation_features = extract_relocation_features(relocation_bundle.get('chart_data') or {})
     relocation_summary = summarize_relocation_features(relocation_features)
@@ -4377,19 +7293,35 @@ def _astrocartography_target_analysis(
 
     goal_eval = None
     if goal_id:
+        natal_scoring = build_goal_scoring_context(
+            natal_lines_payload.get('lines') or [],
+            float(latitude),
+            float(longitude),
+            primary_radius_km=PRIMARY_READING_RADIUS_KM,
+            extended_radius_km=EXTENDED_READING_RADIUS_KM,
+        )
+        if transit_lines_payload and transit_meta:
+            transit_scoring = build_goal_scoring_context(
+                transit_lines_payload.get('lines') or [],
+                float(latitude),
+                float(longitude),
+                primary_radius_km=PRIMARY_READING_RADIUS_KM,
+                extended_radius_km=EXTENDED_READING_RADIUS_KM,
+            )
         goal_model = get_goal_model(goal_id)
         goal_eval = evaluate_goal_model(
             goal_id,
-            natal_rows=natal_reading.get('nearest_lines') or [],
-            natal_crossings=natal_crossings,
+            natal_rows=natal_scoring.get('nearest_lines') or [],
+            natal_crossings=natal_scoring.get('crossings') or [],
             relocation=relocation_features,
-            transit_rows=(transit_reading.get('nearest_lines') or []) if transit_reading else None,
-            transit_crossings=transit_crossings,
+            transit_rows=(transit_scoring.get('nearest_lines') or []) if transit_scoring else None,
+            transit_crossings=(transit_scoring.get('crossings') or []) if transit_scoring else None,
         )
         result['goal'] = {
             'id': goal_model.get('id'),
             'label': goal_model.get('label'),
             'summary': goal_model.get('summary'),
+            'score_polarity': goal_model_score_polarity(goal_model),
         }
         result['location_score'] = goal_eval
 
@@ -4476,6 +7408,25 @@ def astrocartography_map():
     return _json_ok(response)
 
 
+def _validate_astrocartography_goal_filters(
+    goal_id: Optional[str],
+    *,
+    bodies: Optional[List[str]],
+    angles: Optional[List[str]],
+) -> None:
+    if not goal_id:
+        return
+    from astrocartography_atlas_engine import describe_goal_search_filters
+
+    filter_meta = describe_goal_search_filters(
+        goal_id,
+        selected_bodies=bodies,
+        selected_angles=angles,
+    )
+    if filter_meta.get('excluded_by_filters'):
+        raise ValueError("Current body/angle filters exclude the selected goal model's atlas signature")
+
+
 @astro_clock_bp.route('/astrocartography/location', methods=['GET'])
 @_error_handler
 def astrocartography_location():
@@ -4496,6 +7447,7 @@ def astrocartography_location():
     angles = request.args.getlist('angle') or None
     house_system_code = request.args.get('house_system_code') or None
     goal_id = str(request.args.get('goal_id') or '').strip().lower() or None
+    _validate_astrocartography_goal_filters(goal_id, bodies=bodies, angles=angles)
     natal_lines = build_astrocartography_lines(str(natal_meta.get('timestamp') or ''), bodies=bodies, angles=angles)
 
     response: Dict[str, Any] = {
@@ -4541,6 +7493,7 @@ def astrocartography_goals():
 @_error_handler
 def astrocartography_compare():
     from astrocartography_atlas_engine import build_location_score_sort_key
+    from astrocartography_goal_engine import get_goal_score_polarity
     from astrocartography_service import (
         PRIMARY_READING_RADIUS_KM,
         EXTENDED_READING_RADIUS_KM,
@@ -4559,6 +7512,8 @@ def astrocartography_compare():
     angles = request.args.getlist('angle') or None
     house_system_code = request.args.get('house_system_code') or None
     goal_id = str(request.args.get('goal_id') or '').strip().lower() or None
+    _validate_astrocartography_goal_filters(goal_id, bodies=bodies, angles=angles)
+    score_polarity = get_goal_score_polarity(goal_id) if goal_id else 'higher_is_better'
 
     natal_lines = build_astrocartography_lines(str(natal_meta.get('timestamp') or ''), bodies=bodies, angles=angles)
     transit_bundle = _transit_bundle_from_query(request.args, natal_meta=natal_meta)
@@ -4603,6 +7558,7 @@ def astrocartography_compare():
                 'score': item.get('score'),
             },
             label=item.get('label') or '',
+            score_polarity=score_polarity,
         ),
     )
     for idx, item in enumerate(ranking, start=1):
@@ -4668,31 +7624,13 @@ def _atlas_search_session_is_terminal(session: Optional[Dict[str, Any]]) -> bool
 
 
 def _prune_atlas_search_sessions_locked(now: Optional[float] = None) -> None:
-    current_time = now if now is not None else perf_counter()
-    expired_ids = []
-    for session_id, session in list(_atlas_search_sessions.items()):
-        if not _atlas_search_session_is_terminal(session):
-            continue
-        updated_at = float(session.get('updated_at') or session.get('created_at') or current_time)
-        if (current_time - updated_at) >= _ATLAS_SEARCH_SESSION_TTL_SECONDS:
-            expired_ids.append(session_id)
-    for session_id in expired_ids:
-        _atlas_search_sessions.pop(session_id, None)
-
-    if len(_atlas_search_sessions) <= _ATLAS_SEARCH_SESSION_MAX:
-        return
-
-    removable = []
-    for session_id, session in _atlas_search_sessions.items():
-        if not _atlas_search_session_is_terminal(session):
-            continue
-        updated_at = float(session.get('updated_at') or session.get('created_at') or current_time)
-        removable.append((updated_at, session_id))
-    removable.sort()
-    for _, session_id in removable:
-        if len(_atlas_search_sessions) <= _ATLAS_SEARCH_SESSION_MAX:
-            break
-        _atlas_search_sessions.pop(session_id, None)
+    _prune_terminal_sessions_locked(
+        _atlas_search_sessions,
+        is_terminal=_atlas_search_session_is_terminal,
+        max_sessions=_ATLAS_SEARCH_SESSION_MAX,
+        ttl_seconds=_ATLAS_SEARCH_SESSION_TTL_SECONDS,
+        now=now,
+    )
 
 
 def _atlas_search_session_snapshot(session_id: str) -> Dict[str, Any]:
@@ -4754,6 +7692,11 @@ def _atlas_search_progress_payload(session_id: str) -> Dict[str, Any]:
         'shortlisted_count': sess.get('shortlisted_count'),
         'viable_count': sess.get('viable_count'),
         'error': str(sess.get('error') or '') if (failed or cancelled) else '',
+        'runtime': _background_runtime_payload(
+            'astrocartography_atlas_search',
+            session_max=_ATLAS_SEARCH_SESSION_MAX,
+            session_ttl_seconds=_ATLAS_SEARCH_SESSION_TTL_SECONDS,
+        ),
     }
 
 
@@ -4861,11 +7804,21 @@ def _run_astrocartography_atlas_search(params: Any, *, progress_callback=None, s
     def _resolve_relocation_bundle(item: Dict[str, Any]) -> Dict[str, Any]:
         target = item.get('target') or {}
         atlas_city = item.get('atlas_city') or {}
+        try:
+            target_lat = float(target.get('latitude'))
+            target_lon = float(target.get('longitude'))
+        except Exception:
+            target_lat = None
+            target_lon = None
         return _compute_chart_bundle_for(
             str(natal_meta.get('timestamp') or ''),
             str(target.get('query') or target.get('label') or ''),
             atlas_city.get('timezone') or None,
             house_system_code=house_system_code,
+            latitude=target_lat,
+            longitude=target_lon,
+            include_modern=True,
+            include_chiron=True,
         )
 
     def _atlas_progress(payload: Dict[str, Any]) -> None:
@@ -4909,6 +7862,7 @@ def _run_astrocartography_atlas_search(params: Any, *, progress_callback=None, s
             'id': goal_model.get('id'),
             'label': goal_model.get('label'),
             'summary': goal_model.get('summary'),
+            'score_polarity': search_result.get('score_polarity') or 'higher_is_better',
         },
         'natal': natal_meta,
         'filters': {
@@ -4929,6 +7883,7 @@ def _run_astrocartography_atlas_search(params: Any, *, progress_callback=None, s
             'shortlisted_count': search_result.get('shortlisted_count'),
             'viable_count': search_result.get('viable_count'),
             'signal_floor_raw_score': search_result.get('signal_floor_raw_score'),
+            'score_polarity': search_result.get('score_polarity') or 'higher_is_better',
         },
         'results': search_result.get('results') or [],
         'ranking': search_result.get('ranking') or [],
@@ -4950,18 +7905,27 @@ def astrocartography_atlas_search():
 def astrocartography_atlas_search_start():
     body = request.get_json(force=True, silent=True) or {}
     session_id = str(uuid4())
-    _update_atlas_search_session(
+    initialized = _initialize_background_session(
+        _atlas_search_sessions,
+        _atlas_search_lock,
         session_id,
-        ready=False,
-        failed=False,
-        cancelled=False,
-        cancel_requested=False,
-        percent=0.0,
-        stage='queued',
-        message='Atlas search queued',
-        done=0,
-        total=0,
+        {
+            'ready': False,
+            'failed': False,
+            'cancelled': False,
+            'cancel_requested': False,
+            'percent': 0.0,
+            'stage': 'queued',
+            'message': 'Atlas search queued',
+            'done': 0,
+            'total': 0,
+        },
+        is_terminal=_atlas_search_session_is_terminal,
+        max_sessions=_ATLAS_SEARCH_SESSION_MAX,
+        ttl_seconds=_ATLAS_SEARCH_SESSION_TTL_SECONDS,
     )
+    if not initialized:
+        return _background_busy_response('Astrocartography atlas search')
 
     def _worker() -> None:
         try:
@@ -5015,8 +7979,16 @@ def astrocartography_atlas_search_start():
                 error=str(exc),
             )
 
-    thread = threading.Thread(target=_worker, name=f'astrocartography-atlas-{session_id[:8]}', daemon=True)
-    thread.start()
+    if not _submit_background_job(f'astrocartography-atlas-{session_id[:8]}', _worker):
+        _update_atlas_search_session(
+            session_id,
+            ready=False,
+            failed=True,
+            stage='failed',
+            message='Atlas search could not be queued',
+            error='Background capacity is full; retry later',
+        )
+        return _background_busy_response('Astrocartography atlas search')
     return _json_ok({'session_id': session_id, 'progress': _atlas_search_progress_payload(session_id)})
 
 
@@ -5029,7 +8001,7 @@ def astrocartography_atlas_search_cancel():
         return jsonify({'success': False, 'error': 'session_id required'}), 400
     session = _request_atlas_search_cancel(session_id)
     if not session:
-        return jsonify({'success': False, 'error': 'Atlas search session not found'}), 404
+        return _missing_volatile_session_response('Astrocartography atlas search')
     return _json_ok({'session_id': session_id, 'progress': _atlas_search_progress_payload(session_id)})
 
 
@@ -5039,6 +8011,8 @@ def astrocartography_atlas_search_progress():
     session_id = str(request.args.get('session_id') or request.args.get('sid') or '').strip()
     if not session_id:
         return jsonify({'success': False, 'error': 'session_id required'}), 400
+    if not _atlas_search_session_snapshot(session_id):
+        return _missing_volatile_session_response('Astrocartography atlas search')
     return _json_ok(_atlas_search_progress_payload(session_id))
 
 
@@ -5050,7 +8024,7 @@ def astrocartography_atlas_search_result():
         return jsonify({'success': False, 'error': 'session_id required'}), 400
     session = _atlas_search_session_snapshot(session_id)
     if not session:
-        return jsonify({'success': False, 'error': 'Atlas search session not found'}), 404
+        return _missing_volatile_session_response('Astrocartography atlas search')
     payload: Dict[str, Any] = {
         'session_id': session_id,
         'ready': bool(session.get('ready')),
@@ -5084,20 +8058,43 @@ def _mundane_scan_progress_payload(session_id: str) -> Dict[str, Any]:
         'returned': sess.get('returned'),
         'failures': sess.get('failures') if sess.get('ready') or sess.get('failed') else counts.get('failures'),
         'error': str(sess.get('error') or '') if sess.get('failed') else '',
+        'runtime': _background_runtime_payload(
+            'mundane_scan',
+            session_max=_MUNDANE_SCAN_SESSION_MAX,
+            session_ttl_seconds=_MUNDANE_SCAN_SESSION_TTL_SECONDS,
+        ),
     }
+
+
+def _mundane_scan_session_is_terminal(session: Optional[Dict[str, Any]]) -> bool:
+    return bool(session and (session.get('ready') or session.get('failed')))
+
+
+def _prune_mundane_scan_sessions_locked(now: Optional[float] = None) -> None:
+    _prune_terminal_sessions_locked(
+        _mundane_scan_sessions,
+        is_terminal=_mundane_scan_session_is_terminal,
+        max_sessions=_MUNDANE_SCAN_SESSION_MAX,
+        ttl_seconds=_MUNDANE_SCAN_SESSION_TTL_SECONDS,
+        now=now,
+    )
 
 
 def _update_mundane_scan_session(session_id: str, **updates: Any) -> None:
     with _mundane_scan_lock:
+        now = perf_counter()
+        _prune_mundane_scan_sessions_locked(now)
         session = _mundane_scan_sessions.get(session_id)
         if session is None:
-            session = {'session_id': session_id}
+            session = {'session_id': session_id, 'created_at': now}
             _mundane_scan_sessions[session_id] = session
         session.update(updates)
+        session['updated_at'] = now
 
 
 def _mundane_scan_session_snapshot(session_id: str) -> Dict[str, Any]:
     with _mundane_scan_lock:
+        _prune_mundane_scan_sessions_locked()
         session = _mundane_scan_sessions.get(session_id) or {}
         serializable = {
             key: value
@@ -5125,20 +8122,44 @@ def _weather_scan_progress_payload(session_id: str) -> Dict[str, Any]:
         'time_slices': sess.get('time_slices', counts.get('time_slices')),
         'evaluated': sess.get('evaluated', counts.get('evaluated')),
         'returned': sess.get('returned', counts.get('returned')),
+        'error': str(sess.get('error') or '') if sess.get('failed') else '',
+        'runtime': _background_runtime_payload(
+            'weather_scan',
+            session_max=_WEATHER_SCAN_SESSION_MAX,
+            session_ttl_seconds=_WEATHER_SCAN_SESSION_TTL_SECONDS,
+        ),
     }
+
+
+def _weather_scan_session_is_terminal(session: Dict[str, Any]) -> bool:
+    return bool(session.get('ready') or session.get('failed'))
+
+
+def _prune_weather_scan_sessions_locked(now: Optional[float] = None) -> None:
+    _prune_terminal_sessions_locked(
+        _weather_scan_sessions,
+        is_terminal=_weather_scan_session_is_terminal,
+        max_sessions=_WEATHER_SCAN_SESSION_MAX,
+        ttl_seconds=_WEATHER_SCAN_SESSION_TTL_SECONDS,
+        now=now,
+    )
 
 
 def _update_weather_scan_session(session_id: str, **updates: Any) -> None:
     with _weather_scan_lock:
+        now = perf_counter()
         session = _weather_scan_sessions.get(session_id)
         if session is None:
-            session = {'session_id': session_id}
+            session = {'session_id': session_id, 'created_at': now}
             _weather_scan_sessions[session_id] = session
         session.update(updates)
+        session['updated_at'] = now
+        _prune_weather_scan_sessions_locked(now)
 
 
 def _weather_scan_session_snapshot(session_id: str) -> Dict[str, Any]:
     with _weather_scan_lock:
+        _prune_weather_scan_sessions_locked()
         session = _weather_scan_sessions.get(session_id) or {}
         serializable = {
             key: value
@@ -5308,16 +8329,25 @@ def weather_scan_start():
     session_id = str(uuid4())
     active_clock_payload = _weather_active_clock_context()
 
-    _update_weather_scan_session(
+    initialized = _initialize_background_session(
+        _weather_scan_sessions,
+        _weather_scan_lock,
         session_id,
-        ready=False,
-        failed=False,
-        percent=0.0,
-        stage='queued',
-        message='Weather scan queued',
-        done=0,
-        total=0,
+        {
+            'ready': False,
+            'failed': False,
+            'percent': 0.0,
+            'stage': 'queued',
+            'message': 'Weather scan queued',
+            'done': 0,
+            'total': 0,
+        },
+        is_terminal=_weather_scan_session_is_terminal,
+        max_sessions=_WEATHER_SCAN_SESSION_MAX,
+        ttl_seconds=_WEATHER_SCAN_SESSION_TTL_SECONDS,
     )
+    if not initialized:
+        return _background_busy_response('Weather scan')
 
     def _worker() -> None:
         try:
@@ -5360,10 +8390,17 @@ def weather_scan_start():
                 error=str(exc),
             )
 
-    thread = threading.Thread(target=_worker, name=f'weather-scan-{session_id[:8]}', daemon=True)
-    with _weather_scan_lock:
-        _weather_scan_sessions[session_id]['thread'] = thread
-    thread.start()
+    if not _submit_background_job(f'weather-scan-{session_id[:8]}', _worker):
+        _update_weather_scan_session(
+            session_id,
+            ready=False,
+            failed=True,
+            percent=1.0,
+            stage='failed',
+            message='Weather scan could not be queued',
+            error='Background capacity is full; retry later',
+        )
+        return _background_busy_response('Weather scan')
     return _json_ok({'session_id': session_id, 'progress': _weather_scan_progress_payload(session_id)})
 
 
@@ -5373,6 +8410,8 @@ def weather_scan_progress():
     session_id = str(request.args.get('session_id') or request.args.get('sid') or '').strip()
     if not session_id:
         return jsonify({'success': False, 'error': 'session_id required'}), 400
+    if not _weather_scan_session_snapshot(session_id):
+        return _missing_volatile_session_response('Weather scan')
     return _json_ok(_weather_scan_progress_payload(session_id))
 
 
@@ -5384,7 +8423,7 @@ def weather_scan_result():
         return jsonify({'success': False, 'error': 'session_id required'}), 400
     session = _weather_scan_session_snapshot(session_id)
     if not session:
-        return jsonify({'success': False, 'error': 'Weather scan session not found'}), 404
+        return _missing_volatile_session_response('Weather scan')
     payload: Dict[str, Any] = {
         'session_id': session_id,
         'ready': bool(session.get('ready')),
@@ -5458,16 +8497,25 @@ def mundane_scan_start():
     session_id = str(uuid4())
     active_clock_payload = _mundane_active_clock_context()
 
-    _update_mundane_scan_session(
+    initialized = _initialize_background_session(
+        _mundane_scan_sessions,
+        _mundane_scan_lock,
         session_id,
-        ready=False,
-        failed=False,
-        percent=0.0,
-        stage='queued',
-        message='Mundane scan queued',
-        done=0,
-        total=0,
+        {
+            'ready': False,
+            'failed': False,
+            'percent': 0.0,
+            'stage': 'queued',
+            'message': 'Mundane scan queued',
+            'done': 0,
+            'total': 0,
+        },
+        is_terminal=_mundane_scan_session_is_terminal,
+        max_sessions=_MUNDANE_SCAN_SESSION_MAX,
+        ttl_seconds=_MUNDANE_SCAN_SESSION_TTL_SECONDS,
     )
+    if not initialized:
+        return _background_busy_response('Mundane scan')
 
     def _worker() -> None:
         try:
@@ -5510,10 +8558,17 @@ def mundane_scan_start():
                 error=str(exc),
             )
 
-    thread = threading.Thread(target=_worker, name=f'mundane-scan-{session_id[:8]}', daemon=True)
-    with _mundane_scan_lock:
-        _mundane_scan_sessions[session_id]['thread'] = thread
-    thread.start()
+    if not _submit_background_job(f'mundane-scan-{session_id[:8]}', _worker):
+        _update_mundane_scan_session(
+            session_id,
+            ready=False,
+            failed=True,
+            percent=1.0,
+            stage='failed',
+            message='Mundane scan could not be queued',
+            error='Background capacity is full; retry later',
+        )
+        return _background_busy_response('Mundane scan')
     return _json_ok({'session_id': session_id, 'progress': _mundane_scan_progress_payload(session_id)})
 
 
@@ -5523,6 +8578,8 @@ def mundane_scan_progress():
     session_id = str(request.args.get('session_id') or request.args.get('sid') or '').strip()
     if not session_id:
         return jsonify({'success': False, 'error': 'session_id required'}), 400
+    if not _mundane_scan_session_snapshot(session_id):
+        return _missing_volatile_session_response('Mundane scan')
     return _json_ok(_mundane_scan_progress_payload(session_id))
 
 
@@ -5534,7 +8591,7 @@ def mundane_scan_result():
         return jsonify({'success': False, 'error': 'session_id required'}), 400
     session = _mundane_scan_session_snapshot(session_id)
     if not session:
-        return jsonify({'success': False, 'error': 'Mundane scan session not found'}), 404
+        return _missing_volatile_session_response('Mundane scan')
     payload: Dict[str, Any] = {
         'session_id': session_id,
         'ready': bool(session.get('ready')),
@@ -5549,14 +8606,19 @@ def mundane_scan_result():
 
 
 def _synastry_bundle_from_snap_id(snap_id: str, house_system_code: Optional[str] = None) -> Tuple[Dict[str, Any], Dict[str, Any]]:
-    snap = _snaps().get(snap_id)
-    if not snap:
+    raw_snap = _snaps().get(snap_id)
+    if not isinstance(raw_snap, dict):
         raise ValueError('Synastry snap not found')
+    snap = dict(raw_snap)
     dashboard = snap.get('dashboard') if isinstance(snap.get('dashboard'), dict) else {}
     dt = snap.get('effective_datetime') or dashboard.get('timestamp')
     loc = snap.get('location') or dashboard.get('location')
+    tz = snap.get('timezone') or dashboard.get('timezone')
+    coords = _snap_coordinate_pair(snap, dashboard)
     saved_chart = _synastry_chart_snapshot_from_dashboard(dashboard)
     saved_chart.update(_synastry_chart_snapshot_from_chart_data(snap.get('chart_snapshot')))
+    if coords is None and loc:
+        coords = _legacy_snap_coords_from_location(loc)
 
     if _has_synastry_chart_snapshot(saved_chart):
         bundle = {
@@ -5565,14 +8627,31 @@ def _synastry_bundle_from_snap_id(snap_id: str, house_system_code: Optional[str]
             'meta': {
                 'timestamp': dashboard.get('timestamp') or dt,
                 'location': dashboard.get('location') or loc,
-                'timezone': dashboard.get('timezone') or snap.get('timezone'),
+                'timezone': tz,
+                'latitude': (coords[0] if coords else None),
+                'longitude': (coords[1] if coords else None),
             },
             'raw_chart': None,
         }
     else:
+        snap = _hydrate_snap_payload(raw_snap)
+        if not snap:
+            raise ValueError('Synastry snap not found')
+        dashboard = snap.get('dashboard') if isinstance(snap.get('dashboard'), dict) else {}
+        dt = snap.get('effective_datetime') or dashboard.get('timestamp')
+        loc = snap.get('location') or dashboard.get('location')
+        tz = snap.get('timezone') or dashboard.get('timezone')
+        coords = _snap_coordinate_pair(snap, dashboard)
         if not dt or not loc:
             raise ValueError('Synastry snap is missing datetime or location')
-        bundle = _compute_chart_bundle_for(dt, loc, dashboard.get('timezone') or None, house_system_code=house_system_code)
+        bundle = _compute_chart_bundle_for(
+            dt,
+            loc,
+            tz or None,
+            house_system_code=house_system_code,
+            latitude=(coords[0] if coords else None),
+            longitude=(coords[1] if coords else None),
+        )
     chart_meta = {
         'id': snap.get('id'),
         'label': snap.get('label') or 'Snapshot',
@@ -5682,6 +8761,7 @@ def traits_profile():
 
     Query params:
       special_degree: repeated tokens such as "25 Leo" to include in metrics
+      summary_context: optional summary ranking context; supports public_figure_biography
     """
     with _astro_perf_span('route.traits_profile'):
         eng = _engine_instance()
@@ -5693,6 +8773,7 @@ def traits_profile():
             special_degrees = _normalize_special_degree_tokens(request.args.getlist('special_degree'))
         except Exception:
             special_degrees = []
+        summary_context = str(request.args.get('summary_context') or 'default').strip() or 'default'
         with _astro_perf_span('route.traits_profile.metrics'):
             try:
                 metrics_chart_data = cd
@@ -5725,61 +8806,46 @@ def traits_profile():
         # Shape: { planet: { area_label: normalized_score_0_1 } }
         with _astro_perf_span('route.traits_profile.planet_area_scores'):
             try:
-                try:
-                    from determinations import _house_domain_map as _hm
-                    house_to_area = _hm()
-                except Exception:
-                    house_to_area = {1:'life',2:'wealth',3:'short_travel',4:'home',5:'children',6:'health',7:'relationships',8:'death',9:'belief',10:'honors',11:'friends',12:'secrets'}
-                raw: Dict[str, Dict[str, float]] = {}
-                for hrow in (house_infl or {}).get('houses', []) or []:
-                    try:
-                        hnum = int(hrow.get('house'))
-                    except Exception:
-                        continue
-                    area = house_to_area.get(hnum)
-                    if not area:
-                        continue
-                    for inf in (hrow.get('influences') or []):
-                        try:
-                            p = str(inf.get('planet') or '')
-                            if not p:
-                                continue
-                            val = float(inf.get('value') or 0.0)
-                            if val == 0.0:
-                                continue
-                            raw.setdefault(p, {})[area] = raw.get(p, {}).get(area, 0.0) + val
-                        except Exception:
-                            continue
-                norm: Dict[str, Dict[str, float]] = {}
-                for p, amap in raw.items():
-                    try:
-                        mx = max(abs(v) for v in amap.values()) if amap else 0.0
-                        if mx <= 0:
-                            continue
-                        norm[p] = {k: round(v / mx, 4) for k, v in amap.items()}
-                    except Exception:
-                        continue
+                norm, norm_details = _build_planet_area_scores_from_house_influences(house_infl)
                 if isinstance(metrics, dict):
                     metrics.setdefault('planet_area_scores', norm)
+                    metrics.setdefault('planet_area_score_details', norm_details)
             except Exception:
                 pass
 
         with _astro_perf_span('route.traits_profile.evaluate'):
             try:
                 engine = _traits_engine_instance()
-                profile = engine.evaluate(metrics)
-            except Exception:
+                profile = _evaluate_traits_profile(engine, metrics, summary_context)
+            except Exception as exc:
+                logger.exception("Trait profile evaluation failed: %s", exc)
                 profile = {'summary': None, 'top_traits': [], 'traits': [], 'guidance': []}
 
         with _astro_perf_span('route.traits_profile.chart_snapshot'):
-            chart_snapshot = _build_traits_chart_snapshot(data, rt, cd, special_degrees)
+            try:
+                dashboard_payload = _build_dashboard_payload(
+                    eng,
+                    data,
+                    include_morin=True,
+                    special_degrees=special_degrees,
+                )
+            except Exception as exc:
+                logger.exception("Trait profile dashboard snapshot failed: %s", exc)
+                dashboard_payload = None
+            chart_snapshot = _build_traits_chart_snapshot(
+                data,
+                rt,
+                cd,
+                special_degrees,
+                dashboard_payload=dashboard_payload,
+            )
 
     return _json_ok({
         'summary': profile.get('summary'),
         'special_degrees': special_degrees,
         'sect': sect_info,
-        'receptions': chart_snapshot.get('receptions'),
-        'morin_patterns': chart_snapshot.get('morin_patterns'),
+        'receptions': chart_snapshot.get('receptions') or {},
+        'morin_patterns': chart_snapshot.get('morin_patterns') or {},
         'house_influences': house_infl,
         'top_traits': profile.get('top_traits') or [],
         'summary_traits': profile.get('summary_traits') or [],
@@ -5787,6 +8853,7 @@ def traits_profile():
         'traits': profile.get('traits') or [],
         'guidance': profile.get('guidance') or [],
         'trait_enrichment_meta': profile.get('trait_enrichment_meta') or {},
+        'summary_context': summary_context,
         'chart_snapshot': chart_snapshot,
     })
 
@@ -5831,6 +8898,9 @@ def transits_compute():
     focus_planets = [str(x) for x in request.args.getlist('focus_planet') if str(x).strip()]
     sensitive_houses = [int(x) for x in request.args.getlist('sensitive_house') if x and str(x).isdigit()]
     sensitive_planets = [str(x) for x in request.args.getlist('sensitive_planet') if str(x).strip()]
+    flt_transiting = request.args.getlist('transiting') or None
+    flt_natal = request.args.getlist('natal') or None
+    flt_aspects = request.args.getlist('aspect') or None
     hits = compute_morin_transits_to_natal(
         natal_cd,
         ts,
@@ -5871,6 +8941,8 @@ def transits_compute():
         context_out=revolution_context,
         route_label='transits/exact',
     )
+    hits = _apply_transit_hit_filters(hits, flt_transiting, flt_natal, flt_aspects)
+    hits = _sort_transit_hits_for_display(hits)
     predictions = _predictions_from_hits(hits or [], ts)
     return _json_ok({
         'natal': natal_meta,
@@ -5895,7 +8967,9 @@ def transits_window():
     # Fallback to center + range_hours
     if not (start and end):
         center = request.args.get('center')
-        rng = float(request.args.get('range_hours', '12') or 12)
+        rng, range_error = _parse_transit_range_hours(request.args.get('range_hours', '12'))
+        if range_error:
+            return jsonify({'success': False, 'error': range_error}), 400
         if center:
             try:
                 from datetime import timedelta
@@ -5907,7 +8981,12 @@ def transits_window():
                 pass
     if not (start and end):
         return jsonify({'success': False, 'error': 'start/end or center/range_hours required'}), 400
-    step = int(request.args.get('step_minutes', '60') or 60)
+    step, step_error = _parse_transit_scan_step(request.args.get('step_minutes', '60'))
+    if step_error:
+        return jsonify({'success': False, 'error': step_error}), 400
+    start_dt, end_dt, _total_steps, bounds_error = _validate_transit_scan_request_bounds(start, end, step)
+    if bounds_error:
+        return jsonify({'success': False, 'error': bounds_error}), 400
     include_modern = (request.args.get('include_modern', '0').lower() in {'1','true','yes'})
     natal_include_modern = (request.args.get('include_natal_modern', '0').lower() in {'1','true','yes'})
     include_cusps = (request.args.get('include_cusps', '0').lower() in {'1','true','yes'})
@@ -5936,8 +9015,6 @@ def transits_window():
     if sig_raw is not None:
         sig_beta = str(sig_raw).lower() in {'1','true','yes','new','beta'}
 
-    start_dt = _parse_iso_datetime(start)
-    end_dt = _parse_iso_datetime(end)
     pd_windows = _compute_pd_windows_for_years(
         natal_cd,
         natal_meta,
@@ -6042,7 +9119,12 @@ def transits_predictor():
     end = request.args.get('end')
     if not (start and end):
         return jsonify({'success': False, 'error': 'start and end parameters are required'}), 400
-    step = int(request.args.get('step_minutes', '60') or 60)
+    step, step_error = _parse_transit_scan_step(request.args.get('step_minutes', '60'))
+    if step_error:
+        return jsonify({'success': False, 'error': step_error}), 400
+    start_dt, end_dt, _total_steps, bounds_error = _validate_transit_scan_request_bounds(start, end, step)
+    if bounds_error:
+        return jsonify({'success': False, 'error': bounds_error}), 400
     include_modern = (request.args.get('include_modern', '0').lower() in {'1','true','yes'})
     natal_include_modern = (request.args.get('include_natal_modern', '0').lower() in {'1','true','yes'})
     include_cusps = (request.args.get('include_cusps', '0').lower() in {'1','true','yes'})
@@ -6070,8 +9152,6 @@ def transits_predictor():
     observer_location = request.args.get('location') or natal_meta.get('location')
     observer_timezone = request.args.get('timezone') or natal_meta.get('timezone')
 
-    start_dt = _parse_iso_datetime(start)
-    end_dt = _parse_iso_datetime(end)
     pd_windows = _compute_pd_windows_for_years(
         natal_cd,
         natal_meta,
@@ -6153,11 +9233,13 @@ def transits_predictor():
     # Predictor peaks should prefer the strongest event-family row inside a flat plateau,
     # not just the globally strongest generic activity row.
     try:
-        peaks = _build_predictor_peak_rows(series, limit=10)
+        peaks = _build_predictor_group_peak_rows(series, grouped_predictions, limit=10)
     except Exception:
         peaks = []
 
-    limit = int(request.args.get('limit', '40') or 40)
+    limit, limit_error = _parse_transit_limit(request.args.get('limit', '40'), default=40)
+    if limit_error:
+        return jsonify({'success': False, 'error': limit_error}), 400
     ranked_predictions = sorted(all_predictions, key=_prediction_sort_key)
     grouped_predictions = grouped_predictions[:max(5, limit)]
     include_series = str(request.args.get('include_series', '0')).lower() in {'1','true','yes'}
@@ -6198,7 +9280,9 @@ def transits_window_stream():
     end = request.args.get('end')
     if not (start and end):
         return jsonify({'success': False, 'error': 'start/end required'}), 400
-    step = int(request.args.get('step_minutes', '60') or 60)
+    step, step_error = _parse_transit_scan_step(request.args.get('step_minutes', '60'))
+    if step_error:
+        return jsonify({'success': False, 'error': step_error}), 400
     include_modern = (request.args.get('include_modern', '0').lower() in {'1','true','yes'})
     natal_include_modern = (request.args.get('include_natal_modern', '0').lower() in {'1','true','yes'})
     include_cusps = (request.args.get('include_cusps', '0').lower() in {'1','true','yes'})
@@ -6220,12 +9304,7 @@ def transits_window_stream():
     prog_start = request.args.get('prog_start')
     prog_end = request.args.get('prog_end')
 
-    start_dt = _parse_iso_datetime(start)
-    end_dt = _parse_iso_datetime(end)
-    if start_dt is None or end_dt is None:
-        return jsonify({'success': False, 'error': 'Invalid start/end'}), 400
-
-    validated_total_steps, bounds_error = _validate_stream_scan_bounds(start_dt, end_dt, step)
+    start_dt, end_dt, validated_total_steps, bounds_error = _validate_transit_scan_request_bounds(start, end, step)
     if bounds_error:
         return jsonify({'success': False, 'error': bounds_error}), 400
 
@@ -6313,12 +9392,7 @@ def transits_window_stream():
                 observer_timezone=natal_meta.get('timezone'),
                 _prepared_ctx=ctx,
             )
-            if flt_transiting:
-                hits = [h for h in hits if str(h.get('transiting')) in flt_transiting]
-            if flt_natal:
-                hits = [h for h in hits if str(h.get('natal')) in flt_natal]
-            if flt_aspects:
-                hits = [h for h in hits if str(h.get('aspect')) in flt_aspects]
+            hits = _apply_transit_hit_filters(hits, flt_transiting, flt_natal, flt_aspects)
             hits = _retry_enrich_transit_hits(
                 natal_cd,
                 hits,
@@ -6496,12 +9570,8 @@ def transits_export_csv():
         observer_timezone=natal_meta.get('timezone'),
         route_label='transits/export',
     )
-    if flt_transiting:
-        hits = [h for h in hits if str(h.get('transiting')) in flt_transiting]
-    if flt_natal:
-        hits = [h for h in hits if str(h.get('natal')) in flt_natal or str(h.get('target_label')) in flt_natal]
-    if flt_aspects:
-        hits = [h for h in hits if str(h.get('aspect')) in flt_aspects]
+    hits = _apply_transit_hit_filters(hits, flt_transiting, flt_natal, flt_aspects)
+    hits = _sort_transit_hits_for_display(hits)
     out = StringIO()
     header = ['Timestamp','Transiting','Natal','Aspect','Orb','MaxOrb','Phase','Partile','CompletePlatic','Score','Quality','DeterminationStrength']
     out.write(','.join(header) + '\n')
@@ -6539,11 +9609,9 @@ def transits_window_export_csv():
     end = request.args.get('end')
     if not (start and end):
         center = request.args.get('center')
-        range_hours_raw = request.args.get('range_hours', '12')
-        try:
-            range_hours = float(range_hours_raw or 12.0)
-        except Exception:
-            range_hours = 12.0
+        range_hours, range_error = _parse_transit_range_hours(request.args.get('range_hours', '12'))
+        if range_error:
+            return jsonify({'success': False, 'error': range_error}), 400
         if center:
             try:
                 from datetime import timedelta
@@ -6555,7 +9623,12 @@ def transits_window_export_csv():
                 end = end or None
     if not (start and end):
         return jsonify({'success': False, 'error': 'start/end or center/range_hours required'}), 400
-    step = int(request.args.get('step_minutes', '60') or 60)
+    step, step_error = _parse_transit_scan_step(request.args.get('step_minutes', '60'))
+    if step_error:
+        return jsonify({'success': False, 'error': step_error}), 400
+    start_dt, end_dt, _total_steps, bounds_error = _validate_transit_scan_request_bounds(start, end, step)
+    if bounds_error:
+        return jsonify({'success': False, 'error': bounds_error}), 400
     include_modern = (request.args.get('include_modern', '0').lower() in {'1','true','yes'})
     natal_include_modern = (request.args.get('include_natal_modern', '0').lower() in {'1','true','yes'})
     include_cusps = (request.args.get('include_cusps', '0').lower() in {'1','true','yes'})
@@ -6580,8 +9653,6 @@ def transits_window_export_csv():
     if sig_raw is not None:
         sig_beta = str(sig_raw).lower() in {'1','true','yes','new','beta'}
 
-    start_dt = _parse_iso_datetime(start)
-    end_dt = _parse_iso_datetime(end)
     pd_windows = _compute_pd_windows_for_years(
         natal_cd,
         natal_meta,
@@ -6677,7 +9748,7 @@ def auto_context():
         compute_primary_direction_windows = None  # type: ignore
     # Swiss Ephemeris availability (for clearer status)
     try:
-        import swisseph as _swe  # type: ignore
+        _swe = require_swisseph()
         _swe_ok = True
     except Exception:
         _swe_ok = False
@@ -6866,11 +9937,40 @@ def forensic_analysis():
     q_mode = str(request.args.get('mode') or '').strip().lower()
     if q_mode and q_mode not in {'realtime', 'manual', 'paused'}:
         return jsonify({'success': False, 'error': 'Invalid mode'}), 400
+    abd_requested = (request.args.get('abduction','0').lower() in {'1','true','yes'})
+    parsed_abduction_origin = None
+    parsed_corridor_deg = 6.0
+    origin_str = request.args.get('origin') or ''
+    if abd_requested and origin_str.strip():
+        if ',' not in origin_str:
+            return jsonify({'success': False, 'error': 'Invalid origin coordinates'}), 400
+        try:
+            a, b = origin_str.split(',', 1)
+            parsed_abduction_origin = (float(a.strip()), float(b.strip()))
+        except Exception:
+            return jsonify({'success': False, 'error': 'Invalid origin coordinates'}), 400
+        if not (-90.0 <= parsed_abduction_origin[0] <= 90.0) or not (-180.0 <= parsed_abduction_origin[1] <= 180.0):
+            return jsonify({'success': False, 'error': 'Invalid origin coordinates'}), 400
+    if abd_requested:
+        corridor_raw = request.args.get('corridor_deg')
+        if corridor_raw is not None and str(corridor_raw).strip():
+            try:
+                parsed_corridor_deg = float(str(corridor_raw).strip())
+            except Exception:
+                return jsonify({'success': False, 'error': 'Invalid corridor_deg'}), 400
+            if not math.isfinite(parsed_corridor_deg) or parsed_corridor_deg <= 0:
+                return jsonify({'success': False, 'error': 'Invalid corridor_deg'}), 400
 
     with _astro_perf_span('route.forensic.prepare_chart', mode=q_mode or None):
         eng = _engine_instance()
         data, _active_settings = _data_for_request_clock_context(eng)
-        dash = _build_dashboard_payload(eng, data, include_modern=True)
+        dash = _build_dashboard_payload(
+            eng,
+            data,
+            include_morin=True,
+            include_modern=True,
+            extend_modern_chart_data=True,
+        )
 
         # Enrich with all aspects from chart_result if present
         with _astro_perf_span('route.forensic.expand_chart'):
@@ -6890,32 +9990,60 @@ def forensic_analysis():
                 if isinstance(chart, dict):
                     top_aspects = chart.get('aspects')
                     if isinstance(top_aspects, list):
-                        all_aspects = [a for a in top_aspects if isinstance(a, dict)]
-                if not all_aspects and isinstance(cd, dict):
+                        all_aspects.extend(a for a in top_aspects if isinstance(a, dict))
+                if isinstance(cd, dict):
                     cd_aspects = cd.get('aspects')
                     if isinstance(cd_aspects, list):
-                        all_aspects = [a for a in cd_aspects if isinstance(a, dict)]
+                        all_aspects.extend(a for a in cd_aspects if isinstance(a, dict))
+                precise_aspects = dash.get('planetary_aspects_precise')
+                if isinstance(precise_aspects, list):
+                    all_aspects.extend(a for a in precise_aspects if isinstance(a, dict))
                 if all_aspects:
-                    dash['all_aspects'] = all_aspects
+                    dash['all_aspects'] = _dedupe_aspect_rows(_normalize_aspect_rows_for_forensic(all_aspects))
             except Exception:
                 pass
 
     # Feature extraction and rule evaluation
     from forensic.features import extract_features, compute_dominance
+    from forensic.relationship_status import compute_relationship_status
+    from forensic.secondary_factors import compute_secondary_factor_analysis
     from forensic.survivability import compute_survivability
     from forensic.engine import load_knowledge, load_planetary_meanings, load_dictionary
     with _astro_perf_span('route.forensic.evaluate_knowledge'):
         knowledge_dir = os.path.join(os.path.dirname(__file__), 'forensic', 'knowledge')
         try:
             rules = load_knowledge(knowledge_dir)
-        except Exception:
-            rules = []
+        except Exception as exc:
+            logger.exception("Forensic knowledge rules could not be loaded: %s", exc)
+            return jsonify({
+                'success': False,
+                'error': 'forensic_rule_engine_unavailable',
+                'detail': 'Forensic knowledge rules could not be loaded.',
+            }), 500
         features = extract_features(dash)
+        survival_case_type = str(request.args.get('case_type') or 'general').strip().lower()
+        if survival_case_type not in {'child', 'adult_female', 'general'}:
+            survival_case_type = 'general'
+        secondary_factors_arg = request.args.get('secondary_factors')
+        secondary_factors_requested = True if secondary_factors_arg is None else str(secondary_factors_arg).strip().lower() in {'1', 'true', 'yes'}
+        try:
+            features['case_context'] = _infer_forensic_case_context(
+                survival_case_type,
+                dash if isinstance(dash, dict) else {},
+                getattr(data, 'settings', None),
+            )
+        except Exception:
+            pass
         try:
             from forensic.engine import evaluate
             findings = evaluate(features, rules)
-        except Exception:
-            findings = []
+        except Exception as exc:
+            logger.exception("Forensic knowledge evaluation failed: %s", exc)
+            return jsonify({
+                'success': False,
+                'error': 'forensic_rule_engine_unavailable',
+                'detail': 'Forensic knowledge evaluation failed.',
+            }), 500
         dominance = compute_dominance(features)
 
     # Receptions (mutual + top unilateral) for relationship analysis
@@ -7075,10 +10203,133 @@ def forensic_analysis():
     ic_sign_meanings = _ld('ic_sign_meanings.yaml')
     ic_ruler_house_meanings = _ld('ic_ruler_house_meanings.yaml')
     ic_planet_in_4th = _ld('ic_planet_in_4th.yaml')
+    asc_ruler_house_meanings = _ld('asc_ruler_house_meanings.yaml')
+    asc_ruler_placement = {}
+    try:
+        houses_payload = (features.get('houses') or {}) if isinstance(features, dict) else {}
+        first_ruler = houses_payload.get('first_ruler')
+        first_house = houses_payload.get('first_ruler_house')
+        try:
+            first_house_int = int(first_house) if first_house is not None else None
+        except Exception:
+            first_house_int = None
+        meaning = asc_ruler_house_meanings.get(str(first_house_int)) if first_house_int is not None else {}
+        meaning = meaning if isinstance(meaning, dict) else {}
+        if first_ruler or first_house_int is not None:
+            asc_ruler_placement = {
+                'ruler': first_ruler,
+                'house': first_house_int,
+                'label': meaning.get('label') or (f'H{first_house_int}' if first_house_int is not None else ''),
+                'summary': meaning.get('summary') or '',
+                'cues': list(meaning.get('cues') or []) if isinstance(meaning.get('cues'), list) else [],
+                'risk_tone': meaning.get('risk_tone') or '',
+                'source': meaning.get('source') or '',
+                'scoring_effect': 'descriptive_only',
+            }
+        features['asc_ruler_placement'] = asc_ruler_placement
+    except Exception:
+        asc_ruler_placement = {}
 
     # Extract light mediation hints from serialized chart
-    def _extract_light_mediation(chart_obj: Dict[str, Any]) -> Dict[str, Any]:
-        info = { 'translation': False, 'collection': False, 'translator': None, 'collector': None, 'evidence': [] }
+    def _extract_light_mediation(chart_obj: Dict[str, Any], dashboard_obj: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        info = {
+            'translation': False,
+            'collection': False,
+            'prohibition': False,
+            'translator': None,
+            'collector': None,
+            'prohibitor': None,
+            'denial_type': None,
+            'target': None,
+            'mode': None,
+            'participants': [],
+            'legs': [],
+            'from_leg': None,
+            'to_leg': None,
+            'favorable': None,
+            'challenge_reasons': [],
+            'evidence': [],
+        }
+        def _add_participant(value):
+            try:
+                if value is None:
+                    return
+                if isinstance(value, str):
+                    text = value.strip()
+                    if text and text not in info['participants']:
+                        info['participants'].append(text)
+                    return
+                if isinstance(value, dict):
+                    for key in (
+                        'planet',
+                        'name',
+                        'from',
+                        'middle',
+                        'to',
+                        'target',
+                        'translator',
+                        'collector',
+                        'prohibitor',
+                        'frustrating',
+                        'frustrated',
+                        'swift_extreme',
+                        'receiving_extreme',
+                    ):
+                        _add_participant(value.get(key))
+                    _add_participant(value.get('participants'))
+                    _add_participant(value.get('collected'))
+                    return
+                if isinstance(value, (list, tuple, set)):
+                    for item in value:
+                        _add_participant(item)
+            except Exception:
+                pass
+        def _add_leg(value):
+            try:
+                if isinstance(value, dict):
+                    if any(key in value for key in ('aspect', 'orb', 'phase', 'partile', 'complete_platic')):
+                        leg = dict(value)
+                        signature = (
+                            str(leg.get('aspect') or '').lower(),
+                            str(leg.get('orb') or ''),
+                            str(leg.get('phase') or '').lower(),
+                        )
+                        existing = {
+                            (
+                                str(item.get('aspect') or '').lower(),
+                                str(item.get('orb') or ''),
+                                str(item.get('phase') or '').lower(),
+                            )
+                            for item in info['legs']
+                            if isinstance(item, dict)
+                        }
+                        if signature not in existing:
+                            info['legs'].append(leg)
+                    return
+                if isinstance(value, (list, tuple, set)):
+                    for item in value:
+                        _add_leg(item)
+            except Exception:
+                pass
+        def _copy_quality_metadata(source):
+            try:
+                if not isinstance(source, dict):
+                    return
+                if info['favorable'] is None and 'favorable' in source:
+                    info['favorable'] = source.get('favorable')
+                for key in ('challenge_reasons', 'negative_reasons', 'challenges'):
+                    raw = source.get(key)
+                    if isinstance(raw, list):
+                        for item in raw:
+                            if item and item not in info['challenge_reasons']:
+                                info['challenge_reasons'].append(item)
+                    elif raw and raw not in info['challenge_reasons']:
+                        info['challenge_reasons'].append(raw)
+                for key in ('reception', 'reception_data'):
+                    if key in source and key not in info:
+                        info[key] = source.get(key)
+            except Exception:
+                pass
         try:
             texts: List[str] = []
             rs = chart_obj.get('reasoning') or []
@@ -7108,31 +10359,140 @@ def forensic_analysis():
                             info['translator'] = v if isinstance(v, str) else getattr(v,'value',None) or str(v)
                         if kl == 'collector' and v and not info['collector']:
                             info['collector'] = v if isinstance(v, str) else getattr(v,'value',None) or str(v)
+                        if kl == 'prohibitor' and v and not info['prohibitor']:
+                            info['prohibitor'] = v if isinstance(v, str) else getattr(v,'value',None) or str(v)
+                        if kl in {'participants', 'from', 'middle', 'to', 'target', 'collected'}:
+                            _add_participant(v)
                         _walk(v)
                 elif isinstance(o, list):
                     for it in o: _walk(it)
             _walk(chart_obj)
+            patterns = (dashboard_obj or {}).get('morin_patterns') if isinstance(dashboard_obj, dict) else None
+            if isinstance(patterns, dict):
+                translations = patterns.get('translation') or []
+                if isinstance(translations, list) and translations:
+                    first_translation = next((item for item in translations if isinstance(item, dict)), None)
+                    if first_translation:
+                        info['translation'] = True
+                        if not info['translator']:
+                            info['translator'] = first_translation.get('middle') or first_translation.get('translator')
+                        if isinstance(first_translation.get('from_leg'), dict):
+                            info['from_leg'] = dict(first_translation.get('from_leg') or {})
+                            _add_leg(info['from_leg'])
+                        if isinstance(first_translation.get('to_leg'), dict):
+                            info['to_leg'] = dict(first_translation.get('to_leg') or {})
+                            _add_leg(info['to_leg'])
+                        _add_leg(first_translation.get('legs'))
+                        _copy_quality_metadata(first_translation)
+                        _add_participant(first_translation.get('from'))
+                        _add_participant(first_translation.get('middle'))
+                        _add_participant(first_translation.get('to'))
+                        info['evidence'].append('morin_patterns: translation')
+                collections = patterns.get('collection') or []
+                if isinstance(collections, list) and collections:
+                    first_collection = next((item for item in collections if isinstance(item, dict)), None)
+                    if first_collection:
+                        info['collection'] = True
+                        if not info['collector']:
+                            info['collector'] = first_collection.get('collector')
+                        if not info['mode']:
+                            info['mode'] = first_collection.get('mode')
+                        _add_leg(first_collection.get('legs'))
+                        _copy_quality_metadata(first_collection)
+                        _add_participant(first_collection.get('collector'))
+                        _add_participant(first_collection.get('collected'))
+                        info['evidence'].append('morin_patterns: collection')
+                frustrations = patterns.get('frustration') or []
+                if isinstance(frustrations, list) and frustrations:
+                    first_frustration = next((item for item in frustrations if isinstance(item, dict)), None)
+                    if first_frustration:
+                        info['prohibition'] = True
+                        info['denial_type'] = 'frustration'
+                        info['favorable'] = False
+                        if not info['prohibitor']:
+                            info['prohibitor'] = first_frustration.get('frustrating')
+                        if not info['target']:
+                            info['target'] = first_frustration.get('target')
+                        if 'frustration' not in info['challenge_reasons']:
+                            info['challenge_reasons'].append('frustration')
+                        _add_participant(first_frustration.get('frustrated'))
+                        _add_participant(first_frustration.get('target'))
+                        _add_participant(first_frustration.get('frustrating'))
+                        info['evidence'].append('morin_patterns: frustration')
+                preemptions = patterns.get('preemptive_transfer') or []
+                if isinstance(preemptions, list) and preemptions:
+                    first_preemption = next((item for item in preemptions if isinstance(item, dict)), None)
+                    if first_preemption and not info['prohibition']:
+                        info['prohibition'] = True
+                        info['denial_type'] = 'preemptive_transfer'
+                        info['favorable'] = False
+                        if not info['prohibitor']:
+                            info['prohibitor'] = first_preemption.get('swift_extreme')
+                        if not info['target']:
+                            info['target'] = first_preemption.get('receiving_extreme')
+                        if 'preemptive_transfer' not in info['challenge_reasons']:
+                            info['challenge_reasons'].append('preemptive_transfer')
+                        _add_participant(first_preemption.get('swift_extreme'))
+                        _add_participant(first_preemption.get('middle'))
+                        _add_participant(first_preemption.get('receiving_extreme'))
+                        info['evidence'].append('morin_patterns: preemptive_transfer')
         except Exception:
             pass
         return info
 
-    light_mediation = _extract_light_mediation(chart if isinstance(chart, dict) else {})
+    light_mediation = _extract_light_mediation(chart if isinstance(chart, dict) else {}, dash if isinstance(dash, dict) else {})
+    try:
+        features['light_mediation'] = light_mediation
+    except Exception:
+        pass
 
-    # Roll up finding categories before composing dependent summaries.
+    try:
+        secondary_factor_analysis = compute_secondary_factor_analysis(features, degree_special)
+        if isinstance(secondary_factor_analysis, dict):
+            secondary_factor_analysis['enabled'] = bool(secondary_factors_requested)
+    except Exception:
+        secondary_factor_analysis = {
+            'enabled': bool(secondary_factors_requested),
+            'findings': [],
+            'axis_hints': [],
+            'relationship_score_delta': {},
+            'survivability_delta': {'fatal_pressure': 0.0, 'recovery_support': 0.0, 'net_score': 0.0},
+            'evidence': [],
+        }
+    try:
+        features['secondary_factor_analysis'] = secondary_factor_analysis
+    except Exception:
+        pass
+
+    def _rollup_categories(findings_list):
+        try:
+            out: Dict[str, int] = {}
+            for f in findings_list:
+                c = f.get('category') or 'General'
+                out[c] = out.get(c, 0) + 1
+            return out
+        except Exception:
+            return {}
+
+    scoring_findings = list(findings or [])
+    scoring_cats = _rollup_categories(scoring_findings)
+    display_findings = list(scoring_findings)
+
+    # Keep asteroid/special-degree testimony as auxiliary analysis, not core
+    # findings, unless a later benchmark proves axis-level benefit.
     try:
         cats: Dict[str, int] = {}
-        for f in findings:
+        for f in display_findings:
             c = f.get('category') or 'General'
             cats[c] = cats.get(c, 0) + 1
     except Exception:
         cats = {}
 
-    survival_case_type = str(request.args.get('case_type') or 'general').strip().lower()
     try:
         survivability = compute_survivability(
             features,
-            findings=findings,
-            categories=cats,
+            findings=scoring_findings,
+            categories=scoring_cats,
             case_type=survival_case_type,
         )
     except Exception:
@@ -7158,6 +10518,24 @@ def forensic_analysis():
             'note': 'Survivability summary unavailable.',
         }
 
+    try:
+        relationship_status = compute_relationship_status(
+            features,
+            findings=scoring_findings,
+            categories=scoring_cats,
+            receptions=receptions,
+            light_mediation=light_mediation,
+        )
+    except Exception:
+        relationship_status = {
+            'primary_label': 'stranger_public',
+            'labels': ['stranger_public'],
+            'scores': {},
+            'confidence': 'Low',
+            'evidence': {},
+            'light_mediation_component': {},
+        }
+
     out = {
         'success': True,
         'timestamp': dash.get('timestamp'),
@@ -7166,7 +10544,7 @@ def forensic_analysis():
         'moon': dash.get('moon'),
         'moon_timeline': dash.get('moon_timeline'),
         'categories': cats,
-        'findings': findings,
+        'findings': display_findings,
         # Knowledge dictionaries and lookups
         'planetary_meanings': planetary_meanings,
         'house_meanings': house_meanings,
@@ -7178,27 +10556,26 @@ def forensic_analysis():
         'ic_sign_meanings': ic_sign_meanings,
         'ic_ruler_house_meanings': ic_ruler_house_meanings,
         'ic_planet_in_4th': ic_planet_in_4th,
+        'asc_ruler_house_meanings': asc_ruler_house_meanings,
         'abduction_location': _ld('abduction_location.yaml'),
         # Derived
         'light_mediation': light_mediation,
+        'secondary_factor_analysis': secondary_factor_analysis,
         'features': features,
         'dominance': dominance,
         'survivability': survivability,
+        'relationship_status': relationship_status,
         'receptions': receptions,
         'relationship_star_hits': relationship_star_hits,
+        'asc_ruler_placement': asc_ruler_placement,
     }
 
     # Optional abduction local-space mapping
-    abd = (request.args.get('abduction','0').lower() in {'1','true','yes'})
+    abd = abd_requested
     if abd:
         try:
-            origin_str = request.args.get('origin') or ''
-            lat, lon = None, None
-            origin_source = None
-            if ',' in origin_str:
-                a, b = origin_str.split(',', 1)
-                lat = float(a.strip()); lon = float(b.strip())
-                origin_source = 'query_origin'
+            lat, lon = parsed_abduction_origin if parsed_abduction_origin else (None, None)
+            origin_source = 'query_origin' if parsed_abduction_origin else None
             if lat is None or lon is None:
                 coords = _coords_from_request_args(request.args, strict=False)
                 if coords:
@@ -7257,7 +10634,7 @@ def forensic_analysis():
                 except Exception:
                     pass
                 line_zones = (request.args.get('line_zones','0').lower() in {'1','true','yes'})
-                corridor = float(request.args.get('corridor_deg','6') or 6)
+                corridor = parsed_corridor_deg
                 out['abduction_map'] = {
                     'origin': {'lat': lat, 'lon': lon},
                     'origin_source': origin_source,
@@ -7265,9 +10642,8 @@ def forensic_analysis():
                     'line_zones': bool(line_zones),
                     'corridor_deg': corridor,
                 }
-        except Exception:
-            # Non-fatal
-            pass
+        except Exception as exc:
+            out['abduction_map_error'] = str(exc) or 'Abduction map unavailable'
 
     from flask import jsonify as _j
     return _j(out)
@@ -7278,6 +10654,8 @@ def election_validate():
     matter = (request.args.get('matter') or 'marriage').strip().lower()
     marriage_algorithm = (request.args.get('marriage_algorithm') or 'alpha').strip().lower()
     business_algorithm = (request.args.get('business_algorithm') or 'alpha').strip().lower()
+    estate_direction = (request.args.get('estate_direction') or request.args.get('direction') or 'buy').strip().lower()
+    lunar_fertility_consider_mode_raw = request.args.get('consider_mode') or 'phase_and_antiphase'
     start = request.args.get('start')
     end = request.args.get('end')
     location = request.args.get('location')
@@ -7288,6 +10666,16 @@ def election_validate():
     hour_end = request.args.get('hour_end')
     participant_snap_ids = [str(item).strip() for item in request.args.getlist('participant_snap_id') if str(item).strip()]
     unique_participant_snap_ids = list(dict.fromkeys(participant_snap_ids))
+    estate_participant_snap_ids = [
+        str(item).strip()
+        for item in request.args.getlist('estate_participant_snap_id')
+        if str(item).strip()
+    ]
+    estate_participant_snap_id = (
+        estate_participant_snap_ids[0]
+        if estate_participant_snap_ids
+        else (unique_participant_snap_ids[0] if unique_participant_snap_ids else '')
+    )
 
     if not (start and end and location):
         return jsonify({'success': False, 'error': 'start, end, and location are required'}), 400
@@ -7350,6 +10738,27 @@ def election_validate():
         if g_raw and g_raw not in {'male', 'boy', 'masculine', 'female', 'girl', 'feminine'}:
             return jsonify({'success': False, 'error': 'gender must be male or female when provided'}), 400
 
+    if matter == 'lunar_fertility':
+        try:
+            normalize_lunar_fertility_consider_mode(lunar_fertility_consider_mode_raw)
+        except ValueError as exc:
+            return jsonify({'success': False, 'error': str(exc)}), 400
+        natal_snap = (request.args.get('natal_snap_id') or '').strip()
+        natal_datetime = (request.args.get('natal_datetime') or '').strip()
+        natal_location = (request.args.get('natal_location') or '').strip()
+        if not natal_snap and not (natal_datetime and natal_location):
+            return jsonify({'success': False, 'error': 'Lunar Fertility Windows requires a natal saved chart'}), 400
+        house = request.args.get('house_system_code') or None
+        if natal_snap:
+            try:
+                _bundle_from_snap_id(
+                    natal_snap,
+                    house_system_code=house,
+                    missing_error='Natal snap not found',
+                )
+            except ValueError as exc:
+                return jsonify({'success': False, 'error': str(exc)}), 400
+
     if matter == 'marriage':
         if marriage_algorithm not in {'alpha', 'beta'}:
             return jsonify({'success': False, 'error': 'marriage_algorithm must be alpha or beta'}), 400
@@ -7384,6 +10793,20 @@ def election_validate():
                     )
             except ValueError as exc:
                 return jsonify({'success': False, 'error': str(exc)}), 400
+    if matter == 'estate':
+        if estate_direction not in {'buy', 'sell'}:
+            return jsonify({'success': False, 'error': 'estate_direction must be buy or sell'}), 400
+        if not estate_participant_snap_id:
+            return jsonify({'success': False, 'error': 'Estate election requires estate_participant_snap_id'}), 400
+        house = request.args.get('house_system_code') or None
+        try:
+            _bundle_from_snap_id(
+                estate_participant_snap_id,
+                house_system_code=house,
+                missing_error='Estate participant snap not found',
+            )
+        except ValueError as exc:
+            return jsonify({'success': False, 'error': str(exc)}), 400
 
     return jsonify({'success': True})
 
@@ -7397,6 +10820,8 @@ def election_suggest_stream():
     matter = (request.args.get('matter') or 'marriage').strip().lower()
     marriage_algorithm = (request.args.get('marriage_algorithm') or 'alpha').strip().lower()
     business_algorithm = (request.args.get('business_algorithm') or 'alpha').strip().lower()
+    estate_direction = (request.args.get('estate_direction') or request.args.get('direction') or 'buy').strip().lower()
+    lunar_fertility_consider_mode_raw = request.args.get('consider_mode') or 'phase_and_antiphase'
     start = request.args.get('start')
     end = request.args.get('end')
     location = request.args.get('location')
@@ -7412,6 +10837,16 @@ def election_suggest_stream():
     participant_b_snap_id = (request.args.get('participant_b_snap_id') or '').strip()
     participant_snap_ids = [str(item).strip() for item in request.args.getlist('participant_snap_id') if str(item).strip()]
     unique_participant_snap_ids = list(dict.fromkeys(participant_snap_ids))
+    estate_participant_snap_ids = [
+        str(item).strip()
+        for item in request.args.getlist('estate_participant_snap_id')
+        if str(item).strip()
+    ]
+    estate_participant_snap_id = (
+        estate_participant_snap_ids[0]
+        if estate_participant_snap_ids
+        else (unique_participant_snap_ids[0] if unique_participant_snap_ids else '')
+    )
     business_beta_display_mode = (request.args.get('business_beta_display_mode') or 'total').strip().lower()
     business_beta_scope = (request.args.get('business_beta_scope') or 'all').strip().lower()
     business_beta_current_line_id = (request.args.get('business_beta_current_line_id') or '').strip()
@@ -7422,6 +10857,20 @@ def election_suggest_stream():
     ]
     business_beta_level_percent = _parse_business_beta_level_percent(
         request.args.get('business_beta_level_percent', str(_BUSINESS_BETA_EXTRACTION_LEVEL_DEFAULT))
+    )
+    estate_display_mode = (request.args.get('estate_display_mode') or 'total').strip().lower()
+    estate_scope = (request.args.get('estate_scope') or 'all').strip().lower()
+    estate_current_line_id = (request.args.get('estate_current_line_id') or '').strip()
+    estate_selected_line_ids = [
+        str(item).strip()
+        for item in request.args.getlist('estate_selected_line_id')
+        if str(item).strip()
+    ]
+    estate_level_percent = _parse_estate_level_percent(
+        request.args.get('estate_level_percent', str(_ESTATE_EXTRACTION_LEVEL_DEFAULT))
+    )
+    lunar_fertility_level_percent = _parse_lunar_fertility_level_percent(
+        request.args.get('level_percent', str(_LUNAR_FERTILITY_LEVEL_DEFAULT))
     )
     include_sr_lr = (request.args.get('include_sr_lr','0').lower() in {'1','true','yes'})
     # Optional filters: weekdays and hour ranges
@@ -7434,6 +10883,13 @@ def election_suggest_stream():
 
     if not (start and end and location):
         return jsonify({'success': False, 'error': 'start, end, and location are required'}), 400
+    if matter == 'lunar_fertility':
+        try:
+            lunar_fertility_consider_mode = normalize_lunar_fertility_consider_mode(lunar_fertility_consider_mode_raw)
+        except ValueError as exc:
+            return jsonify({'success': False, 'error': str(exc)}), 400
+    else:
+        lunar_fertility_consider_mode = 'phase_and_antiphase'
     if matter == 'marriage' and marriage_algorithm not in {'alpha', 'beta'}:
         return jsonify({'success': False, 'error': 'marriage_algorithm must be alpha or beta'}), 400
     if matter == 'business' and business_algorithm not in {'alpha', 'beta'}:
@@ -7443,6 +10899,15 @@ def election_suggest_stream():
             return jsonify({'success': False, 'error': 'business_beta_display_mode must be total or detail'}), 400
         if business_beta_scope not in _BUSINESS_BETA_EXTRACTION_SCOPES:
             return jsonify({'success': False, 'error': 'business_beta_scope must be all, current, or selected'}), 400
+    if matter == 'estate':
+        if estate_direction not in {'buy', 'sell'}:
+            return jsonify({'success': False, 'error': 'estate_direction must be buy or sell'}), 400
+        if not estate_participant_snap_id:
+            return jsonify({'success': False, 'error': 'Estate election requires estate_participant_snap_id'}), 400
+        if estate_display_mode not in _ESTATE_EXTRACTION_MODES:
+            return jsonify({'success': False, 'error': 'estate_display_mode must be total or detail'}), 400
+        if estate_scope not in _ESTATE_EXTRACTION_SCOPES:
+            return jsonify({'success': False, 'error': 'estate_scope must be all, current, or selected'}), 400
     if weekday_mode and weekday_mode not in {'all', 'custom', 'none'}:
         return jsonify({'success': False, 'error': 'weekday_mode must be all, custom, or none'}), 400
     if hour_start_error:
@@ -7451,11 +10916,13 @@ def election_suggest_stream():
         return jsonify({'success': False, 'error': hour_end_error}), 400
     if hour_start is not None and hour_end is not None and hour_start > hour_end:
         return jsonify({'success': False, 'error': 'hour_end must be after hour_start'}), 400
+    if matter == 'lunar_fertility' and not (natal_snap or (natal_datetime and natal_location)):
+        return jsonify({'success': False, 'error': 'Lunar Fertility Windows requires a natal saved chart'}), 400
 
     # Choose model scorer
     from election import (
         score_marriage_election, score_marriage_beta_election, score_surgery_election, score_contract_election,
-        score_business_election, score_business_beta_election, score_journey_election, score_haircut_election,
+        score_business_election, score_business_beta_election, score_estate_election, score_journey_election, score_haircut_election,
         score_viral_content_election, score_legal_election, score_battle_election,
         score_conception_election, score_beautification_election,
     )
@@ -7469,6 +10936,8 @@ def election_suggest_stream():
             if business_algorithm == 'beta':
                 return score_business_beta_election(cd, natal_hits=natal_hits, options=opts)
             return score_business_election(cd, natal_hits=natal_hits, options=opts)
+        if matter == 'estate':
+            return score_estate_election(cd, natal_hits=natal_hits, options=opts)
         if matter == 'journey':
             return score_journey_election(cd, natal_hits=natal_hits, options=opts)
         if matter == 'haircut':
@@ -7492,6 +10961,7 @@ def election_suggest_stream():
     participant_mode_active = (
         (matter == 'marriage' and marriage_algorithm == 'beta')
         or (matter == 'business' and business_algorithm == 'beta')
+        or matter == 'estate'
     )
     if not participant_mode_active and (natal_snap or natal_datetime or natal_location):
         try:
@@ -7517,6 +10987,7 @@ def election_suggest_stream():
     participant_a_cd: Optional[Dict[str, Any]] = None
     participant_b_cd: Optional[Dict[str, Any]] = None
     business_participants: List[Dict[str, Any]] = []
+    estate_participant: Optional[Dict[str, Any]] = None
     if matter == 'marriage' and marriage_algorithm == 'beta':
         if not participant_a_snap_id or not participant_b_snap_id:
             return jsonify({'success': False, 'error': 'Beta marriage requires participant_a_snap_id and participant_b_snap_id'}), 400
@@ -7583,6 +11054,37 @@ def election_suggest_stream():
                 )
         except ValueError as exc:
             return jsonify({'success': False, 'error': str(exc)}), 400
+    if matter == 'estate':
+        if not estate_participant_snap_id:
+            return jsonify({'success': False, 'error': 'Estate election requires estate_participant_snap_id'}), 400
+        try:
+            snap = _snaps().get(estate_participant_snap_id) or {}
+            bundle = _bundle_from_snap_id(
+                estate_participant_snap_id,
+                house_system_code=house_system_code,
+                missing_error='Estate participant snap not found',
+            )
+            bundle['chart_data'] = _extend_chart_data_for_marriage_beta(
+                bundle.get('chart_data') or {},
+                bundle.get('meta') or {},
+                include_moon_day=False,
+            )
+            label = (
+                str(snap.get('label') or '').strip()
+                or str(snap.get('location') or '').strip()
+                or 'Estate participant'
+            )
+            estate_participant = {
+                'snap_id': estate_participant_snap_id,
+                'label': label,
+                'chart_data': bundle.get('chart_data') or {},
+                'meta': bundle.get('meta') or {},
+                'precision_class': 'certified',
+                'precision_safe': True,
+                'precision_source': 'estate_certified_override',
+            }
+        except ValueError as exc:
+            return jsonify({'success': False, 'error': str(exc)}), 400
 
     # Resolve timezone from location if missing
     tz = timezone_name
@@ -7626,12 +11128,142 @@ def election_suggest_stream():
     validated_total_steps, bounds_error = _validate_stream_scan_bounds(sdt, edt, step)
     if bounds_error:
         return jsonify({'success': False, 'error': bounds_error}), 400
+    default_series_limit = _STREAM_MAX_STEPS if matter == 'lunar_fertility' else _STREAM_BUFFER_ROWS
     try:
-        series_limit = int(request.args.get('series_limit', str(_STREAM_BUFFER_ROWS)) or _STREAM_BUFFER_ROWS)
+        series_limit = int(request.args.get('series_limit', str(default_series_limit)) or default_series_limit)
     except Exception:
-        series_limit = _STREAM_BUFFER_ROWS
+        series_limit = default_series_limit
     series_limit = max(25, min(series_limit, _STREAM_MAX_STEPS))
     top_buffer_limit = max(50, limit * 8)
+
+    # Weekday map (Python Mon=0..Sun=6); input uses sun..sat.
+    weekday_filter_active = False
+    weekday_idx: Set[int] = set()
+    if weekday_mode == 'none':
+        weekday_filter_active = True
+    elif weekday_mode == 'custom' or weekdays_raw:
+        m = {'mon':0,'tue':1,'wed':2,'thu':3,'fri':4,'sat':5,'sun':6}
+        weekday_idx = set(m.get(w, None) for w in weekdays_raw)
+        weekday_idx.discard(None)
+        weekday_filter_active = True
+
+    def _timestamp_passes_day_hour_filters(timestamp_value: Any) -> bool:
+        try:
+            raw_ts = str(timestamp_value or '').strip()
+            if not raw_ts:
+                return True
+            ts = datetime.fromisoformat(raw_ts.replace('Z', '+00:00'))
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            t_local = ts.astimezone(scan_zone)
+            minute_of_day = (t_local.hour * 60) + t_local.minute
+            if weekday_filter_active and (not weekday_idx or t_local.weekday() not in weekday_idx):
+                return False
+            if (hour_start is not None) and (minute_of_day < hour_start):
+                return False
+            if (hour_end is not None) and (minute_of_day > hour_end):
+                return False
+        except Exception:
+            return True
+        return True
+
+    def _row_passes_day_hour_filters(row: Dict[str, Any]) -> bool:
+        if not isinstance(row, dict):
+            return False
+        return _timestamp_passes_day_hour_filters(row.get('timestamp') or row.get('timestamp_local'))
+
+    if matter == 'lunar_fertility':
+        if natal_cd is None:
+            return jsonify({'success': False, 'error': 'Lunar Fertility Windows requires a natal saved chart'}), 400
+        try:
+            lunar_result = scan_lunar_fertility_windows(
+                natal_cd,
+                sdt,
+                edt,
+                timezone_name=tz,
+                consider_mode=lunar_fertility_consider_mode,
+                level_percent=lunar_fertility_level_percent,
+                ephemeris=_lunar_fertility_ephemeris_adapter(),
+            )
+        except ValueError as exc:
+            return jsonify({'success': False, 'error': str(exc)}), 400
+        except Exception:
+            logger.exception('Failed to compute Lunar Fertility Windows')
+            return jsonify({'success': False, 'error': 'Lunar Fertility Windows calculation is unavailable'}), 503
+
+        all_series_source_rows = [
+            row for row in list(lunar_result.get('series') or [])
+            if isinstance(row, dict)
+        ]
+        series_source_rows = [
+            dict(row) for row in all_series_source_rows
+            if _row_passes_day_hour_filters(row)
+        ]
+        passing_rows = [
+            row for row in series_source_rows
+            if bool(row.get('passes_level')) or float(row.get('score') or 0.0) >= lunar_fertility_level_percent
+        ]
+        grouped = group_lunar_fertility_periods(passing_rows, timezone_name=tz)
+        period_rows = grouped.get('rows') or []
+        period_by_key = {
+            (row.get('timestamp'), row.get('phase_kind'), row.get('sex_label')): row.get('period_id')
+            for row in period_rows
+            if isinstance(row, dict)
+        }
+        rebuilt_series_source_rows: List[Dict[str, Any]] = []
+        for row in series_source_rows:
+            row_copy = dict(row)
+            row_copy.pop('period_id', None)
+            period_id = period_by_key.get((row_copy.get('timestamp'), row_copy.get('phase_kind'), row_copy.get('sex_label')))
+            if period_id:
+                row_copy['period_id'] = period_id
+            rebuilt_series_source_rows.append(row_copy)
+        series_source_rows = rebuilt_series_source_rows
+        top_source = passing_rows if passing_rows else series_source_rows
+        top = sorted(top_source, key=lambda row: float(row.get('score') or 0.0), reverse=True)[:limit]
+        series_rows: List[Dict[str, Any]] = []
+        series_dropped = 0
+        if include_series:
+            series_rows = _reduce_series_rows(
+                series_source_rows,
+                series_limit,
+                pinned_timestamps=[str(row.get('timestamp') or '') for row in top],
+            )
+            series_dropped = max(0, len(series_source_rows) - len(series_rows))
+        model_stats = dict(lunar_result.get('stats') or {})
+        payload = {
+            'top': top,
+            'matter': 'lunar_fertility',
+            'location': location,
+            'timezone': tz,
+            'consider_mode': lunar_result.get('consider_mode') or lunar_fertility_consider_mode,
+            'level_percent': lunar_result.get('level_percent', lunar_fertility_level_percent),
+            'periods': grouped.get('periods') or [],
+            'anchors': lunar_result.get('anchors') or [],
+            'signature': lunar_result.get('signature') or {},
+            'stats': {
+                **model_stats,
+                'attempted': int(model_stats.get('attempted') or 0),
+                'favorable_total': len(series_source_rows),
+                'unfiltered_favorable_total': len(all_series_source_rows),
+                'passing_total': len(passing_rows),
+                'period_count': len(grouped.get('periods') or []),
+                'kept_total': len(series_source_rows),
+                'failed': 0,
+                'series_total': len(series_source_rows) if include_series else 0,
+                'series_retained': len(series_rows) if include_series else 0,
+                'series_dropped': series_dropped if include_series else 0,
+            },
+        }
+        if include_series:
+            payload['series'] = series_rows
+
+        def _generate_lunar():
+            yield f"data: {json.dumps({'type':'progress','progress':1.0})}\n\n"
+            yield f"data: {json.dumps({'type':'done','data':payload})}\n\n"
+
+        headers = {'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive'}
+        return Response(stream_with_context(_generate_lunar()), headers=headers)
 
     # Now that start/end are parsed, compute SR/LR context if requested and natal provided
     try:
@@ -7804,6 +11436,11 @@ def election_suggest_stream():
                 opts.pop('emphasize_commerce', None)
                 opts.pop('business_mode', None)
                 opts['business_beta_certified_participants'] = True
+        if matter == 'estate':
+            opts['estate_direction'] = estate_direction
+            opts['include_traditional_timing'] = True
+            opts.pop('include_fixed_stars', None)
+            opts.pop('include_lunation_screen', None)
         if participant_a_cd is not None:
             opts['participant_a_cd'] = participant_a_cd
             opts['participant_a_meta'] = (participant_a_bundle or {}).get('meta') or {}
@@ -7815,6 +11452,9 @@ def election_suggest_stream():
         if business_participants:
             opts['business_participants'] = business_participants
             opts['participant_snap_ids'] = [item.get('snap_id') for item in business_participants if item.get('snap_id')]
+        if estate_participant:
+            opts['estate_participant'] = estate_participant
+            opts['estate_participant_snap_id'] = estate_participant.get('snap_id')
         # SR/LR context if requested
         if include_sr_lr and natal_cd is not None:
             if sr_windows:
@@ -7824,17 +11464,6 @@ def election_suggest_stream():
         if tz:
             opts['timezone'] = tz
         return opts
-
-    # Weekday map (Python Mon=0..Sun=6); input uses sun..sat
-    weekday_filter_active = False
-    weekday_idx: Set[int] = set()
-    if weekday_mode == 'none':
-        weekday_filter_active = True
-    elif weekday_mode == 'custom' or weekdays_raw:
-        m = {'mon':0,'tue':1,'wed':2,'thu':3,'fri':4,'sat':5,'sun':6}
-        weekday_idx = set(m.get(w, None) for w in weekdays_raw)
-        weekday_idx.discard(None)
-        weekday_filter_active = True
 
     def _generate():
         attempted = 0
@@ -7852,6 +11481,7 @@ def election_suggest_stream():
                 include_sr_lr
                 or request.args.get('include_traditional_timing','').lower() in {'1','true','yes'}
                 or (matter == 'business' and business_algorithm == 'beta')
+                or matter == 'estate'
             ):
                 coords = _ensure_coords_for_location(location)
                 if coords:
@@ -7886,6 +11516,7 @@ def election_suggest_stream():
                 if (
                     (matter == 'marriage' and marriage_algorithm == 'beta')
                     or (matter == 'business' and business_algorithm == 'beta')
+                    or matter == 'estate'
                 ):
                     cd = _extend_chart_data_for_marriage_beta(
                         cd,
@@ -7984,7 +11615,7 @@ def election_suggest_stream():
                         key=lambda r: float(r.get('score') or 0.0),
                         reverse=True,
                     )[:top_buffer_limit]
-                if include_series or (matter == 'business' and business_algorithm == 'beta'):
+                if include_series or (matter == 'business' and business_algorithm == 'beta') or matter == 'estate':
                     all_series_rows.append(row)
             except Exception:
                 # Skip step on error
@@ -8007,6 +11638,18 @@ def election_suggest_stream():
                 level_percent=business_beta_level_percent,
                 current_line_id=business_beta_current_line_id or None,
                 selected_line_ids=business_beta_selected_line_ids,
+            )
+            series_source_rows = list(extraction_payload.get('rows') or [])
+            top = list(extraction_payload.get('top_rows') or [])[:limit]
+        elif matter == 'estate':
+            extraction_payload = _extract_estate_periods(
+                series_source_rows,
+                step_td=step_td,
+                display_mode=estate_display_mode,
+                scope=estate_scope,
+                level_percent=estate_level_percent,
+                current_line_id=estate_current_line_id or None,
+                selected_line_ids=estate_selected_line_ids,
             )
             series_source_rows = list(extraction_payload.get('rows') or [])
             top = list(extraction_payload.get('top_rows') or [])[:limit]
@@ -8074,6 +11717,34 @@ def election_suggest_stream():
                         'certified_assumption': True,
                     }
                     payload['business_beta_periods'] = extraction_payload.get('periods') or []
+        if matter == 'estate':
+            payload['estate_direction'] = estate_direction
+            payload['participants'] = {
+                'estate_participant_snap_id': estate_participant_snap_id,
+                'items': [
+                    {
+                        'snap_id': estate_participant.get('snap_id'),
+                        'label': estate_participant.get('label'),
+                    }
+                ] if estate_participant else [],
+                'certified_assumption': True,
+                'precision_note': 'Selected estate participant chart is treated as certified for Ascendant-based property fit in this scan.',
+            }
+            if extraction_payload is not None:
+                payload['estate_extraction'] = {
+                    'display_mode': extraction_payload.get('display_mode'),
+                    'scope': extraction_payload.get('scope'),
+                    'level_percent': extraction_payload.get('level_percent'),
+                    'selected_line_ids': extraction_payload.get('selected_line_ids') or [],
+                    'current_line_id': (extraction_payload.get('selected_line_ids') or [None])[0]
+                    if extraction_payload.get('scope') == 'current'
+                    else None,
+                    'line_stats': extraction_payload.get('line_stats') or [],
+                    'passing_row_count': extraction_payload.get('passing_row_count') or 0,
+                    'period_count': extraction_payload.get('period_count') or 0,
+                    'certified_assumption': True,
+                }
+                payload['estate_periods'] = extraction_payload.get('periods') or []
         yield f"data: {json.dumps({'type':'done','data':payload})}\n\n"
 
     headers = {'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive'}
@@ -8082,28 +11753,143 @@ def election_suggest_stream():
 
 # ---------- Research Mode (Dev-only Lotto analysis) ----------
 
-def _research_progress_payload(session_id: str) -> Dict[str, Any]:
+def _research_session_is_terminal(session: Optional[Dict[str, Any]]) -> bool:
+    if not session:
+        return False
+    return bool(
+        session.get('ready')
+        or session.get('failed')
+        or (session.get('aborted') and not session.get('running'))
+    )
+
+
+def _prune_research_sessions_locked(now: Optional[float] = None) -> None:
+    _prune_terminal_sessions_locked(
+        _research_sessions,
+        is_terminal=_research_session_is_terminal,
+        max_sessions=_RESEARCH_SESSION_MAX,
+        ttl_seconds=_RESEARCH_SESSION_TTL_SECONDS,
+        now=now,
+    )
+
+
+def _update_research_session(session_id: str, **updates: Any) -> None:
     with _research_lock:
-        sess = _research_sessions.get(session_id) or {}
-        done = int(sess.get('done') or 0)
-        total = int(sess.get('total') or 0)
-        ready = bool(sess.get('ready'))
-        percent = 1.0 if ready and total else (float(done) / float(total) if total else 0.0)
-        payload = {
-            'ready': ready,
-            'done': done,
-            'total': total,
-            'percent': percent,
+        now = perf_counter()
+        _prune_research_sessions_locked(now)
+        session = _research_sessions.get(session_id)
+        if session is None:
+            session = {'session_id': session_id, 'created_at': now}
+            _research_sessions[session_id] = session
+        session.update(updates)
+        session['updated_at'] = now
+
+
+def _research_session_snapshot(session_id: str) -> Dict[str, Any]:
+    with _research_lock:
+        _prune_research_sessions_locked()
+        session = _research_sessions.get(session_id) or {}
+        serializable = {
+            key: value
+            for key, value in session.items()
+            if key != 'thread'
         }
-        if sess.get('workers') is not None:
-            payload['workers'] = sess.get('workers')
-        if sess.get('source'):
-            payload['source'] = sess.get('source')
-        if sess.get('error'):
-            payload['error'] = sess.get('error')
-        if sess.get('aborted'):
-            payload['aborted'] = True
-        return payload
+    return copy.deepcopy(serializable)
+
+
+def _research_progress_payload(session_id: str) -> Dict[str, Any]:
+    sess = _research_session_snapshot(session_id)
+    done = int(sess.get('done') or 0)
+    total = int(sess.get('total') or 0)
+    ready = bool(sess.get('ready'))
+    failed = bool(sess.get('failed'))
+    terminal = ready or failed or bool(sess.get('aborted') and not sess.get('running'))
+    percent = 1.0 if terminal else (float(done) / float(total) if total else 0.0)
+    payload = {
+        'session_id': session_id,
+        'ready': ready,
+        'failed': failed,
+        'running': bool(sess.get('running')),
+        'done': done,
+        'total': total,
+        'percent': max(0.0, min(1.0, percent)),
+        'stage': str(sess.get('stage') or ('ready' if ready else 'pending')),
+        'runtime': _background_runtime_payload(
+            'research_compile',
+            session_max=_RESEARCH_SESSION_MAX,
+            session_ttl_seconds=_RESEARCH_SESSION_TTL_SECONDS,
+        ),
+    }
+    if sess.get('workers') is not None:
+        payload['workers'] = sess.get('workers')
+    if sess.get('source'):
+        payload['source'] = sess.get('source')
+    if sess.get('error'):
+        payload['error'] = sess.get('error')
+    if sess.get('aborted'):
+        payload['aborted'] = True
+    if sess.get('abort_requested'):
+        payload['abort_requested'] = True
+    return payload
+
+
+def get_background_runtime_metrics() -> Dict[str, Any]:
+    """Return bounded-worker and process-local session metrics for app health."""
+    return {
+        'session_persistence': 'process_memory',
+        'restart_volatile': True,
+        'executor': _background_executor.snapshot(),
+        'limits': {
+            'astrocartography_atlas_search': {
+                'session_max': _ATLAS_SEARCH_SESSION_MAX,
+                'terminal_session_ttl_seconds': _ATLAS_SEARCH_SESSION_TTL_SECONDS,
+            },
+            'weather_scan': {
+                'session_max': _WEATHER_SCAN_SESSION_MAX,
+                'terminal_session_ttl_seconds': _WEATHER_SCAN_SESSION_TTL_SECONDS,
+            },
+            'mundane_scan': {
+                'session_max': _MUNDANE_SCAN_SESSION_MAX,
+                'terminal_session_ttl_seconds': _MUNDANE_SCAN_SESSION_TTL_SECONDS,
+            },
+            'research_compile': {
+                'session_max': _RESEARCH_SESSION_MAX,
+                'terminal_session_ttl_seconds': _RESEARCH_SESSION_TTL_SECONDS,
+            },
+        },
+        'sessions': {
+            'astrocartography_atlas_search': _session_store_metrics(
+                _atlas_search_sessions,
+                _atlas_search_lock,
+                prune_locked=_prune_atlas_search_sessions_locked,
+                is_terminal=_atlas_search_session_is_terminal,
+            ),
+            'weather_scan': _session_store_metrics(
+                _weather_scan_sessions,
+                _weather_scan_lock,
+                prune_locked=_prune_weather_scan_sessions_locked,
+                is_terminal=_weather_scan_session_is_terminal,
+            ),
+            'mundane_scan': _session_store_metrics(
+                _mundane_scan_sessions,
+                _mundane_scan_lock,
+                prune_locked=_prune_mundane_scan_sessions_locked,
+                is_terminal=_mundane_scan_session_is_terminal,
+            ),
+            'research_compile': _session_store_metrics(
+                _research_sessions,
+                _research_lock,
+                prune_locked=_prune_research_sessions_locked,
+                is_terminal=_research_session_is_terminal,
+            ),
+        },
+    }
+
+
+@astro_clock_bp.route('/runtime/background', methods=['GET'])
+@_error_handler
+def background_runtime_status():
+    return _json_ok(get_background_runtime_metrics())
 
 
 def _load_cached_rows(cache_path: Path) -> List[Dict[str, Any]]:
@@ -8116,6 +11902,202 @@ def _load_cached_rows(cache_path: Path) -> List[Dict[str, Any]]:
     except Exception:
         pass
     return []
+
+
+def _research_lab_chart_snapshot(
+    row: Dict[str, Any],
+    *,
+    evaluator_families: Optional[List[str]],
+    house_system_code: Optional[str],
+    sex_code: Optional[str],
+) -> Dict[str, Any]:
+    lat = row.get('latitude')
+    lon = row.get('longitude')
+    bundle = _compute_chart_bundle_for(
+        row.get('datetime'),
+        row.get('location'),
+        row.get('timezone'),
+        house_system_code=house_system_code,
+        latitude=lat,
+        longitude=lon,
+    )
+    chart_data = bundle.get('chart_data') or {}
+    meta = bundle.get('meta') or {}
+    timestamp_iso = meta.get('timestamp') or row.get('datetime')
+    if isinstance(chart_data, dict):
+        chart_data = _extend_chart_data_for_points(chart_data, timestamp_iso)
+        chart_data = _with_points_exact_geometry(chart_data, bundle.get('raw_chart'))
+    else:
+        chart_data = {}
+
+    enrichments: Dict[str, Any] = {}
+    try:
+        arabic_parts = compute_arabic_parts(chart_data)
+        if isinstance(arabic_parts, dict):
+            chart_data['arabic_parts'] = arabic_parts
+            enrichments['arabic_parts'] = arabic_parts
+    except Exception:
+        enrichments['arabic_parts'] = {}
+
+    try:
+        metrics = compute_metrics(chart_data, timestamp_iso, special_degrees=None)
+        if isinstance(metrics, dict):
+            try:
+                finals = _compute_final_dispositors(metrics.get('planet_signs') or {})
+                if finals:
+                    metrics['final_dispositor'] = finals
+            except Exception:
+                pass
+            enrichments['metrics'] = metrics
+    except Exception:
+        enrichments['metrics'] = {}
+
+    try:
+        fixed_star_hits = compute_fixed_star_hits(chart_data, orb_deg=1.0, check_planets=['Sun', 'Moon'], include_cusps=True)
+        enrichments['fixed_star_hits'] = fixed_star_hits if isinstance(fixed_star_hits, list) else []
+    except Exception:
+        enrichments['fixed_star_hits'] = []
+
+    try:
+        asteroids_payload = compute_asteroid_positions(chart_data, timestamp_iso)
+        enrichments['asteroids'] = asteroids_payload if isinstance(asteroids_payload, dict) else {}
+    except Exception:
+        enrichments['asteroids'] = {}
+
+    try:
+        points_payload = compute_symbolic_points_payload(
+            chart_data,
+            timestamp_iso=timestamp_iso,
+            sex_code=sex_code,
+            latitude=lat if lat is not None else meta.get('latitude'),
+            longitude=lon if lon is not None else meta.get('longitude'),
+            house_system=house_system_code,
+        )
+        enrichments['points_payload'] = points_payload if isinstance(points_payload, dict) else {}
+    except Exception:
+        enrichments['points_payload'] = {}
+
+    try:
+        almutens = compute_chart_almutens(chart_data)
+        enrichments['almutens'] = almutens if isinstance(almutens, dict) else {}
+    except Exception:
+        enrichments['almutens'] = {}
+
+    return {
+        'row': row,
+        'chart_data': chart_data,
+        'meta': meta,
+        'enrichments': enrichments,
+        'evaluator_families': evaluator_families or [],
+    }
+
+
+@astro_clock_bp.route('/research/evaluators', methods=['GET'])
+@_error_handler
+def research_evaluators():
+    return _json_ok({'families': list_evaluator_catalog()})
+
+
+def _bounded_research_int(value, default: int, *, minimum: int, maximum: int) -> int:
+    try:
+        number = int(value)
+    except Exception:
+        number = int(default)
+    return max(minimum, min(number, maximum))
+
+
+@astro_clock_bp.route('/research/analyze', methods=['POST'])
+@_error_handler
+def research_analyze_chart_set():
+    body = request.get_json(force=True, silent=True) or {}
+    raw_rows = body.get('charts') or body.get('rows') or []
+    if not isinstance(raw_rows, list) or not raw_rows:
+        return jsonify({'success': False, 'error': 'At least one chart row is required.'}), 400
+
+    target_rows = normalize_chart_rows(raw_rows)
+    invalid_rows = [row for row in target_rows if not row.get('valid')]
+    valid_rows = [row for row in target_rows if row.get('valid')]
+    if not valid_rows:
+        return jsonify({'success': False, 'error': 'No valid chart rows were provided.', 'invalid_rows': invalid_rows}), 400
+
+    families = body.get('evaluator_families') or body.get('families') or None
+    if families is not None and not isinstance(families, list):
+        families = None
+    feature_scopes = body.get('feature_scopes')
+    if feature_scopes is not None and not isinstance(feature_scopes, list):
+        feature_scopes = None
+    control_opts = body.get('control') if isinstance(body.get('control'), dict) else {}
+    per_chart = _bounded_research_int(
+        control_opts.get('per_chart') or body.get('controls_per_chart') or 20,
+        20,
+        minimum=1,
+        maximum=100,
+    )
+    seed = control_opts.get('seed') or body.get('seed') or 'vox-stella-research'
+    year_window = _bounded_research_int(
+        control_opts.get('year_window') or body.get('year_window') or 3,
+        3,
+        minimum=0,
+        maximum=50,
+    )
+    house_system_code = body.get('house_system_code') or body.get('houseSystem') or body.get('house_system') or 'P'
+    sex_code = body.get('sex_code')
+    min_occurrence = _bounded_research_int(body.get('min_occurrence') or 1, 1, minimum=1, maximum=1000)
+
+    control_rows = generate_matched_control_rows(valid_rows, per_chart=per_chart, seed=seed, year_window=year_window)
+    target_snapshots = [
+        _research_lab_chart_snapshot(
+            row,
+            evaluator_families=families,
+            house_system_code=house_system_code,
+            sex_code=sex_code,
+        )
+        for row in valid_rows
+    ]
+    control_snapshots = [
+        _research_lab_chart_snapshot(
+            row,
+            evaluator_families=families,
+            house_system_code=house_system_code,
+            sex_code=sex_code,
+        )
+        for row in control_rows
+    ]
+
+    stats = analyze_research_snapshots(
+        target_snapshots,
+        control_snapshots,
+        evaluator_families=families,
+        feature_scopes=feature_scopes,
+        min_occurrence=min_occurrence,
+    )
+    run_manifest = {
+        'run_id': build_run_id({
+            'charts': [row.get('name') for row in valid_rows],
+            'families': families,
+            'feature_scopes': feature_scopes,
+            'control_seed': seed,
+            'per_chart': per_chart,
+            'year_window': year_window,
+            'house_system_code': house_system_code,
+        }),
+        'target_count': len(valid_rows),
+        'generated_control_count': len(control_rows),
+        'control_strategy': 'matched_generated',
+        'control_seed': str(seed),
+        'controls_per_chart': per_chart,
+        'control_year_window': year_window,
+        'house_system_code': house_system_code,
+        'feature_scope_count': stats.get('feature_scope_count', 0),
+        'invalid_rows': invalid_rows,
+    }
+    return _json_ok({
+        'manifest': run_manifest,
+        'charts': valid_rows,
+        'comparison_charts': control_rows[:50],
+        'statistics': stats,
+        'signals': stats.get('signals') or [],
+    })
 
 
 def _count_csv_rows(csv_path: Path) -> int:
@@ -8196,36 +12178,8 @@ def _extract_planet_directions(chart_data: Dict[str, Any]) -> Dict[str, str]:
 
 
 def _compute_final_dispositors(planet_signs: Dict[str, str]) -> Dict[str, str]:
-    """Compute simple classical final dispositors for each planet."""
-    rulers = {
-        'Aries': 'Mars', 'Taurus': 'Venus', 'Gemini': 'Mercury', 'Cancer': 'Moon',
-        'Leo': 'Sun', 'Virgo': 'Mercury', 'Libra': 'Venus', 'Scorpio': 'Mars',
-        'Sagittarius': 'Jupiter', 'Capricorn': 'Saturn', 'Aquarius': 'Saturn', 'Pisces': 'Jupiter',
-    }
-    result: Dict[str, str] = {}
-    for planet, sign in (planet_signs or {}).items():
-        current = planet
-        seen = set()
-        cur_sign = sign
-        final = None
-        for _ in range(len(planet_signs) + 2):
-            if current in seen:
-                final = current
-                break
-            seen.add(current)
-            ruler = rulers.get(cur_sign)
-            if not ruler:
-                final = current
-                break
-            final = ruler
-            # Move to ruler's sign if available, else stop
-            next_sign = planet_signs.get(ruler)
-            if not next_sign:
-                break
-            current, cur_sign = ruler, next_sign
-        if final:
-            result[planet] = final
-    return result
+    """Compute genuine classical final dispositors for research filters."""
+    return compute_classical_final_dispositors(planet_signs or {})
 
 
 def _respect_order(balance: Dict[str, Any], order: List[str]) -> bool:
@@ -8399,45 +12353,68 @@ def _start_research_compile(body: Dict[str, Any], force: bool = False) -> Tuple[
     cache_dir = _ensure_research_cache_dir()
     cache_path = cache_dir / f"{session_id}.json"
 
+    # The deterministic session id also de-duplicates concurrent requests,
+    # including forced refreshes while an older on-disk cache still exists.
+    existing = _research_session_snapshot(session_id)
+    if existing and not _research_session_is_terminal(existing):
+        return session_id, _research_progress_payload(session_id)
+
     if cache_path.exists() and not force:
         rows = _load_cached_rows(cache_path)
-        with _research_lock:
-            _research_sessions[session_id] = {
+        initialized = _initialize_background_session(
+            _research_sessions,
+            _research_lock,
+            session_id,
+            {
                 'ready': True,
+                'failed': False,
+                'running': False,
                 'done': len(rows),
                 'total': len(rows),
                 'percent': 1.0,
                 'workers': 0,
+                'stage': 'ready',
                 'source': 'cache',
                 'cache_path': str(cache_path),
-            }
+            },
+            is_terminal=_research_session_is_terminal,
+            max_sessions=_RESEARCH_SESSION_MAX,
+            ttl_seconds=_RESEARCH_SESSION_TTL_SECONDS,
+        )
+        if not initialized:
+            raise _BackgroundCapacityError('Research session capacity is full')
         return session_id, _research_progress_payload(session_id)
 
-    # Avoid duplicate workers
-    with _research_lock:
-        sess = _research_sessions.get(session_id)
-        if sess and sess.get('thread') and sess['thread'].is_alive():
-            return session_id, _research_progress_payload(session_id)
-
     total_rows = _count_csv_rows(csv_path)
-    with _research_lock:
-        _research_sessions[session_id] = {
+    initialized = _initialize_background_session(
+        _research_sessions,
+        _research_lock,
+        session_id,
+        {
             'ready': False,
+            'failed': False,
+            'running': False,
             'done': 0,
             'total': total_rows,
             'aborted': False,
+            'abort_requested': False,
             'workers': 1,
+            'stage': 'queued',
             'source': 'compiled',
             'cache_path': str(cache_path),
-        }
+        },
+        is_terminal=_research_session_is_terminal,
+        max_sessions=_RESEARCH_SESSION_MAX,
+        ttl_seconds=_RESEARCH_SESSION_TTL_SECONDS,
+    )
+    if not initialized:
+        raise _BackgroundCapacityError('Research session capacity is full')
 
-    def _worker():
+    def _compile_worker():
         eng = AstroClockEngine()
         t_obj = _parse_time_str(time_str)
         tz_name = tz_hint or _research_default_tz
         coords = _ensure_coords_for_location(location)
-        if not coords and location.strip().lower() == _research_default_location.lower():
-            coords = _research_default_coords
         try:
             if coords:
                 guess = _tz_instance().get_timezone_for_location(coords[0], coords[1])
@@ -8452,7 +12429,7 @@ def _start_research_compile(body: Dict[str, Any], force: bool = False) -> Tuple[
                 for idx, row in enumerate(reader):
                     with _research_lock:
                         sess = _research_sessions.get(session_id) or {}
-                        if sess.get('aborted'):
+                        if sess.get('abort_requested'):
                             break
                     if row_limit and len(results) >= int(row_limit):
                         break
@@ -8494,29 +12471,100 @@ def _start_research_compile(body: Dict[str, Any], force: bool = False) -> Tuple[
                         'power': [p for p in power_vals if p != ''],
                         'metrics': metrics,
                     })
-                    with _research_lock:
-                        sess = _research_sessions.get(session_id) or {}
-                        sess['done'] = len(results)
-                        sess['total'] = sess.get('total') or total_rows
+                    _update_research_session(
+                        session_id,
+                        done=len(results),
+                        total=total_rows,
+                    )
         except Exception as e:
-            with _research_lock:
-                sess = _research_sessions.get(session_id) or {}
-                sess['error'] = str(e)
+            _update_research_session(
+                session_id,
+                failed=True,
+                error=str(e),
+                stage='failed',
+            )
         finally:
-            cache_dir.mkdir(parents=True, exist_ok=True)
-            cache_path.write_text(json.dumps({'rows': results}, ensure_ascii=False), encoding='utf-8')
-            with _research_lock:
-                sess = _research_sessions.get(session_id) or {}
-                if not sess.get('aborted'):
-                    sess['ready'] = True
-                    sess['source'] = sess.get('source') or 'compiled'
-                    sess['done'] = len(results)
-                    sess['total'] = len(results) or sess.get('total') or total_rows
+            session = _research_session_snapshot(session_id)
+            aborted = bool(session.get('abort_requested'))
+            cache_error = None
+            if not aborted and not session.get('failed'):
+                try:
+                    cache_dir.mkdir(parents=True, exist_ok=True)
+                    cache_path.write_text(
+                        json.dumps({'rows': results}, ensure_ascii=False),
+                        encoding='utf-8',
+                    )
+                except Exception as exc:
+                    cache_error = str(exc)
 
-    t = threading.Thread(target=_worker, name=f"research-compile-{session_id[:8]}", daemon=True)
-    with _research_lock:
-        _research_sessions[session_id]['thread'] = t
-    t.start()
+            if aborted:
+                _update_research_session(
+                    session_id,
+                    ready=False,
+                    failed=False,
+                    running=False,
+                    aborted=True,
+                    abort_requested=False,
+                    workers=0,
+                    stage='aborted',
+                    done=len(results),
+                )
+            elif cache_error or session.get('failed'):
+                _update_research_session(
+                    session_id,
+                    ready=False,
+                    failed=True,
+                    running=False,
+                    workers=0,
+                    stage='failed',
+                    error=cache_error or session.get('error') or 'Research compile failed',
+                    done=len(results),
+                )
+            else:
+                _update_research_session(
+                    session_id,
+                    ready=True,
+                    failed=False,
+                    running=False,
+                    workers=0,
+                    stage='ready',
+                    source=session.get('source') or 'compiled',
+                    done=len(results),
+                    total=len(results) or session.get('total') or total_rows,
+                )
+
+    def _worker():
+        _update_research_session(
+            session_id,
+            running=True,
+            workers=1,
+            stage='running',
+        )
+        try:
+            _compile_worker()
+        except Exception as exc:
+            logger.exception("Research compile session failed before processing: %s", session_id)
+            _update_research_session(
+                session_id,
+                ready=False,
+                failed=True,
+                running=False,
+                workers=0,
+                stage='failed',
+                error=str(exc),
+            )
+
+    if not _submit_background_job(f"research-compile-{session_id[:8]}", _worker):
+        _update_research_session(
+            session_id,
+            ready=False,
+            failed=True,
+            running=False,
+            workers=0,
+            stage='failed',
+            error='Background capacity is full; retry later',
+        )
+        raise _BackgroundCapacityError('Research background capacity is full')
     return session_id, _research_progress_payload(session_id)
 
 
@@ -8527,7 +12575,10 @@ def research_compile_start():
         return jsonify({'success': False, 'error': 'Research mode is disabled'}), 403
     body = request.get_json(force=True, silent=True) or {}
     force = bool(body.get('force'))
-    session_id, progress = _start_research_compile(body, force=force)
+    try:
+        session_id, progress = _start_research_compile(body, force=force)
+    except _BackgroundCapacityError:
+        return _background_busy_response('Research compile')
     return _json_ok({'session_id': session_id, 'progress': progress, 'cached': progress.get('ready') and progress.get('source') == 'cache'})
 
 
@@ -8537,7 +12588,10 @@ def research_compile():
     if not _research_mode_enabled():
         return jsonify({'success': False, 'error': 'Research mode is disabled'}), 403
     body = request.get_json(force=True, silent=True) or {}
-    session_id, progress = _start_research_compile(body, force=bool(body.get('force')))
+    try:
+        session_id, progress = _start_research_compile(body, force=bool(body.get('force')))
+    except _BackgroundCapacityError:
+        return _background_busy_response('Research compile')
     return _json_ok({'session_id': session_id, 'progress': progress})
 
 
@@ -8549,6 +12603,8 @@ def research_progress():
     sid = request.args.get('session_id') or request.args.get('sid')
     if not sid:
         return jsonify({'success': False, 'error': 'session_id required'}), 400
+    if not _research_session_snapshot(str(sid)):
+        return _missing_volatile_session_response('Research compile')
     return _json_ok(_research_progress_payload(sid))
 
 
@@ -8562,8 +12618,13 @@ def research_stop():
     if not sid:
         return jsonify({'success': False, 'error': 'sessionId required'}), 400
     with _research_lock:
-        sess = _research_sessions.get(sid) or {}
-        sess['aborted'] = True
+        sess = _research_sessions.get(sid)
+        if sess is None:
+            return _missing_volatile_session_response('Research compile')
+        if not _research_session_is_terminal(sess):
+            sess['abort_requested'] = True
+            sess['stage'] = 'cancelling'
+            sess['updated_at'] = perf_counter()
     return _json_ok({'session_id': sid, 'progress': _research_progress_payload(sid)})
 
 

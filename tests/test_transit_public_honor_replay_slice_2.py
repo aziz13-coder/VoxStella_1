@@ -102,6 +102,8 @@ def _build_natal_bundle(case, fake_geocode):
             case["natal_location"],
             case["natal_timezone"],
             house_system_code=case["house_system_code"],
+            latitude=float(case["latitude"]),
+            longitude=float(case["longitude"]),
         )
 
 

@@ -8,6 +8,7 @@ const astroClockApiMock = vi.hoisted(() => ({
   getTransitsWindow: vi.fn(),
   getTransits: vi.fn(),
   getPredictions: vi.fn(),
+  getAutoContext: vi.fn(),
 }));
 
 vi.mock('../features/astroclock/api.mjs', () => ({
@@ -101,6 +102,7 @@ function makeSingleTransitResponse({
   keywords,
   predictionTags,
   significance,
+  tone = 'positive',
   revolutions = null,
 }) {
   return {
@@ -154,7 +156,7 @@ function makeSingleTransitResponse({
           ],
           prediction_score: significance,
           significance,
-          tone: 'positive',
+          tone,
           prediction_tags: predictionTags,
         },
       ],
@@ -386,6 +388,7 @@ describe('TransitsModal replay rendering', () => {
     astroClockApiMock.getTransitsWindow.mockReset();
     astroClockApiMock.getTransits.mockReset();
     astroClockApiMock.getPredictions.mockReset();
+    astroClockApiMock.getAutoContext.mockReset();
   });
 
   it('renders scan window inputs with dedicated labels and wider date fields', async () => {
@@ -443,6 +446,67 @@ describe('TransitsModal replay rendering', () => {
     expect(screen.getByDisplayValue('16:00')).toBeInTheDocument();
     expect(screen.getByDisplayValue('israel')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Asia/Jerusalem')).toBeInTheDocument();
+  });
+
+  it('keeps seeded natal coordinates in manual transit requests', async () => {
+    astroClockApiMock.listSnaps.mockResolvedValue({ items: [] });
+    astroClockApiMock.getTransits.mockResolvedValue(
+      makeSingleTransitResponse({
+        natalLocation: 'Israel',
+        timezone: 'Asia/Jerusalem',
+        transitTimestamp: '2026-03-22T06:32:00+02:00',
+        transiting: 'Sun',
+        targetLabel: 'MC',
+        aspect: 'Trine',
+        lifeArea: 'honors',
+        eventType: 'public_recognition',
+        description: 'Sun Trine MC supports honors.',
+        enrichedKeywords: [],
+        keywords: [],
+        predictionTags: [],
+        significance: 60,
+      })
+    );
+
+    const { container } = render(
+      <TransitsModal
+        open={true}
+        onClose={() => {}}
+        defaultHouseSystem="W"
+        initialNatalContext={{
+          date: '1948-05-14',
+          time: '16:00',
+          location: 'Israel',
+          timezone: 'Asia/Jerusalem',
+          latitude: 31.778,
+          longitude: 35.235,
+          houseSystem: 'W',
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(astroClockApiMock.listSnaps).toHaveBeenCalled();
+    });
+
+    fireEvent.click(screen.getByLabelText('Manual Natal'));
+    const dateInputs = container.querySelectorAll('input[type="date"]');
+    const timeInputs = container.querySelectorAll('input[type="time"]');
+    fireEvent.change(dateInputs[1], { target: { value: '2026-03-22' } });
+    fireEvent.change(timeInputs[1], { target: { value: '06:32' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Compute Exact Time' }));
+
+    await waitFor(() => {
+      expect(astroClockApiMock.getTransits).toHaveBeenCalledTimes(1);
+    });
+    expect(astroClockApiMock.getTransits.mock.calls[0][0]).toMatchObject({
+      natalDatetime: expect.stringContaining('1948-05-14'),
+      natalLocation: 'Israel',
+      natalTimezone: 'Asia/Jerusalem',
+      latitude: 31.778,
+      longitude: 35.235,
+      houseSystem: 'W',
+    });
   });
 
   it('auto-selects a matching saved snap when the context matches but snapId is missing', async () => {
@@ -533,6 +597,268 @@ describe('TransitsModal replay rendering', () => {
     expect(screen.getByLabelText(/Context emphasis/i)).toBeInTheDocument();
   });
 
+  it('keeps scan critical signals when the event is in row predictions instead of top hits', async () => {
+    const selectedIso = '2026-05-03T21:00:00Z';
+    astroClockApiMock.getTransitsWindow.mockResolvedValue(
+      makeWindowResponse({
+        timezone: 'Asia/Jerusalem',
+        timestamp: selectedIso,
+        eventType: 'promotion',
+        lifeArea: 'honors',
+        description: 'Jupiter Semi-sextile MC',
+        predictionTags: ['honor', 'positive'],
+        significance: 60,
+        stepScore: 624.7,
+        tone: 'negative',
+        topHits: [
+          {
+            transiting: 'Jupiter',
+            aspect: 'Semi-sextile',
+            target_label: 'MC',
+            orb: 0.24,
+            tone: 'positive',
+            significance: 60,
+            prediction_score: 60,
+            prediction_tags: ['honor', 'positive'],
+            prediction: {
+              description: 'Jupiter Semi-sextile MC',
+              lifeArea: 'honors',
+              eventType: 'promotion',
+            },
+            enriched_keywords: ['career', 'promotion'],
+            keywords: ['Career', 'Promotion'],
+          },
+        ],
+        rowPredictions: [
+          {
+            date: selectedIso,
+            description: 'Saturn Opposition C7 (antiscia) indicates a violent attack, assault, or conflict in conflict.',
+            event_type: 'attack_violence',
+            life_area: 'conflict',
+            score: 20.2,
+            probability: 1.0,
+            tags: ['conflict', 'multiple_transit', 'negative'],
+          },
+        ],
+      })
+    );
+    astroClockApiMock.getTransits.mockResolvedValue(
+      makeSingleTransitResponse({
+        natalLocation: 'Israel',
+        timezone: 'Asia/Jerusalem',
+        transitTimestamp: selectedIso,
+        transiting: 'Saturn',
+        targetLabel: 'C7',
+        aspect: 'Opposition (antiscia)',
+        lifeArea: 'conflict',
+        eventType: 'attack_violence',
+        description: 'Saturn Opposition C7 (antiscia) indicates a violent attack, assault, or conflict in conflict.',
+        enrichedKeywords: ['attack_violence', 'conflict'],
+        keywords: ['Attack/violence', 'Conflict'],
+        predictionTags: ['conflict', 'multiple_transit', 'negative'],
+        significance: 20.2,
+        tone: 'negative',
+      })
+    );
+
+    const { container } = render(
+      <TransitsModal open={true} onClose={() => {}} defaultHouseSystem="W" />
+    );
+
+    fillManualInputs(container, {
+      natalDate: '1990-01-13',
+      natalTime: '21:33',
+      natalLocation: 'Israel',
+      natalTimezone: 'Asia/Jerusalem',
+      transitDate: '2026-05-04',
+      transitTime: '00:00',
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Scan Window' }));
+
+    const criticalBar = await screen.findByLabelText(/Timeline point .*critical/i);
+    expect(criticalBar).toBeInTheDocument();
+    const scanHeader = await screen.findByText(/Critical Signals In Scan/i);
+    const scanSection = scanHeader.parentElement;
+    expect(scanSection).toBeTruthy();
+    expect(within(scanSection).getByText(/attack\/violence/i)).toBeInTheDocument();
+    expect(within(scanSection).queryByText(/No critical signals found/i)).not.toBeInTheDocument();
+
+    fireEvent.click(criticalBar);
+
+    await waitFor(() => {
+      expect(astroClockApiMock.getTransits).toHaveBeenCalledTimes(1);
+    });
+    const criticalHeader = await screen.findByText(/^Critical Signals$/i);
+    const criticalSection = criticalHeader.parentElement;
+    expect(criticalSection).toBeTruthy();
+    expect(within(criticalSection).getByText(/attack\/violence/i)).toBeInTheDocument();
+    expect(within(criticalSection).getByText(/Top critical transit: Saturn Opposition C7/i)).toBeInTheDocument();
+  });
+
+  it('keeps timeline-selected transit fields in the chart timezone for replay', async () => {
+    const selectedIso = '2026-03-10T04:30:00Z';
+    astroClockApiMock.getTransitsWindow.mockResolvedValue(
+      makeWindowResponse({
+        timezone: 'America/New_York',
+        timestamp: selectedIso,
+        eventType: 'authority_earned',
+        lifeArea: 'honors',
+        description: 'Saturn Trine MC',
+        predictionTags: ['authority_earned', 'structure_established'],
+        significance: 55,
+        stepScore: 55,
+        tone: 'positive',
+      })
+    );
+    astroClockApiMock.getTransits.mockResolvedValue(
+      makeSingleTransitResponse({
+        natalLocation: 'New York, USA',
+        timezone: 'America/New_York',
+        transitTimestamp: selectedIso,
+        transiting: 'Saturn',
+        targetLabel: 'MC',
+        aspect: 'Trine',
+        lifeArea: 'honors',
+        eventType: 'authority_earned',
+        description: 'Saturn Trine MC',
+        enrichedKeywords: ['authority_earned'],
+        keywords: ['authority_earned'],
+        predictionTags: ['authority_earned', 'structure_established'],
+        significance: 55,
+      })
+    );
+
+    const { container } = render(
+      <TransitsModal open={true} onClose={() => {}} defaultHouseSystem="W" />
+    );
+
+    fillManualInputs(container, {
+      natalDate: '1990-01-01',
+      natalTime: '12:00',
+      natalLocation: 'New York, USA',
+      natalTimezone: 'America/New_York',
+      transitDate: '2026-03-09',
+      transitTime: '23:00',
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Scan Window' }));
+
+    expect(await screen.findByText(/Top peaks:/i)).toBeInTheDocument();
+    const peakButtons = await screen.findAllByRole('button', { name: '2026-03-10 00:30' });
+    const dateInputs = container.querySelectorAll('input[type="date"]');
+    const timeInputs = container.querySelectorAll('input[type="time"]');
+
+    const spies = [
+      vi.spyOn(Date.prototype, 'getFullYear').mockReturnValue(1999),
+      vi.spyOn(Date.prototype, 'getMonth').mockReturnValue(0),
+      vi.spyOn(Date.prototype, 'getDate').mockReturnValue(2),
+      vi.spyOn(Date.prototype, 'getHours').mockReturnValue(3),
+      vi.spyOn(Date.prototype, 'getMinutes').mockReturnValue(4),
+    ];
+    try {
+      fireEvent.click(peakButtons[0]);
+    } finally {
+      spies.forEach((spy) => spy.mockRestore());
+    }
+
+    await waitFor(() => {
+      expect(astroClockApiMock.getTransits).toHaveBeenCalledTimes(1);
+      expect(dateInputs[1].value).toBe('2026-03-10');
+      expect(timeInputs[1].value).toBe('00:30');
+    });
+
+    astroClockApiMock.getTransits.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Compute Exact Time' }));
+
+    await waitFor(() => {
+      expect(astroClockApiMock.getTransits).toHaveBeenCalledTimes(1);
+    });
+    const replayIso = astroClockApiMock.getTransits.mock.calls[0][0].transitDatetime;
+    expect(new Date(replayIso).getTime()).toBe(new Date(selectedIso).getTime());
+  });
+
+  it('keeps suggested context windows in the chart timezone', async () => {
+    astroClockApiMock.getAutoContext.mockResolvedValue({
+      data: {
+        pd_selected: {
+          start: '2026-03-10T04:30:00Z',
+          end: '2026-03-10T05:30:00Z',
+          label: 'PD window',
+        },
+      },
+    });
+
+    const getHoursSpy = vi.spyOn(Date.prototype, 'getHours').mockReturnValue(13);
+    const getMinutesSpy = vi.spyOn(Date.prototype, 'getMinutes').mockReturnValue(45);
+    try {
+      const { container } = render(
+        <TransitsModal open={true} onClose={() => {}} defaultHouseSystem="W" />
+      );
+
+      fillManualInputs(container, {
+        natalDate: '1990-01-01',
+        natalTime: '12:00',
+        natalLocation: 'New York, USA',
+        natalTimezone: 'America/New_York',
+        transitDate: '2026-03-10',
+        transitTime: '00:00',
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Suggest Context Windows' }));
+
+      await waitFor(() => {
+        expect(astroClockApiMock.getAutoContext).toHaveBeenCalledTimes(1);
+      });
+
+      expect(document.getElementById('pd-start-date').value).toBe('2026-03-10');
+      expect(document.getElementById('pd-start-time').value).toBe('00:30');
+      expect(document.getElementById('pd-end-date').value).toBe('2026-03-10');
+      expect(document.getElementById('pd-end-time').value).toBe('01:30');
+    } finally {
+      getHoursSpy.mockRestore();
+      getMinutesSpy.mockRestore();
+    }
+  });
+
+  it('sends manually entered context windows as chart-timezone instants', async () => {
+    astroClockApiMock.getTransitsWindow.mockResolvedValue({
+      data: {
+        natal: { timezone: 'America/New_York' },
+        series: [],
+        peaks: [],
+        prediction_card: null,
+        context_window: null,
+      },
+    });
+
+    const { container } = render(
+      <TransitsModal open={true} onClose={() => {}} defaultHouseSystem="W" />
+    );
+
+    fillManualInputs(container, {
+      natalDate: '1990-01-01',
+      natalTime: '12:00',
+      natalLocation: 'New York, USA',
+      natalTimezone: 'America/New_York',
+      transitDate: '2026-03-10',
+      transitTime: '00:00',
+    });
+
+    fireEvent.click(screen.getByLabelText(/Use context windows/i));
+    fireEvent.change(document.getElementById('pd-start-date'), { target: { value: '2026-03-10' } });
+    fireEvent.change(document.getElementById('pd-start-time'), { target: { value: '00:30' } });
+    fireEvent.change(document.getElementById('pd-end-date'), { target: { value: '2026-03-10' } });
+    fireEvent.change(document.getElementById('pd-end-time'), { target: { value: '01:30' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Scan Window' }));
+
+    await waitFor(() => {
+      expect(astroClockApiMock.getTransitsWindow).toHaveBeenCalledTimes(1);
+    });
+    const request = astroClockApiMock.getTransitsWindow.mock.calls[0][0];
+    expect(request.pdStart).toBe('2026-03-10T04:30:00.000Z');
+    expect(request.pdEnd).toBe('2026-03-10T05:30:00.000Z');
+  });
+
   it('uses replay-safe option defaults for exact-time transit requests', async () => {
     astroClockApiMock.getTransits.mockResolvedValue(
       makeSingleTransitResponse({
@@ -581,6 +907,54 @@ describe('TransitsModal replay rendering', () => {
         sensitivePlanets: [],
       })
     );
+  });
+
+  it('classifies adverse transit tags separately from polarity and status tags', async () => {
+    astroClockApiMock.getTransits.mockResolvedValue(
+      makeSingleTransitResponse({
+        natalLocation: 'Tel Aviv, Israel',
+        timezone: 'Asia/Jerusalem',
+        transitTimestamp: '2026-04-22T02:00:00Z',
+        transiting: 'Saturn',
+        targetLabel: 'C7',
+        aspect: 'Quincunx (antiscia)',
+        lifeArea: 'conflict',
+        eventType: 'attack_violence',
+        description: 'Saturn Quincunx C7 indicates violent conflict pressure.',
+        enrichedKeywords: ['attack_violence', 'conflict', 'home'],
+        keywords: ['Attack/violence', 'Conflict', 'Home'],
+        predictionTags: ['home', 'conflict', 'multiple_transit', 'positive', 'mixed_outcome'],
+        significance: 60,
+        tone: 'positive',
+      })
+    );
+
+    const { container } = render(
+      <TransitsModal open={true} onClose={() => {}} defaultHouseSystem="W" />
+    );
+
+    fillManualInputs(container, {
+      natalDate: '1948-05-14',
+      natalTime: '16:00',
+      natalLocation: 'Tel Aviv, Israel',
+      natalTimezone: 'Asia/Jerusalem',
+      transitDate: '2026-04-22',
+      transitTime: '05:00',
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Compute Exact Time' }));
+
+    expect(await screen.findByText(/^Critical Signals$/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/attack\/violence/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/^Positive$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Multiple Transit$/i)).not.toBeInTheDocument();
+
+    const conflictChips = screen.getAllByText(/^conflict$/i);
+    expect(conflictChips.some((node) => node.className.includes('border-rose'))).toBe(true);
+
+    fireEvent.click(screen.getByLabelText(/Show technical tags/i));
+    const multipleTransit = await screen.findByText(/^Multiple Transit$/i);
+    expect(multipleTransit.className).toContain('border-zinc');
+    expect(multipleTransit.className).not.toContain('emerald');
   });
 
   it('suppresses the stale empty-state when exact compute has prediction content', async () => {
@@ -2227,6 +2601,115 @@ describe('TransitsModal replay rendering', () => {
     expect(within(criticalSection).getAllByText(/attack\/violence/i).length).toBeGreaterThan(0);
     expect(within(criticalSection).queryByText(/major accident/i)).not.toBeInTheDocument();
     expect(within(criticalSection).queryByText(/natural death/i)).not.toBeInTheDocument();
+  });
+
+  it('scores direct exact results with the same selected top-hit aggregate used by scan rows', async () => {
+    astroClockApiMock.getTransits.mockResolvedValue({
+      data: {
+        natal: {
+          location: 'Tel Aviv, Israel',
+          timezone: 'Asia/Jerusalem',
+          house_system_code: 'R',
+        },
+        transit_timestamp: '2026-05-06T19:00:00Z',
+        count: 8,
+        moon_support: false,
+        predictions: [],
+        transits: [
+          { transiting: 'Mars', target_label: 'Mars', natal: 'Mars', target_type: 'planet', aspect: 'Opposition', prediction_score: 70, significance: 70, tone: 'negative' },
+          { transiting: 'Jupiter', target_label: 'Venus', natal: 'Venus', target_type: 'planet', aspect: 'Trine', prediction_score: 60, significance: 60, tone: 'positive' },
+          { transiting: 'Saturn', target_label: 'Moon', natal: 'Moon', target_type: 'planet', aspect: 'Square', prediction_score: 50, significance: 50, tone: 'negative' },
+          { transiting: 'Sun', target_label: 'Mercury', natal: 'Mercury', target_type: 'planet', aspect: 'Sextile', prediction_score: 40, significance: 40, tone: 'positive' },
+          { transiting: 'Moon', target_label: 'Asc', natal: 'Asc', target_type: 'cusp', aspect: 'Conjunction', prediction_score: 30, significance: 30, tone: 'mixed' },
+          { transiting: 'Venus', target_label: 'MC', natal: 'MC', target_type: 'cusp', aspect: 'Trine', prediction_score: 20, significance: 20, tone: 'positive' },
+          { transiting: 'Mercury', target_label: 'C7', natal: 'C7', target_type: 'cusp', aspect: 'Square', prediction_score: 10, significance: 10, tone: 'mixed' },
+          { transiting: 'Sun', target_label: 'C4', natal: 'C4', target_type: 'cusp', aspect: 'Sextile', prediction_score: 5, significance: 5, tone: 'positive' },
+        ],
+      },
+    });
+
+    const { container } = render(
+      <TransitsModal open={true} onClose={() => {}} defaultHouseSystem="W" />
+    );
+
+    fillManualInputs(container, {
+      natalDate: '1948-05-14',
+      natalTime: '16:00',
+      natalLocation: 'Tel Aviv, Israel',
+      natalTimezone: 'Asia/Jerusalem',
+      transitDate: '2026-05-06',
+      transitTime: '22:00',
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Compute Exact Time' }));
+
+    expect(await screen.findByText('Score 240.0')).toBeInTheDocument();
+    expect(screen.getByText('Hits 8')).toBeInTheDocument();
+    expect(screen.queryByText('Score 285.0')).not.toBeInTheDocument();
+  });
+
+  it('keeps scan critical cards specific when predictor family support points elsewhere', async () => {
+    const timestamp = '2026-05-06T19:00:00Z';
+    astroClockApiMock.getTransitsWindow.mockResolvedValue(makeWindowResponse({
+      timezone: 'Asia/Jerusalem',
+      timestamp,
+      eventType: 'attack_violence',
+      lifeArea: 'conflict',
+      description: 'Mars Square Asc',
+      significance: 60,
+      tone: 'negative',
+      topHits: [
+        {
+          transiting: 'Mars',
+          aspect: 'Square',
+          target_label: 'Asc',
+          target_type: 'cusp',
+          orb: 0.2,
+          tone: 'negative',
+          significance: 60,
+          prediction_score: 60,
+          enriched_keywords: ['accident_major'],
+          keywords: ['Major accident'],
+          prediction_tags: ['accident_major', 'negative'],
+          prediction: {
+            description: 'Mars Square Asc',
+            lifeArea: 'life',
+            eventType: 'accident_major',
+          },
+          laws_applied: [],
+        },
+      ],
+      rowPredictions: [
+        {
+          date: timestamp,
+          description: 'Conflict context',
+          event_type: 'attack_violence',
+          life_area: 'conflict',
+          score: 95,
+          probability: 1.0,
+        },
+      ],
+    }));
+    astroClockApiMock.getTransits.mockResolvedValue({ data: { transits: [] } });
+
+    const { container } = render(
+      <TransitsModal open={true} onClose={() => {}} defaultHouseSystem="W" />
+    );
+
+    fillManualInputs(container, {
+      natalDate: '1948-05-14',
+      natalTime: '16:00',
+      natalLocation: 'Tel Aviv, Israel',
+      natalTimezone: 'Asia/Jerusalem',
+      transitDate: '2026-05-06',
+      transitTime: '22:00',
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Scan Window' }));
+
+    const scanHeader = await screen.findByText(/Critical Signals In Scan/i);
+    const scanSection = scanHeader.parentElement;
+    expect(scanSection).toBeTruthy();
+    expect(within(scanSection).getByText(/major accident/i)).toBeInTheDocument();
+    expect(within(scanSection).queryByText(/^critical signal$/i)).not.toBeInTheDocument();
   });
 
   it('renders slice-5 violent-event support through the modal for Shinzo Abe', async () => {

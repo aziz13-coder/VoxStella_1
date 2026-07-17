@@ -5,15 +5,15 @@
   "description": "Attachment to home, family, and roots with Cancer/Water emphasis and a strong Moon; the 4th house carries the domestic theme.",
   "confidence": "high",
   "polarity": "positive",
-  "sources": ["Carter: Cancer/Water/Moon; H4"],
+  "sources": ["Carter: Cancer/Water/Moon; H4", "Morin: H4 parents/home/inheritance requires lunar or domestic determination"],
   "logic": { "base": 0,
     "boosts": [
       { "kind": "sign_emphasis", "sign": "Cancer", "min": 1.5, "weight": 10 },
       { "kind": "element", "element": "Water", "min_share": 0.35, "weight": 8 },
       { "kind": "planet_status", "planet": "Moon", "strong": true, "weight": 8 },
-      { "kind": "house_emphasis", "houses": [4], "min_total": 1, "weight": 10 }
+      { "kind": "house_emphasis", "houses": [4], "min_total": 1, "weight": 10 },
+      { "kind": "planet_area", "planet": "Moon", "areas": ["home"], "min": 0.45, "weight": 6 }
     ],
     "dampeners": [],
     "escalators": [] }
 }
-

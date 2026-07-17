@@ -1,0 +1,104 @@
+"1":
+  label: "Immediate Surroundings"
+  summary: "Victim signal remains near the self, residence, or immediate scene; voluntary movement and direct face-to-face contact both stay possible."
+  cues:
+    - "not clearly removed from the original scene"
+    - "perpetrator may be in front of or near the victim"
+    - "residence or immediate personal surroundings stay relevant"
+  risk_tone: "mixed"
+  source: "McIntosh Criminal Astrology, pp. 17-19"
+"2":
+  label: "Possession Or Value Motive"
+  summary: "Victim signal is pulled into possession, value, trafficking, money, debt, or resource testimony."
+  cues:
+    - "trafficking or possession framework should be considered"
+    - "money, debt, inheritance, or valuables may be relevant"
+  risk_tone: "material"
+  source: "McIntosh Criminal Astrology, pp. 17-19"
+"3":
+  label: "Communication Or Short-Range Movement"
+  summary: "Victim signal points to communication, argument, siblings or cousins, vehicles, local travel, or short-distance movement."
+  cues:
+    - "communication problem or verbal conflict"
+    - "siblings, cousins, neighbors, or local witnesses"
+    - "vehicle or short-distance route"
+  risk_tone: "route"
+  source: "McIntosh Criminal Astrology, pp. 17-19"
+"4":
+  label: "Family And End Of Matter"
+  summary: "Victim signal emphasizes family, home, land, and end-of-matter testimony; this placement is treated as serious in event charts."
+  cues:
+    - "family or home should be examined early"
+    - "end-of-matter testimony is foregrounded"
+    - "grave, land, or final place symbolism may be relevant"
+  risk_tone: "fatal_pressure"
+  source: "McIntosh Criminal Astrology, pp. 17-19"
+"5":
+  label: "Entertainment Or Party Setting"
+  summary: "Victim signal points to recreation, parties, drinking, dancing, entertainment, romance, or being out for fun."
+  cues:
+    - "party, bar, club, entertainment, or recreation context"
+    - "drinking, dancing, dating, or pleasure setting"
+  risk_tone: "social"
+  source: "McIntosh Criminal Astrology, pp. 17-19"
+"6":
+  label: "Routine Disrupted"
+  summary: "Victim routine or ordinary pattern was interrupted; stalker or watcher testimony may be relevant."
+  cues:
+    - "routine activity interrupted"
+    - "work, service, health, or daily pattern"
+    - "possible watcher or stalker context"
+  risk_tone: "access"
+  source: "McIntosh Criminal Astrology, pp. 17-19"
+"7":
+  label: "Suspect Territory"
+  summary: "Victim signal is in the open-enemy or suspect domain, suggesting direct contact and possible presence under the suspect's control or territory."
+  cues:
+    - "victim in suspect domain"
+    - "direct victim-suspect contact"
+    - "suspect territory or comfort zone"
+  risk_tone: "perpetrator_contact"
+  source: "McIntosh Criminal Astrology, pp. 17-19"
+"8":
+  label: "Death Or Financial Entanglement"
+  summary: "Victim signal falls in death, fear, shared resources, debt, inheritance, or deep entanglement testimony."
+  cues:
+    - "death-house testimony is foregrounded"
+    - "financial dispute, debt, inheritance, or shared resources"
+  risk_tone: "fatal_pressure"
+  source: "McIntosh Criminal Astrology, pp. 17-19"
+"9":
+  label: "Far Distance Or Departure"
+  summary: "Victim signal points away from the local scene toward distance, travel, foreign places, or continued movement."
+  cues:
+    - "farther away from the starting point"
+    - "travel, foreign, legal, religious, or long-distance context"
+  risk_tone: "distance"
+  source: "McIntosh Criminal Astrology, pp. 17-19"
+"10":
+  label: "Public Or Authority Visibility"
+  summary: "Victim signal becomes public, visible, authority-linked, or witnessable; police, government, employer, parent, or reputation themes may matter."
+  cues:
+    - "story becomes public or visible"
+    - "authorities, police, employer, parent, or institution"
+    - "possible witness or open exposure"
+  risk_tone: "public"
+  source: "McIntosh Criminal Astrology, pp. 17-19"
+"11":
+  label: "Friends Or Social Circle"
+  summary: "Victim signal points to friends, associates, groups, hopes, and social networks; friends may know more than the chart first shows."
+  cues:
+    - "friends or associates around the event"
+    - "social group, network, or community link"
+    - "hopes and future plans interrupted"
+  risk_tone: "associate"
+  source: "McIntosh Criminal Astrology, pp. 17-19"
+"12":
+  label: "Hidden Or Captive"
+  summary: "Victim signal is hidden, enclosed, secret, confined, or kidnapped; recovery may be difficult without stronger counter-testimony."
+  cues:
+    - "hidden, enclosed, or hard to find"
+    - "confinement, secrecy, or kidnapping"
+    - "kept out of public view"
+  risk_tone: "hidden"
+  source: "McIntosh Criminal Astrology, pp. 17-19"

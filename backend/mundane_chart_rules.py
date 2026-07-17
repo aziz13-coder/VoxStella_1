@@ -5,10 +5,7 @@ from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
-try:
-    import swisseph as swe  # type: ignore
-except Exception:  # pragma: no cover - runtime dependency may be unavailable in narrow test envs
-    swe = None  # type: ignore
+from swisseph_state import swisseph as swe
 
 
 BundleResolver = Callable[..., Dict[str, Any]]
@@ -867,16 +864,6 @@ def resolve_chart_resolution(
     resolved_location = location or event_location
     resolved_timezone = timezone_name or event_timezone
 
-    current_overlay_bundle = _resolve_bundle(
-        bundle_resolver,
-        anchor_dt.isoformat(),
-        resolved_location,
-        resolved_timezone,
-        house_system_code,
-        latitude=location_latitude,
-        longitude=location_longitude,
-    )
-
     if chart_type_id == "national_chart":
         if not isinstance(reference_chart, dict):
             raise ValueError("national_chart requires a reference chart")
@@ -1125,6 +1112,15 @@ def resolve_chart_resolution(
         }
 
     if chart_type_id == "eclipse":
+        current_overlay_bundle = _resolve_bundle(
+            bundle_resolver,
+            anchor_dt.isoformat(),
+            resolved_location,
+            resolved_timezone,
+            house_system_code,
+            latitude=location_latitude,
+            longitude=location_longitude,
+        )
         candidate, bundle, node_orb = _find_nearest_eclipse(
             anchor_dt,
             longitudes_at=longitudes_at,

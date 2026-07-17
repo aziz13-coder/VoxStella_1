@@ -7,6 +7,7 @@ from astrocartography_assets import load_astrocartography_assets
 from astrocartography_service import (
     build_delineation_report,
     build_astrocartography_lines,
+    build_goal_scoring_context,
     build_global_paran_tracks,
     build_intersection_workspace,
     build_location_reading,
@@ -46,6 +47,28 @@ def test_build_lines_returns_rising_and_setting_curves():
     assert "Sun:DSC" in ids
 
 
+def test_build_lines_supports_chiron_filter_without_default_broadening():
+    payload = build_astrocartography_lines(
+        "2024-01-01T00:00:00Z",
+        bodies=["Chiron"],
+        angles=["MC"],
+    )
+
+    assert payload["bodies"] == ["Chiron"]
+    assert {line["id"] for line in payload["lines"]} == {"Chiron:MC"}
+
+
+def test_build_lines_does_not_broaden_invalid_body_filter():
+    payload = build_astrocartography_lines(
+        "2024-01-01T00:00:00Z",
+        bodies=["Unsupported Body"],
+        angles=["MC"],
+    )
+
+    assert payload["bodies"] == []
+    assert payload["lines"] == []
+
+
 def test_nearest_lines_for_point_orders_by_distance():
     lines = [
         {
@@ -69,6 +92,45 @@ def test_nearest_lines_for_point_orders_by_distance():
     ranked = nearest_lines_for_point(lines, latitude=0.0, longitude=4.0, limit=2)
     assert [row["id"] for row in ranked] == ["Sun:MC", "Moon:MC"]
     assert ranked[0]["distance_km"] < ranked[1]["distance_km"]
+
+
+def test_goal_scoring_context_keeps_rows_beyond_display_limit():
+    lines = [
+        {
+            "id": f"Body{index}:MC",
+            "body": f"Body{index}",
+            "angle": "MC",
+            "label": f"Body{index} MC",
+            "segments": [[[-20.0, float(index)], [20.0, float(index)]]],
+        }
+        for index in range(9)
+    ]
+
+    display_reading = build_location_reading(lines, latitude=0.0, longitude=0.0)
+    scoring_context = build_goal_scoring_context(lines, latitude=0.0, longitude=0.0)
+
+    assert len(display_reading["nearest_lines"]) == 8
+    assert len(scoring_context["nearest_lines"]) == 9
+    assert "Body8:MC" in {row["id"] for row in scoring_context["nearest_lines"]}
+
+
+def test_nearest_lines_for_point_wraps_antimeridian_distance():
+    lines = [
+        {
+            "id": "Sun:MC",
+            "body": "Sun",
+            "angle": "MC",
+            "label": "Sun MC",
+            "color": "#f59e0b",
+            "segments": [[[-50.0, 179.0], [50.0, 179.0]]],
+        },
+    ]
+
+    ranked = nearest_lines_for_point(lines, latitude=0.0, longitude=-179.0, limit=1)
+    reading = build_location_reading(lines, latitude=0.0, longitude=-179.0, limit=1)
+
+    assert ranked[0]["distance_km"] < 230.0
+    assert reading["nearest_lines"][0]["zone"] == "primary"
 
 
 def test_build_location_reading_enriches_lines_with_signal_and_copy():

@@ -2,8 +2,9 @@
 """
 Asteroid helpers for Astro Clock dashboard tiles.
 
-This module currently exposes the four major asteroids plus Proserpina, which
-the upcoming marriage beta workflow needs to inspect explicitly.
+This module exposes the dashboard asteroid set by default. The Points engine
+can opt into additional symbolic-point dependencies without changing the
+Asteroids tile surface.
 """
 
 from __future__ import annotations
@@ -14,10 +15,11 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-try:
-    import swisseph as swe  # type: ignore
-except Exception:  # pragma: no cover
-    swe = None
+from swisseph_state import (
+    swisseph as swe,
+    swisseph_ephemeris_path,
+    swisseph_lock,
+)
 
 
 SIGN_NAMES: List[str] = [
@@ -41,6 +43,12 @@ ASTEROID_BODIES: List[Dict[str, Any]] = [
     {"name": "Juno", "number": 3, "tier": "major"},
     {"name": "Vesta", "number": 4, "tier": "major"},
     {"name": "Proserpina", "number": 26, "tier": "special", "galaxy_body_id": 17},
+]
+
+POINT_DEPENDENCY_BODIES: List[Dict[str, Any]] = [
+    {"name": "Eros", "number": 433, "tier": "point_dependency", "galaxy_body_id": 15, "source": "asteroid"},
+    {"name": "Lilith", "tier": "point_dependency", "galaxy_body_id": 18, "source": "swisseph", "point_id": "MEAN_APOG"},
+    {"name": "Selena", "number": 17, "tier": "point_dependency", "galaxy_body_id": 19, "source": "fictitious"},
 ]
 
 CARDINALS_16: List[str] = [
@@ -101,15 +109,61 @@ def _bearing_label(azimuth_deg: float) -> str:
 def _candidate_ephemeris_paths() -> List[str]:
     here = Path(__file__).resolve().parent
     packaged_root = getattr(sys, "_MEIPASS", None)
-    raw = [
+    raw: List[Optional[str]] = [
         str(here / "ephemeris" / "sweph"),
         str(here.parent / "backend" / "ephemeris" / "sweph"),
-        str(Path(packaged_root).resolve() / "ephemeris" / "sweph") if packaged_root else None,
-        os.environ.get("VOX_STELLA_SWISSEPH_PATH"),
-        os.environ.get("SWISSEPH_PATH"),
-        r"C:\Program Files (x86)\Galaxy\SwisEph",
     ]
-    return [path for path in raw if isinstance(path, str) and path.strip()]
+
+    if packaged_root:
+        pyinstaller_root = Path(packaged_root).resolve()
+        raw.extend(
+            [
+                str(pyinstaller_root / "ephemeris" / "sweph"),
+                str(pyinstaller_root.parent / "ephemeris" / "sweph"),
+            ]
+        )
+
+    if getattr(sys, "frozen", False):
+        executable_root = Path(sys.executable).resolve().parent
+        raw.extend(
+            [
+                str(executable_root / "ephemeris" / "sweph"),
+                str(executable_root / "_internal" / "ephemeris" / "sweph"),
+                str(executable_root.parent.parent / "ephemeris" / "sweph"),
+            ]
+        )
+
+    backend_dir = os.environ.get("HORARY_BACKEND_DIR")
+    if backend_dir:
+        runtime_root = Path(backend_dir).resolve()
+        raw.extend(
+            [
+                str(runtime_root / "ephemeris" / "sweph"),
+                str(runtime_root / "_internal" / "ephemeris" / "sweph"),
+                str(runtime_root.parent.parent / "ephemeris" / "sweph"),
+            ]
+        )
+
+    raw.extend(
+        [
+            os.environ.get("VOX_STELLA_SWISSEPH_PATH"),
+            os.environ.get("SWISSEPH_PATH"),
+            r"C:\Program Files (x86)\Galaxy\SwisEph",
+        ]
+    )
+
+    paths: List[str] = []
+    seen = set()
+    for path in raw:
+        if not isinstance(path, str) or not path.strip():
+            continue
+        normalized = path.strip()
+        key = os.path.normcase(os.path.normpath(normalized))
+        if key in seen:
+            continue
+        seen.add(key)
+        paths.append(normalized)
+    return paths
 
 
 def _resolve_ephemeris_path() -> Optional[str]:
@@ -119,50 +173,40 @@ def _resolve_ephemeris_path() -> Optional[str]:
     return None
 
 
-def compute_asteroid_positions(chart_data: Dict[str, Any], timestamp_iso: Optional[str]) -> Dict[str, Any]:
-    if swe is None:
-        return {
-            "items": [],
-            "status": "unavailable",
-            "message": "Swiss Ephemeris is unavailable.",
-        }
+def _existing_ephemeris_paths() -> List[Optional[str]]:
+    paths = [path for path in _candidate_ephemeris_paths() if os.path.isdir(path)]
+    return paths or [None]
 
-    try:
-        dt_utc = datetime.datetime.fromisoformat(str(timestamp_iso or "").replace("Z", "+00:00")).astimezone(
-            datetime.timezone.utc
-        )
-    except Exception:
-        dt_utc = datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
 
-    jd_ut = swe.julday(
-        dt_utc.year,
-        dt_utc.month,
-        dt_utc.day,
-        dt_utc.hour + (dt_utc.minute / 60.0) + (dt_utc.second / 3600.0),
-        getattr(swe, "GREG_CAL", 1),
-    )
+def _body_point_id(body: Dict[str, Any]) -> int:
+    source = str(body.get("source") or "asteroid").lower()
+    if source == "swisseph":
+        attr = str(body.get("point_id") or "").strip()
+        point_id = getattr(swe, attr, None)
+        if point_id is None:
+            raise RuntimeError(f"Swiss Ephemeris point {attr or '<missing>'} is unavailable.")
+        return int(point_id)
+    if source == "fictitious":
+        offset = getattr(swe, "FICT_OFFSET", None)
+        if offset is None:
+            raise RuntimeError("Swiss Ephemeris fictitious point support is unavailable.")
+        return int(offset) + int(body["number"])
+    return int(swe.AST_OFFSET) + int(body["number"])
 
-    ephe_path = _resolve_ephemeris_path()
-    try:
-        swe.set_ephe_path(ephe_path or "")
-    except Exception:
-        pass
 
-    cusps = chart_data.get("houses") or chart_data.get("house_cusps") or []
-    ascendant = None
-    if isinstance(cusps, list) and cusps:
-        try:
-            ascendant = float(cusps[0])
-        except Exception:
-            ascendant = None
-
+def _compute_asteroid_items_for_current_path(
+    jd_ut: float,
+    flags: int,
+    cusps: List[float],
+    ascendant: Optional[float],
+    bodies: List[Dict[str, Any]],
+) -> tuple[List[Dict[str, Any]], List[Dict[str, str]]]:
     items: List[Dict[str, Any]] = []
     missing: List[Dict[str, str]] = []
-    flags = swe.FLG_SWIEPH | swe.FLG_SPEED
 
-    for body in ASTEROID_BODIES:
-        point_id = swe.AST_OFFSET + int(body["number"])
+    for body in bodies:
         try:
+            point_id = _body_point_id(body)
             position, _ = swe.calc_ut(jd_ut, point_id, flags)
             longitude = _wrap360(float(position[0]))
             latitude = float(position[1])
@@ -171,7 +215,7 @@ def compute_asteroid_positions(chart_data: Dict[str, Any], timestamp_iso: Option
             items.append(
                 {
                     "name": body["name"],
-                    "number": body["number"],
+                    "number": body.get("number"),
                     "tier": body["tier"],
                     "galaxy_body_id": body.get("galaxy_body_id"),
                     "longitude": longitude,
@@ -187,6 +231,72 @@ def compute_asteroid_positions(chart_data: Dict[str, Any], timestamp_iso: Option
             )
         except Exception as exc:
             missing.append({"name": body["name"], "reason": str(exc)})
+
+    return items, missing
+
+
+def compute_asteroid_positions(
+    chart_data: Dict[str, Any],
+    timestamp_iso: Optional[str],
+    *,
+    include_point_dependencies: bool = False,
+) -> Dict[str, Any]:
+    if swe is None:
+        return {
+            "items": [],
+            "status": "unavailable",
+            "message": "Swiss Ephemeris is unavailable.",
+        }
+
+    try:
+        dt_utc = datetime.datetime.fromisoformat(str(timestamp_iso or "").replace("Z", "+00:00")).astimezone(
+            datetime.timezone.utc
+        )
+    except Exception:
+        dt_utc = datetime.datetime.now(datetime.timezone.utc)
+
+    jd_ut = swe.julday(
+        dt_utc.year,
+        dt_utc.month,
+        dt_utc.day,
+        dt_utc.hour + (dt_utc.minute / 60.0) + (dt_utc.second / 3600.0),
+        getattr(swe, "GREG_CAL", 1),
+    )
+
+    cusps = chart_data.get("houses") or chart_data.get("house_cusps") or []
+    ascendant = None
+    if isinstance(cusps, list) and cusps:
+        try:
+            ascendant = float(cusps[0])
+        except Exception:
+            ascendant = None
+
+    flags = swe.FLG_SWIEPH | swe.FLG_SPEED
+    bodies = ASTEROID_BODIES + (POINT_DEPENDENCY_BODIES if include_point_dependencies else [])
+    items: List[Dict[str, Any]] = []
+    missing: List[Dict[str, str]] = []
+    best_count = -1
+
+    with swisseph_lock():
+        for ephe_path in _existing_ephemeris_paths():
+            try:
+                with swisseph_ephemeris_path(ephe_path or "", swe_module=swe):
+                    candidate_items, candidate_missing = _compute_asteroid_items_for_current_path(
+                        jd_ut,
+                        flags,
+                        cusps,
+                        ascendant,
+                        bodies,
+                    )
+            except Exception as exc:
+                candidate_items: List[Dict[str, Any]] = []
+                candidate_missing = [{"name": body["name"], "reason": str(exc)} for body in bodies]
+            if len(candidate_items) > best_count:
+                items = candidate_items
+                missing = candidate_missing
+                best_count = len(candidate_items)
+            if len(items) == len(bodies):
+                break
 
     if items and missing:
         status = "partial"
@@ -207,4 +317,4 @@ def compute_asteroid_positions(chart_data: Dict[str, Any], timestamp_iso: Option
     }
 
 
-__all__ = ["compute_asteroid_positions", "ASTEROID_BODIES"]
+__all__ = ["compute_asteroid_positions", "ASTEROID_BODIES", "POINT_DEPENDENCY_BODIES"]

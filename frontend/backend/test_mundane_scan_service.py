@@ -535,6 +535,85 @@ def test_build_series_payload_marks_zero_series_as_no_peak():
     assert place["breakout_kind"] == "background"
 
 
+def test_build_series_payload_diversifies_broad_place_theaters():
+    request_model = mundane_scan_service.build_scan_request(
+        {
+            "chart_type": "war_event",
+            "domain": "war_outbreak",
+            "region_id": "country:us",
+            "scan_mode": "spatiotemporal_scan",
+            "start_datetime": "1941-12-07T00:00:00-10:00",
+            "end_datetime": "1941-12-07T06:00:00-10:00",
+            "time_step_hours": "6",
+            "candidate_limit": "3",
+            "top_k": "3",
+        }
+    )
+    timepoints = [
+        "1941-12-07T00:00:00-10:00",
+        "1941-12-07T06:00:00-10:00",
+    ]
+    rows = [
+        {
+            "datetime": timepoints[0],
+            "scan_score": 50.0,
+            "score": 50.0,
+            "raw_score": 51.0,
+            "level": "high",
+            "location": {
+                "label": "Anaheim, United States",
+                "country_code": "US",
+                "timezone": "America/Los_Angeles",
+                "longitude": -117.9145,
+            },
+            "calibration": {"unique_case_count": 1},
+        },
+        {
+            "datetime": timepoints[0],
+            "scan_score": 48.0,
+            "score": 48.0,
+            "raw_score": 49.0,
+            "level": "high",
+            "location": {
+                "label": "Long Beach, United States",
+                "country_code": "US",
+                "timezone": "America/Los_Angeles",
+                "longitude": -118.1937,
+            },
+            "calibration": {"unique_case_count": 1},
+        },
+        {
+            "datetime": timepoints[1],
+            "scan_score": 30.0,
+            "score": 30.0,
+            "raw_score": 31.0,
+            "level": "elevated",
+            "location": {
+                "label": "Honolulu, United States",
+                "country_code": "US",
+                "timezone": "Pacific/Honolulu",
+                "longitude": -157.8583,
+            },
+            "calibration": {"unique_case_count": 1},
+        },
+    ]
+
+    payload = mundane_scan_service._build_series_payload(
+        rows,
+        timepoints=timepoints,
+        request_model=request_model,
+    )
+
+    assert [place["location"]["label"] for place in payload["places"][:3]] == [
+        "Anaheim, United States",
+        "Honolulu, United States",
+        "Long Beach, United States",
+    ]
+    assert payload["places"][0]["place_ranking_phase"] == "primary_theater"
+    assert payload["places"][1]["place_diversity_group"] == "US:Pacific/Honolulu"
+    assert payload["places"][2]["place_ranking_phase"] == "same_theater_followup"
+
+
 def test_rank_scan_rows_diversifies_places_before_repeating_plateau_cells():
     rows = [
         {

@@ -5,13 +5,17 @@
   "description": "Combative spirit and readiness to confront opposition with Aries/Mars and Fire emphasis; Libra/Venus and Saturn moderation reduce heat.",
   "confidence": "high",
   "polarity": "neutral",
-  "sources": ["Carter: Aries fights down opposition; Fire outward action"],
+  "sources": ["Carter: Aries fights down opposition; Fire outward action", "Morin: H1 life/temperament requires Mars determination for confrontation"],
   "logic": { "base": 0,
     "boosts": [
       { "kind": "sign_emphasis", "sign": "Aries", "min": 1.5, "weight": 8 },
       { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": 8 },
       { "kind": "planet_status", "planet": "Mars", "strong": true, "weight": 8 },
-      { "kind": "house_emphasis", "houses": [1], "min_total": 1, "weight": 4 }
+      { "kind": "house_emphasis", "houses": [1], "min_total": 1, "weight": 4 },
+      { "kind": "angle_aspect", "planet": "Mars", "type": "any", "angle": "MC", "max_orb": 10, "weight": 6 },
+      { "kind": "aspect", "pair": ["Mars", "Pluto"], "type": "any", "max_orb": 4, "allowed_names": ["Conjunction", "Square", "Opposition"], "weight": 6 },
+      { "kind": "aspect", "pair": ["Sun", "Mars"], "type": "any", "max_orb": 6, "allowed_names": ["Conjunction", "Square", "Opposition"], "weight": 4 },
+      { "kind": "planet_area", "planet": "Mars", "areas": ["life"], "min": 0.45, "weight": 5 }
     ],
     "dampeners": [
       { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": -6 },
@@ -20,4 +24,3 @@
     ],
     "escalators": [] }
 }
-

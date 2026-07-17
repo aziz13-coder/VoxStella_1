@@ -1,0 +1,186 @@
+version: 1
+created: "2026-05-02"
+project: "I Ching feature research"
+
+local_sources:
+  - id: local.iching_huang
+    title: "I Ching"
+    source_format: "pdf"
+    authors:
+      - "Kerson Huang"
+      - "Rosemary Huang"
+    local_path: "C:/Users/sabaa/Desktop/astrolgy books/iching/I Ching (Kerson Huang, Rosemary Huang) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
+    detected_pages: 210
+    extractable_pages: 202
+    detected_pdf_metadata:
+      creator: "Adobe Acrobat 10.1.4"
+      producer: "Adobe Acrobat 10.1.4 Paper Capture Plug-in"
+    repo_status: "referenced in manifest; converted output kept under output"
+    notes: "Use for orientation and implementation notes."
+
+  - id: luoshu_swetz
+    title: "Legacy of the Luoshu: The 4,000 Year Search for the Meaning of the Magic Square of Order Three"
+    source_format: "pdf"
+    authors:
+      - "Frank J. Swetz"
+    local_path: "C:/Users/sabaa/Desktop/astrolgy books/iching/Legacy of the Luoshu - The 4,000 Year Search for the Meaning of the Magic Square of Order Three (Frank J. Swetz) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
+    detected_pages: 229
+    extractable_pages: 215
+    detected_pdf_metadata:
+      title: "Legacy of the Luoshu: The 4,000 Year Search for the Meaning of the Magic Square of Order Three"
+      author: "Frank J. Swetz"
+      subject: "A K Peters"
+      creator: "QuarkXPress 7.3"
+      producer: "Adobe Acrobat 9.0 Paper Capture Plug-in with ClearScan"
+    repo_status: "referenced in manifest; converted output kept under output"
+    notes: "Useful for background on Luoshu and magic square tradition, not necessarily I Ching core casting."
+
+  - id: destiny_code_joey_yap
+    title: "Beginners Guide to Reading Their Destiny Code"
+    source_format: "pdf"
+    authors:
+      - "Joey Yap"
+    local_path: "C:/Users/sabaa/Desktop/astrolgy books/iching/Beginners Guide to Reading Their Destiny Code (Joey Yap) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
+    detected_pages: 58
+    extractable_pages: 0
+    detected_pdf_metadata:
+      title: "Beginners_Guide_to_Reading_Their_Destiny_Code copy-01.png"
+      creator: "Preview"
+      producer: "3-Heights(TM) PDF Optimization Shell 4.8.25.2 (http://www.pdf-tools.com)"
+    ocr_status:
+      converted_on: "2026-05-11"
+      tool: "tools/iching_corpus/ocr_image_only_pdf_text.py"
+      pages_with_ocr_text: 58
+      average_confidence: 0.866
+      private_outputs:
+        markdown: "output/iching_private_corpus_ocr/beginners-guide-to-reading-their-destiny-code.ocr.md"
+        jsonl: "output/iching_private_corpus_ocr/beginners-guide-to-reading-their-destiny-code.ocr.pages.jsonl"
+    repo_status: "referenced in manifest; converted output kept under output"
+    notes: "Image-only for native extraction. Private OCR corpus is available for local source scanning only."
+
+  - id: bazi_augier
+    title: "Ba Zi - The Four Pillars of Destiny"
+    source_format: "pdf"
+    authors:
+      - "Serge Augier"
+    local_path: "C:/Users/sabaa/Desktop/astrolgy books/iching/Ba Zi - The Four Pillars of Destiny (Serge Augier) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
+    detected_pages: 87
+    extractable_pages: 85
+    detected_pdf_metadata:
+      title: "Ba Zi - The Four Pillars of Destiny"
+      author: "Serge Augier"
+      creator: "calibre 3.42.0 [https://calibre-ebook.com]"
+      producer: "calibre 3.42.0 [https://calibre-ebook.com]"
+    repo_status: "referenced in manifest; converted output kept under output"
+    notes: "Ba Zi is adjacent to, not identical with, I Ching. Treat as a later module."
+
+  - id: bazi_destiny_code_book1_joey_yap
+    title: "Bazi - The Destiny Code (Book 1): Your Guide to the Four Pillar of Destiny"
+    source_format: "pdf"
+    authors:
+      - "Joey Yap"
+    local_path: "C:/Users/sabaa/Desktop/astrolgy books/iching/Bazi - The Destiny Code (Book 1) Your Guide to the Four Pillar of Destin (Joey Yap) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
+    detected_pages: 316
+    extractable_pages: 312
+    repo_status: "referenced in manifest; converted output kept under output"
+    notes: "Strongest current source for the first Ba Zi MVP workflow: chart plotting, Day Master, five factors/Ten Gods, strength basics, and luck pillars."
+
+  - id: bazi_destiny_code_revealed_book2_joey_yap
+    title: "BaZi - The Destiny Code Revealed (Book 2): A Deeper Journey into the Four Pillars of Destiny"
+    source_format: "pdf"
+    authors:
+      - "Joey Yap"
+    local_path: "C:/Users/sabaa/Desktop/astrolgy books/iching/BaZi - The Destiny Code Revealed (Book 2) A Deeper Journey into The Four Pillars Of Destiny (Joey Yap) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
+    detected_pages: 332
+    extractable_pages: 328
+    repo_status: "referenced in manifest; converted output kept under output"
+    notes: "Advanced Ba Zi relationship-code source: combinations, clashes, punishments, harms, destructions, hidden stems, season/root strength, and luck-pillar presentation."
+
+  - id: chinese_astrology_kay_tom
+    title: "Chinese Astrology"
+    source_format: "epub"
+    authors:
+      - "Kay Tom"
+    local_path: "C:/Users/sabaa/Desktop/astrolgy books/iching/Chinese Astrology (Kay Tom) (z-library.sk, 1lib.sk, z-lib.sk).epub"
+    detected_pages: 20
+    extractable_pages: 20
+    repo_status: "referenced in manifest; converted output kept under output"
+    notes: "Useful for plain-English UX framing of four pillars, five elements, zodiac animals, and supporting/controlling cycles."
+
+  - id: bazi_method_golding
+    title: "The Chinese Fortune Telling System: BaZi Method"
+    source_format: "pdf"
+    authors:
+      - "G L Golding"
+    local_path: "C:/Users/sabaa/Desktop/astrolgy books/iching/The Chinese Fortune Telling System. BaZi Method (G L Golding) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
+    detected_pages: 82
+    extractable_pages: 0
+    ocr_status:
+      converted_on: "2026-05-11"
+      tool: "tools/iching_corpus/ocr_image_only_pdf_text.py"
+      pages_with_ocr_text: 82
+      average_confidence: 0.848
+      private_outputs:
+        markdown: "output/iching_private_corpus_ocr/the-chinese-fortune-telling-system-bazi-method.ocr.md"
+        jsonl: "output/iching_private_corpus_ocr/the-chinese-fortune-telling-system-bazi-method.ocr.pages.jsonl"
+    repo_status: "referenced in manifest; converted output kept under output"
+    notes: "Image-only for native extraction. Private OCR corpus is available for local source scanning only."
+
+kazuko_hosoki_sources:
+  - id: hosoki_intro_six_star
+    title_japanese: "運命を読む六星占術入門"
+    title_english: "Introduction to Six-Star Divination for Reading Destiny"
+    author: "細木数子 / Kazuko Hosoki"
+    bibliographic_links:
+      - "https://ci.nii.ac.jp/ncid/BN16011136"
+      - "https://books.rakuten.co.jp/rb/192618/"
+    known_metadata:
+      publisher: "ごま書房"
+      publication_date: "1985-08"
+      pages: "226p"
+      isbn: "4341030531"
+    repo_status: "not fetched; bibliographic record only"
+    acquisition_note: "Locate through library, used-book, or purchase channels."
+
+  - id: hosoki_how_to_read_destiny
+    title_japanese: "六星占術による運命の読み方"
+    title_english: "How to Read Destiny through Six-Star Divination"
+    author: "細木数子 / Kazuko Hosoki"
+    bibliographic_links:
+      - "https://ndlsearch.ndl.go.jp/books/R100000002-I000001733358"
+      - "https://www.library.pref.ishikawa.lg.jp/shosho/detail/bib/1009910080194"
+      - "https://www.books.or.jp/book-details/9784584300572"
+      - "https://www.kosho.or.jp/products/catalog_detail.php?nh_id=1604350"
+    known_metadata:
+      publisher: "ベストセラーズ"
+      publication_date: "1985-02"
+      pages: "249p"
+      isbn: "9784584300572"
+    repo_status: "not fetched; bibliographic record only"
+    acquisition_note: "NDL/library records and used-book listings exist; no local full-text source was located in the initial search."
+
+  - id: hosoki_your_destiny_series
+    title_japanese: "六星占術によるあなたの運命"
+    title_english: "Your Destiny According to Six-Star Divination"
+    author: "細木数子 / Kazuko Hosoki; later related editions by 細木かおり / Kaori Hosoki"
+    bibliographic_links:
+      - "https://www.asukashinsha.co.jp/bookinfo/9784864107075.php"
+      - "https://www.asukashinsha.co.jp/bookinfo/9784864106863.php"
+    repo_status: "not fetched; bibliographic record only"
+    acquisition_note: "The series has many yearly/element editions. Choose exact editions before adding source notes."
+
+  - id: hosoki_compatibility_intro
+    title_japanese: "六星占術による相性運入門"
+    title_english: "Introduction to Compatibility Fortune through Six-Star Divination"
+    author: "細木数子 / Kazuko Hosoki"
+    bibliographic_links:
+      - "https://ndlsearch.ndl.go.jp/books/R100000002-I000001590886"
+      - "https://books.rakuten.co.jp/rb/97110/"
+      - "https://www.senjutsu.jp/labo_6sei/aishou"
+    known_metadata:
+      publisher: "ごま書房"
+      publication_date: "1982-10"
+      pages: "234p"
+      isbn: "9784341030209"
+    repo_status: "not fetched; bibliographic/reference mention only"
+    acquisition_note: "NDL and Rakuten records exist. Acquire through library, used-book, or purchase channels."

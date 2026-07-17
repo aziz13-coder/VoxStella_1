@@ -27,6 +27,13 @@ const snaps = [
     location: 'London, UK',
     summary: { profile_hint: 'masculine' },
   },
+  {
+    id: 'snap-c',
+    label: 'Gamma',
+    effective_datetime: '2026-03-06T10:00:00Z',
+    location: 'Paris, France',
+    summary: { profile_hint: 'blended' },
+  },
 ];
 
 function makeSynastryResponse(overrides = {}) {
@@ -156,6 +163,77 @@ describe('SynastryModal refresh behavior', () => {
     await waitFor(() => {
       expect(screen.queryByText('Refreshing report')).not.toBeInTheDocument();
     });
+  });
+
+  it('requests a fresh report when either selected snap changes', async () => {
+    astroClockApiMock.getSynastry
+      .mockResolvedValueOnce(makeSynastryResponse())
+      .mockResolvedValueOnce(makeSynastryResponse({
+        chart_b: { label: 'Gamma' },
+        summary: {
+          overall_components: {
+            compatibility: 42,
+            binding: 35,
+            growth: 48,
+            challenge: 52,
+            support_balance: 44,
+            reception_bonus: 0,
+          },
+          supportive_link_count: 0,
+          challenging_link_count: 1,
+          mutual_reception_count: 0,
+          summary_lines: ['The changed pair recalculated.'],
+        },
+      }));
+
+    render(
+      <SynastryModal
+        open
+        onClose={vi.fn()}
+        snaps={snaps}
+        activeSnapId="snap-a"
+      />
+    );
+
+    expect(await screen.findByText('Relationship Signature')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Snap B' }), {
+      target: { value: 'snap-c' },
+    });
+
+    await waitFor(() => {
+      expect(astroClockApiMock.getSynastry).toHaveBeenCalledTimes(2);
+    });
+
+    expect(astroClockApiMock.getSynastry.mock.calls[1][0]).toMatchObject({
+      snapAId: 'snap-a',
+      snapBId: 'snap-c',
+      engineId: 'memo',
+    });
+    expect(await screen.findByText('The changed pair recalculated.')).toBeInTheDocument();
+  });
+
+  it('clears the previous report when the selected snaps are not a valid pair', async () => {
+    astroClockApiMock.getSynastry.mockResolvedValueOnce(makeSynastryResponse());
+
+    render(
+      <SynastryModal
+        open
+        onClose={vi.fn()}
+        snaps={snaps}
+        activeSnapId="snap-a"
+      />
+    );
+
+    expect(await screen.findByText('Relationship Signature')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Snap B' }), {
+      target: { value: 'snap-a' },
+    });
+
+    expect(await screen.findByText('Subject A and Subject B are the same snap.')).toBeInTheDocument();
+    expect(screen.queryByText('Relationship Signature')).not.toBeInTheDocument();
+    expect(astroClockApiMock.getSynastry).toHaveBeenCalledTimes(1);
   });
 
   it('requests the selected structured engine when switching tabs', async () => {

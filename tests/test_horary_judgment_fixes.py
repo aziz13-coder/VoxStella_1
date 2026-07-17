@@ -348,6 +348,7 @@ def test_solar_condition_uses_configured_under_beams_limit():
 def test_lost_object_voc_denial_uses_enhanced_voc_check(monkeypatch):
     engine = EnhancedTraditionalHoraryJudgmentEngine()
     chart = _minimal_chart()
+    chart.planets[Planet.MERCURY].dignity_score = -6
 
     monkeypatch.setattr(
         engine,

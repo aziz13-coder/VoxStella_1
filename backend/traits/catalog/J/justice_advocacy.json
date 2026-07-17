@@ -5,10 +5,9 @@
   "description": "Active pursuit of fairness where Libra/Aquarius themes combine with Jupiterian principle.",
   "confidence": "medium",
   "polarity": "positive",
-  "sources": ["Carter: Libra/Aquarius; Jupiter principle"],
+  "sources": ["Carter: Libra/Aquarius; Jupiter principle", "Morin: H9 doctrine/principle and H11 allies/hopes require Jupiterian determination for public advocacy"],
   "logic": { "base": 0,
-    "boosts": [ { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": 8 }, { "kind": "sign_emphasis", "sign": "Aquarius", "min": 1.5, "weight": 6 }, { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 8 } ],
-    "dampeners": [ { "kind": "planet_status", "planet": "Venus", "afflicted": true, "weight": -6 }, { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": -4 }, { "kind": "planet_status", "planet": "Saturn", "afflicted": true, "weight": -6 } ],
+    "boosts": [ { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": 8 }, { "kind": "sign_emphasis", "sign": "Aquarius", "min": 1.5, "weight": 6 }, { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 8 }, { "kind": "element", "element": "Air", "min_share": 0.35, "weight": 4 }, { "kind": "house_emphasis", "houses": [9, 11], "min_total": 1, "weight": 5 }, { "kind": "planet_area", "planet": "Jupiter", "areas": ["belief", "friends"], "mode": "max", "min": 0.45, "weight": 5 } ],
+    "dampeners": [ { "kind": "planet_status", "planet": "Venus", "afflicted": true, "weight": -6 }, { "kind": "planet_status", "planet": "Saturn", "afflicted": true, "weight": -6 } ],
     "escalators": [] }
 }
-

@@ -68,39 +68,11 @@ if not exist "node_modules\\.bin\\vite.cmd" (
     echo.
 )
 
-REM Clear stale Vite listener on 5173
-echo Checking for existing frontend listeners on port 5173...
-set "FOUND_FRONTEND_PORT=0"
-for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:"127\.0\.0\.1:5173 .*LISTENING"') do (
-    set "FOUND_FRONTEND_PORT=1"
-    echo Stopping existing process on port 5173 ^(PID %%P^)...
-    taskkill /PID %%P /F >nul 2>&1
-)
-for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:"\[::1\]:5173 .*LISTENING"') do (
-    set "FOUND_FRONTEND_PORT=1"
-    echo Stopping existing process on port 5173 ^(PID %%P^)...
-    taskkill /PID %%P /F >nul 2>&1
-)
-if "%FOUND_FRONTEND_PORT%"=="1" (
-    timeout /t 1 >nul
-)
-
-REM Clear stale packaged or previous Electron backend listener on 52525
-echo Checking for stale Electron backend listeners on port 52525...
-set "FOUND_ELECTRON_BACKEND_PORT=0"
-for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:"127\.0\.0\.1:52525 .*LISTENING"') do (
-    set "FOUND_ELECTRON_BACKEND_PORT=1"
-    echo Stopping existing process on port 52525 ^(PID %%P^)...
-    taskkill /PID %%P /F >nul 2>&1
-)
-for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R /C:"\[::1\]:52525 .*LISTENING"') do (
-    set "FOUND_ELECTRON_BACKEND_PORT=1"
-    echo Stopping existing process on port 52525 ^(PID %%P^)...
-    taskkill /PID %%P /F >nul 2>&1
-)
-if "%FOUND_ELECTRON_BACKEND_PORT%"=="1" (
-    timeout /t 1 >nul
-)
+REM Never kill an arbitrary listener. Refuse startup and identify the owner.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\assert-port-available.ps1" -Port 5173 -Purpose "Vite development server"
+if errorlevel 1 exit /b 1
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\assert-port-available.ps1" -Port 52525 -Purpose "Electron development backend"
+if errorlevel 1 exit /b 1
 
 echo Starting Electron desktop development mode...
 echo This launcher starts Vite and Electron together.

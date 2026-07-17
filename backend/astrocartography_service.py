@@ -5,11 +5,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from astrocartography_assets import get_angle_reference, get_body_reference, get_range_policy
-
-try:
-    import swisseph as swe  # type: ignore
-except Exception:  # pragma: no cover - runtime safety
-    swe = None  # type: ignore
+from swisseph_state import swisseph as swe, swisseph_lock
 
 
 DEFAULT_BODIES = [
@@ -24,6 +20,7 @@ DEFAULT_BODIES = [
     "Neptune",
     "Pluto",
     "North Node",
+    "Chiron",
 ]
 
 DEFAULT_ANGLES = ["MC", "IC", "ASC", "DSC"]
@@ -40,6 +37,7 @@ PLANET_IDS = {
     "Neptune": getattr(swe, "NEPTUNE", 8) if swe else 8,
     "Pluto": getattr(swe, "PLUTO", 9) if swe else 9,
     "North Node": getattr(swe, "MEAN_NODE", 10) if swe else 10,
+    "Chiron": getattr(swe, "CHIRON", 15) if swe else 15,
 }
 
 PLANET_COLORS = {
@@ -54,6 +52,7 @@ PLANET_COLORS = {
     "Neptune": "#0ea5e9",
     "Pluto": "#334155",
     "North Node": "#eab308",
+    "Chiron": "#8b5cf6",
 }
 
 PLANET_PRIORITY = {
@@ -68,6 +67,7 @@ PLANET_PRIORITY = {
     "Neptune": 8,
     "Pluto": 9,
     "North Node": 10,
+    "Chiron": 11,
 }
 
 ANGLE_META = {
@@ -121,7 +121,7 @@ def _normalize_body_list(bodies: Optional[Iterable[str]]) -> List[str]:
         name = str(raw or "").strip()
         if name in PLANET_IDS and name not in out:
             out.append(name)
-    return out or list(DEFAULT_BODIES)
+    return out
 
 
 def _normalize_angle_list(angles: Optional[Iterable[str]]) -> List[str]:
@@ -164,28 +164,166 @@ def _wrap180(value: float) -> float:
     return wrapped
 
 
+# Low-precision Chiron fallback when Swiss Ephemeris asteroid files are absent.
+# Elements: NASA/JPL SBDB API, solution 171, epoch JD 2461200.5, J2000 equinox.
+_CHIRON_JPL_ELEMENTS = {
+    "epoch_jd": 2461200.5,
+    "a_au": 13.68426760850124,
+    "e": 0.3797656311453571,
+    "i_deg": 6.930574468846328,
+    "node_deg": 209.2961258613147,
+    "peri_deg": 339.2878326589729,
+    "mean_anomaly_deg": 216.7198966018106,
+    "mean_motion_deg_per_day": 0.0194702593257484,
+}
+
+
+def _solve_kepler_ellipse(mean_anomaly_rad: float, eccentricity: float) -> float:
+    eccentric_anomaly = float(mean_anomaly_rad)
+    for _ in range(12):
+        delta = (
+            eccentric_anomaly
+            - (float(eccentricity) * math.sin(eccentric_anomaly))
+            - float(mean_anomaly_rad)
+        ) / max(1e-12, 1.0 - (float(eccentricity) * math.cos(eccentric_anomaly)))
+        eccentric_anomaly -= delta
+        if abs(delta) < 1e-12:
+            break
+    return eccentric_anomaly
+
+
+def _heliocentric_ecliptic_xyz_from_elements(jd_ut: float, elements: Dict[str, float]) -> Tuple[float, float, float]:
+    eccentricity = float(elements["e"])
+    semi_major_axis = float(elements["a_au"])
+    mean_anomaly_deg = _wrap360(
+        float(elements["mean_anomaly_deg"])
+        + (float(elements["mean_motion_deg_per_day"]) * (float(jd_ut) - float(elements["epoch_jd"])))
+    )
+    eccentric_anomaly = _solve_kepler_ellipse(math.radians(mean_anomaly_deg), eccentricity)
+    xv = semi_major_axis * (math.cos(eccentric_anomaly) - eccentricity)
+    yv = semi_major_axis * math.sqrt(max(0.0, 1.0 - (eccentricity * eccentricity))) * math.sin(eccentric_anomaly)
+    true_anomaly = math.atan2(yv, xv)
+    radius = math.hypot(xv, yv)
+
+    node = math.radians(float(elements["node_deg"]))
+    peri = math.radians(float(elements["peri_deg"]))
+    incl = math.radians(float(elements["i_deg"]))
+    argument = true_anomaly + peri
+
+    xh = radius * ((math.cos(node) * math.cos(argument)) - (math.sin(node) * math.sin(argument) * math.cos(incl)))
+    yh = radius * ((math.sin(node) * math.cos(argument)) + (math.cos(node) * math.sin(argument) * math.cos(incl)))
+    zh = radius * (math.sin(argument) * math.sin(incl))
+    return xh, yh, zh
+
+
+def _spherical_ecliptic_to_xyz(lon_deg: float, lat_deg: float, radius: float) -> Tuple[float, float, float]:
+    lon = math.radians(float(lon_deg))
+    lat = math.radians(float(lat_deg))
+    r = float(radius)
+    cos_lat = math.cos(lat)
+    return (
+        r * cos_lat * math.cos(lon),
+        r * cos_lat * math.sin(lon),
+        r * math.sin(lat),
+    )
+
+
+def _mean_obliquity_deg(jd_ut: float) -> float:
+    centuries = (float(jd_ut) - 2451545.0) / 36525.0
+    return 23.439291111 - (0.013004167 * centuries) - (0.000000164 * centuries * centuries) + (0.000000504 * centuries * centuries * centuries)
+
+
+def _fallback_chiron_geocentric_ecliptic_xyz(jd_ut: float) -> Optional[Tuple[float, float, float]]:
+    if swe is None:
+        return None
+    sun_flags = getattr(swe, "FLG_SWIEPH", getattr(swe, "SEFLG_SWIEPH", 2))
+    try:
+        sun_pos, _ = swe.calc_ut(jd_ut, getattr(swe, "SUN", 0), sun_flags)  # type: ignore[arg-type]
+    except Exception:
+        try:
+            sun_pos, _ = swe.calc_ut(jd_ut, getattr(swe, "SUN", 0), getattr(swe, "FLG_MOSEPH", 4))  # type: ignore[arg-type]
+        except Exception:
+            return None
+
+    chiron_x, chiron_y, chiron_z = _heliocentric_ecliptic_xyz_from_elements(jd_ut, _CHIRON_JPL_ELEMENTS)
+    sun_x, sun_y, sun_z = _spherical_ecliptic_to_xyz(
+        float(sun_pos[0]),
+        float(sun_pos[1]) if len(sun_pos) > 1 else 0.0,
+        float(sun_pos[2]) if len(sun_pos) > 2 else 1.0,
+    )
+    return chiron_x + sun_x, chiron_y + sun_y, chiron_z + sun_z
+
+
+def fallback_chiron_ecliptic_position(jd_ut: float) -> Optional[Dict[str, float]]:
+    """Return a low-precision geocentric Chiron ecliptic position.
+
+    This is intentionally shared by line generation and relocated chart
+    augmentation so PathFinder can score Chiron models even when the local
+    Swiss Ephemeris asteroid files are not installed.
+    """
+    vector = _fallback_chiron_geocentric_ecliptic_xyz(jd_ut)
+    if vector is None:
+        return None
+    geo_x, geo_y, geo_z = vector
+    lon_deg = _wrap360(math.degrees(math.atan2(geo_y, geo_x)))
+    lat_deg = math.degrees(math.atan2(geo_z, math.hypot(geo_x, geo_y)))
+    speed = 0.0
+    next_vector = _fallback_chiron_geocentric_ecliptic_xyz(float(jd_ut) + 1.0)
+    if next_vector is not None:
+        next_lon = _wrap360(math.degrees(math.atan2(next_vector[1], next_vector[0])))
+        speed = _wrap180(next_lon - lon_deg)
+    return {
+        "longitude": lon_deg,
+        "latitude": lat_deg,
+        "speed": speed,
+    }
+
+
+def _fallback_chiron_equatorial_position(jd_ut: float) -> Optional[Tuple[float, float]]:
+    vector = _fallback_chiron_geocentric_ecliptic_xyz(jd_ut)
+    if vector is None:
+        return None
+    geo_x, geo_y, geo_z = vector
+    obliquity = math.radians(_mean_obliquity_deg(jd_ut))
+    eq_x = geo_x
+    eq_y = (geo_y * math.cos(obliquity)) - (geo_z * math.sin(obliquity))
+    eq_z = (geo_y * math.sin(obliquity)) + (geo_z * math.cos(obliquity))
+    ra_deg = _wrap360(math.degrees(math.atan2(eq_y, eq_x)))
+    dec_deg = math.degrees(math.atan2(eq_z, math.hypot(eq_x, eq_y)))
+    return ra_deg, dec_deg
+
+
 def _equatorial_positions(timestamp_iso: str, bodies: Sequence[str]) -> Tuple[float, List[Dict[str, float]]]:
     _require_swe()
     jd_ut = _jd_ut_from_iso(timestamp_iso)
-    gst_deg = _wrap360(float(swe.sidtime(jd_ut)) * 15.0)  # type: ignore[arg-type]
     flags = (
         getattr(swe, "FLG_SWIEPH", getattr(swe, "SEFLG_SWIEPH", 2))
         | getattr(swe, "FLG_SPEED", getattr(swe, "SEFLG_SPEED", 256))
         | getattr(swe, "FLG_EQUATORIAL", getattr(swe, "SEFLG_EQUATORIAL", 2048))
     )
     positions: List[Dict[str, float]] = []
-    for body in bodies:
-        planet_id = PLANET_IDS.get(body)
-        if planet_id is None:
-            continue
-        pos, _ = swe.calc_ut(jd_ut, planet_id, flags)  # type: ignore[arg-type]
-        positions.append(
-            {
-                "body": body,
-                "ra_deg": _wrap360(float(pos[0])),
-                "dec_deg": float(pos[1]),
-            }
-        )
+    with swisseph_lock():
+        gst_deg = _wrap360(float(swe.sidtime(jd_ut)) * 15.0)  # type: ignore[arg-type]
+        for body in bodies:
+            planet_id = PLANET_IDS.get(body)
+            if planet_id is None:
+                continue
+            try:
+                pos, _ = swe.calc_ut(jd_ut, planet_id, flags)  # type: ignore[arg-type]
+                ra_deg = _wrap360(float(pos[0]))
+                dec_deg = float(pos[1])
+            except Exception:
+                fallback_position = _fallback_chiron_equatorial_position(jd_ut) if body == "Chiron" else None
+                if fallback_position is None:
+                    raise
+                ra_deg, dec_deg = fallback_position
+            positions.append(
+                {
+                    "body": body,
+                    "ra_deg": ra_deg,
+                    "dec_deg": dec_deg,
+                }
+            )
     return gst_deg, positions
 
 
@@ -528,6 +666,16 @@ def _latlon_to_xy_km(lat_deg: float, lon_deg: float, ref_lat_deg: float) -> Tupl
     return x, y
 
 
+def _longitude_near_reference(longitude_deg: float, reference_deg: float) -> float:
+    longitude = float(longitude_deg)
+    reference = float(reference_deg)
+    while longitude - reference > 180.0:
+        longitude -= 360.0
+    while longitude - reference < -180.0:
+        longitude += 360.0
+    return longitude
+
+
 def _point_segment_distance_km(
     point_lat: float,
     point_lon: float,
@@ -537,6 +685,10 @@ def _point_segment_distance_km(
     end_lon: float,
 ) -> float:
     ref_lat = (float(point_lat) + float(start_lat) + float(end_lat)) / 3.0
+    point_lon = float(point_lon)
+    start_lon = _longitude_near_reference(float(start_lon), point_lon)
+    end_lon = _longitude_near_reference(float(end_lon), start_lon)
+    point_lon = _longitude_near_reference(point_lon, (start_lon + end_lon) / 2.0)
     px, py = _latlon_to_xy_km(point_lat, point_lon, ref_lat)
     ax, ay = _latlon_to_xy_km(start_lat, start_lon, ref_lat)
     bx, by = _latlon_to_xy_km(end_lat, end_lon, ref_lat)
@@ -1093,6 +1245,35 @@ def crossing_candidates_for_point(
 
     candidates.sort(key=lambda row: (float(row.get("distance_km") or 0.0), str(row.get("label") or "")))
     return candidates[: max(1, int(limit))]
+
+
+def build_goal_scoring_context(
+    lines: Sequence[Dict[str, Any]],
+    latitude: float,
+    longitude: float,
+    *,
+    primary_radius_km: float = PRIMARY_READING_RADIUS_KM,
+    extended_radius_km: float = EXTENDED_READING_RADIUS_KM,
+) -> Dict[str, Any]:
+    """Build untruncated line and crossing rows for goal-model scoring."""
+    scoring_rows = enrich_line_readings(
+        nearest_lines_for_point(lines, latitude, longitude, limit=max(1, len(lines))),
+        primary_radius_km=primary_radius_km,
+        extended_radius_km=extended_radius_km,
+    )
+    crossing_limit = max(1, (len(scoring_rows) * max(0, len(scoring_rows) - 1)) // 2)
+    crossings = crossing_candidates_for_point(
+        lines,
+        latitude,
+        longitude,
+        nearest_rows=scoring_rows,
+        limit=crossing_limit,
+        max_distance_km=extended_radius_km,
+    )
+    return {
+        "nearest_lines": scoring_rows,
+        "crossings": crossings,
+    }
 
 
 def build_intersection_workspace(

@@ -377,7 +377,7 @@ def test_marriage_prefers_fixed_taurus_frame_over_aquarius_scorpio_mix():
 
     assert good.value > bad.value
     assert any("Preferred fixed 7th (Taurus)" in tag for tag in good.tags)
-    assert any("Unfavored 7th sign (Aquarius)" in tag for tag in bad.tags)
+    assert not any("Unfavored 7th sign" in tag for tag in bad.tags)
 
 
 def test_surgery_prefers_fixed_moon_for_cutting():

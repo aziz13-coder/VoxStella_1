@@ -23,14 +23,11 @@ const invokeWithStartupRetry = async (channel, ...args) => {
   }
 };
 
-contextBridge.exposeInMainWorld('API_BASE_URL', API_BASE_URL);
-contextBridge.exposeInMainWorld('IS_PACKAGED', IS_PACKAGED);
-
 // Expose minimal, promise-based bridge for updates and licensing
-contextBridge.exposeInMainWorld('electronAPI', {
+const electronAPI = Object.freeze({
   // Updates
-  checkForUpdates: () => ipcRenderer.invoke('update:check'),
-  restartToUpdate: () => ipcRenderer.invoke('update:restart'),
+  checkForUpdates: () => invokeWithStartupRetry('update:check'),
+  restartToUpdate: () => invokeWithStartupRetry('update:restart'),
   onUpdateAvailable: (cb) => onChannel('update:available', cb),
   onUpdateNotAvailable: (cb) => onChannel('update:not-available', cb),
   onUpdateError: (cb) => onChannel('update:error', cb),
@@ -46,6 +43,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     if (allowDevBypass) return Promise.resolve({ ok: true, status: { active: true, plan: 'dev' } });
     return invokeWithStartupRetry('license:activate', payload);
   },
+  activatePayPalSubscription: (payload) => {
+    if (allowDevBypass) return Promise.resolve({ ok: true, status: { active: true, plan: 'dev' } });
+    return invokeWithStartupRetry('license:activate-paypal-subscription', payload);
+  },
+  activatePayPalPurchase: (payload) => {
+    if (allowDevBypass) return Promise.resolve({ ok: true, status: { active: true, plan: 'dev' } });
+    return invokeWithStartupRetry('license:activate-paypal-purchase', payload);
+  },
+  openPayPalCheckout: () => invokeWithStartupRetry('license:open-paypal-checkout'),
   deactivateLicense: () => {
     if (allowDevBypass) return Promise.resolve({ ok: true });
     return invokeWithStartupRetry('license:deactivate');
@@ -61,8 +67,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getBackendStatus: () => invokeWithStartupRetry('backend:get-status'),
   refreshBackendStatus: () => invokeWithStartupRetry('backend:refresh-status'),
   onBackendStatus: (cb) => onChannel('backend:status', cb),
-  openExternal: (url) => ipcRenderer.invoke('shell:open-external', url),
+  getLogPaths: () => invokeWithStartupRetry('diagnostics:get-log-paths'),
+  openLogFolder: () => invokeWithStartupRetry('diagnostics:open-log-folder'),
+  openExternal: (url) => invokeWithStartupRetry('shell:open-external', url),
 
   // Reporting
-  exportReport: (payload) => ipcRenderer.invoke('report:export', payload),
+  exportReport: (payload) => invokeWithStartupRetry('report:export', payload),
 });
+
+// Never expose the privileged bridge inside child frames. Payment and other
+// third-party content must live in an isolated frame/window without this API.
+if (process.isMainFrame === true) {
+  contextBridge.exposeInMainWorld('API_BASE_URL', API_BASE_URL);
+  contextBridge.exposeInMainWorld('IS_PACKAGED', IS_PACKAGED);
+  contextBridge.exposeInMainWorld('electronAPI', electronAPI);
+}

@@ -14,6 +14,8 @@ sys.path.append(str(repo_root))
 sys.path.append(str(repo_root / "backend"))
 
 import backend.astro_clock_api as astro_clock_api
+import forensic.engine as forensic_engine_module
+import forensic.survivability as survivability_module
 
 
 def _make_app() -> Flask:
@@ -117,6 +119,140 @@ class ForensicRouteContractTests(TestCase):
             },
         )
 
+    def test_forensic_route_reports_rule_load_failures(self):
+        data = _stub_data()
+
+        app = _make_app()
+        client = app.test_client()
+
+        with mock.patch.object(astro_clock_api, "_engine_instance", return_value=object()), mock.patch.object(
+            astro_clock_api,
+            "_data_for_request_clock_context",
+            return_value=(data, data.settings),
+        ), mock.patch.object(
+            astro_clock_api,
+            "_build_dashboard_payload",
+            side_effect=lambda *_args, **_kwargs: _stub_dashboard_payload(),
+        ), mock.patch.object(
+            forensic_engine_module,
+            "load_knowledge",
+            side_effect=RuntimeError("broken forensic rules"),
+        ):
+            response = client.get("/api/astro-clock/forensic")
+
+        self.assertEqual(response.status_code, 500)
+        payload = response.get_json()
+        self.assertFalse(payload["success"])
+        self.assertEqual(payload["error"], "forensic_rule_engine_unavailable")
+        self.assertIn("rules", payload["detail"].lower())
+
+    def test_forensic_route_reports_rule_evaluation_failures(self):
+        data = _stub_data()
+
+        app = _make_app()
+        client = app.test_client()
+
+        with mock.patch.object(astro_clock_api, "_engine_instance", return_value=object()), mock.patch.object(
+            astro_clock_api,
+            "_data_for_request_clock_context",
+            return_value=(data, data.settings),
+        ), mock.patch.object(
+            astro_clock_api,
+            "_build_dashboard_payload",
+            side_effect=lambda *_args, **_kwargs: _stub_dashboard_payload(),
+        ), mock.patch.object(
+            forensic_engine_module,
+            "load_knowledge",
+            return_value=[{"id": "rule"}],
+        ), mock.patch.object(
+            forensic_engine_module,
+            "evaluate",
+            side_effect=RuntimeError("evaluation failed"),
+        ):
+            response = client.get("/api/astro-clock/forensic")
+
+        self.assertEqual(response.status_code, 500)
+        payload = response.get_json()
+        self.assertFalse(payload["success"])
+        self.assertEqual(payload["error"], "forensic_rule_engine_unavailable")
+        self.assertIn("evaluation", payload["detail"].lower())
+
+    def test_forensic_route_marks_child_hospital_case_context(self):
+        data = _stub_data()
+
+        app = _make_app()
+        client = app.test_client()
+
+        with mock.patch.object(astro_clock_api, "_engine_instance", return_value=object()), mock.patch.object(
+            astro_clock_api,
+            "_data_for_request_clock_context",
+            return_value=(data, data.settings),
+        ), mock.patch.object(
+            astro_clock_api,
+            "_build_dashboard_payload",
+            side_effect=lambda *_args, **_kwargs: {
+                **_stub_dashboard_payload(),
+                "location": "Children's Hospital, Chester, England",
+            },
+        ):
+            response = client.get(
+                "/api/astro-clock/forensic"
+                "?mode=manual"
+                "&datetime=2015-06-08T20:26:00"
+                "&location=Children%27s%20Hospital%2C%20Chester%2C%20England"
+                "&timezone=Europe/London"
+                "&case_type=child"
+            )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertTrue(payload["success"])
+        self.assertEqual(payload["features"]["case_context"]["case_type"], "child")
+        self.assertTrue(payload["features"]["case_context"]["child_case"])
+        self.assertTrue(payload["features"]["case_context"]["healthcare_context"])
+        self.assertTrue(payload["features"]["case_context"]["healthcare_child_context"])
+
+    def test_forensic_route_returns_mcintosh_asc_ruler_placement(self):
+        data = _stub_data()
+
+        def fake_dashboard(*_args, **_kwargs):
+            payload = _stub_dashboard_payload()
+            payload.update(
+                {
+                    "planets": [
+                        {"planet": "Venus", "longitude": 45.0, "house": 7, "sign": "Taurus"},
+                        {"planet": "Mars", "longitude": 120.0, "house": 1, "sign": "Leo"},
+                    ],
+                    "house_rulers": {"1": "Venus", "7": "Mars"},
+                    "house_cusps": [30.0, 60.0, 90.0, 120.0, 150.0, 180.0, 210.0, 240.0, 270.0, 300.0, 330.0, 0.0],
+                }
+            )
+            return payload
+
+        app = _make_app()
+        client = app.test_client()
+
+        with mock.patch.object(astro_clock_api, "_engine_instance", return_value=object()), mock.patch.object(
+            astro_clock_api,
+            "_data_for_request_clock_context",
+            return_value=(data, data.settings),
+        ), mock.patch.object(
+            astro_clock_api,
+            "_build_dashboard_payload",
+            side_effect=fake_dashboard,
+        ):
+            response = client.get("/api/astro-clock/forensic")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json() or {}
+        placement = payload.get("asc_ruler_placement") or {}
+        self.assertEqual(placement.get("ruler"), "Venus")
+        self.assertEqual(placement.get("house"), 7)
+        self.assertIn("suspect", placement.get("summary", "").lower())
+        self.assertTrue(placement.get("cues"))
+        self.assertEqual((payload.get("features") or {}).get("asc_ruler_placement"), placement)
+        self.assertIn("7", payload.get("asc_ruler_house_meanings") or {})
+
     def test_request_context_helper_honors_explicit_coordinates(self):
         app = Flask(__name__)
         prev = types.SimpleNamespace(
@@ -206,6 +342,310 @@ class ForensicRouteContractTests(TestCase):
         self.assertFalse(payload["success"])
         self.assertEqual(payload["error"], "Invalid mode")
 
+    def test_forensic_route_rejects_malformed_abduction_origin_before_context_resolution(self):
+        app = _make_app()
+        client = app.test_client()
+
+        with mock.patch.object(
+            astro_clock_api,
+            "_engine_instance",
+            side_effect=AssertionError("context resolver should not be called"),
+        ):
+            response = client.get("/api/astro-clock/forensic?abduction=1&origin=abc,def")
+
+        self.assertEqual(response.status_code, 400)
+        payload = response.get_json()
+        self.assertFalse(payload["success"])
+        self.assertEqual(payload["error"], "Invalid origin coordinates")
+
+    def test_forensic_route_rejects_out_of_range_abduction_origin_before_context_resolution(self):
+        app = _make_app()
+        client = app.test_client()
+
+        with mock.patch.object(
+            astro_clock_api,
+            "_engine_instance",
+            side_effect=AssertionError("context resolver should not be called"),
+        ):
+            response = client.get("/api/astro-clock/forensic?abduction=1&origin=91,181")
+
+        self.assertEqual(response.status_code, 400)
+        payload = response.get_json()
+        self.assertFalse(payload["success"])
+        self.assertEqual(payload["error"], "Invalid origin coordinates")
+
+    def test_forensic_route_rejects_non_finite_abduction_corridor_before_context_resolution(self):
+        app = _make_app()
+        client = app.test_client()
+
+        for corridor_deg in ("nan", "inf", "-inf"):
+            with self.subTest(corridor_deg=corridor_deg), mock.patch.object(
+                astro_clock_api,
+                "_engine_instance",
+                side_effect=AssertionError("context resolver should not be called"),
+            ):
+                response = client.get(
+                    "/api/astro-clock/forensic"
+                    f"?abduction=1&origin=30,40&corridor_deg={corridor_deg}"
+                )
+
+            self.assertEqual(response.status_code, 400)
+            payload = response.get_json()
+            self.assertFalse(payload["success"])
+            self.assertEqual(payload["error"], "Invalid corridor_deg")
+
+    def test_forensic_route_merges_precise_modern_aspects_into_features(self):
+        captured = {}
+        data = _stub_data()
+
+        def _fake_dashboard(*_args, **kwargs):
+            captured.update(kwargs)
+            payload = _stub_dashboard_payload()
+            payload["planets"] = [
+                {"planet": "Moon", "longitude": 10.0, "house": 1, "sign": "Aries"},
+                {"planet": "Mercury", "longitude": 20.0, "house": 2, "sign": "Aries"},
+                {"planet": "Neptune", "longitude": 200.0, "house": 8, "sign": "Libra"},
+            ]
+            payload["planetary_aspects_precise"] = [
+                {
+                    "planet1": "Mercury",
+                    "planet2": "Neptune",
+                    "aspect": "Square",
+                    "phase": "applying",
+                    "orb": 1.8,
+                }
+            ]
+            return payload
+
+        app = _make_app()
+        client = app.test_client()
+
+        with mock.patch.object(astro_clock_api, "_engine_instance", return_value=object()), mock.patch.object(
+            astro_clock_api,
+            "_data_for_request_clock_context",
+            return_value=(data, data.settings),
+        ), mock.patch.object(
+            astro_clock_api,
+            "_build_dashboard_payload",
+            side_effect=_fake_dashboard,
+        ):
+            response = client.get("/api/astro-clock/forensic?mode=manual")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(captured.get("include_modern"))
+        self.assertTrue(captured.get("extend_modern_chart_data"))
+        payload = response.get_json()
+        features = payload.get("features") or {}
+        self.assertIn("Neptune", features.get("planets") or {})
+        aspects = features.get("aspects") or {}
+        self.assertIn("Mercury_to_Neptune", aspects)
+        self.assertTrue(aspects["Mercury_to_Neptune"].get("applying"))
+
+    def test_forensic_route_passes_light_mediation_into_survivability_features(self):
+        captured = {}
+        data = _stub_data()
+        data.chart_result = {
+            "reasoning": [
+                {
+                    "stage": "Perfection",
+                    "rule": "Translation of light by Jupiter carries testimony to the victim",
+                }
+            ],
+            "translator": "Jupiter",
+            "chart_data": {
+                "planets": [],
+                "aspects": [],
+                "house_rulers": {},
+            },
+        }
+
+        def fake_compute_survivability(features, findings=None, categories=None, *, case_type="general"):
+            captured["features"] = features
+            return {
+                "level": "Moderate",
+                "score": 0.0,
+                "outcome_band": "mixed_nonfatal",
+                "case_type": case_type,
+                "victim_significators": [],
+                "breakdown": {"recovery_support": 0.0, "light_mediation": 0.0},
+                "evidence": {"light_mediation": []},
+                "note": "stubbed",
+            }
+
+        app = _make_app()
+        client = app.test_client()
+
+        with mock.patch.object(astro_clock_api, "_engine_instance", return_value=object()), mock.patch.object(
+            astro_clock_api,
+            "_data_for_request_clock_context",
+            return_value=(data, data.settings),
+        ), mock.patch.object(
+            astro_clock_api,
+            "_build_dashboard_payload",
+            side_effect=lambda *_args, **_kwargs: _stub_dashboard_payload(),
+        ), mock.patch.object(
+            survivability_module,
+            "compute_survivability",
+            side_effect=fake_compute_survivability,
+        ):
+            response = client.get("/api/astro-clock/forensic?mode=manual")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json() or {}
+        self.assertTrue(payload.get("light_mediation", {}).get("translation"))
+        self.assertEqual(payload.get("light_mediation", {}).get("translator"), "Jupiter")
+        feature_mediation = captured["features"].get("light_mediation") or {}
+        self.assertTrue(feature_mediation.get("translation"))
+        self.assertEqual(feature_mediation.get("translator"), "Jupiter")
+
+    def test_forensic_route_extracts_morin_light_mediation_with_participants(self):
+        captured = {}
+        data = _stub_data()
+
+        def fake_dashboard(*_args, **kwargs):
+            captured["dashboard_kwargs"] = kwargs
+            payload = _stub_dashboard_payload()
+            payload["morin_patterns"] = {
+                "translation": [
+                    {
+                        "from": "Moon",
+                        "middle": "Jupiter",
+                        "to": "Sun",
+                        "from_leg": {
+                            "aspect": "Trine",
+                            "orb": 0.4,
+                            "phase": "separating",
+                            "partile": True,
+                        },
+                        "to_leg": {
+                            "aspect": "Sextile",
+                            "orb": 0.9,
+                            "phase": "applying",
+                            "complete_platic": True,
+                        },
+                        "favorable": True,
+                    }
+                ],
+                "collection": [],
+            }
+            return payload
+
+        def fake_compute_survivability(features, findings=None, categories=None, *, case_type="general"):
+            captured["features"] = features
+            return {
+                "level": "Moderate",
+                "score": 0.0,
+                "outcome_band": "mixed_nonfatal",
+                "case_type": case_type,
+                "victim_significators": [],
+                "breakdown": {"recovery_support": 0.0, "light_mediation": 0.0},
+                "evidence": {"light_mediation": []},
+                "note": "stubbed",
+            }
+
+        app = _make_app()
+        client = app.test_client()
+
+        with mock.patch.object(astro_clock_api, "_engine_instance", return_value=object()), mock.patch.object(
+            astro_clock_api,
+            "_data_for_request_clock_context",
+            return_value=(data, data.settings),
+        ), mock.patch.object(
+            astro_clock_api,
+            "_build_dashboard_payload",
+            side_effect=fake_dashboard,
+        ), mock.patch.object(
+            survivability_module,
+            "compute_survivability",
+            side_effect=fake_compute_survivability,
+        ):
+            response = client.get("/api/astro-clock/forensic?mode=manual")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(captured["dashboard_kwargs"].get("include_morin"))
+        payload = response.get_json() or {}
+        mediation = payload.get("light_mediation") or {}
+        self.assertTrue(mediation.get("translation"))
+        self.assertEqual(mediation.get("translator"), "Jupiter")
+        self.assertEqual(mediation.get("participants"), ["Moon", "Jupiter", "Sun"])
+        self.assertEqual(mediation.get("from_leg", {}).get("aspect"), "Trine")
+        self.assertEqual(mediation.get("to_leg", {}).get("aspect"), "Sextile")
+        self.assertEqual(len(mediation.get("legs") or []), 2)
+        self.assertEqual(
+            (captured["features"].get("light_mediation") or {}).get("participants"),
+            ["Moon", "Jupiter", "Sun"],
+        )
+        self.assertEqual(
+            (captured["features"].get("light_mediation") or {}).get("legs", [])[0].get("aspect"),
+            "Trine",
+        )
+
+    def test_forensic_route_extracts_morin_denial_as_prohibition_not_collection(self):
+        captured = {}
+        data = _stub_data()
+
+        def fake_dashboard(*_args, **kwargs):
+            captured["dashboard_kwargs"] = kwargs
+            payload = _stub_dashboard_payload()
+            payload["morin_patterns"] = {
+                "translation": [],
+                "collection": [],
+                "frustration": [
+                    {
+                        "frustrated": "Moon",
+                        "target": "Mars",
+                        "frustrating": "Saturn",
+                        "days_C_before_A": 1.5,
+                    }
+                ],
+            }
+            return payload
+
+        def fake_compute_survivability(features, findings=None, categories=None, *, case_type="general"):
+            captured["features"] = features
+            return {
+                "level": "Moderate",
+                "score": 0.0,
+                "outcome_band": "mixed_nonfatal",
+                "case_type": case_type,
+                "victim_significators": [],
+                "breakdown": {"recovery_support": 0.0, "light_mediation": 0.0},
+                "evidence": {"light_mediation": []},
+                "note": "stubbed",
+            }
+
+        app = _make_app()
+        client = app.test_client()
+
+        with mock.patch.object(astro_clock_api, "_engine_instance", return_value=object()), mock.patch.object(
+            astro_clock_api,
+            "_data_for_request_clock_context",
+            return_value=(data, data.settings),
+        ), mock.patch.object(
+            astro_clock_api,
+            "_build_dashboard_payload",
+            side_effect=fake_dashboard,
+        ), mock.patch.object(
+            survivability_module,
+            "compute_survivability",
+            side_effect=fake_compute_survivability,
+        ):
+            response = client.get("/api/astro-clock/forensic?mode=manual")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(captured["dashboard_kwargs"].get("include_morin"))
+        mediation = (response.get_json() or {}).get("light_mediation") or {}
+        self.assertTrue(mediation.get("prohibition"))
+        self.assertFalse(mediation.get("translation"))
+        self.assertFalse(mediation.get("collection"))
+        self.assertEqual(mediation.get("denial_type"), "frustration")
+        self.assertEqual(mediation.get("prohibitor"), "Saturn")
+        self.assertEqual(mediation.get("participants"), ["Moon", "Mars", "Saturn"])
+        self.assertEqual(
+            (captured["features"].get("light_mediation") or {}).get("denial_type"),
+            "frustration",
+        )
+
     def test_forensic_route_returns_abduction_map_payload_for_manual_case(self):
         app = _make_app()
         client = app.test_client()
@@ -230,6 +670,14 @@ class ForensicRouteContractTests(TestCase):
         self.assertTrue(payload["success"])
         self.assertIn("abduction_map", payload)
         self.assertIn("survivability", payload)
+        feature_planets = (payload.get("features") or {}).get("planets") or {}
+        self.assertIn("Uranus", feature_planets)
+        self.assertIn("Neptune", feature_planets)
+        self.assertIn("Pluto", feature_planets)
+        feature_aspects = (payload.get("features") or {}).get("aspects") or {}
+        self.assertTrue(
+            any(any(name in key for name in ("Uranus", "Neptune", "Pluto")) for key in feature_aspects)
+        )
 
         abduction_map = payload["abduction_map"]
         self.assertAlmostEqual(float(abduction_map["origin"]["lat"]), 30.51624, places=5)

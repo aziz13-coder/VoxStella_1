@@ -748,17 +748,11 @@ def test_mundane_scan_start_and_result(monkeypatch):
         )[1],
     )
 
-    class ImmediateThread:
-        def __init__(self, target, name=None, daemon=None):
-            self._target = target
+    def run_immediately(_job_name, callback):
+        callback()
+        return True
 
-        def start(self):
-            self._target()
-
-        def is_alive(self):
-            return False
-
-    monkeypatch.setattr(astro_clock_api.threading, "Thread", ImmediateThread)
+    monkeypatch.setattr(astro_clock_api, "_submit_background_job", run_immediately)
 
     response = client.post(
         "/api/astro-clock/mundane/scan/start",
@@ -806,17 +800,11 @@ def test_mundane_scan_start_ignores_uncopyable_thread_in_progress_payload(monkey
         },
     )
 
-    class UncopyableThread:
-        def __init__(self, target, name=None, daemon=None):
-            self._target = target
-
-        def start(self):
-            return None
-
-        def __deepcopy__(self, memo):
-            raise TypeError("thread objects are not deepcopy-safe")
-
-    monkeypatch.setattr(astro_clock_api.threading, "Thread", UncopyableThread)
+    monkeypatch.setattr(
+        astro_clock_api,
+        "_submit_background_job",
+        lambda _job_name, _callback: True,
+    )
 
     response = client.post(
         "/api/astro-clock/mundane/scan/start",

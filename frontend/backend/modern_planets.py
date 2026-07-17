@@ -58,7 +58,7 @@ def compute_modern_planets(chart_data: Dict[str, Any], timestamp_iso: str) -> Li
     try:
         dt = datetime.datetime.fromisoformat(timestamp_iso.replace('Z', '+00:00')).astimezone(datetime.timezone.utc)
     except Exception:
-        dt = datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
+        dt = datetime.datetime.now(datetime.timezone.utc)
     jd_ut = swe.julday(dt.year, dt.month, dt.day, dt.hour + dt.minute / 60.0 + dt.second / 3600.0)
 
     modern_ids = [("Uranus", getattr(swe, "URANUS", 7)), ("Neptune", getattr(swe, "NEPTUNE", 8)), ("Pluto", getattr(swe, "PLUTO", 9))]

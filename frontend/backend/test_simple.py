@@ -17,7 +17,7 @@ def main():
     # Make a quick chart request to trigger the debug output
     try:
         result = subprocess.run([
-            'curl', '-s', '-X', 'POST', 'http://localhost:5000/api/calculate-chart',
+            'curl', '-s', '-X', 'POST', 'http://127.0.0.1:52525/api/calculate-chart',
             '-H', 'Content-Type: application/json',
             '-d', json.dumps({
                 'question': 'Will my relationship improve?',

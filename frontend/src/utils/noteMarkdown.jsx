@@ -13,7 +13,21 @@ const ATTACHMENT_TEMPLATES = {
 
 function isSafeExternalUrl(url) {
   const normalized = String(url || '').trim();
-  return /^(https?:\/\/|mailto:)/i.test(normalized);
+  if (!normalized || normalized.length > 4096 || /[\u0000-\u001f\u007f]/.test(normalized)) {
+    return false;
+  }
+  try {
+    const parsed = new URL(normalized);
+    if (parsed.protocol === 'https:') {
+      return Boolean(parsed.hostname) && !parsed.username && !parsed.password;
+    }
+    if (parsed.protocol === 'mailto:') {
+      return Boolean(parsed.pathname) && !/%(?:0a|0d)/i.test(normalized);
+    }
+    return false;
+  } catch (_) {
+    return false;
+  }
 }
 
 function openExternalUrl(url, openExternal) {

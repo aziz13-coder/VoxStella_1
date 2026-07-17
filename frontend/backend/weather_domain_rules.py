@@ -625,17 +625,19 @@ def _evaluate_flood_risk(context: ResolvedWeatherContext, charts: Dict[str, Dict
     for chart_kind, chart in (("seasonal_ingress", seasonal), ("lunar_phase", lunar), ("forecast_chart", forecast)):
         for name in ("Moon", "Venus", "Neptune"):
             if _is_angular(chart, name):
-                framework_notes.append(
-                    _rule(
-                        layer="framework_layer" if chart_kind == "seasonal_ingress" else "trigger_layer",
-                        chart_kind=chart_kind,
-                        rule_id=f"{chart_kind}_{_normalize_id(name)}_moisture",
-                        label=f"{name} angular moisture testimony",
-                        summary=f"{name} is angular in the {chart_kind.replace('_', ' ')}, supporting excess-water and heavy-precipitation logic.",
-                        score=8 if chart_kind == "seasonal_ingress" else 10,
-                        extra={"planet": name},
-                    )
+                note = _rule(
+                    layer="framework_layer" if chart_kind == "seasonal_ingress" else "trigger_layer",
+                    chart_kind=chart_kind,
+                    rule_id=f"{chart_kind}_{_normalize_id(name)}_moisture",
+                    label=f"{name} angular moisture testimony",
+                    summary=f"{name} is angular in the {chart_kind.replace('_', ' ')}, supporting excess-water and heavy-precipitation logic.",
+                    score=8 if chart_kind == "seasonal_ingress" else 10,
+                    extra={"planet": name},
                 )
+                if chart_kind == "seasonal_ingress":
+                    framework_notes.append(note)
+                else:
+                    trigger_notes.append(note)
 
     for chart_kind, chart in (("seasonal_ingress", seasonal), ("lunar_phase", lunar), ("forecast_chart", forecast)):
         aspect = _major_aspect(chart, "Saturn", "Neptune", orb=6.5)

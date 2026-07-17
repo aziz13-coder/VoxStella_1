@@ -1,336 +1,489 @@
-import React from "react";
+import React from 'react';
 
 export type PlanetInput = {
-  id: string;       // e.g., "Sun"
-  glyph: string;    // ☉ ☽ ☿ ♀ ♂ ♃ ♄ etc.
-  lon: number;      // 0..360
+  id: string;
+  glyph: string;
+  lon: number;
   retro?: boolean;
-  house?: number;   // 1..12
-  label?: string;   // optional
+  house?: number;
+  label?: string;
 };
 
 export type Aspect = {
-  a: string;  // planet id
-  b: string;  // planet id
-  type: "conj"|"opp"|"trine"|"square"|"sextile";
+  a: string;
+  b: string;
+  type: 'conj' | 'opp' | 'trine' | 'square' | 'sextile';
   orb: number;
   maxOrb: number;
+  label?: string;
+  phase?: string;
+  symbol?: string;
+  orbText?: string;
 };
 
 export type WheelProps = {
-  asc: number;              // Asc longitude 0..360
-  cusps?: number[];         // 12 longs; if missing, equal houses from asc
+  asc: number;
+  midheaven?: number;
+  cusps?: number[];
   planets: PlanetInput[];
-  aspects?: Aspect[];       // optional precomputed
-  size?: number;            // px; if omitted, auto-fit parent width
-  showAspects?: boolean;    // default false
+  aspects?: Aspect[];
+  size?: number;
+  showAspects?: boolean;
 };
 
-const SIGNS = ["♈","♉","♊","♋","♌","♍","♎","♏","♐","♑","♒","♓"];
-const SIGN_ABBRS = ["Ari","Tau","Gem","Can","Leo","Vir","Lib","Sco","Sag","Cap","Aqu","Pis"];
-
-// Minimum visual separation between adjacent planet display angles
+const SIGN_GLYPHS = ['♈︎','♉︎','♊︎','♋︎','♌︎','♍︎','♎︎','♏︎','♐︎','♑︎','♒︎','♓︎'];
+const SIGN_ABBRS = ['Ari','Tau','Gem','Can','Leo','Vir','Lib','Sco','Sag','Cap','Aqu','Pis'];
+const ROMANS = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
+const ASPECT_SYMBOL: Record<Aspect['type'], string> = {
+  conj: '☌',
+  opp: '☍',
+  trine: '△',
+  square: '□',
+  sextile: '⚹',
+};
 const MIN_SEP_DEG = 8;
+const ZODIAC_FONT_FAMILY = '"Noto Sans Symbols 2","Segoe UI Symbol","Apple Symbols",serif';
 
-function separatedAngles(planets: { id: string; lon: number }[]): Map<string, number> {
-  if (!planets || planets.length === 0) return new Map();
-  const arr = planets
-    .map((p) => ({ ...p, disp: ((p.lon % 360) + 360) % 360 }))
-    .sort((a, b) => a.disp - b.disp);
+function normalizeDegrees(value: number): number {
+  return ((value % 360) + 360) % 360;
+}
 
-  // Iterative repulsion around the circle
-  for (let pass = 0; pass < 6; pass++) {
-    for (let i = 0; i < arr.length; i++) {
-      const prev = (i - 1 + arr.length) % arr.length;
-      const gap = (arr[i].disp - arr[prev].disp + 360) % 360;
+function separatedAngles(planets: Array<{ id: string; lon: number }>): Map<string, number> {
+  if (!planets.length) return new Map();
+  const arranged = planets
+    .map((planet) => ({ ...planet, disp: normalizeDegrees(planet.lon) }))
+    .sort((left, right) => left.disp - right.disp);
+
+  for (let pass = 0; pass < 6; pass += 1) {
+    for (let index = 0; index < arranged.length; index += 1) {
+      const prevIndex = (index - 1 + arranged.length) % arranged.length;
+      const gap = (arranged[index].disp - arranged[prevIndex].disp + 360) % 360;
       if (gap < MIN_SEP_DEG) {
         const push = (MIN_SEP_DEG - gap) / 2;
-        arr[i].disp = (arr[i].disp + push) % 360;
-        arr[prev].disp = (arr[prev].disp - push + 360) % 360;
+        arranged[index].disp = (arranged[index].disp + push) % 360;
+        arranged[prevIndex].disp = (arranged[prevIndex].disp - push + 360) % 360;
       }
     }
   }
 
-  const out = new Map<string, number>();
-  arr.forEach((p) => out.set(p.id, p.disp));
-  return out;
+  return new Map(arranged.map((planet) => [planet.id, planet.disp]));
 }
-const ROMANS = ["I","II","III","IV","V","VI","VII","VIII","IX","X","XI","XII"];
+
+function aspectStroke(type: Aspect['type']): string {
+  if (type === 'conj') return '#0f766e';
+  if (type === 'opp') return '#dc2626';
+  if (type === 'square') return '#c2410c';
+  if (type === 'trine') return '#16a34a';
+  return '#4f46e5';
+}
+
+function aspectPhaseMode(phase?: string): 'applying' | 'separating' | 'neutral' {
+  const normalized = String(phase || '').trim().toLowerCase();
+  if (normalized === 'applying') return 'applying';
+  if (normalized === 'separating') return 'separating';
+  return 'neutral';
+}
+
+function aspectKey(aspect: Aspect): string {
+  const ids = [aspect.a, aspect.b].sort();
+  return `${ids[0]}|${ids[1]}|${aspect.type}`;
+}
+
+function formatDegreeLabel(lon: number, withSign = false): string {
+  const normalized = normalizeDegrees(lon);
+  const signIndex = Math.floor(normalized / 30);
+  const within = normalized - signIndex * 30;
+  const degrees = Math.floor(within);
+  const minutes = Math.round((within - degrees) * 60);
+  const label = `${degrees}°${String(minutes).padStart(2, '0')}'`;
+  return withSign ? `${label} ${SIGN_ABBRS[signIndex]}` : label;
+}
+
+function formatAspectPhase(phase?: string): string {
+  const normalized = String(phase || '').trim().toLowerCase();
+  if (normalized === 'applying') return 'app';
+  if (normalized === 'separating') return 'sep';
+  return '';
+}
 
 const SketchWheel: React.FC<WheelProps> = ({
   asc,
+  midheaven,
   cusps,
   planets,
   aspects = [],
   size,
   showAspects = false,
 }) => {
-  // auto-size to parent if no explicit size
   const wrapRef = React.useRef<HTMLDivElement>(null);
-  const [box, setBox] = React.useState<number>(size ?? 600);
+  const [box, setBox] = React.useState<number>(size ?? 620);
   React.useEffect(() => {
-    if (size) return;
-    const ro = new ResizeObserver((entries) => {
-      const w = entries[0].contentRect.width;
-      setBox(Math.max(280, Math.min(900, w)));
+    if (size || typeof ResizeObserver === 'undefined') return undefined;
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect?.width;
+      if (width) setBox(Math.max(320, Math.min(980, width)));
     });
-    if (wrapRef.current) ro.observe(wrapRef.current);
-    return () => ro.disconnect();
+    if (wrapRef.current) observer.observe(wrapRef.current);
+    return () => observer.disconnect();
   }, [size]);
 
-  const SZ = size ?? box;
-  const C = SZ / 2;
-  const rOuter   = SZ * 0.46;
-  const rSigns   = SZ * 0.40;
-  const rHouses  = SZ * 0.34;
-  const rPlanets = SZ * 0.28;
-  const rAspects = SZ * 0.30;
-
-  // Lens (hover zoom) state
-  const uid = React.useId();
-  const [mouse, setMouse] = React.useState<{ x: number; y: number; inside: boolean }>({ x: C, y: C, inside: false });
-  const lensR = Math.max(60, SZ * 0.09);
-  const lensScale = 1.8;
-  const clipId = `lensClip-${uid}`;
-  const sceneId = `wheelScene-${uid}`;
-  const onMove = (e: React.MouseEvent<SVGSVGElement>) => {
-    const rect = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
-    setMouse({ x: e.clientX - rect.left, y: e.clientY - rect.top, inside: true });
-  };
-
-  // helpers
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  // View angle with ASC at 9 o'clock, CCW zodiac
-  const theta = (lon: number) => toRad((-(lon - asc) + 180));
-  const pt = (r: number, ang: number): [number, number] => [C + r * Math.cos(ang), C + r * Math.sin(ang)];
-
-  // house cusps: equal houses if not provided
-  const H: number[] = (cusps && cusps.length === 12)
-    ? cusps
-    : Array.from({ length: 12 }, (_, i) => (asc + i * 30) % 360);
-
+  const resolvedSize = size ?? box;
+  const center = resolvedSize / 2;
+  const rOuter = resolvedSize * 0.472;
+  const rSigns = resolvedSize * 0.406;
+  const rHouses = resolvedSize * 0.35;
+  const rPlanets = resolvedSize * 0.284;
+  const rAspects = resolvedSize * 0.29;
   const [hoverId, setHoverId] = React.useState<string | null>(null);
   const [pinId, setPinId] = React.useState<string | null>(null);
   const activeId = pinId ?? hoverId;
 
-  const degLabel = (lon: number, withSign = false) => {
-    const L = ((lon % 360) + 360) % 360;
-    const s = Math.floor(L / 30);
-    const within = L - s * 30;
-    const d = Math.floor(within);
-    const m = Math.round((within - d) * 60);
-    return withSign
-      ? `${d}°${String(m).padStart(2, "0")}' ${SIGN_ABBRS[s]}`
-      : `${d}°${String(m).padStart(2, "0")}'`;
-  };
+  const toRadians = React.useCallback((degrees: number) => (degrees * Math.PI) / 180, []);
+  const theta = React.useCallback((lon: number) => toRadians((-(lon - asc) + 180)), [asc, toRadians]);
+  const pointAt = React.useCallback((radius: number, angle: number): [number, number] => ([
+    center + radius * Math.cos(angle),
+    center + radius * Math.sin(angle),
+  ]), [center]);
 
-  const planetById = (id: string) => planets.find(p => p.id === id);
+  const resolvedCusps = React.useMemo(() => {
+    if (Array.isArray(cusps) && cusps.length === 12) return cusps.map((cusp) => normalizeDegrees(Number(cusp) || 0));
+    return Array.from({ length: 12 }, (_, index) => normalizeDegrees(asc + index * 30));
+  }, [asc, cusps]);
 
-  const aspectStroke = (t: Aspect["type"]) =>
-    t === "conj" ? "#0ea5e9"
-      : t === "opp" ? "#ef4444"
-      : t === "square" ? "#f59e0b"
-      : t === "trine" ? "#22c55e"
-      : "#8b5cf6"; // sextile
+  const ascLongitude = normalizeDegrees(asc);
+  const midheavenLongitude = normalizeDegrees(
+    Number.isFinite(Number(midheaven)) ? Number(midheaven) : resolvedCusps[9] ?? asc + 90,
+  );
+  const angleMap = React.useMemo(
+    () => separatedAngles(planets.map((planet) => ({ id: planet.id, lon: planet.lon }))),
+    [planets],
+  );
+  const planetLookup = React.useMemo(
+    () => new Map(planets.map((planet) => [planet.id, planet])),
+    [planets],
+  );
+  const validAspects = React.useMemo(
+    () => aspects.filter((aspect) => planetLookup.has(aspect.a) && planetLookup.has(aspect.b)),
+    [aspects, planetLookup],
+  );
+  const aspectIndex = React.useMemo(() => {
+    const map = new Map<string, Aspect[]>();
+    validAspects.forEach((aspect) => {
+      map.set(aspect.a, [...(map.get(aspect.a) || []), aspect]);
+      map.set(aspect.b, [...(map.get(aspect.b) || []), aspect]);
+    });
+    return map;
+  }, [validAspects]);
+  const activeAspects = React.useMemo(() => (
+    activeId ? (aspectIndex.get(activeId) || []) : []
+  ), [activeId, aspectIndex]);
+  const highlightedAspectKeys = React.useMemo(
+    () => new Set(activeAspects.map((aspect) => aspectKey(aspect))),
+    [activeAspects],
+  );
+
+  const planetLabelRadius = React.useCallback((planetId: string) => {
+    const current = angleMap.get(planetId);
+    if (current == null) return rPlanets + 16;
+    const crowded = planets.some((planet) => {
+      if (planet.id === planetId) return false;
+      const other = angleMap.get(planet.id);
+      if (other == null) return false;
+      const delta = Math.abs((((other - current + 540) % 360) - 180));
+      return delta < 8;
+    });
+    return crowded ? rPlanets + 26 : rPlanets + 16;
+  }, [angleMap, planets, rPlanets]);
+
+  const tooltipRows = React.useMemo(() => {
+    if (!activeId) return [];
+    return activeAspects
+      .slice()
+      .sort((left, right) => left.orb - right.orb)
+      .slice(0, 5)
+      .map((aspect) => {
+        const partnerId = aspect.a === activeId ? aspect.b : aspect.a;
+        const partner = planetLookup.get(partnerId);
+        const phase = formatAspectPhase(aspect.phase);
+        const orbText = aspect.orbText || `${Math.abs(aspect.orb).toFixed(1)}°`;
+        const symbol = aspect.symbol || ASPECT_SYMBOL[aspect.type];
+        return `${symbol} ${partner?.label || partnerId} · ${orbText}${phase ? ` · ${phase}` : ''}`;
+      });
+  }, [activeAspects, activeId, planetLookup]);
 
   return (
-    <div ref={wrapRef} className="w-full h-full">
-      <svg viewBox={`0 0 ${SZ} ${SZ}`} className="w-full h-full select-none" onMouseMove={onMove} onMouseLeave={() => setMouse((m) => ({ ...m, inside: false }))}>
-        <style>{`.lens-fade{transition:opacity .15s ease-out}`}</style>
-        <g id={sceneId}>
-        {/* rings */}
-        <circle cx={C} cy={C} r={rOuter+8} fill="#fff" />
-        <circle cx={C} cy={C} r={rOuter} fill="#fff" stroke="#e5e7eb" strokeWidth={2}/>
-        <circle cx={C} cy={C} r={rHouses} fill="#fafafa" stroke="#e5e7eb" strokeWidth={1.5}/>
-        <circle cx={C} cy={C} r={rHouses*0.55} fill="#ffffff" stroke="#e5e7eb" strokeWidth={1.25}/>
+    <div ref={wrapRef} className="h-full w-full">
+      <svg
+        viewBox={`0 0 ${resolvedSize} ${resolvedSize}`}
+        className="h-full w-full select-none"
+        onMouseLeave={() => setHoverId(null)}
+      >
+        <g>
+          <circle cx={center} cy={center} r={rOuter + 6} fill="#ffffff" />
+          <circle cx={center} cy={center} r={rOuter} fill="#ffffff" stroke="#e5e7eb" strokeWidth={1.6} />
+          <circle cx={center} cy={center} r={rHouses} fill="#fafafa" stroke="#e5e7eb" strokeWidth={1.1} />
+          <circle cx={center} cy={center} r={rHouses * 0.56} fill="#ffffff" stroke="#eceef1" strokeWidth={0.9} />
 
-        {/* ticks every 5° */}
-        {Array.from({length:72},(_,i)=>i*5).map(d=>{
-          const a = theta(d);
-          const [x1,y1] = pt(rOuter,a);
-          const len = d%30===0 ? 16 : d%10===0 ? 12 : 6;
-          const [x2,y2] = pt(rOuter-len,a);
-          return <line key={`t${d}`} x1={x1} y1={y1} x2={x2} y2={y2}
-            stroke="#a1a1aa" strokeWidth={d%30===0?1.25:0.75}/>;
-        })}
-
-        {/* sign separators */}
-        {Array.from({length:12}).map((_,i)=>{
-          const a = theta(i*30);
-          const [x1,y1] = pt(rOuter,a);
-          const [x2,y2] = pt(rHouses,a);
-          return <line key={`s${i}`} x1={x1} y1={y1} x2={x2} y2={y2}
-            stroke="#d4d4d8" strokeWidth={1}/>;
-        })}
-
-        {/* house lines */}
-        {H.map((h,i)=>{
-          const a = theta(h);
-          const [x1,y1] = pt(rHouses,a);
-          const [x2,y2] = pt(rHouses*0.55,a);
-          return <line key={`h${i}`} x1={x1} y1={y1} x2={x2} y2={y2}
-            stroke="#e4e4e7" strokeWidth={1}/>;
-        })}
-
-        {/* sign glyphs */}
-        {SIGNS.map((g,i)=>{
-          const a = theta(i*30 + 15);
-          const [x,y] = pt(rSigns,a);
-          return <text key={`g${i}`} x={x} y={y} textAnchor="middle"
-            dominantBaseline="middle" fontSize={18} fill="#d1d5db">{g}</text>;
-        })}
-
-        {/* house numerals */}
-        {ROMANS.map((r,i)=>{
-          const a = theta(H[i] + 15);
-          const [x,y] = pt(rHouses*0.80,a);
-          return <text key={`r${i}`} x={x} y={y} textAnchor="middle"
-            dominantBaseline="middle" fontSize={12} fill="#a1a1aa">{r}</text>;
-        })}
-
-        {/* Angles: ASC, MC, DSC, IC — from cusps when provided */}
-        {(() => {
-          const ascLon = (H && H.length === 12 ? H[0] : asc);
-          const mcLon  = (H && H.length === 12 ? H[9] : (asc + 90) % 360);
-          const dscLon = (H && H.length === 12 ? H[6] : (asc + 180) % 360);
-          const icLon  = (H && H.length === 12 ? H[3] : (asc + 270) % 360);
-
-          const drawAngle = (lon: number, label: string) => {
-            const a = theta(lon);
-            const [x1, y1] = pt(rOuter + 6, a);
-            const [x2, y2] = pt(rOuter - 18, a);
+          {Array.from({ length: 72 }, (_, index) => index * 5).map((degrees) => {
+            const angle = theta(degrees);
+            const [x1, y1] = pointAt(rOuter, angle);
+            const length = degrees % 30 === 0 ? 15 : degrees % 10 === 0 ? 10 : 5;
+            const [x2, y2] = pointAt(rOuter - length, angle);
             return (
-              <g key={label}>
-                <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#18181b" strokeWidth={2}/>
-                <text x={x1} y={y1} textAnchor="middle" dominantBaseline="middle" fontSize={10} fill="#18181b">{label}</text>
+              <line
+                key={`tick-${degrees}`}
+                x1={x1}
+                y1={y1}
+                x2={x2}
+                y2={y2}
+                stroke="#b8bec7"
+                strokeWidth={degrees % 30 === 0 ? 1.1 : 0.65}
+              />
+            );
+          })}
+
+          {Array.from({ length: 12 }, (_, index) => {
+            const angle = theta(index * 30);
+            const [x1, y1] = pointAt(rOuter, angle);
+            const [x2, y2] = pointAt(rHouses, angle);
+            return (
+              <line
+                key={`sign-divider-${index}`}
+                x1={x1}
+                y1={y1}
+                x2={x2}
+                y2={y2}
+                stroke="#d6dbe2"
+                strokeWidth={0.9}
+              />
+            );
+          })}
+
+          {resolvedCusps.map((cusp, index) => {
+            const angle = theta(cusp);
+            const [x1, y1] = pointAt(rHouses, angle);
+            const [x2, y2] = pointAt(rHouses * 0.56, angle);
+            return (
+              <line
+                key={`house-divider-${index}`}
+                x1={x1}
+                y1={y1}
+                x2={x2}
+                y2={y2}
+                stroke="#e6e9ee"
+                strokeWidth={0.8}
+              />
+            );
+          })}
+
+          {SIGN_GLYPHS.map((glyph, index) => {
+            const angle = theta(index * 30 + 15);
+            const [x, y] = pointAt(rSigns, angle);
+            return (
+              <text
+                key={`sign-${glyph}`}
+                x={x}
+                y={y}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fontSize={17}
+                fill="#4b5563"
+                fontFamily={ZODIAC_FONT_FAMILY}
+              >
+                {glyph}
+              </text>
+            );
+          })}
+
+          {ROMANS.map((label, index) => {
+            const angle = theta(resolvedCusps[index] + 15);
+            const [x, y] = pointAt(rHouses * 0.81, angle);
+            return (
+              <text
+                key={`house-label-${label}`}
+                x={x}
+                y={y}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fontSize={10.5}
+                fill="#9aa3af"
+              >
+                {label}
+              </text>
+            );
+          })}
+
+          {[
+            { lon: ascLongitude, label: 'ASC', active: true, dashed: false },
+            { lon: midheavenLongitude, label: 'MC', active: true, dashed: false },
+            { lon: normalizeDegrees(ascLongitude + 180), label: 'DSC', active: false, dashed: true },
+            { lon: normalizeDegrees(midheavenLongitude + 180), label: 'IC', active: false, dashed: true },
+          ].map((angle) => {
+            const thetaValue = theta(angle.lon);
+            const [x1, y1] = pointAt(rOuter + 5, thetaValue);
+            const [x2, y2] = pointAt(rOuter - 18, thetaValue);
+            const [labelX, labelY] = pointAt(rOuter + 18, thetaValue);
+            const xDelta = labelX - center;
+            const textAnchor =
+              Math.abs(xDelta) < 8
+                ? 'middle'
+                : xDelta > 0
+                  ? 'start'
+                  : 'end';
+            return (
+              <g key={`angle-${angle.label}`}>
+                <line
+                  x1={x1}
+                  y1={y1}
+                  x2={x2}
+                  y2={y2}
+                  stroke={angle.active ? '#111827' : '#9ca3af'}
+                  strokeWidth={angle.active ? 1.55 : 0.9}
+                  strokeDasharray={angle.dashed ? '3 3' : undefined}
+                />
+                <text
+                  x={labelX}
+                  y={labelY}
+                  textAnchor={textAnchor}
+                  dominantBaseline="middle"
+                  fontSize={8.5}
+                  fill={angle.active ? '#111827' : '#9ca3af'}
+                  letterSpacing="0.18em"
+                >
+                  {angle.label}
+                </text>
               </g>
             );
-          };
+          })}
 
-          return (
-            <>
-              {drawAngle(ascLon, 'ASC')}
-              {drawAngle(mcLon, 'MC')}
-              {drawAngle(dscLon, 'DSC')}
-              {drawAngle(icLon, 'IC')}
-            </>
-          );
-        })()}
-
-        {/* aspect lines (optional) */}
-        {showAspects && aspects.filter(a => a.orb <= a.maxOrb).map((a,i)=>{
-          const A = planetById(a.a); const B = planetById(a.b);
-          if (!A || !B) return null;
-          const [x1,y1] = pt(rAspects, theta(A.lon));
-          const [x2,y2] = pt(rAspects, theta(B.lon));
-          return <line key={`asp${i}`} x1={x1} y1={y1} x2={x2} y2={y2}
-            stroke={aspectStroke(a.type)} strokeWidth={1.5} strokeOpacity={0.8}/>;
-        })}
-
-        {/* planets: glyph + horizontal degree label */}
-        {(() => {
-          // Collision-avoiding display angles map
-          const angleMap = React.useMemo(() => separatedAngles(planets), [planets]);
-          const labelRadius = (p: PlanetInput) => {
-            const me = angleMap.get(p.id)!;
-            const crowded = planets.some((q) => {
-              if (q.id === p.id) return false;
-              const d = Math.abs((((angleMap.get(q.id)! - me + 540) % 360) - 180));
-              return d < 8; // secondary threshold
-            });
-            return crowded ? rPlanets + 26 : rPlanets + 16;
-          };
-
-          // Small wrapper for smooth transform animation (CSS transition)
-          const PlanetGroup: React.FC<{ x: number; y: number; children: React.ReactNode }> = ({ x, y, children }) => (
-            <g transform={`translate(${x},${y})`} style={{ transition: "transform .35s ease-out" }}>{children}</g>
-          );
-
-          return planets.map((p) => {
-            const dispLon = angleMap.get(p.id)!;
-            const a = theta(dispLon);
-            const R = labelRadius(p);
-            const [gx, gy] = pt(R, a);
-            // Always render the degree/house label to the right of the glyph
-            const glyphAnchor: "middle" = "middle";
-            const labelAnchor: "start" = "start";
-            const degX = 16; // fixed to the right side of the glyph
-            const me = angleMap.get(p.id)!;
-            const crowded = planets.some((q) => {
-              if (q.id === p.id) return false;
-              const d = Math.abs((((angleMap.get(q.id)! - me + 540) % 360) - 180));
-              return d < 8;
-            });
-            const labelFont = crowded ? 10 : 11;
-            const active = activeId === p.id;
+          {showAspects && activeId && validAspects.map((aspect, index) => {
+            const left = planetLookup.get(aspect.a);
+            const right = planetLookup.get(aspect.b);
+            if (!left || !right) return null;
+            const [x1, y1] = pointAt(rAspects, theta(left.lon));
+            const [x2, y2] = pointAt(rAspects, theta(right.lon));
+            const key = aspectKey(aspect);
+            const highlighted = highlightedAspectKeys.has(key);
+            if (!highlighted) return null;
+            const phaseMode = aspectPhaseMode(aspect.phase);
+            const controlStrength = phaseMode === 'applying' ? 0.16 : phaseMode === 'separating' ? 0.08 : 0.12;
+            const controlY = center + (y1 + y2 > center * 2 ? -resolvedSize * controlStrength : resolvedSize * controlStrength);
+            const controlX = center;
+            const path = `M ${x1.toFixed(2)} ${y1.toFixed(2)} Q ${controlX.toFixed(2)} ${controlY.toFixed(2)} ${x2.toFixed(2)} ${y2.toFixed(2)}`;
             return (
-              <PlanetGroup key={p.id} x={gx} y={gy}>
-                <g
-                  onMouseEnter={() => setHoverId(p.id)}
-                  onMouseLeave={() => setHoverId(null)}
-                  onClick={() => setPinId((v) => (v === p.id ? null : p.id))}
-                  style={{ cursor: "pointer" }}
-                >
-                  {/* removed large hover halo to keep only the glass lens */}
-                  <text x={0} y={0} textAnchor={glyphAnchor} dominantBaseline="middle" fontSize={16} fill="#111827">
-                    {p.glyph}
-                    {p.retro ? " ℞" : ""}
-                  </text>
-                  <text x={degX} y={0} textAnchor={labelAnchor} dominantBaseline="middle" fontSize={labelFont} fill="#52525b">
-                    {degLabel(p.lon, false)}
-                    {p.house ? ` — H${p.house}` : ""}
-                  </text>
-                </g>
-              </PlanetGroup>
+              <path
+                key={`aspect-${key}-${index}`}
+                data-testid="wheel-aspect-line"
+                data-phase={phaseMode}
+                d={path}
+                stroke={aspectStroke(aspect.type)}
+                fill="none"
+                strokeWidth={phaseMode === 'applying' ? 2.25 : 1.85}
+                strokeOpacity={phaseMode === 'applying' ? 0.9 : phaseMode === 'separating' ? 0.72 : 0.82}
+                strokeDasharray={phaseMode === 'separating' ? '5 4' : undefined}
+                strokeLinecap="round"
+              />
             );
-          });
-        })()}
+          })}
 
-        {/* tooltip */}
-        {activeId && (() => {
-          const p = planetById(activeId);
-          if (!p) return null;
-          const a = theta(p.lon);
-          const [x, y] = pt(rPlanets + 46, a);
-          const w = 120, h = 54;
-          const tx = Math.min(Math.max(x - w/2, 8), SZ - w - 8);
-          const ty = Math.min(Math.max(y - h/2, 8), SZ - h - 8);
-          return (
-            <g>
-              <rect x={tx} y={ty} width={w} height={h} rx={8} fill="#ffffff" stroke="#e5e7eb"/>
-              <text x={tx+10} y={ty+18} fontSize={12} fill="#111827">{p.label ?? p.id}</text>
-              <text x={tx+10} y={ty+34} fontSize={11} fill="#52525b">{degLabel(p.lon, true)}</text>
-              <text x={tx+10} y={ty+48} fontSize={10} fill="#9ca3af">{p.house ? `House ${p.house}` : ""}</text>
-            </g>
-          );
-        })()}
+          {planets.map((planet) => {
+            const displayLon = angleMap.get(planet.id) ?? normalizeDegrees(planet.lon);
+            const angle = theta(displayLon);
+            const labelRadius = planetLabelRadius(planet.id);
+            const [glyphX, glyphY] = pointAt(labelRadius, angle);
+            const crowded = labelRadius > rPlanets + 18;
+            const labelFontSize = crowded ? 8.8 : 10;
+            const isActive = activeId === planet.id;
+            const labelDirection = glyphX >= center ? 1 : -1;
+            const labelX = labelDirection > 0 ? 16 : -16;
+            const labelAnchor = labelDirection > 0 ? 'start' : 'end';
+            return (
+              <g
+                key={planet.id}
+                data-testid={`wheel-planet-${planet.id}`}
+                data-planet-id={planet.id}
+                transform={`translate(${glyphX},${glyphY})`}
+                style={{ cursor: 'pointer', transition: 'transform .35s ease-out' }}
+                onMouseEnter={() => setHoverId(planet.id)}
+                onMouseLeave={() => setHoverId(null)}
+                onClick={() => setPinId((current) => (current === planet.id ? null : planet.id))}
+              >
+                {isActive ? (
+                  <circle cx={0} cy={0} r={13} fill="#f8fafc" stroke="#d7dde5" strokeWidth={1} />
+                ) : null}
+                <text x={0} y={0} textAnchor="middle" dominantBaseline="middle" fontSize={16} fill="#111827">
+                  {planet.glyph}
+                </text>
+                {planet.retro ? (
+                  <text x={9} y={-7} textAnchor="middle" dominantBaseline="middle" fontSize={7.5} fill="#b45309">
+                    ℞
+                  </text>
+                ) : null}
+                <text
+                  x={labelX}
+                  y={0}
+                  textAnchor={labelAnchor}
+                  dominantBaseline="middle"
+                  fontSize={labelFontSize}
+                  fill="#525866"
+                >
+                  {formatDegreeLabel(planet.lon)}
+                  {planet.house ? ` · H${planet.house}` : ''}
+                </text>
+              </g>
+            );
+          })}
+
+          {activeId ? (() => {
+            const activePlanet = planetLookup.get(activeId);
+            if (!activePlanet) return null;
+            const hasAspectRows = tooltipRows.length > 0;
+            const width = hasAspectRows ? 210 : 176;
+            const extraRowCount = tooltipRows.length + (activeAspects.length > tooltipRows.length ? 1 : 0);
+            const height = 58 + (hasAspectRows ? 18 + extraRowCount * 14 : 22);
+            const tx = center - width / 2;
+            const ty = center - height / 2;
+            return (
+              <g data-testid="wheel-tooltip" pointerEvents="none">
+                <rect x={tx} y={ty} width={width} height={height} rx={12} fill="#ffffff" stroke="#e5e7eb" />
+                <text x={tx + 12} y={ty + 18} fontSize={12} fill="#111827">
+                  {activePlanet.label ?? activePlanet.id}
+                </text>
+                <text x={tx + 12} y={ty + 34} fontSize={11} fill="#4b5563">
+                  {formatDegreeLabel(activePlanet.lon, true)}
+                </text>
+                <text x={tx + 12} y={ty + 48} fontSize={10} fill="#9ca3af">
+                  {activePlanet.house ? `House ${activePlanet.house}` : ''}
+                </text>
+                {hasAspectRows ? (
+                  <>
+                    <line x1={tx + 10} y1={ty + 58} x2={tx + width - 10} y2={ty + 58} stroke="#eef2f7" strokeWidth={1} />
+                    <text x={tx + 12} y={ty + 72} fontSize={10} fill="#94a3b8">
+                      Aspects
+                    </text>
+                    {tooltipRows.map((row, index) => (
+                      <text key={`${row}-${index}`} x={tx + 12} y={ty + 88 + index * 14} fontSize={10.5} fill="#475569">
+                        {row}
+                      </text>
+                    ))}
+                    {activeAspects.length > tooltipRows.length ? (
+                      <text x={tx + 12} y={ty + 88 + tooltipRows.length * 14} fontSize={10} fill="#94a3b8">
+                        +{activeAspects.length - tooltipRows.length} more
+                      </text>
+                    ) : null}
+                  </>
+                ) : (
+                  <>
+                    <line x1={tx + 10} y1={ty + 58} x2={tx + width - 10} y2={ty + 58} stroke="#eef2f7" strokeWidth={1} />
+                    <text x={tx + 12} y={ty + 74} fontSize={10} fill="#94a3b8">
+                      No major aspects in scope
+                    </text>
+                  </>
+                )}
+              </g>
+            );
+          })() : null}
         </g>
-
-        {/* Lens (hover zoom) */}
-        {mouse.inside && (
-          <g className="lens-fade" opacity={mouse.inside ? 1 : 0}>
-            <defs>
-              <clipPath id={clipId}>
-                <circle cx={mouse.x} cy={mouse.y} r={lensR} />
-              </clipPath>
-              <filter id={`lensShadow-${uid}`} x="-20%" y="-20%" width="140%" height="140%">
-                <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#000" floodOpacity="0.12" />
-              </filter>
-            </defs>
-
-            {/* Magnified content, clipped to a circle that follows the cursor */}
-            <g clipPath={`url(#${clipId})`} pointerEvents="none">
-              <use href={`#${sceneId}`}
-                   transform={`translate(${(1 - lensScale) * mouse.x} ${(1 - lensScale) * mouse.y}) scale(${lensScale})`} />
-              {/* faint frosted tint to feel like glass */}
-              <circle cx={mouse.x} cy={mouse.y} r={lensR} fill="#ffffff" opacity="0.15" />
-            </g>
-
-            {/* lens outline */}
-            <circle cx={mouse.x} cy={mouse.y} r={lensR} fill="none" stroke="#cbd5e1" strokeWidth={2}
-                    filter={`url(#lensShadow-${uid})`} />
-          </g>
-        )}
       </svg>
     </div>
   );

@@ -59,8 +59,10 @@ def test_find_nearest_lunation_selects_nearest_new_moon():
 def test_resolve_chart_resolution_war_event_uses_event_chart_and_house_logic():
     event_dt = datetime(2025, 4, 11, 12, 0, tzinfo=timezone.utc)
     captured = {}
+    calls = []
 
     def bundle_resolver(dt_iso, location, timezone_name, house_system_code, **kwargs):
+        calls.append((dt_iso, location, timezone_name, house_system_code))
         captured["latitude"] = kwargs.get("latitude")
         captured["longitude"] = kwargs.get("longitude")
         return {
@@ -107,6 +109,7 @@ def test_resolve_chart_resolution_war_event_uses_event_chart_and_house_logic():
     assert payload["activation_items"][0]["status"] == "present"
     assert captured["latitude"] == 48.8566
     assert captured["longitude"] == 2.3522
+    assert calls == [(event_dt.isoformat(), "Paris, France", "Europe/Paris", "P")]
 
 
 def test_resolve_chart_resolution_eclipse_and_lunation_attach_cycle_context(monkeypatch):

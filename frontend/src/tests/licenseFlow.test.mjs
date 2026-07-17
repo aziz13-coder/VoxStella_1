@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   getHorarySubmitDisabledReason,
+  HORARY_API_OFFLINE_MESSAGE,
   HORARY_ACTIVATION_REQUIRED_MESSAGE,
   requiresHoraryActivation,
 } from '../utils/licenseFlow.mjs';
@@ -64,5 +65,15 @@ describe('licenseFlow', () => {
         location: 'London, UK',
       }),
     ).toBe('');
+  });
+
+  it('blocks chart casting while the horary API is offline', () => {
+    expect(
+      getHorarySubmitDisabledReason({
+        question: 'Will I get the job?',
+        location: 'London, UK',
+        apiStatus: 'offline',
+      }),
+    ).toBe(HORARY_API_OFFLINE_MESSAGE);
   });
 });

@@ -13,16 +13,18 @@ import { hydrateStoredCharts } from './utils/chartStorage.mjs';
 import { getJudgmentDisplayLabel } from './utils/judgmentDisplay.mjs';
 import { normalizeHoraryApiResult } from './utils/normalizeHoraryApiResult.mjs';
 import { appendNoteAttachment, renderNoteMarkdown } from './utils/noteMarkdown.jsx';
-import { buildChartReplayContext, buildChartReplayRequest } from './utils/horaryReplay.mjs';
+import { buildChartReplayRequest } from './utils/horaryReplay.mjs';
 import { renderReasoning } from './utils/renderReasoning.jsx';
 import { getUseReasoningV1 } from './utils/useReasoningFlag.mjs';
 import {
   API_CONNECTIVITY_BOOT_GRACE_MS,
+  API_CONNECTIVITY_FAILURE_THRESHOLD,
   API_CONNECTIVITY_TIMEOUT_MS,
   resolveApiStatusAfterPingFailure,
 } from './utils/apiConnectivity.mjs';
 import {
   getHorarySubmitDisabledReason,
+  HORARY_API_OFFLINE_MESSAGE,
   HORARY_ACTIVATION_REQUIRED_MESSAGE,
   requiresHoraryActivation,
 } from './utils/licenseFlow.mjs';
@@ -112,51 +114,136 @@ const planetSymbols = {
 const isLocalDevLicenseRuntime = () => {
   if (typeof window === 'undefined') return false;
   if (window.IS_PACKAGED === false) return true;
-  return Boolean(import.meta?.env?.DEV && !window.electronAPI);
+  return Boolean(import.meta.env.DEV && !window.electronAPI);
+};
+
+const getBrowserDevelopmentLicenseToken = () => {
+  if (!isLocalDevLicenseRuntime()) return null;
+  const configuredToken = import.meta.env.VITE_DEV_LICENSE_TOKEN;
+  if (typeof configuredToken !== 'string') return null;
+  return configuredToken.trim() || null;
 };
 
 const APP_VERSION = packageJson?.version || '0.0.0';
 const ENGINE_VERSION_FALLBACK = 'Enhanced Traditional Horary 2.0';
 const CURRENT_WHATS_NEW_RELEASE = getWhatsNewRelease(APP_VERSION);
 const WORKSPACE_DOCS_URL = 'https://voxstella.app/docs/workspace/';
+export const SHOW_RESEARCH_WORKSPACE = import.meta.env.DEV;
 const normalizeLocationKey = (value) => String(value || '').trim().toLowerCase();
 
-const LicenseTokenProvider = (() => {
+function DevResearchWorkspace({ darkMode }) {
+  const [ResearchComponent, setResearchComponent] = useState(null);
+  const [loadError, setLoadError] = useState('');
+
+  useEffect(() => {
+    if (!SHOW_RESEARCH_WORKSPACE) return undefined;
+    let cancelled = false;
+    import('./features/research/ResearchWorkspace.jsx')
+      .then((module) => {
+        if (!cancelled) setResearchComponent(() => module.default);
+      })
+      .catch((error) => {
+        console.warn('Failed to load dev Research workspace', error);
+        if (!cancelled) setLoadError('Research is unavailable in this runtime.');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (!SHOW_RESEARCH_WORKSPACE) return null;
+  if (loadError) return <div className="px-6 py-10 text-sm text-rose-600">{loadError}</div>;
+  if (!ResearchComponent) return <div className="px-6 py-10 text-sm text-slate-500">Loading Research...</div>;
+  return <ResearchComponent darkMode={darkMode} />;
+}
+
+function normalizeApiStatusValue(value, fallback = 'checking') {
+  const raw = typeof value === 'string'
+    ? value
+    : typeof value?.status === 'string'
+      ? value.status
+      : '';
+  const normalized = raw.trim().toLowerCase();
+  if (normalized === 'connected' || normalized === 'online' || normalized === 'ok') return 'connected';
+  if (normalized === 'offline' || normalized === 'error' || normalized === 'failed') return 'offline';
+  if (normalized === 'checking' || normalized === 'starting' || normalized === 'loading') return 'checking';
+  return fallback;
+}
+
+export const LicenseTokenProvider = (() => {
   let cachedToken = null;
+  let cacheExpiresAtMs = 0;
   let inflight = null;
+
+  const decodeTokenClaims = (token) => {
+    try {
+      const parts = String(token || '').split('.');
+      if (parts.length !== 2 || !parts[1]) return null;
+      const parsed = JSON.parse(atob(parts[1]));
+      return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch (_) {
+      return null;
+    }
+  };
+
+  const computeCacheExpiryMs = (token) => {
+    const now = Date.now();
+    if (!token) return 0;
+    const claims = decodeTokenClaims(token);
+    const candidates = [now + 60 * 1000];
+    const nextVerifyAt = Number(claims?.next_verify_at);
+    const exp = Number(claims?.exp);
+    if (Number.isFinite(nextVerifyAt) && nextVerifyAt > 0) {
+      candidates.push((nextVerifyAt * 1000) - 1000);
+    }
+    if (Number.isFinite(exp) && exp > 0) {
+      candidates.push((exp * 1000) - 1000);
+    }
+    return Math.max(now, Math.min(...candidates));
+  };
+
+  const storeToken = (token) => {
+    cachedToken = token || null;
+    cacheExpiresAtMs = computeCacheExpiryMs(cachedToken);
+    return cachedToken;
+  };
 
   const fetchToken = async () => {
     try {
       if (window.electronAPI?.getLicenseToken) {
         const token = await window.electronAPI.getLicenseToken();
-        cachedToken = token || null;
-        return cachedToken;
+        return storeToken(token);
       }
-      // Source-run development always uses a local dev token. Packaged builds
-      // still go through the real licensing flow.
       if (isLocalDevLicenseRuntime()) {
-        cachedToken = 'dev-token';
-        return cachedToken;
-      }
-      if (import.meta?.env?.VITE_DEV_LICENSE_TOKEN) {
-        return import.meta.env.VITE_DEV_LICENSE_TOKEN;
+        // Browser development either supplies a real strict-license token or
+        // relies on the source backend's explicit development bypass. Never
+        // emit a fake bearer credential that strict mode will reject.
+        return storeToken(getBrowserDevelopmentLicenseToken());
       }
     } catch (err) {
       console.warn('Failed to fetch license token', err);
-    } finally {
-      inflight = null;
     }
-    return null;
+    return storeToken(null);
   };
 
   return {
-    async getToken() {
-      if (cachedToken) return cachedToken;
-      if (!inflight) inflight = fetchToken();
+    async getToken(options = {}) {
+      const forceRefresh = options?.forceRefresh === true;
+      if (!forceRefresh && cachedToken && Date.now() < cacheExpiresAtMs) {
+        return cachedToken;
+      }
+      if (!inflight || forceRefresh) {
+        const request = fetchToken();
+        inflight = request;
+        request.finally(() => {
+          if (inflight === request) inflight = null;
+        });
+      }
       return inflight;
     },
     invalidate() {
       cachedToken = null;
+      cacheExpiresAtMs = 0;
       inflight = null;
     }
   };
@@ -179,10 +266,11 @@ if (typeof window !== 'undefined') {
 }
 
 // API Service Layer
-class VoxStellaAPI {
+export class VoxStellaAPI {
   static async request(endpoint, options = {}) {
     const { skipLicense, timeoutMs, ...fetchOptions } = options;
     const url = `${getApiBaseUrl()}${endpoint}`;
+    const allowMissingDevToken = isLocalDevLicenseRuntime();
     const timeoutValue = Number(timeoutMs);
     const effectiveTimeoutMs =
       Number.isFinite(timeoutValue) && timeoutValue > 0 ? timeoutValue : 30000;
@@ -191,71 +279,87 @@ class VoxStellaAPI {
       delete fetchOptions.signal;
     }
 
-    const controller = new AbortController();
-    let timedOut = false;
-    const timeoutId = setTimeout(() => {
-      timedOut = true;
-      controller.abort();
-    }, effectiveTimeoutMs);
-    let removeAbortRelay = null;
-    if (externalSignal) {
-      const relayAbort = () => controller.abort();
-      if (externalSignal.aborted) {
-        controller.abort();
-      } else {
-        externalSignal.addEventListener('abort', relayAbort, { once: true });
-        removeAbortRelay = () =>
-          externalSignal.removeEventListener('abort', relayAbort);
-      }
-    }
-
-    const config = {
-      headers: {
-        'Content-Type': 'application/json',
-        ...fetchOptions.headers,
-      },
-      ...fetchOptions,
-      signal: controller.signal,
-    };
-
-    if (!skipLicense) {
-      const token = await LicenseTokenProvider.getToken();
-      if (!token) {
+    const send = async (token, allowAuthRetry) => {
+      if (!skipLicense && !token && !allowMissingDevToken) {
         throw new Error('License token missing. Activate Vox Stella to continue.');
       }
-      config.headers.Authorization = `Bearer ${token}`;
-    }
 
-    try {
-      const response = await fetch(url, config);
-      let data = null;
+      const controller = new AbortController();
+      let timedOut = false;
+      const timeoutId = setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+      }, effectiveTimeoutMs);
+      let removeAbortRelay = null;
+      if (externalSignal) {
+        const relayAbort = () => controller.abort();
+        if (externalSignal.aborted) {
+          controller.abort();
+        } else {
+          externalSignal.addEventListener('abort', relayAbort, { once: true });
+          removeAbortRelay = () =>
+            externalSignal.removeEventListener('abort', relayAbort);
+        }
+      }
+
+      const config = {
+        ...fetchOptions,
+        headers: {
+          'Content-Type': 'application/json',
+          ...fetchOptions.headers,
+          ...(!skipLicense && token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        signal: controller.signal,
+      };
+
       try {
-        data = await response.json();
-      } catch (_) {
-        data = null;
-      }
+        const response = await fetch(url, config);
+        let data = null;
+        try {
+          data = await response.json();
+        } catch (_) {
+          data = null;
+        }
 
-      if (response.status === 402 || response.status === 403) {
-        LicenseTokenProvider.invalidate();
-      }
+        const authFailure = !skipLicense && (response.status === 402 || response.status === 403);
+        if (authFailure) {
+          LicenseTokenProvider.invalidate();
+        }
 
-      if (!response.ok) {
-        throw new Error(data?.error || data?.detail || `HTTP error! status: ${response.status}`);
-      }
+        if (!response.ok) {
+          const error = new Error(data?.error || data?.detail || `HTTP error! status: ${response.status}`);
+          error.status = response.status;
+          error.authFailure = authFailure && allowAuthRetry;
+          throw error;
+        }
 
-      return data ?? {};
-    } catch (error) {
-      if (error?.name === 'AbortError' && timedOut) {
-        throw new Error(`Request timed out after ${Math.round(effectiveTimeoutMs / 1000)}s`);
+        return data ?? {};
+      } catch (error) {
+        if (error?.name === 'AbortError' && timedOut) {
+          throw new Error(`Request timed out after ${Math.round(effectiveTimeoutMs / 1000)}s`);
+        }
+        if (error?.authFailure) {
+          const refreshedToken = await LicenseTokenProvider
+            .getToken({ forceRefresh: true })
+            .catch(() => null);
+          if (refreshedToken && refreshedToken !== token) {
+            return send(refreshedToken, false);
+          }
+        }
+        console.error(`API request failed: ${endpoint}`, error);
+        throw error;
+      } finally {
+        clearTimeout(timeoutId);
+        if (removeAbortRelay) {
+          removeAbortRelay();
+        }
       }
-      console.error(`API request failed: ${endpoint}`, error);
-      throw error;
-    } finally {
-      clearTimeout(timeoutId);
-      if (removeAbortRelay) {
-        removeAbortRelay();
-      }
-    }
+    };
+
+    const token = skipLicense
+      ? null
+      : await LicenseTokenProvider.getToken();
+    return send(token, true);
   }
 
   static async calculateChart(chartData) {
@@ -877,10 +981,13 @@ const VoxStellaApp = () => {
   const [notes, setNotes] = useState({});
   const [apiStatus, setApiStatus] = useState('checking');
   const browserConnectivityDeadlineRef = useRef(Date.now() + API_CONNECTIVITY_BOOT_GRACE_MS);
+  const apiConnectivityFailuresRef = useRef(0);
   const [whatsNewRelease, setWhatsNewRelease] = useState(null);
   // Licensing (app-wide)
   const [license, setLicense] = useState(() =>
-    isLocalDevLicenseRuntime() ? { active: true, plan: 'dev' } : { active: false, plan: 'standard' }
+    isLocalDevLicenseRuntime()
+      ? { active: true, plan: 'dev', checking: false }
+      : { active: false, plan: 'standard', checking: true }
   );
   const isDevLicenseRuntime = isLocalDevLicenseRuntime();
   const hasElectronBackendStatusBridge =
@@ -889,31 +996,48 @@ const VoxStellaApp = () => {
     typeof window.electronAPI?.refreshBackendStatus === 'function' &&
     typeof window.electronAPI?.onBackendStatus === 'function';
 
+  const applyApiStatus = useCallback((nextStatus, fallback = 'checking') => {
+    const normalized = normalizeApiStatusValue(nextStatus, fallback);
+    if (normalized === 'connected') {
+      browserConnectivityDeadlineRef.current = 0;
+      apiConnectivityFailuresRef.current = 0;
+    } else if (normalized === 'checking') {
+      apiConnectivityFailuresRef.current = 0;
+    }
+    setApiStatus(normalized);
+  }, []);
+
+  const applyApiProbeFailure = useCallback(() => {
+    apiConnectivityFailuresRef.current += 1;
+    setApiStatus((currentStatus) =>
+      resolveApiStatusAfterPingFailure({
+        currentStatus,
+        startupDeadlineMs: browserConnectivityDeadlineRef.current,
+        failureCount: apiConnectivityFailuresRef.current,
+        failureThreshold: API_CONNECTIVITY_FAILURE_THRESHOLD,
+      })
+    );
+  }, []);
+
   const checkApiHealth = useCallback(async () => {
     if (hasElectronBackendStatusBridge) {
       try {
         const result = await window.electronAPI.refreshBackendStatus();
-        setApiStatus(result?.status || 'checking');
+        applyApiStatus(result, 'checking');
       } catch (error) {
         console.warn('Electron backend status refresh failed:', error);
-        setApiStatus('offline');
+        applyApiProbeFailure();
       }
       return;
     }
     try {
       await VoxStellaAPI.ping();
-      browserConnectivityDeadlineRef.current = 0;
-      setApiStatus('connected');
+      applyApiStatus('connected');
     } catch (error) {
       console.warn('API not available:', error);
-      setApiStatus((currentStatus) =>
-        resolveApiStatusAfterPingFailure({
-          currentStatus,
-          startupDeadlineMs: browserConnectivityDeadlineRef.current,
-        })
-      );
+      applyApiProbeFailure();
     }
-  }, [hasElectronBackendStatusBridge]);
+  }, [applyApiProbeFailure, applyApiStatus, hasElectronBackendStatusBridge]);
 
   // Initialize data
   useEffect(() => {
@@ -930,9 +1054,13 @@ const VoxStellaApp = () => {
     // Load license status (or force-unlock in browser dev)
     try {
       if (isDevLicenseRuntime) {
-        setLicense({ active: true, plan: 'dev' });
+        setLicense({ active: true, plan: 'dev', checking: false });
       } else if (window.electronAPI?.getLicenseStatus) {
-        window.electronAPI.getLicenseStatus().then((s) => s && setLicense(s));
+        window.electronAPI.getLicenseStatus()
+          .then((s) => setLicense({ ...(s || { active: false, plan: 'standard' }), checking: false }))
+          .catch(() => setLicense({ active: false, plan: 'standard', checking: false }));
+      } else {
+        setLicense({ active: false, plan: 'standard', checking: false });
       }
     } catch (_) {}
 
@@ -947,9 +1075,9 @@ const VoxStellaApp = () => {
     let unsubscribe = () => {};
     try {
       unsubscribe = window.electronAPI.onBackendStatus((payload) => {
-        const nextStatus = typeof payload?.status === 'string' ? payload.status : null;
+        const nextStatus = normalizeApiStatusValue(payload, '');
         if (!cancelled && nextStatus) {
-          setApiStatus(nextStatus);
+          applyApiStatus(nextStatus);
         }
       });
     } catch (_) {}
@@ -957,9 +1085,9 @@ const VoxStellaApp = () => {
     (async () => {
       try {
         const result = await window.electronAPI.getBackendStatus();
-        const nextStatus = typeof result?.status === 'string' ? result.status : null;
+        const nextStatus = normalizeApiStatusValue(result, '');
         if (!cancelled && nextStatus) {
-          setApiStatus(nextStatus);
+          applyApiStatus(nextStatus);
         }
       } catch (error) {
         console.warn('Failed to get backend status from Electron bridge:', error);
@@ -973,7 +1101,7 @@ const VoxStellaApp = () => {
       cancelled = true;
       try { unsubscribe(); } catch (_) {}
     };
-  }, [checkApiHealth, hasElectronBackendStatusBridge]);
+  }, [applyApiStatus, checkApiHealth, hasElectronBackendStatusBridge]);
 
   // Keep probing in background while API is not yet connected.
   useEffect(() => {
@@ -985,6 +1113,11 @@ const VoxStellaApp = () => {
     return () => clearInterval(id);
   }, [apiStatus, checkApiHealth, hasElectronBackendStatusBridge]);
 
+  useEffect(() => {
+    if (!SHOW_RESEARCH_WORKSPACE && currentView === 'research') {
+      setCurrentView('dashboard');
+    }
+  }, [currentView]);
 
   const toggleDarkMode = () => {
     const newMode = !darkMode;
@@ -1129,7 +1262,14 @@ const VoxStellaApp = () => {
               setCurrentView={setCurrentView}
               apiStatus={apiStatus}
               licenseActive={!!license.active}
+              licenseChecking={!!license.checking}
+              onLicenseChanged={(s) => setLicense({ ...(s || { active: false, plan: 'standard' }), checking: false })}
             />
+          </ErrorBoundary>
+        )}
+        {SHOW_RESEARCH_WORKSPACE && currentView === 'research' && (
+          <ErrorBoundary>
+            <DevResearchWorkspace darkMode={darkMode} />
           </ErrorBoundary>
         )}
         {currentView === 'settings' && (
@@ -1139,7 +1279,7 @@ const VoxStellaApp = () => {
             setCurrentView={setCurrentView}
             apiStatus={apiStatus}
             onRefreshApi={checkApiHealth}
-            onLicenseChanged={(s)=> setLicense(s)}
+            onLicenseChanged={(s)=> setLicense({ ...(s || { active: false, plan: 'standard' }), checking: false })}
           />
         )}
       </main>
@@ -1155,6 +1295,8 @@ const VoxStellaApp = () => {
         darkMode={darkMode}
         release={whatsNewRelease}
         onClose={dismissWhatsNew}
+        license={license}
+        onLicenseChanged={(s) => setLicense({ ...(s || { active: false, plan: 'standard' }), checking: false })}
       />
     </div>
   );
@@ -1246,6 +1388,7 @@ const UnifiedNavigationBar = ({ currentView, setCurrentView, darkMode }) => {
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'cast-chart', label: 'Cast Chart', primary: true },
     { id: 'astro-clock', label: 'Astro Clock' },
+    ...(SHOW_RESEARCH_WORKSPACE ? [{ id: 'research', label: 'Research' }] : []),
     { id: 'timeline', label: 'Timeline' },
     { id: 'notebook', label: 'Notebook' },
     { id: 'settings', label: 'Settings' },
@@ -1696,6 +1839,7 @@ const EnhancedChartCasting = ({
     question,
     location,
     requiresActivation: activationRequired,
+    apiStatus,
   });
 
   const showSubmitError = (message) => {
@@ -2005,18 +2149,15 @@ const EnhancedChartCasting = ({
       })
     };
 
+    if (apiStatus !== 'connected') {
+      showSubmitError(`${HORARY_API_OFFLINE_MESSAGE} No chart was saved.`);
+      return;
+    }
+
     setLoading(true);
     setError('');
     
     try {
-      if (apiStatus !== 'connected') {
-        const demoChart = createEnhancedDemoChart(requestBody);
-        const savedChart = onChartCreated(demoChart);
-        setCurrentChart(savedChart);
-        setCurrentView('chart-view');
-        return;
-      }
-
       const result = await VoxStellaAPI.calculateChart(requestBody);
       const processedChart = normalizeHoraryApiResult(result, {
         requestContext: requestBody,
@@ -2035,6 +2176,7 @@ const EnhancedChartCasting = ({
     }
   };
 
+  /*
   const createEnhancedDemoChart = (requestData) => {
     const judgments = ['YES', 'NO', 'UNCLEAR'];
     const randomJudgment = judgments[Math.floor(Math.random() * judgments.length)];
@@ -2138,6 +2280,7 @@ const EnhancedChartCasting = ({
       considerations: deriveConsiderations(baseChart, requestData)
     };
   };
+  */
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -2146,35 +2289,11 @@ const EnhancedChartCasting = ({
         <p className="text-gray-600 dark:text-gray-300">
           Ask a clear, specific question and let the traditional wisdom guide your answer.
         </p>
-        {activationRequired && (
-          <div className="mt-4 p-4 bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 rounded-lg space-y-3">
-            <p className="text-amber-800 dark:text-amber-200 text-sm">
-              <AlertCircle className="w-4 h-4 inline mr-2" />
-              {HORARY_ACTIVATION_REQUIRED_MESSAGE}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setCurrentView('settings')}
-                className="px-3 py-1.5 rounded bg-indigo-600 text-white hover:bg-indigo-700 text-sm"
-              >
-                Open Activation Settings
-              </button>
-              <button
-                type="button"
-                onClick={() => window.electronAPI?.openExternal?.('https://voxstella.app/product')}
-                className="px-3 py-1.5 rounded bg-white/80 dark:bg-gray-900/50 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-100 hover:bg-white text-sm"
-              >
-                Purchase License
-              </button>
-            </div>
-          </div>
-        )}
         {!activationRequired && apiStatus === 'offline' && (
           <div className="mt-4 p-3 bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 rounded-lg">
             <p className="text-amber-700 dark:text-amber-300 text-sm">
               <AlertCircle className="w-4 h-4 inline mr-2" />
-              API offline - Demo chart will be created with enhanced features. Chart will be saved locally.
+              {HORARY_API_OFFLINE_MESSAGE}
             </p>
           </div>
         )}
@@ -2657,13 +2776,13 @@ const EnhancedChartCasting = ({
           <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
             <p>
               {activationRequired
-                ? 'Activation is required before the packaged app can calculate horary charts.'
+                ? HORARY_ACTIVATION_REQUIRED_MESSAGE
                 : apiStatus === 'connected' ? 
                 'Chart will be calculated using Enhanced Horary Engine with advanced traditional features.' :
-                'API offline - Demo chart will be created for testing.'
+                'The backend must be connected before a chart can be cast.'
               }
             </p>
-            {submitDisabledReason && (
+            {submitDisabledReason && submitDisabledReason !== HORARY_ACTIVATION_REQUIRED_MESSAGE && (
               <p className="mt-2 text-red-600 dark:text-red-400">
                 {submitDisabledReason}
               </p>
@@ -6075,891 +6194,16 @@ const NotebookView = ({ charts, notes, setNotes, darkMode, setCurrentChart, setC
   );
 };
 
-// Astro Clock Component - Professional Dashboard
-const AstroClock = ({ darkMode, setCurrentView, apiStatus }) => {
-  const [clockMode, setClockMode] = useState('auto');
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [astroData, setAstroData] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [manualDate, setManualDate] = useState('');
-  const [manualTime, setManualTime] = useState('');
-  const [manualLocation, setManualLocation] = useState('');
-
-  const cardBg = darkMode
-    ? 'bg-gray-800/60 backdrop-blur-xl border-gray-700'
-    : 'bg-white/60 backdrop-blur-xl border-white/80';
-
-  const panelBg = darkMode
-    ? 'bg-gray-800/40 border-gray-700'
-    : 'bg-white/40 border-gray-200';
-
-  // Update current time every second
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  // Fetch astro data periodically in auto mode
-  useEffect(() => {
-    if (clockMode === 'auto') {
-      fetchAstroData();
-      const interval = setInterval(fetchAstroData, 30000); // Update every 30 seconds
-      return () => clearInterval(interval);
-    }
-  }, [clockMode]);
-
-  const fetchAstroData = async () => {
-    if (apiStatus !== 'connected') return;
-
-    setIsLoading(true);
-    try {
-      let apiData;
-
-      if (clockMode === 'auto') {
-        // Real-time mode - fetch current data
-        const response = await VoxStellaAPI.request('/api/astro-clock/current');
-        if (response.success) {
-          apiData = response.data;
-        } else {
-          throw new Error('Failed to fetch current astro data');
-        }
-      } else if (clockMode === 'manual') {
-        // Manual mode - set mode and fetch data
-        if (!manualDate || !manualTime) {
-          throw new Error('Date and time required for manual mode');
-        }
-
-        // Combine date and time into ISO format
-        const manualDateTime = `${manualDate}T${manualTime}:00`;
-
-        // Set manual mode via API
-        await VoxStellaAPI.request('/api/astro-clock/mode', {
-          method: 'POST',
-          body: JSON.stringify({
-            mode: 'manual',
-            datetime: manualDateTime,
-            location: manualLocation || 'Greenwich, UK'
-          })
-        });
-
-        // Fetch the data with manual settings
-        const response = await VoxStellaAPI.request('/api/astro-clock/current');
-        if (response.success) {
-          apiData = response.data;
-        } else {
-          throw new Error('Failed to fetch manual astro data');
-        }
-      }
-
-      // Transform API data to match our frontend structure
-      const transformedData = transformApiDataToFrontend(apiData);
-      setAstroData(transformedData);
-
-    } catch (error) {
-      console.error('Failed to fetch astro data:', error);
-      // Fallback to mock data if API fails
-      console.log('Falling back to mock data');
-      const mockData = generateMockAstroData();
-      setAstroData(mockData);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const transformApiDataToFrontend = (apiData) => {
-    if (!apiData) return generateMockAstroData();
-
-    try {
-      // Extract chart data from the API response
-      const chartData = apiData.chart_data || {};
-      const planets = chartData.planets || [];
-      const moonState = apiData.moon_state || {};
-      const dispositorChains = apiData.dispositor_chains || {};
-      const currentAspects = apiData.current_aspects || [];
-
-      // Transform planets data
-      const transformedPlanets = planets.map(planet => ({
-        planet: planet.planet || 'Unknown',
-        degree: `${Math.floor(planet.longitude || 0)}°${Math.floor(((planet.longitude || 0) % 1) * 60)}'`,
-        sign: planet.sign || 'Unknown',
-        ruler: planet.sign ? getSignRuler(planet.sign) : 'Unknown'
-      }));
-
-      // Transform dispositor chains
-      const transformedDispositors = Object.entries(dispositorChains).map(([planet, chain]) => ({
-        planet: planet,
-        ruled_by: chain.dispositor || 'Unknown',
-        chain: chain.chain || [planet]
-      }));
-
-      // Transform current aspects to find the tightest one
-      const tightestAspect = currentAspects.length > 0 ? currentAspects.reduce((tightest, aspect) => {
-        const currentOrb = parseFloat(aspect.orb || 10);
-        const tightestOrb = parseFloat(tightest.orb || 10);
-        return currentOrb < tightestOrb ? aspect : tightest;
-      }) : null;
-
-      const transformedCurrentAspect = tightestAspect ? {
-        planets: `${tightestAspect.planet1} ${getAspectSymbol(tightestAspect.aspect)} ${tightestAspect.planet2}`,
-        orb: `${parseFloat(tightestAspect.orb || 0).toFixed(1)}°`,
-        max: '6°', // Standard orb
-        exactness: Math.max(0, Math.min(100, 100 - (parseFloat(tightestAspect.orb || 0) / 6) * 100))
-      } : null;
-
-      // Generate realistic solar conditions based on chart data
-      const solarConditions = planets.filter(planet => planet.planet !== 'Sun').map(planet => {
-        const sunPos = planets.find(p => p.planet === 'Sun');
-        if (!sunPos) return { planet: planet.planet, condition: 'Free', separation: 'N/A' };
-
-        const separation = Math.abs((planet.longitude || 0) - (sunPos.longitude || 0));
-        const adjustedSep = separation > 180 ? 360 - separation : separation;
-
-        let condition = 'Free';
-        if (adjustedSep <= 0.3) condition = 'Cazimi';
-        else if (adjustedSep <= 8.5) condition = 'Combust';
-        else if (adjustedSep <= 17) condition = 'Under Beams';
-
-        return {
-          planet: planet.planet,
-          condition: condition,
-          separation: `${adjustedSep.toFixed(1)}°`,
-          description: getConditionDescription(condition)
-        };
-      });
-
-      // Create planetary dignity data
-      const planetaryDignity = transformedPlanets.map(planet => {
-        // Simplified dignity calculation - would use real dignity logic
-        const dignity = calculateSimpleDignity(planet.planet, planet.sign);
-        return {
-          planet: planet.planet,
-          dignity: dignity,
-          range: [-5, 5]
-        };
-      });
-
-      // Create moon condition data
-      const moonPosition = planets.find(p => p.planet === 'Moon');
-      const moonConditionData = moonPosition ? {
-        sign: moonPosition.sign || 'Unknown',
-        degree: `${Math.floor(moonPosition.longitude || 0)}°${Math.floor(((moonPosition.longitude || 0) % 1) * 60)}'${Math.floor((((moonPosition.longitude || 0) % 1) * 60 % 1) * 60)}''`,
-        vocIn: moonState.void_of_course ? '1d 23h' : 'Not VOC',
-        vocStart: 'Wed, Sep 17, 6:13 AM',
-        vocEnd: 'Wed, Sep 17, 8:20 AM',
-        duration: '2h 06m',
-        nextAspect: '♄ → ☉ ♐'
-      } : null;
-
-      return {
-        timestamp: apiData.timestamp || new Date().toISOString(),
-        planets: transformedPlanets,
-        dispositors: transformedDispositors,
-        solarConditions: solarConditions,
-        currentAspect: transformedCurrentAspect,
-        fixedStars: [
-          { name: 'Regulus', constellation: 'Leo', degree: '29°50\'', conjunction: 'No major conjunctions' },
-          { name: 'Spica', constellation: 'Vir', degree: '23°50\'', conjunction: 'No major conjunctions' },
-          { name: 'Aldebaran', constellation: 'Gem', degree: '9°47\'', conjunction: 'No major conjunctions' }
-        ],
-        cusps: [], // Would populate from chart.house_cusps if available
-        planetaryDignity: planetaryDignity,
-        moonCondition: moonConditionData
-      };
-
-    } catch (error) {
-      console.error('Error transforming API data:', error);
-      return generateMockAstroData();
-    }
-  };
-
-  // Helper functions for data transformation
-  const getSignRuler = (sign) => {
-    const rulers = {
-      'Aries': 'Mars', 'Taurus': 'Venus', 'Gemini': 'Mercury',
-      'Cancer': 'Moon', 'Leo': 'Sun', 'Virgo': 'Mercury',
-      'Libra': 'Venus', 'Scorpio': 'Mars', 'Sagittarius': 'Jupiter',
-      'Capricorn': 'Saturn', 'Aquarius': 'Saturn', 'Pisces': 'Jupiter'
-    };
-    return rulers[sign] || 'Unknown';
-  };
-
-  const getAspectSymbol = (aspectName) => {
-    const symbols = {
-      'Conjunction': '☌', 'Opposition': '☍', 'Trine': '△',
-      'Square': '□', 'Sextile': '⚹', 'conjunction': '☌',
-      'opposition': '☍', 'trine': '△', 'square': '□', 'sextile': '⚹'
-    };
-    return symbols[aspectName] || '~';
-  };
-
-  const getConditionDescription = (condition) => {
-    const descriptions = {
-      'Cazimi': 'Heart of the Sun',
-      'Combust': 'Burnt by Sun',
-      'Under Beams': 'Obscured by Sun',
-      'Free': 'Free of Sun'
-    };
-    return descriptions[condition] || '';
-  };
-
-  const calculateSimpleDignity = (planet, sign) => {
-    // Simplified dignity calculation - in reality would be much more complex
-    const dignities = {
-      'Sun': { 'Leo': 5, 'Aries': 3, 'Libra': -5, 'Aquarius': -3 },
-      'Moon': { 'Cancer': 5, 'Taurus': 3, 'Capricorn': -5, 'Scorpio': -3 },
-      'Mercury': { 'Gemini': 5, 'Virgo': 5, 'Sagittarius': -5, 'Pisces': -5 },
-      'Venus': { 'Libra': 5, 'Taurus': 5, 'Aries': -5, 'Scorpio': -3 },
-      'Mars': { 'Aries': 5, 'Scorpio': 5, 'Libra': -5, 'Cancer': -5 },
-      'Jupiter': { 'Sagittarius': 5, 'Pisces': 5, 'Gemini': -5, 'Virgo': -5 },
-      'Saturn': { 'Capricorn': 5, 'Aquarius': 5, 'Cancer': -5, 'Leo': -3 }
-    };
-
-    return (dignities[planet] && dignities[planet][sign]) || 0;
-  };
-
-  const generateMockAstroData = () => {
-    return {
-      timestamp: new Date().toISOString(),
-      planets: [
-        { planet: 'Sun', degree: '24°13\'', sign: 'Leo', ruler: 'Sun' },
-        { planet: 'Moon', degree: '01°41\'', sign: 'Cancer', ruler: 'Moon' },
-        { planet: 'Mercury', degree: '05°02\'', sign: 'Virgo', ruler: 'Mercury' },
-        { planet: 'Venus', degree: '18°10\'', sign: 'Libra', ruler: 'Venus' },
-        { planet: 'Mars', degree: '14°55\'', sign: 'Scorpio', ruler: 'Mars' },
-        { planet: 'Jupiter', degree: '02°08\'', sign: 'Taurus', ruler: 'Venus' },
-        { planet: 'Saturn', degree: '07°33\'', sign: 'Pisces', ruler: 'Jupiter' }
-      ],
-      dispositors: [
-        { planet: 'Moon', ruled_by: 'Venus', chain: ['Moon', 'Venus', 'Mercury'] },
-        { planet: 'Mars', ruled_by: 'Sun', chain: ['Mars', 'Sun'] },
-        { planet: 'Jupiter', ruled_by: 'Moon', chain: ['Jupiter', 'Moon', 'Venus'] }
-      ],
-      solarConditions: [
-        { planet: 'Mercury', condition: 'Cazimi', separation: '0°12\'', description: 'Heart of the Sun' },
-        { planet: 'Venus', condition: 'Under Beams', separation: '7°', description: 'Obscured by Sun' },
-        { planet: 'Mars', condition: 'Combust', separation: '5°', description: 'Burnt by Sun' },
-        { planet: 'Jupiter', condition: 'Free', separation: '25°', description: 'Free of Sun' }
-      ],
-      currentAspect: {
-        planets: 'Moon △ Venus',
-        orb: '1.2°',
-        max: '6°',
-        exactness: 80
-      },
-      fixedStars: [
-        { name: 'Regulus', constellation: 'Leo', degree: '29°50\'', conjunction: 'Asc conj (0°25\')' },
-        { name: 'Spica', constellation: 'Vir', degree: '23°50\'', conjunction: 'MC conj (0°41\')' },
-        { name: 'Aldebaran', constellation: 'Gem', degree: '9°47\'', conjunction: 'Sun conj (0°38\')' }
-      ],
-      cusps: [
-        { house: 1, degree: '12°34\'', sign: 'Leo', ruler: 'Sun' },
-        { house: 2, degree: '7°12\'', sign: 'Vir', ruler: 'Mercury' },
-        { house: 3, degree: '1°03\'', sign: 'Lib', ruler: 'Venus' },
-        { house: 4, degree: '23°11\'', sign: 'Sco', ruler: 'Mars' }
-      ],
-      planetaryDignity: [
-        { planet: 'Sun', dignity: 2, range: [-5, 5] },
-        { planet: 'Moon', dignity: 4, range: [-5, 5] },
-        { planet: 'Mercury', dignity: -1, range: [-5, 5] },
-        { planet: 'Venus', dignity: 1, range: [-5, 5] },
-        { planet: 'Mars', dignity: -3, range: [-5, 5] },
-        { planet: 'Jupiter', dignity: 5, range: [-5, 5] },
-        { planet: 'Saturn', dignity: 0, range: [-5, 5] }
-      ],
-      moonCondition: {
-        sign: 'Cancer',
-        degree: '1°41\'05\'\'',
-        vocIn: '1d 23h',
-        vocStart: 'Wed, Sep 17, 6:13 AM',
-        vocEnd: 'Wed, Sep 17, 8:20 AM',
-        duration: '2h 06m',
-        nextAspect: '♄ → ☉ ♐'
-      }
-    };
-  };
-
-  return (
-    <div className="min-h-screen p-4">
-      {/* Header */}
-      <div className="mb-6">
-        <button
-          onClick={() => setCurrentView('dashboard')}
-          className="flex items-center text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 mb-4"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Dashboard
-        </button>
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Astro Clock</h1>
-          <div className="text-sm text-gray-600 dark:text-gray-400">
-            {clockMode === 'auto' && `Time now: ${currentTime.toLocaleTimeString()}`}
-          </div>
-        </div>
-      </div>
-
-      {/* Main Layout - Three Column Grid */}
-      <div className="grid grid-cols-12 gap-6 max-w-full">
-        {/* Left Panel - Controls */}
-        <div className="col-span-3">
-          <ControlsPanel
-            clockMode={clockMode}
-            setClockMode={setClockMode}
-            astroData={astroData}
-            isLoading={isLoading}
-            manualDate={manualDate}
-            setManualDate={setManualDate}
-            manualTime={manualTime}
-            setManualTime={setManualTime}
-            manualLocation={manualLocation}
-            setManualLocation={setManualLocation}
-            onFetchData={fetchAstroData}
-            darkMode={darkMode}
-            cardBg={cardBg}
-            panelBg={panelBg}
-          />
-        </div>
-
-        {/* Center Panel - Chart */}
-        <div className="col-span-6">
-          <ChartPanel darkMode={darkMode} cardBg={cardBg} currentTime={currentTime} />
-        </div>
-
-        {/* Right Panel - Information */}
-        <div className="col-span-3">
-          <InformationPanels
-            astroData={astroData}
-            darkMode={darkMode}
-            cardBg={cardBg}
-            panelBg={panelBg}
-          />
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Controls Panel Component
-const ControlsPanel = ({
-  clockMode, setClockMode, astroData, isLoading,
-  manualDate, setManualDate, manualTime, setManualTime,
-  manualLocation, setManualLocation, onFetchData,
-  darkMode, cardBg, panelBg
-}) => {
-  return (
-    <div className={`${cardBg} border rounded-lg p-4 space-y-4`}>
-      <div className="flex items-center justify-between">
-        <h3 className="font-semibold">Controls</h3>
-        <button className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
-          Close
-        </button>
-      </div>
-
-      {/* Data Source Toggle */}
-      <div>
-        <h4 className="text-sm font-medium mb-2">Data Source</h4>
-        <div className="flex space-x-2">
-          <button
-            onClick={() => setClockMode('auto')}
-            className={`px-3 py-1 text-xs rounded ${
-              clockMode === 'auto'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-            }`}
-          >
-            Auto (Now)
-          </button>
-          <button
-            onClick={() => setClockMode('manual')}
-            className={`px-3 py-1 text-xs rounded ${
-              clockMode === 'manual'
-                ? 'bg-gray-800 text-white'
-                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-            }`}
-          >
-            Manual
-          </button>
-        </div>
-      </div>
-
-      {/* Auto Mode - Current Time and Fetch Button */}
-      {clockMode === 'auto' && (
-        <div className="space-y-3">
-          <div className="text-xs text-gray-600 dark:text-gray-400">
-            Time now: {new Date().toLocaleTimeString()}
-          </div>
-          <button
-            onClick={onFetchData}
-            disabled={isLoading}
-            className="w-full px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400"
-          >
-            {isLoading ? 'Fetching...' : 'Fetch current positions'}
-          </button>
-
-          {/* Current Positions Display */}
-          {astroData && (
-            <div className="space-y-2">
-              <h5 className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                Current Positions (mock)
-              </h5>
-              <div className="space-y-1 text-xs">
-                {astroData.planets?.map((planet, index) => (
-                  <div key={index} className="flex justify-between">
-                    <span className="text-gray-700 dark:text-gray-300">{planet.planet}</span>
-                    <div className="text-right">
-                      <span className="text-gray-900 dark:text-gray-100">{planet.degree}</span>
-                      <span className="text-blue-600 dark:text-blue-400 ml-1">{planet.sign}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Manual Mode - Date/Time/Location Inputs */}
-      {clockMode === 'manual' && (
-        <div className="space-y-3">
-          <div>
-            <label className="block text-xs font-medium mb-1">Date</label>
-            <input
-              type="date"
-              value={manualDate}
-              onChange={(e) => setManualDate(e.target.value)}
-              className={`w-full px-2 py-1 text-xs border rounded ${
-                darkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
-              }`}
-              placeholder="dd / mm / yyyy"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium mb-1">Time</label>
-            <input
-              type="time"
-              lang="en-GB"
-              inputMode="numeric"
-              step="60"
-              placeholder="HH:MM"
-              value={manualTime}
-              onChange={(e) => setManualTime(e.target.value)}
-              className={`w-full px-2 py-1 text-xs border rounded ${
-                darkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
-              }`}
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium mb-1">Location (city or lat,lon)</label>
-            <input
-              type="text"
-              value={manualLocation}
-              onChange={(e) => setManualLocation(e.target.value)}
-              className={`w-full px-2 py-1 text-xs border rounded ${
-                darkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'
-              }`}
-              placeholder="e.g., London or 51.5,-0.12"
-            />
-          </div>
-
-          <button
-            onClick={onFetchData}
-            disabled={isLoading || !manualDate || !manualTime}
-            className="w-full px-3 py-2 text-sm bg-gray-800 text-white rounded hover:bg-gray-900 disabled:bg-gray-400"
-          >
-            {isLoading ? 'Applying...' : 'Apply manual time/location'}
-          </button>
-
-          {/* Manual Positions Display */}
-          {astroData && (
-            <div className="space-y-2">
-              <h5 className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                Manual Positions (mock)
-              </h5>
-              <div className="space-y-1 text-xs">
-                {astroData.planets?.map((planet, index) => (
-                  <div key={index} className="flex justify-between">
-                    <span className="text-gray-700 dark:text-gray-300">{planet.planet}</span>
-                    <div className="text-right">
-                      <span className="text-gray-900 dark:text-gray-100">{planet.degree}</span>
-                      <span className="text-blue-600 dark:text-blue-400 ml-1">{planet.sign}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="text-xs text-gray-500 italic pt-2 border-t border-gray-200 dark:border-gray-600">
-        Hook these controls to your ephemeris/timezone services.
-      </div>
-    </div>
-  );
-};
-
-// Chart Panel Component
-const ChartPanel = ({ darkMode, cardBg, currentTime }) => {
-  return (
-    <div className={`${cardBg} border rounded-lg p-6`}>
-      <div className="text-center space-y-4">
-        <h3 className="font-semibold">Chart</h3>
-        <div className="text-sm text-gray-600 dark:text-gray-400">
-          Realtime rendering placeholder
-        </div>
-
-        {/* Circular Clock Display */}
-        <div className="flex items-center justify-center">
-          <div className="relative w-48 h-48 border-2 border-gray-300 dark:border-gray-600 rounded-full flex items-center justify-center">
-            <div className="text-center">
-              <div className="text-2xl font-bold">
-                {currentTime.toLocaleTimeString('en-US', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  hour12: false
-                })}
-              </div>
-              <div className="text-xs text-gray-500">
-                {currentTime.toLocaleDateString('en-US', {
-                  weekday: 'short',
-                  day: 'numeric',
-                  month: 'short'
-                })}
-              </div>
-            </div>
-
-            {/* Clock hand indicator */}
-            <div className="absolute top-2 left-1/2 transform -translate-x-1/2 w-1 h-4 bg-blue-500 rounded-full"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Information Panels Component
-const InformationPanels = ({ astroData, darkMode, cardBg, panelBg }) => {
-  return (
-    <div className="space-y-4">
-      {/* Dispositors Panel */}
-      <DispositorPanel astroData={astroData} darkMode={darkMode} panelBg={panelBg} />
-
-      {/* Solar Conditions Panel */}
-      <SolarConditionsPanel astroData={astroData} darkMode={darkMode} panelBg={panelBg} />
-
-      {/* Current Aspect Panel */}
-      <CurrentAspectPanel astroData={astroData} darkMode={darkMode} panelBg={panelBg} />
-
-      {/* Fixed Stars Panel */}
-      <FixedStarsPanel astroData={astroData} darkMode={darkMode} panelBg={panelBg} />
-
-      {/* Current Cusps Panel */}
-      <CurrentCuspsPanel astroData={astroData} darkMode={darkMode} panelBg={panelBg} />
-
-      {/* Planetary Dignity Panel */}
-      <PlanetaryDignityPanel astroData={astroData} darkMode={darkMode} panelBg={panelBg} />
-
-      {/* Moon Condition Panel */}
-      <MoonConditionPanel astroData={astroData} darkMode={darkMode} panelBg={panelBg} />
-    </div>
-  );
-};
-
-// Dispositor Panel
-const DispositorPanel = ({ astroData, darkMode, panelBg }) => {
-  return (
-    <div className={`${panelBg} border rounded-lg p-3`}>
-      <div className="flex items-center justify-between mb-2">
-        <h4 className="font-semibold text-sm">Dispositors</h4>
-        <span className="text-xs text-gray-500">Rulership chains</span>
-      </div>
-
-      {astroData?.dispositors ? (
-        <div className="space-y-2 text-xs">
-          {astroData.dispositors.map((item, index) => (
-            <div key={index} className="space-y-1">
-              <div className="flex items-center space-x-2">
-                <span className="font-medium">{item.planet}</span>
-                <span className="text-gray-500">→ ruled by</span>
-                <span className="text-blue-600 dark:text-blue-400">{item.ruled_by}</span>
-              </div>
-              <div className="flex items-center space-x-1 text-gray-600 dark:text-gray-400 pl-4">
-                {item.chain.map((planet, idx) => (
-                  <span key={idx} className="flex items-center">
-                    {planet}
-                    {idx < item.chain.length - 1 && <span className="mx-1">→</span>}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-xs text-gray-500">No data available</div>
-      )}
-    </div>
-  );
-};
-
-// Solar Conditions Panel
-const SolarConditionsPanel = ({ astroData, darkMode, panelBg }) => {
-  return (
-    <div className={`${panelBg} border rounded-lg p-3`}>
-      <div className="flex items-center justify-between mb-2">
-        <h4 className="font-semibold text-sm">Solar Conditions</h4>
-        <span className="text-xs text-gray-500">Planet • State • Separation</span>
-      </div>
-
-      {astroData?.solarConditions ? (
-        <div className="space-y-2 text-xs">
-          {astroData.solarConditions.map((item, index) => (
-            <div key={index} className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <span className="font-medium">{item.planet}</span>
-                <span className={`px-1 rounded text-xs ${
-                  item.condition === 'Cazimi' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                  item.condition === 'Combust' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
-                  item.condition === 'Under Beams' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
-                  'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-                }`}>
-                  {item.condition}
-                </span>
-              </div>
-              <span className="text-gray-600 dark:text-gray-400">{item.separation}</span>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-xs text-gray-500">No data available</div>
-      )}
-    </div>
-  );
-};
-
-// Current Aspect Panel
-const CurrentAspectPanel = ({ astroData, darkMode, panelBg }) => {
-  return (
-    <div className={`${panelBg} border rounded-lg p-3`}>
-      <div className="flex items-center justify-between mb-2">
-        <h4 className="font-semibold text-sm">Current Aspect</h4>
-        <span className="text-xs text-gray-500">Orb tightness</span>
-      </div>
-
-      {astroData?.currentAspect ? (
-        <div className="space-y-3">
-          <div className="text-center">
-            <div className="text-lg font-bold">{astroData.currentAspect.planets}</div>
-            <div className="text-xs text-gray-600 dark:text-gray-400">
-              orb {astroData.currentAspect.orb} / max {astroData.currentAspect.max}
-            </div>
-          </div>
-
-          {/* Exactness Progress Bar */}
-          <div className="space-y-1">
-            <div className="flex justify-between text-xs">
-              <span>Exactness</span>
-              <span>{astroData.currentAspect.exactness}%</span>
-            </div>
-            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-              <div
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${astroData.currentAspect.exactness}%` }}
-              ></div>
-            </div>
-            <div className="text-xs text-gray-500">Bar fills as orb tightens toward exact</div>
-          </div>
-        </div>
-      ) : (
-        <div className="text-xs text-gray-500">No current aspect</div>
-      )}
-    </div>
-  );
-};
-
-// Fixed Stars Panel
-const FixedStarsPanel = ({ astroData, darkMode, panelBg }) => {
-  return (
-    <div className={`${panelBg} border rounded-lg p-3`}>
-      <div className="flex items-center justify-between mb-2">
-        <h4 className="font-semibold text-sm">Fixed Stars</h4>
-        <span className="text-xs text-gray-500">Cusps & Luminaries</span>
-      </div>
-
-      {astroData?.fixedStars ? (
-        <div className="space-y-2 text-xs">
-          {astroData.fixedStars.map((star, index) => (
-            <div key={index} className="space-y-1">
-              <div className="flex justify-between">
-                <span className="font-medium">{star.name}</span>
-                <span className="text-gray-600 dark:text-gray-400">{star.constellation} {star.degree}</span>
-              </div>
-              <div className="text-gray-600 dark:text-gray-400 text-xs">
-                {star.conjunction}
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-xs text-gray-500">No fixed star conjunctions</div>
-      )}
-    </div>
-  );
-};
-
-// Current Cusps Panel
-const CurrentCuspsPanel = ({ astroData, darkMode, panelBg }) => {
-  return (
-    <div className={`${panelBg} border rounded-lg p-3`}>
-      <div className="flex items-center justify-between mb-2">
-        <h4 className="font-semibold text-sm">Current Cusps</h4>
-        <span className="text-xs text-gray-500">Degrees • Signs • Rulers</span>
-      </div>
-
-      {astroData?.cusps ? (
-        <div className="space-y-1 text-xs">
-          <div className="grid grid-cols-4 gap-2 text-xs font-medium text-gray-600 dark:text-gray-400 pb-1 border-b border-gray-200 dark:border-gray-600">
-            <span>House</span>
-            <span>Degree</span>
-            <span>Sign</span>
-            <span>Ruler</span>
-          </div>
-          {astroData.cusps.map((cusp, index) => (
-            <div key={index} className="grid grid-cols-4 gap-2">
-              <span className="font-medium">{cusp.house}</span>
-              <span>{cusp.degree}</span>
-              <span className="text-blue-600 dark:text-blue-400">{cusp.sign}</span>
-              <span>{cusp.ruler}</span>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-xs text-gray-500">No cusp data</div>
-      )}
-    </div>
-  );
-};
-
-// Planetary Dignity Panel
-const PlanetaryDignityPanel = ({ astroData, darkMode, panelBg }) => {
-  const getDignityColor = (dignity) => {
-    if (dignity >= 3) return 'bg-green-500';
-    if (dignity >= 1) return 'bg-green-300';
-    if (dignity === 0) return 'bg-gray-400';
-    if (dignity >= -2) return 'bg-red-300';
-    return 'bg-red-500';
-  };
-
-  const getDignityPosition = (dignity, range) => {
-    const [min, max] = range;
-    return ((dignity - min) / (max - min)) * 100;
-  };
-
-  return (
-    <div className={`${panelBg} border rounded-lg p-3`}>
-      <div className="flex items-center justify-between mb-2">
-        <h4 className="font-semibold text-sm">Planetary Dignity</h4>
-        <span className="text-xs text-gray-500">-5 (debit) ... +5 (essential)</span>
-      </div>
-
-      {astroData?.planetaryDignity ? (
-        <div className="space-y-3 text-xs">
-          {astroData.planetaryDignity.map((planet, index) => (
-            <div key={index} className="space-y-1">
-              <div className="flex justify-between items-center">
-                <span className="font-medium">{planet.planet}</span>
-                <span className={`font-bold ${
-                  planet.dignity > 0 ? 'text-green-600' :
-                  planet.dignity < 0 ? 'text-red-600' : 'text-gray-600'
-                }`}>
-                  {planet.dignity > 0 ? '+' : ''}{planet.dignity}
-                </span>
-              </div>
-              <div className="relative">
-                <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full">
-                  {/* Background gradient from red to green */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-red-500 via-gray-400 to-green-500 rounded-full opacity-30"></div>
-
-                  {/* Dignity indicator */}
-                  <div
-                    className={`absolute top-0 w-2 h-2 rounded-full border-2 border-white ${getDignityColor(planet.dignity)}`}
-                    style={{
-                      left: `${getDignityPosition(planet.dignity, planet.range)}%`,
-                      transform: 'translateX(-50%)'
-                    }}
-                  ></div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-xs text-gray-500">No dignity data</div>
-      )}
-    </div>
-  );
-};
-
-// Moon Condition Panel
-const MoonConditionPanel = ({ astroData, darkMode, panelBg }) => {
-  return (
-    <div className={`${panelBg} border rounded-lg p-3`}>
-      <div className="flex items-center justify-between mb-2">
-        <h4 className="font-semibold text-sm">Moon Condition</h4>
-        <span className="text-xs text-gray-500">Inspired by your VoC card</span>
-      </div>
-
-      {astroData?.moonCondition ? (
-        <div className="space-y-3 text-xs">
-          <div className="text-center">
-            <div className="font-bold text-lg">{astroData.moonCondition.sign}</div>
-            <div className="text-gray-600 dark:text-gray-400">{astroData.moonCondition.degree}</div>
-          </div>
-
-          <div className="space-y-2">
-            <div className="text-center">
-              <div className="font-medium">VoC in {astroData.moonCondition.vocIn}</div>
-            </div>
-
-            {/* VoC Timeline */}
-            <div className="space-y-1">
-              <div className="flex justify-between text-xs">
-                <span>{astroData.moonCondition.vocStart}</span>
-                <span>{astroData.moonCondition.vocEnd}</span>
-              </div>
-              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                <div className="bg-red-500 h-2 rounded-full" style={{ width: '30%' }}></div>
-              </div>
-              <div className="text-center">
-                <span className="text-gray-600 dark:text-gray-400">
-                  VoC: {astroData.moonCondition.vocStart} • dur. {astroData.moonCondition.duration}
-                </span>
-              </div>
-            </div>
-
-            <div className="text-center text-gray-600 dark:text-gray-400">
-              {astroData.moonCondition.nextAspect}
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="text-xs text-gray-500">No Moon condition data</div>
-      )}
-    </div>
-  );
-};
-
-// Enhanced Settings Component
+// Settings Component
 const Settings = ({ darkMode, toggleDarkMode, setCurrentView, apiStatus, onRefreshApi, onLicenseChanged }) => {
   const [apiVersion, setApiVersion] = useState(null);
-  const [appVersion, setAppVersion] = useState(APP_VERSION);
+  const appVersion = APP_VERSION;
   const [loading, setLoading] = useState(false);
   const devLicenseRuntime = isLocalDevLicenseRuntime();
   // Updates
   const [updMsg, setUpdMsg] = useState('');
   const [updReady, setUpdReady] = useState(false);
+  const [diagMsg, setDiagMsg] = useState('');
 
   const cardBg = darkMode 
     ? 'bg-gray-800/60 backdrop-blur-xl border-gray-700' 
@@ -6993,9 +6237,6 @@ const Settings = ({ darkMode, toggleDarkMode, setCurrentView, apiStatus, onRefre
     try {
       const version = await VoxStellaAPI.getVersion();
       setApiVersion(version);
-      if (version?.app_version) {
-        setAppVersion(version.app_version);
-      }
     } catch (error) {
       console.error('Failed to fetch API version:', error);
     }
@@ -7029,6 +6270,20 @@ const Settings = ({ darkMode, toggleDarkMode, setCurrentView, apiStatus, onRefre
       console.error('API test failed:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const openDiagnosticsLogs = async () => {
+    setDiagMsg('Opening diagnostics logs...');
+    try {
+      const result = await window.electronAPI?.openLogFolder?.();
+      if (result?.ok) {
+        setDiagMsg(result.path ? `Diagnostics logs: ${result.path}` : 'Diagnostics log folder opened.');
+      } else {
+        setDiagMsg(`Could not open diagnostics logs${result?.error ? `: ${result.error}` : ''}`);
+      }
+    } catch (error) {
+      setDiagMsg(`Could not open diagnostics logs: ${error?.message || error}`);
     }
   };
 
@@ -7218,14 +6473,26 @@ const Settings = ({ darkMode, toggleDarkMode, setCurrentView, apiStatus, onRefre
             </span>
           </div>
           
-          <button
-            onClick={testApiConnection}
-            disabled={loading}
-            className="flex items-center space-x-2 px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded text-sm hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
-          >
-            {loading ? <Loader className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-            <span>Test Connection</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={testApiConnection}
+              disabled={loading}
+              className="flex items-center space-x-2 px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded text-sm hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
+            >
+              {loading ? <Loader className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              <span>Test Connection</span>
+            </button>
+            {typeof window !== 'undefined' && window.electronAPI?.openLogFolder && (
+              <button
+                type="button"
+                onClick={openDiagnosticsLogs}
+                className="flex items-center space-x-2 px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded text-sm hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              >
+                <FileText className="w-4 h-4" />
+                <span>Open Logs</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {apiVersion && (
@@ -7236,6 +6503,9 @@ const Settings = ({ darkMode, toggleDarkMode, setCurrentView, apiStatus, onRefre
             <div>Release Date: {apiVersion.release_date}</div>
             {/* Feature list removed per request */}
           </div>
+        )}
+        {diagMsg && (
+          <div className="mt-3 text-xs text-gray-600 dark:text-gray-300 break-all">{diagMsg}</div>
         )}
       </div>
 
@@ -7503,6 +6773,14 @@ const Footer = ({ darkMode, currentView, setCurrentView }) => {
           active={currentView === 'timeline'}
           onClick={() => setCurrentView('timeline')}
         />
+        {SHOW_RESEARCH_WORKSPACE ? (
+          <FooterButton
+            icon={Search}
+            label="Research"
+            active={currentView === 'research'}
+            onClick={() => setCurrentView('research')}
+          />
+        ) : null}
         <FooterButton 
           icon={BookOpen} 
           label="Notes" 

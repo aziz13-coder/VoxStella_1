@@ -27,10 +27,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 # Swiss Ephemeris for precise calculations
-try:
-    import swisseph as swe  # type: ignore
-except Exception:  # Library may be unavailable in some environments
-    swe = None
+from swisseph_state import swisseph as swe
 
 from models import Planet
 

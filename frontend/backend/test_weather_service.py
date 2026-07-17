@@ -150,6 +150,35 @@ def test_weather_resolve_and_analyze_seed_runtime(monkeypatch):
     assert payload["family_assessment"]["signals"]["locality_strength"] >= 0
 
 
+def test_weather_context_preserves_explicit_zero_coordinates(monkeypatch):
+    captured = {}
+    monkeypatch.setattr(
+        weather_service,
+        "resolve_weather_chart_resolution",
+        lambda **kwargs: captured.update(kwargs) or _sample_resolution_payload(),
+    )
+
+    request_model = weather_service.build_weather_request(
+        {
+            "family_id": "wind_event_pressure",
+            "location": "Gulf of Guinea",
+            "timezone": "UTC",
+            "latitude": 0,
+            "longitude": 0,
+        }
+    )
+    resolved = weather_service.resolve_weather_context(
+        request_model,
+        active_clock=_clock_context(),
+        bundle_resolver=lambda *args, **kwargs: {},
+    )
+
+    assert captured["latitude"] == 0.0
+    assert captured["longitude"] == 0.0
+    assert resolved.event_context["latitude"] == 0.0
+    assert resolved.event_context["longitude"] == 0.0
+
+
 def test_weather_wind_runtime_uses_retrograde_and_aspect_reinforcements(monkeypatch):
     payload = _sample_resolution_payload()
     payload["primary_chart"]["planets"]["Mercury"]["retrograde"] = True
@@ -267,9 +296,13 @@ def test_weather_flood_runtime_uses_accumulation_and_tight_water_concentration(m
     )
     analysis = weather_service.analyze_weather_context(resolved).to_dict()
     labels = [item["label"] for item in analysis["family_assessment"]["matched_rules"]]
+    trigger_labels = [item["label"] for item in analysis["trigger_layer"]["items"]]
+    framework_labels = [item["label"] for item in analysis["framework_layer"]["items"]]
 
     assert "Successive wet-trigger accumulation" in labels
     assert "Tight water-angle concentration" in labels
+    assert "Venus angular moisture testimony" in trigger_labels
+    assert "Venus angular moisture testimony" not in framework_labels
 
 
 def test_weather_hurricane_runtime_uses_landfall_concentration_gate(monkeypatch):

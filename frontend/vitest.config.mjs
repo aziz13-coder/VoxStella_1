@@ -9,5 +9,6 @@ export default defineConfig({
     setupFiles: ['./tests/setup-vitest.js'],
     include: ['src/tests/**/*.test.{js,jsx,mjs}'],
     css: true,
+    clearMocks: true,
   },
 });

@@ -1,0 +1,592 @@
+{
+  "generated_at": "2026-05-20T00:00:00+00:00",
+  "purpose": "FBI active-shooter extension set for forensic statistical benchmark expansion from 14 to 29 runnable cases.",
+  "benchmark_policy": {
+    "status": "verified_outcome_extension",
+    "notes": "Cases use FBI active-shooter incident entries as the factual source for local time, location, fatal/wounded outcome, and shooter disposition. Coordinates are event-location approximations used for chart replay, not claims of exact crime-scene survey coordinates."
+  },
+  "comparison_axes": [
+    "violence_homicide",
+    "abduction_missing_person",
+    "deception_coverup",
+    "domestic_partner_involvement",
+    "family_involvement",
+    "child_victim",
+    "water_disappearance_or_drowning",
+    "accident_or_disaster",
+    "friend_or_close_associate",
+    "authority_or_public_case",
+    "accomplice_or_witness",
+    "route_vehicle_transport"
+  ],
+  "sources": [
+    {
+      "id": "fbi_active_shooter_2000_2018",
+      "kind": "official_law_enforcement_dataset",
+      "title": "Active Shooter Incidents from 2000-2018",
+      "url": "https://www.fbi.gov/how-we-can-help-you/active-shooter-safety-resources/active-shooter-incidents-from-2000-to-2018",
+      "metadata_strength": "high",
+      "notes": "FBI incident list gives event dates, local times, locations, fatal/wounded counts, and shooter outcomes for the selected benchmark cases."
+    }
+  ],
+  "cases": [
+    {
+      "id": "fbi_pulse_nightclub_2016_mass_shooting",
+      "title": "Pulse Nightclub active shooter",
+      "event_source_ids": ["fbi_active_shooter_2000_2018"],
+      "event_anchor": {
+        "date_local": "2016-06-12",
+        "time_local": "02:02:00",
+        "timezone": "America/New_York",
+        "location": "Pulse nightclub, Orlando, FL, USA",
+        "latitude": 28.5195,
+        "longitude": -81.3768,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI entry: shooter began shooting patrons inside Pulse nightclub at 2:02 a.m.; 49 killed, 53 wounded."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2016-06-12T02:02:00",
+        "location": "Pulse nightclub, Orlando, FL, USA",
+        "timezone": "America/New_York",
+        "house_system_code": "R",
+        "latitude": "28.5195",
+        "longitude": "-81.3768"
+      },
+      "hard_outcome": {
+        "event_family": "public venue mass shooting and hostage barricade",
+        "outcome": "mass fatality",
+        "survivability_direction": "fatal_dominant",
+        "known_scene_markers": ["nightclub", "mass shooting", "hostage barricade", "49 killed", "53 wounded"]
+      },
+      "expected_primary_axes": ["violence_homicide"],
+      "contradictory_axes": ["child_victim", "domestic_partner_involvement", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      }
+    },
+    {
+      "id": "fbi_dallas_protest_2016_police_ambush",
+      "title": "Dallas protest police ambush",
+      "event_source_ids": ["fbi_active_shooter_2000_2018"],
+      "event_anchor": {
+        "date_local": "2016-07-07",
+        "time_local": "21:00:00",
+        "timezone": "America/Chicago",
+        "location": "Downtown Dallas, TX, USA",
+        "latitude": 32.779,
+        "longitude": -96.806,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI entry: shooting began at the end of a protest at 9:00 p.m.; five law-enforcement officers killed and 11 wounded."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2016-07-07T21:00:00",
+        "location": "Downtown Dallas, TX, USA",
+        "timezone": "America/Chicago",
+        "house_system_code": "R",
+        "latitude": "32.779",
+        "longitude": "-96.806"
+      },
+      "hard_outcome": {
+        "event_family": "law-enforcement ambush at public protest",
+        "outcome": "fatal law-enforcement ambush",
+        "survivability_direction": "fatal_dominant",
+        "known_scene_markers": ["public protest", "law enforcement victims", "five killed", "11 wounded"]
+      },
+      "expected_primary_axes": ["violence_homicide", "authority_or_public_case"],
+      "contradictory_axes": ["child_victim", "domestic_partner_involvement", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      }
+    },
+    {
+      "id": "fbi_mukilteo_house_party_2016_ex_girlfriend",
+      "title": "Mukilteo house party shooting",
+      "event_source_ids": ["fbi_active_shooter_2000_2018"],
+      "event_anchor": {
+        "date_local": "2016-07-30",
+        "time_local": "00:07:00",
+        "timezone": "America/Los_Angeles",
+        "location": "Mukilteo, WA, USA",
+        "latitude": 47.9445,
+        "longitude": -122.3046,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI entry: house-party shooting began at 12:07 a.m.; three killed including the shooter's ex-girlfriend, one wounded."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2016-07-30T00:07:00",
+        "location": "Mukilteo, WA, USA",
+        "timezone": "America/Los_Angeles",
+        "house_system_code": "R",
+        "latitude": "47.9445",
+        "longitude": "-122.3046"
+      },
+      "hard_outcome": {
+        "event_family": "house-party shooting with ex-partner victim",
+        "outcome": "fatal intimate/social-circle shooting",
+        "survivability_direction": "fatal_dominant",
+        "known_scene_markers": ["house party", "ex-girlfriend killed", "three killed", "one wounded"]
+      },
+      "expected_primary_axes": ["violence_homicide", "domestic_partner_involvement", "friend_or_close_associate"],
+      "contradictory_axes": ["child_victim", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      }
+    },
+    {
+      "id": "fbi_fort_lauderdale_airport_2017_baggage_claim",
+      "title": "Fort Lauderdale airport baggage-claim shooting",
+      "event_source_ids": ["fbi_active_shooter_2000_2018"],
+      "event_anchor": {
+        "date_local": "2017-01-06",
+        "time_local": "13:15:00",
+        "timezone": "America/New_York",
+        "location": "Fort Lauderdale-Hollywood International Airport, Fort Lauderdale, FL, USA",
+        "latitude": 26.0742,
+        "longitude": -80.1506,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI entry: Terminal 2 baggage-claim shooting began at 1:15 p.m.; five killed and eight wounded."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2017-01-06T13:15:00",
+        "location": "Fort Lauderdale-Hollywood International Airport, Fort Lauderdale, FL, USA",
+        "timezone": "America/New_York",
+        "house_system_code": "R",
+        "latitude": "26.0742",
+        "longitude": "-80.1506"
+      },
+      "hard_outcome": {
+        "event_family": "airport baggage-claim mass shooting",
+        "outcome": "fatal public transport-hub shooting",
+        "survivability_direction": "fatal_dominant",
+        "known_scene_markers": ["airport", "baggage claim", "five killed", "eight wounded"]
+      },
+      "expected_primary_axes": ["violence_homicide", "route_vehicle_transport"],
+      "contradictory_axes": ["child_victim", "domestic_partner_involvement", "family_involvement"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      }
+    },
+    {
+      "id": "fbi_pine_kirk_care_center_2017_ex_girlfriend",
+      "title": "Pine Kirk Care Center shooting",
+      "event_source_ids": ["fbi_active_shooter_2000_2018"],
+      "event_anchor": {
+        "date_local": "2017-05-12",
+        "time_local": "07:30:00",
+        "timezone": "America/New_York",
+        "location": "Pine Kirk Care Center, Kirkersville, OH, USA",
+        "latitude": 39.9583,
+        "longitude": -82.5963,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI entry: shooting began at 7:30 a.m.; two employees killed, including the shooter's ex-girlfriend, after hostage-taking behind the building."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2017-05-12T07:30:00",
+        "location": "Pine Kirk Care Center, Kirkersville, OH, USA",
+        "timezone": "America/New_York",
+        "house_system_code": "R",
+        "latitude": "39.9583",
+        "longitude": "-82.5963"
+      },
+      "hard_outcome": {
+        "event_family": "workplace shooting tied to ex-partner",
+        "outcome": "fatal domestic/workplace shooting",
+        "survivability_direction": "fatal_dominant",
+        "known_scene_markers": ["ex-girlfriend killed", "workplace", "hostage-taking", "two killed"]
+      },
+      "expected_primary_axes": ["violence_homicide", "domestic_partner_involvement"],
+      "expected_secondary_axes": ["abduction_missing_person"],
+      "contradictory_axes": ["child_victim", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      }
+    },
+    {
+      "id": "fbi_congressional_baseball_2017_alexandria",
+      "title": "Congressional baseball practice shooting",
+      "event_source_ids": ["fbi_active_shooter_2000_2018"],
+      "event_anchor": {
+        "date_local": "2017-06-14",
+        "time_local": "07:15:00",
+        "timezone": "America/New_York",
+        "location": "Eugene Simpson Stadium Park, Alexandria, VA, USA",
+        "latitude": 38.8338,
+        "longitude": -77.0615,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI entry: shooting began at 7:15 a.m.; no one killed, four wounded including a congressman."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2017-06-14T07:15:00",
+        "location": "Eugene Simpson Stadium Park, Alexandria, VA, USA",
+        "timezone": "America/New_York",
+        "house_system_code": "R",
+        "latitude": "38.8338",
+        "longitude": "-77.0615"
+      },
+      "hard_outcome": {
+        "event_family": "political/public-figure shooting with survival",
+        "outcome": "nonfatal survival despite serious wounds",
+        "survivability_direction": "nonfatal_survivor",
+        "known_scene_markers": ["congressional baseball practice", "no deaths", "four wounded", "law enforcement response"]
+      },
+      "expected_primary_axes": ["violence_homicide", "authority_or_public_case"],
+      "contradictory_axes": ["child_victim", "domestic_partner_involvement", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Moderate", "Higher"],
+        "bands": ["risk_loaded_survival", "mixed_nonfatal", "nonfatal_tilt"]
+      }
+    },
+    {
+      "id": "fbi_route_91_las_vegas_2017_mass_shooting",
+      "title": "Route 91 Harvest festival shooting",
+      "event_source_ids": ["fbi_active_shooter_2000_2018"],
+      "event_anchor": {
+        "date_local": "2017-10-01",
+        "time_local": "22:08:00",
+        "timezone": "America/Los_Angeles",
+        "location": "Route 91 Harvest Festival, Las Vegas, NV, USA",
+        "latitude": 36.0955,
+        "longitude": -115.1717,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI entry: shooting into the Route 91 Harvest Festival crowd began at 10:08 p.m.; shooter died by suicide at the scene."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2017-10-01T22:08:00",
+        "location": "Route 91 Harvest Festival, Las Vegas, NV, USA",
+        "timezone": "America/Los_Angeles",
+        "house_system_code": "R",
+        "latitude": "36.0955",
+        "longitude": "-115.1717"
+      },
+      "hard_outcome": {
+        "event_family": "outdoor concert mass shooting",
+        "outcome": "mass fatality",
+        "survivability_direction": "fatal_dominant",
+        "known_scene_markers": ["concert crowd", "mass shooting", "mass fatality"]
+      },
+      "expected_primary_axes": ["violence_homicide"],
+      "contradictory_axes": ["child_victim", "domestic_partner_involvement", "family_involvement"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      }
+    },
+    {
+      "id": "fbi_sutherland_springs_2017_church_shooting",
+      "title": "First Baptist Church in Sutherland Springs shooting",
+      "event_source_ids": ["fbi_active_shooter_2000_2018"],
+      "event_anchor": {
+        "date_local": "2017-11-05",
+        "time_local": "11:20:00",
+        "timezone": "America/Chicago",
+        "location": "First Baptist Church, Sutherland Springs, TX, USA",
+        "latitude": 29.2733,
+        "longitude": -98.0556,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI entry: shooting began outside First Baptist Church at 11:20 a.m. and continued inside; 26 killed, 20 wounded."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2017-11-05T11:20:00",
+        "location": "First Baptist Church, Sutherland Springs, TX, USA",
+        "timezone": "America/Chicago",
+        "house_system_code": "R",
+        "latitude": "29.2733",
+        "longitude": "-98.0556"
+      },
+      "hard_outcome": {
+        "event_family": "house-of-worship mass shooting",
+        "outcome": "mass fatality",
+        "survivability_direction": "fatal_dominant",
+        "known_scene_markers": ["church congregation", "26 killed", "20 wounded", "armed citizen pursuit"]
+      },
+      "expected_primary_axes": ["violence_homicide"],
+      "contradictory_axes": ["accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      }
+    },
+    {
+      "id": "fbi_marjory_stoneman_douglas_2018_school_shooting",
+      "title": "Marjory Stoneman Douglas High School shooting",
+      "event_source_ids": ["fbi_active_shooter_2000_2018"],
+      "event_anchor": {
+        "date_local": "2018-02-14",
+        "time_local": "14:30:00",
+        "timezone": "America/New_York",
+        "location": "Marjory Stoneman Douglas High School, Parkland, FL, USA",
+        "latitude": 26.3046,
+        "longitude": -80.2695,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI entry: shooting began at 2:30 p.m.; 17 killed and 17 wounded, most victims students."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2018-02-14T14:30:00",
+        "location": "Marjory Stoneman Douglas High School, Parkland, FL, USA",
+        "timezone": "America/New_York",
+        "house_system_code": "R",
+        "latitude": "26.3046",
+        "longitude": "-80.2695"
+      },
+      "hard_outcome": {
+        "event_family": "high-school mass shooting",
+        "outcome": "fatal child/student mass shooting",
+        "survivability_direction": "fatal_dominant",
+        "known_scene_markers": ["high school", "students killed", "17 killed", "17 wounded"]
+      },
+      "expected_primary_axes": ["violence_homicide", "child_victim"],
+      "contradictory_axes": ["domestic_partner_involvement", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      }
+    },
+    {
+      "id": "fbi_santa_fe_high_school_2018_shooting",
+      "title": "Santa Fe High School shooting",
+      "event_source_ids": ["fbi_active_shooter_2000_2018"],
+      "event_anchor": {
+        "date_local": "2018-05-18",
+        "time_local": "07:30:00",
+        "timezone": "America/Chicago",
+        "location": "Santa Fe High School, Santa Fe, TX, USA",
+        "latitude": 29.3864,
+        "longitude": -95.1419,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI entry: shooting began at 7:30 a.m.; ten killed, including eight students, and 12 wounded."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2018-05-18T07:30:00",
+        "location": "Santa Fe High School, Santa Fe, TX, USA",
+        "timezone": "America/Chicago",
+        "house_system_code": "R",
+        "latitude": "29.3864",
+        "longitude": "-95.1419"
+      },
+      "hard_outcome": {
+        "event_family": "high-school shooting with explosive devices",
+        "outcome": "fatal child/student mass shooting",
+        "survivability_direction": "fatal_dominant",
+        "known_scene_markers": ["high school", "students killed", "ten killed", "12 wounded", "failed improvised explosive devices"]
+      },
+      "expected_primary_axes": ["violence_homicide", "child_victim"],
+      "expected_secondary_axes": ["deception_coverup"],
+      "contradictory_axes": ["domestic_partner_involvement", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      }
+    },
+    {
+      "id": "fbi_capital_gazette_2018_newsroom_shooting",
+      "title": "Capital Gazette newsroom shooting",
+      "event_source_ids": ["fbi_active_shooter_2000_2018"],
+      "event_anchor": {
+        "date_local": "2018-06-29",
+        "time_local": "14:34:00",
+        "timezone": "America/New_York",
+        "location": "Capital Gazette offices, Annapolis, MD, USA",
+        "latitude": 38.9784,
+        "longitude": -76.5449,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI entry: newsroom shooting began at 2:34 p.m.; five killed and two wounded."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2018-06-29T14:34:00",
+        "location": "Capital Gazette offices, Annapolis, MD, USA",
+        "timezone": "America/New_York",
+        "house_system_code": "R",
+        "latitude": "38.9784",
+        "longitude": "-76.5449"
+      },
+      "hard_outcome": {
+        "event_family": "newsroom mass shooting",
+        "outcome": "fatal public/media workplace shooting",
+        "survivability_direction": "fatal_dominant",
+        "known_scene_markers": ["news office", "five killed", "two wounded", "shooter apprehended"]
+      },
+      "expected_primary_axes": ["violence_homicide", "authority_or_public_case"],
+      "contradictory_axes": ["child_victim", "domestic_partner_involvement", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      }
+    },
+    {
+      "id": "fbi_tt_trucking_bakersfield_2018_ex_wife",
+      "title": "T & T Trucking and residence shooting",
+      "event_source_ids": ["fbi_active_shooter_2000_2018"],
+      "event_anchor": {
+        "date_local": "2018-09-12",
+        "time_local": "17:20:00",
+        "timezone": "America/Los_Angeles",
+        "location": "Bakersfield, CA, USA",
+        "latitude": 35.3733,
+        "longitude": -119.0187,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI entry: shooting began at T & T Trucking at 5:20 p.m.; the shooter killed five people including his ex-wife and carjacked a woman and child before fleeing."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2018-09-12T17:20:00",
+        "location": "Bakersfield, CA, USA",
+        "timezone": "America/Los_Angeles",
+        "house_system_code": "R",
+        "latitude": "35.3733",
+        "longitude": "-119.0187"
+      },
+      "hard_outcome": {
+        "event_family": "ex-partner workplace and residence shooting",
+        "outcome": "fatal domestic/workplace rampage",
+        "survivability_direction": "fatal_dominant",
+        "known_scene_markers": ["ex-wife killed", "five killed", "carjacking", "child present in carjacking"]
+      },
+      "expected_primary_axes": ["violence_homicide", "domestic_partner_involvement"],
+      "expected_secondary_axes": ["child_victim", "route_vehicle_transport"],
+      "contradictory_axes": ["accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      }
+    },
+    {
+      "id": "fbi_tree_of_life_2018_synagogue_shooting",
+      "title": "Tree of Life Synagogue shooting",
+      "event_source_ids": ["fbi_active_shooter_2000_2018"],
+      "event_anchor": {
+        "date_local": "2018-10-27",
+        "time_local": "09:45:00",
+        "timezone": "America/New_York",
+        "location": "Tree of Life Synagogue, Pittsburgh, PA, USA",
+        "latitude": 40.4433,
+        "longitude": -79.9213,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI entry: shooting began inside Tree of Life Synagogue at 9:45 a.m.; 11 killed and six wounded."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2018-10-27T09:45:00",
+        "location": "Tree of Life Synagogue, Pittsburgh, PA, USA",
+        "timezone": "America/New_York",
+        "house_system_code": "R",
+        "latitude": "40.4433",
+        "longitude": "-79.9213"
+      },
+      "hard_outcome": {
+        "event_family": "house-of-worship mass shooting",
+        "outcome": "fatal congregation shooting",
+        "survivability_direction": "fatal_dominant",
+        "known_scene_markers": ["synagogue", "11 killed", "six wounded", "law enforcement wounded"]
+      },
+      "expected_primary_axes": ["violence_homicide"],
+      "contradictory_axes": ["child_victim", "domestic_partner_involvement", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      }
+    },
+    {
+      "id": "fbi_borderline_bar_2018_thousand_oaks",
+      "title": "Borderline Bar and Grill shooting",
+      "event_source_ids": ["fbi_active_shooter_2000_2018"],
+      "event_anchor": {
+        "date_local": "2018-11-07",
+        "time_local": "23:20:00",
+        "timezone": "America/Los_Angeles",
+        "location": "Borderline Bar and Grill, Thousand Oaks, CA, USA",
+        "latitude": 34.1769,
+        "longitude": -118.8735,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI entry: shooting began at 11:20 p.m.; 12 killed including a law-enforcement officer killed by friendly fire, and 16 wounded."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2018-11-07T23:20:00",
+        "location": "Borderline Bar and Grill, Thousand Oaks, CA, USA",
+        "timezone": "America/Los_Angeles",
+        "house_system_code": "R",
+        "latitude": "34.1769",
+        "longitude": "-118.8735"
+      },
+      "hard_outcome": {
+        "event_family": "bar/nightclub mass shooting",
+        "outcome": "fatal public-venue shooting",
+        "survivability_direction": "fatal_dominant",
+        "known_scene_markers": ["bar", "12 killed", "16 wounded", "law-enforcement fatality"]
+      },
+      "expected_primary_axes": ["violence_homicide"],
+      "contradictory_axes": ["child_victim", "domestic_partner_involvement", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      }
+    },
+    {
+      "id": "fbi_mercy_hospital_chicago_2018_former_fiancee",
+      "title": "Mercy Hospital and Medical Center shooting",
+      "event_source_ids": ["fbi_active_shooter_2000_2018"],
+      "event_anchor": {
+        "date_local": "2018-11-19",
+        "time_local": "15:20:00",
+        "timezone": "America/Chicago",
+        "location": "Mercy Hospital and Medical Center, Chicago, IL, USA",
+        "latitude": 41.8465,
+        "longitude": -87.6222,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI entry: shooting began at 3:20 p.m.; the shooter killed his former fiancee in the parking lot, then killed two people inside the hospital."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2018-11-19T15:20:00",
+        "location": "Mercy Hospital and Medical Center, Chicago, IL, USA",
+        "timezone": "America/Chicago",
+        "house_system_code": "R",
+        "latitude": "41.8465",
+        "longitude": "-87.6222"
+      },
+      "hard_outcome": {
+        "event_family": "hospital shooting tied to former fiancee",
+        "outcome": "fatal domestic/public workplace shooting",
+        "survivability_direction": "fatal_dominant",
+        "known_scene_markers": ["former fiancee killed", "hospital", "three killed", "law-enforcement exchange"]
+      },
+      "expected_primary_axes": ["violence_homicide", "domestic_partner_involvement"],
+      "contradictory_axes": ["child_victim", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      }
+    }
+  ]
+}

@@ -10,10 +10,7 @@ from typing import List, Dict, Any
 import math
 import datetime
 
-try:
-    import swisseph as swe  # type: ignore
-except Exception:  # pragma: no cover
-    swe = None
+from swisseph_state import swisseph as swe
 
 CLASSICAL = ["Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn"]
 MODERN = ["Uranus", "Neptune", "Pluto"]
@@ -52,7 +49,7 @@ def compute_declination_aspects(timestamp_iso: str, planet_names: List[str], orb
     try:
         dt = datetime.datetime.fromisoformat(timestamp_iso.replace('Z', '+00:00')).astimezone(datetime.timezone.utc)
     except Exception:
-        dt = datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
+        dt = datetime.datetime.now(datetime.timezone.utc)
     jd_ut = swe.julday(dt.year, dt.month, dt.day, dt.hour + dt.minute / 60.0 + dt.second / 3600.0)
 
     ids = _names_to_ids(planet_names)
@@ -121,4 +118,3 @@ def compute_declination_aspects(timestamp_iso: str, planet_names: List[str], orb
     # sort by smallest orb
     out.sort(key=lambda a: a['orb'])
     return out
-

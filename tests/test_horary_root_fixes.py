@@ -134,7 +134,7 @@ def test_property_purchase_advisability_uses_fourth_and_tenth():
     analysis = analyzer.analyze_question("Should I buy this flat?")
 
     assert analysis["question_type"] == Category.PROPERTY
-    assert analysis["relevant_houses"] == [1, 4, 7, 10]
+    assert analysis["relevant_houses"] == [1, 4, 10]
     assert analysis["significators"]["quesited_house"] == 4
     assert analysis["significators"]["counterparty_house"] == 7
     assert analysis["significators"]["profit_house"] == 10

@@ -7,7 +7,16 @@ from pathlib import Path
 BACKEND_DIR = Path(__file__).resolve().parent
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
-REPO_ROOT = BACKEND_DIR.parent
+
+
+def _repo_root() -> Path:
+    for candidate in Path(__file__).resolve().parents:
+        if (candidate / "AGENTS.md").exists() and (candidate / "backend").is_dir():
+            return candidate
+    return BACKEND_DIR.parent
+
+
+REPO_ROOT = _repo_root()
 TESTS_DIR = REPO_ROOT / "tests"
 for path in (REPO_ROOT, TESTS_DIR):
     if str(path) not in sys.path:

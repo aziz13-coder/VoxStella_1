@@ -29,10 +29,13 @@ from zoneinfo import ZoneInfo
 from horary_engine.engine import HoraryEngine
 from models import Planet, Sign, PlanetPosition, HoraryChart, Aspect, SolarCondition
 from horary_engine.services.geolocation import TimezoneManager, LocationError, safe_geocode
+from astro_dispositors import (
+    TRADITIONAL_SIGN_RULERS,
+    build_dispositor_chain_from_data,
+    calculate_dispositor_chains,
+)
 
 logger = logging.getLogger(__name__)
-
-_DEFAULT_GREENWICH_COORDS = (51.4769, -0.0005)
 
 
 @dataclass
@@ -41,9 +44,12 @@ class DispositorChain:
     planet: Planet
     dispositor: Planet
     chain: List[Planet]
-    final_dispositor: Planet
+    final_dispositor: Optional[Planet]
     mutual_reception: bool = False
     reception_partner: Optional[Planet] = None
+    terminal_type: str = "unknown"
+    has_final_dispositor: bool = False
+    cycle: Optional[List[Planet]] = None
 
 
 @dataclass
@@ -132,8 +138,9 @@ class AstroClockEngine:
 
         logger.info(f"Calculating astro clock data - Mode: {self.settings.mode.value}, Time: {effective_time}")
 
-        # Generate chart using existing horary infrastructure
-        chart_result = self._generate_chart_with_horary_engine(effective_time)
+        # Generate chart using the effective runtime context that was actually
+        # used to compute the chart, not the sparse raw settings object.
+        chart_result, resolved_settings = self._generate_chart_with_horary_engine(effective_time)
 
         # Extract chart data from result
         chart_data = chart_result.get('chart_data', {})
@@ -146,7 +153,7 @@ class AstroClockEngine:
 
         return RealTimeData(
             timestamp=effective_time,
-            settings=self.settings,
+            settings=resolved_settings,
             chart_result=chart_result,
             moon_state=moon_state,
             dispositor_chains=dispositor_chains,
@@ -169,7 +176,7 @@ class AstroClockEngine:
         """Public accessor for the engine's effective timestamp."""
         return self._get_effective_time()
 
-    def _generate_chart_with_horary_engine(self, dt: datetime.datetime) -> Dict[str, Any]:
+    def _generate_chart_with_horary_engine(self, dt: datetime.datetime) -> Tuple[Dict[str, Any], AstroClockSettings]:
         """Generate chart using the existing horary engine infrastructure."""
         try:
             # Prepare settings for horary engine
@@ -180,10 +187,6 @@ class AstroClockEngine:
                     coords = (float(self.settings.latitude), float(self.settings.longitude))
                 except Exception:
                     coords = None
-            if coords is None:
-                normalized_location = " ".join(str(location_str or "").strip().lower().split())
-                if normalized_location in {"", "greenwich", "greenwich uk", "greenwich, uk"}:
-                    coords = _DEFAULT_GREENWICH_COORDS
 
             # Default: realtime
             use_current_time = True
@@ -267,6 +270,16 @@ class AstroClockEngine:
                 "ignore_saturn_7th": True,
                 "exaltation_confidence_boost": 0.0
             }
+            resolved_settings = AstroClockSettings(
+                mode=self.settings.mode,
+                location=location_str,
+                custom_time=self.settings.custom_time,
+                timezone=timezone_str,
+                latitude=(coords[0] if coords else None),
+                longitude=(coords[1] if coords else None),
+                paused_at=self.settings.paused_at,
+                house_system_code=self.settings.house_system_code,
+            )
 
             # Use horary engine exactly like app.py does
             question = "Astro Clock Real-time Chart"  # Required but not used for calculations
@@ -285,10 +298,33 @@ class AstroClockEngine:
                     result['chart_data'] = json.loads(chart_data_obj)
             except Exception:
                 logger.warning("AstroClockEngine: chart_data was a JSON string but failed to parse; using raw")
+            if isinstance(result, dict):
+                judgment = str(result.get("judgment") or "").upper()
+                error_message = result.get("error")
+                if judgment == "LOCATION_ERROR":
+                    raise LocationError(str(error_message or "Location could not be resolved"))
+                if judgment == "ERROR" or error_message:
+                    raise RuntimeError(str(error_message or "Horary engine chart calculation failed"))
+            try:
+                chart_data_obj = result.get('chart_data') if isinstance(result, dict) else {}
+                tz_info = chart_data_obj.get('timezone_info') if isinstance(chart_data_obj, dict) else {}
+                chart_coords = tz_info.get('coordinates') if isinstance(tz_info, dict) else {}
+                if coords is None and isinstance(chart_coords, dict):
+                    lat = float(chart_coords.get('latitude'))
+                    lon = float(chart_coords.get('longitude'))
+                    if -90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0:
+                        coords = (lat, lon)
+                        resolved_settings.latitude = lat
+                        resolved_settings.longitude = lon
+                chart_timezone = tz_info.get('timezone') if isinstance(tz_info, dict) else None
+                if chart_timezone and _is_placeholder_tz(resolved_settings.timezone):
+                    resolved_settings.timezone = str(chart_timezone)
+            except Exception:
+                pass
 
             logger.info("Successfully generated chart via horary engine (%s)",
                         "manual" if not use_current_time else "realtime")
-            return result
+            return result, resolved_settings
 
         except Exception as e:
             logger.error(f"Error generating chart with horary engine: {e}")
@@ -406,89 +442,17 @@ class AstroClockEngine:
 
     def _calculate_dispositor_chains(self, planet_positions: List[Dict[str, Any]]) -> Dict[str, DispositorChain]:
         """Calculate dispositor chains for all planets."""
-        dispositor_chains = {}
-
-        # Map sign names to their traditional rulers
-        sign_rulers = {
-            'Aries': 'Mars', 'Taurus': 'Venus', 'Gemini': 'Mercury',
-            'Cancer': 'Moon', 'Leo': 'Sun', 'Virgo': 'Mercury',
-            'Libra': 'Venus', 'Scorpio': 'Mars', 'Sagittarius': 'Jupiter',
-            'Capricorn': 'Saturn', 'Aquarius': 'Saturn', 'Pisces': 'Jupiter'
-        }
-
-        # Create planet position lookup
-        planet_signs = {}
-        for planet_data in planet_positions:
-            planet_name = planet_data.get('planet')
-            planet_sign = planet_data.get('sign')
-            if planet_name and planet_sign and planet_name not in ['Ascendant', 'Midheaven']:
-                planet_signs[planet_name] = planet_sign
-
-        # Build dispositor chains
-        for planet_name, planet_sign in planet_signs.items():
-            if planet_sign in sign_rulers:
-                chain = self._build_dispositor_chain_from_data(planet_name, planet_sign, sign_rulers, planet_signs)
-                dispositor_chains[planet_name] = chain
-
-        return dispositor_chains
+        return calculate_dispositor_chains(planet_positions)
 
     def _build_dispositor_chain_from_data(self, planet_name: str, planet_sign: str,
                                          sign_rulers: Dict[str, str], planet_signs: Dict[str, str]) -> DispositorChain:
         """Build the dispositor chain for a given planet using data dictionaries."""
-        chain = [planet_name]
-        current_sign = planet_sign
-        # Track results explicitly
-        final_dispositor: Optional[str] = None
-        mutual_reception: bool = False
-        reception_partner: Optional[str] = None
-
-        # Follow the chain until we find a final dispositor or mutual reception
-        hops = 0
-        while True:
-            ruler = sign_rulers.get(current_sign)
-            if not ruler:
-                # No known ruler for this sign; stop without changing defaults
-                break
-
-            if ruler in chain:
-                # Loop detected — check strict mutual reception (two-step loop back to anchor)
-                if len(chain) == 2 and ruler == planet_name:
-                    mutual_reception = True
-                    # Partner is the first ruler encountered
-                    reception_partner = chain[1]
-                    # In mutual reception, treat dispositor as the partner
-                    final_dispositor = reception_partner
-                else:
-                    final_dispositor = ruler
-                break
-
-            chain.append(ruler)
-
-            # Determine the sign the current ruler is placed in
-            ruler_sign = planet_signs.get(ruler)
-            if ruler_sign is None:
-                # Cannot continue chain; treat current ruler as final
-                final_dispositor = ruler
-                break
-
-            current_sign = ruler_sign
-            hops += 1
-            # Safety to avoid pathological loops
-            if hops > 10:
-                final_dispositor = ruler
-                break
-
-        # Create minimal DispositorChain with string data
-        from types import SimpleNamespace
-        chain_obj = SimpleNamespace()
-        chain_obj.planet = planet_name
-        chain_obj.dispositor = sign_rulers.get(planet_sign, planet_name)
-        chain_obj.chain = chain
-        chain_obj.final_dispositor = final_dispositor or (chain[-1] if chain else planet_name)
-        chain_obj.mutual_reception = bool(mutual_reception)
-        chain_obj.reception_partner = reception_partner
-
-        return chain_obj
+        return build_dispositor_chain_from_data(
+            planet_name,
+            planet_sign,
+            sign_rulers or TRADITIONAL_SIGN_RULERS,
+            planet_signs,
+        )
 
 
 

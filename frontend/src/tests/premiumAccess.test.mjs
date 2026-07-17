@@ -9,6 +9,7 @@ describe('premiumAccess', () => {
   it('gates premium features only for packaged unlicensed runtime', () => {
     expect(shouldGatePremiumFeature({ packagedRuntime: true, licenseActive: false })).toBe(true);
     expect(shouldGatePremiumFeature({ packagedRuntime: true, licenseActive: true })).toBe(false);
+    expect(shouldGatePremiumFeature({ packagedRuntime: true, licenseActive: false, licenseChecking: true })).toBe(false);
     expect(shouldGatePremiumFeature({ packagedRuntime: false, licenseActive: false })).toBe(false);
   });
 
@@ -17,5 +18,14 @@ describe('premiumAccess', () => {
     redirectToPremiumUpgrade(openExternal);
     expect(openExternal).toHaveBeenCalledWith(PREMIUM_UPGRADE_URL);
   });
-});
 
+  it('attaches a rejection handler to promise-based external openers', () => {
+    const catchSpy = vi.fn();
+    const openExternal = vi.fn(() => ({ catch: catchSpy }));
+
+    redirectToPremiumUpgrade(openExternal);
+
+    expect(openExternal).toHaveBeenCalledWith(PREMIUM_UPGRADE_URL);
+    expect(catchSpy).toHaveBeenCalledWith(expect.any(Function));
+  });
+});

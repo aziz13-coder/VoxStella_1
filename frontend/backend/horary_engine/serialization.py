@@ -172,6 +172,7 @@ def serialize_chart_for_frontend(
                 planet_info["dignity_effect"] = analysis.condition.dignity_modifier
                 combusted_planets.append(planet_info)
             elif analysis.condition == SolarCondition.UNDER_BEAMS:
+                planet_info["traditional_exception"] = analysis.traditional_exception
                 planet_info["dignity_effect"] = analysis.condition.dignity_modifier
                 under_beams_planets.append(planet_info)
             else:  # FREE
@@ -262,13 +263,15 @@ def deserialize_chart_for_evaluation(data: Dict[str, Any]) -> HoraryChart:
                 cond_name = "FREE"
             elif cond_name == "UNDER_THE_BEAMS":
                 cond_name = "UNDER_BEAMS"
-            solar_analyses[planet_enum] = SolarAnalysis(
+            solar_analysis = SolarAnalysis(
                 planet=planet_enum,
                 distance_from_sun=sc["distance_from_sun"],
                 condition=SolarCondition[cond_name],
                 exact_cazimi=sc.get("exact_cazimi", False),
                 traditional_exception=sc.get("traditional_exception", False),
             )
+            solar_analyses[planet_enum] = solar_analysis
+            setattr(planets[planet_enum], "solar_condition", solar_analysis)
 
     aspects = []
     for a in data.get("aspects", []):

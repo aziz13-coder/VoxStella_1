@@ -533,12 +533,52 @@ def _place_scan_sort_key(item: Mapping[str, Any]) -> Any:
     )
 
 
+def _place_diversity_group(item: Mapping[str, Any]) -> str:
+    location = item.get("location") or {}
+    country_code = str(location.get("country_code") or "").strip().upper()
+    timezone_name = str(location.get("timezone") or "").strip()
+    if country_code and timezone_name:
+        return f"{country_code}:{timezone_name}"
+    if timezone_name:
+        return timezone_name
+    try:
+        longitude = float(location.get("longitude"))
+    except Exception:
+        longitude = None
+    if country_code and longitude is not None:
+        longitude_band = int((longitude + 180.0) // 15.0)
+        return f"{country_code}:lonband:{longitude_band}"
+    label = str(location.get("label") or "").strip()
+    return label or "unknown"
+
+
+def _order_places_for_discovery(places: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    ordered_by_signal = sorted(places, key=_place_scan_sort_key)
+    primary_theaters: List[Dict[str, Any]] = []
+    same_theater_followups: List[Dict[str, Any]] = []
+    seen_groups: set[str] = set()
+
+    for place in ordered_by_signal:
+        diversity_group = _place_diversity_group(place)
+        updated = dict(place)
+        updated["place_diversity_group"] = diversity_group
+        if diversity_group not in seen_groups:
+            updated["place_ranking_phase"] = "primary_theater"
+            primary_theaters.append(updated)
+            seen_groups.add(diversity_group)
+        else:
+            updated["place_ranking_phase"] = "same_theater_followup"
+            same_theater_followups.append(updated)
+    return primary_theaters + same_theater_followups
+
+
 def _apply_relative_place_levels(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     if not rows:
         return rows
-    top_breakout = max(float(row.get("breakout_index") or 0.0) for row in rows)
-    second_breakout = float(rows[1].get("breakout_index") or 0.0) if len(rows) > 1 else 0.0
-    min_breakout = min(float(row.get("breakout_index") or 0.0) for row in rows)
+    breakout_values = sorted((float(row.get("breakout_index") or 0.0) for row in rows), reverse=True)
+    top_breakout = breakout_values[0]
+    second_breakout = breakout_values[1] if len(breakout_values) > 1 else 0.0
+    min_breakout = breakout_values[-1]
     spread = max(0.0, top_breakout - min_breakout)
     gap = max(0.0, top_breakout - second_breakout)
     top_peak = max(float(row.get("peak_scan_score") or 0.0) for row in rows)
@@ -589,7 +629,7 @@ def _apply_relative_place_levels(rows: List[Dict[str, Any]]) -> List[Dict[str, A
 
 def _rank_top_places(places: List[Dict[str, Any]], *, top_k: int) -> List[Dict[str, Any]]:
     ranked_places: List[Dict[str, Any]] = []
-    for index, place in enumerate(sorted(places, key=_place_scan_sort_key)[:top_k], start=1):
+    for index, place in enumerate(_order_places_for_discovery(places)[:top_k], start=1):
         ranked_places.append(
             {
                 "rank": index,
@@ -604,6 +644,8 @@ def _rank_top_places(places: List[Dict[str, Any]], *, top_k: int) -> List[Dict[s
                 "peak_selection": place.get("peak_selection"),
                 "peak_level": place.get("peak_level"),
                 "first_active_datetime": place.get("first_active_datetime"),
+                "place_diversity_group": place.get("place_diversity_group"),
+                "place_ranking_phase": place.get("place_ranking_phase"),
             }
         )
     return _apply_relative_place_levels(ranked_places)
@@ -786,13 +828,7 @@ def _build_series_payload(
             }
         )
 
-    places.sort(
-        key=lambda item: (
-            -float(item.get("breakout_index") or 0.0),
-            -float(item.get("peak_scan_score") or 0.0),
-            str(((item.get("location") or {}).get("label") or "")),
-        )
-    )
+    places = _order_places_for_discovery(places)
     graph_places = places[:graph_place_limit]
 
     breakout_candidates = [
@@ -809,6 +845,8 @@ def _build_series_payload(
             "peak_selection": place.get("peak_selection"),
             "peak_scan_score": place.get("peak_scan_score"),
             "peak_level": place.get("peak_level"),
+            "place_diversity_group": place.get("place_diversity_group"),
+            "place_ranking_phase": place.get("place_ranking_phase"),
         }
         for index, place in enumerate(graph_places[:5], start=1)
     ]

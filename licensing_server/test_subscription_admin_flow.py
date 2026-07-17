@@ -42,18 +42,23 @@ def _extract_csrf(html: str) -> str:
 
 def _login_admin(client: TestClient, token: str) -> str:
     login_page = client.get("/admin/login")
-    csrf = _extract_csrf(login_page.text)
+    login_csrf = _extract_csrf(login_page.text)
     response = client.post(
         "/admin/login",
-        data={"token": token, "csrf_token": csrf},
+        data={"token": token, "csrf_token": login_csrf},
         headers={"origin": "http://testserver"},
         follow_redirects=False,
     )
     assert response.status_code == 302
+    rotated_csrf = response.cookies.get("adm_csrf")
+    assert rotated_csrf
+    assert rotated_csrf != login_csrf
 
     dashboard = client.get("/admin")
     assert dashboard.status_code == 200
-    return _extract_csrf(dashboard.text)
+    dashboard_csrf = _extract_csrf(dashboard.text)
+    assert dashboard_csrf == rotated_csrf
+    return dashboard_csrf
 
 
 def _fetch_only_license_row(db_path: Path) -> sqlite3.Row:
@@ -268,3 +273,128 @@ def test_admin_create_perpetual_keeps_period_end_empty(monkeypatch, tmp_path):
     row = _fetch_only_license_row(module.DB_PATH)
     assert row["kind"] == "perpetual"
     assert row["current_period_end"] is None
+
+
+def test_admin_create_form_remains_valid_after_later_dashboard_get(monkeypatch, tmp_path):
+    module = _load_module(monkeypatch, tmp_path)
+    client = TestClient(module.app)
+    first_form_csrf = _login_admin(client, "admin-secret")
+
+    later_dashboard = client.get("/admin")
+    later_form_csrf = _extract_csrf(later_dashboard.text)
+    assert later_form_csrf == first_form_csrf
+
+    response = client.post(
+        "/admin/create",
+        data={
+            "csrf_token": first_form_csrf,
+            "count": 1,
+            "plan": "pro",
+            "max_devices": 1,
+            "owner_email": "",
+            "kind": "perpetual",
+            "status": "active",
+            "period_end": "",
+        },
+        headers={"origin": "http://testserver"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 302
+    row = _fetch_only_license_row(module.DB_PATH)
+    assert row["kind"] == "perpetual"
+
+
+def test_admin_create_rejects_wrong_csrf_token(monkeypatch, tmp_path):
+    module = _load_module(monkeypatch, tmp_path)
+    client = TestClient(module.app)
+    _login_admin(client, "admin-secret")
+
+    response = client.post(
+        "/admin/create",
+        data={
+            "csrf_token": "wrong-token",
+            "count": 1,
+            "plan": "pro",
+            "max_devices": 1,
+            "owner_email": "",
+            "kind": "perpetual",
+            "status": "active",
+            "period_end": "",
+        },
+        headers={"origin": "http://testserver"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "csrf-token-invalid"
+    with sqlite3.connect(module.DB_PATH) as conn:
+        assert conn.execute("select count(*) from licenses").fetchone()[0] == 0
+
+
+def test_admin_create_perpetual_ignores_malformed_period_end(monkeypatch, tmp_path):
+    module = _load_module(monkeypatch, tmp_path)
+    client = TestClient(module.app)
+    csrf = _login_admin(client, "admin-secret")
+
+    response = client.post(
+        "/admin/create",
+        data={
+            "csrf_token": csrf,
+            "count": 1,
+            "plan": "pro",
+            "max_devices": 1,
+            "owner_email": "",
+            "kind": "perpetual",
+            "status": "active",
+            "period_end": "07/17/2026",
+        },
+        headers={"origin": "http://testserver"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 302
+    row = _fetch_only_license_row(module.DB_PATH)
+    assert row["kind"] == "perpetual"
+    assert row["current_period_end"] is None
+
+
+def test_admin_can_still_deactivate_a_device_without_a_license_token(monkeypatch, tmp_path):
+    module = _load_module(monkeypatch, tmp_path)
+    now = int(module.time.time())
+    with sqlite3.connect(module.DB_PATH) as conn:
+        conn.execute(
+            """
+            insert into licenses
+              (license_key, plan, max_devices, active, issued_at, kind, status)
+            values (?, ?, ?, ?, ?, ?, ?)
+            """,
+            ("ADMIN-DEACTIVATE-1", "pro", 1, 1, now, "perpetual", "active"),
+        )
+        conn.execute(
+            """
+            insert into activations
+              (license_key, device_id, activated_at, last_activity)
+            values (?, ?, ?, ?)
+            """,
+            ("ADMIN-DEACTIVATE-1", "device-admin", now, now),
+        )
+
+    client = TestClient(module.app)
+    csrf = _login_admin(client, "admin-secret")
+    response = client.post(
+        "/admin/license/ADMIN-DEACTIVATE-1/deactivate-device",
+        data={"csrf_token": csrf, "deviceId": "device-admin"},
+        headers={"origin": "http://testserver"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 302
+    with sqlite3.connect(module.DB_PATH) as conn:
+        activation = conn.execute(
+            """
+            select 1 from activations
+            where license_key='ADMIN-DEACTIVATE-1' and device_id='device-admin'
+            """
+        ).fetchone()
+    assert activation is None

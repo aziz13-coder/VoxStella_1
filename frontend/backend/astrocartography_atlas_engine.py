@@ -11,6 +11,7 @@ from astrocartography_city_catalog import (
 from astrocartography_goal_engine import (
     evaluate_goal_model,
     extract_relocation_features,
+    get_goal_score_polarity,
     summarize_relocation_features,
 )
 from astrocartography_goal_models import get_goal_model
@@ -19,6 +20,7 @@ from astrocartography_service import (
     DEFAULT_BODIES,
     EXTENDED_READING_RADIUS_KM,
     PRIMARY_READING_RADIUS_KM,
+    build_goal_scoring_context,
     build_location_reading,
     crossing_candidates_for_point,
 )
@@ -31,6 +33,10 @@ MIN_ATLAS_RAW_SCORE = 0.25
 DEFAULT_SHORTLIST_STRATEGY = "line_first"
 RELOCATION_PREPASS_SHORTLIST_STRATEGY = "relocation_prepass"
 MAX_RELOCATION_PREPASS_LIMIT = 480
+RELOCATION_AWARE_EVALUATION_STRATEGIES = {
+    "accident_pressure",
+    "gambling_natal_curated",
+}
 
 
 def _emit_progress(
@@ -231,6 +237,13 @@ def _score_candidate(
         primary_radius_km=PRIMARY_READING_RADIUS_KM,
         extended_radius_km=EXTENDED_READING_RADIUS_KM,
     )
+    natal_scoring = build_goal_scoring_context(
+        natal_lines,
+        latitude,
+        longitude,
+        primary_radius_km=PRIMARY_READING_RADIUS_KM,
+        extended_radius_km=EXTENDED_READING_RADIUS_KM,
+    )
     natal_crossings = crossing_candidates_for_point(
         natal_lines,
         latitude,
@@ -240,9 +253,17 @@ def _score_candidate(
     )
 
     transit_reading = None
+    transit_scoring = None
     transit_crossings = None
     if transit_lines:
         transit_reading = build_location_reading(
+            transit_lines,
+            latitude,
+            longitude,
+            primary_radius_km=PRIMARY_READING_RADIUS_KM,
+            extended_radius_km=EXTENDED_READING_RADIUS_KM,
+        )
+        transit_scoring = build_goal_scoring_context(
             transit_lines,
             latitude,
             longitude,
@@ -259,11 +280,11 @@ def _score_candidate(
 
     goal_eval = evaluate_goal_model(
         goal_id,
-        natal_rows=natal_reading.get("nearest_lines") or [],
-        natal_crossings=natal_crossings,
+        natal_rows=natal_scoring.get("nearest_lines") or [],
+        natal_crossings=natal_scoring.get("crossings") or [],
         relocation=relocation_features or _empty_relocation_features(),
-        transit_rows=(transit_reading.get("nearest_lines") or []) if transit_reading else None,
-        transit_crossings=transit_crossings,
+        transit_rows=(transit_scoring.get("nearest_lines") or []) if transit_scoring else None,
+        transit_crossings=(transit_scoring.get("crossings") or []) if transit_scoring else None,
     )
 
     result: Dict[str, Any] = {
@@ -297,8 +318,15 @@ def _score_candidate(
     return result
 
 
-def _passes_signal_floor(item: Dict[str, Any], *, min_raw_score: float = MIN_ATLAS_RAW_SCORE) -> bool:
+def _passes_signal_floor(
+    item: Dict[str, Any],
+    *,
+    min_raw_score: float = MIN_ATLAS_RAW_SCORE,
+    score_polarity: str = "higher_is_better",
+) -> bool:
     score_payload = item.get("location_score") or {}
+    if score_polarity == "higher_is_worse":
+        return bool(score_payload)
     raw_score = float(score_payload.get("raw_score") or 0.0)
     if raw_score >= float(min_raw_score):
         return True
@@ -310,20 +338,35 @@ def build_location_score_sort_key(
     *,
     label: Any = "",
     population: Any = 0,
+    score_polarity: str = "higher_is_better",
 ) -> tuple[float, float, int, str]:
+    raw_score = float(location_score.get("raw_score") or 0.0)
+    score = float(location_score.get("score") or 0.0)
+    if score_polarity == "higher_is_worse":
+        return (
+            raw_score,
+            score,
+            -int(population or 0),
+            str(label or ""),
+        )
     return (
-        -float(location_score.get("raw_score") or 0.0),
-        -float(location_score.get("score") or 0.0),
+        -raw_score,
+        -score,
         -int(population or 0),
         str(label or ""),
     )
 
 
-def _scored_candidate_sort_key(item: Dict[str, Any]) -> tuple[float, float, int, str]:
+def _scored_candidate_sort_key(
+    item: Dict[str, Any],
+    *,
+    score_polarity: str = "higher_is_better",
+) -> tuple[float, float, int, str]:
     return build_location_score_sort_key(
         item.get("location_score") or {},
         label=((item.get("target") or {}).get("label") or ""),
         population=((item.get("atlas_city") or {}).get("population") or 0),
+        score_polarity=score_polarity,
     )
 
 
@@ -357,7 +400,18 @@ def resolve_goal_shortlist_plan(
     candidate_count: int,
 ) -> Dict[str, Any]:
     model = get_goal_model(goal_id)
-    strategy = str(model.get("atlas_shortlist_strategy") or DEFAULT_SHORTLIST_STRATEGY).strip().lower()
+    configured_strategy = str(model.get("atlas_shortlist_strategy") or "").strip().lower()
+    strategy = configured_strategy or DEFAULT_SHORTLIST_STRATEGY
+    evaluation_strategy = str(model.get("evaluation_strategy") or "").strip().lower()
+    has_relocation_components = any(
+        str(component.get("kind") or "").strip().lower() in {"relocation", "modifier", "constraint"}
+        for component in (model.get("score_components") or [])
+        if isinstance(component, dict)
+    )
+    if not configured_strategy and (
+        has_relocation_components or evaluation_strategy in RELOCATION_AWARE_EVALUATION_STRATEGIES
+    ):
+        strategy = RELOCATION_PREPASS_SHORTLIST_STRATEGY
     if strategy not in {DEFAULT_SHORTLIST_STRATEGY, RELOCATION_PREPASS_SHORTLIST_STRATEGY}:
         strategy = DEFAULT_SHORTLIST_STRATEGY
 
@@ -366,9 +420,16 @@ def resolve_goal_shortlist_plan(
         configured_limit = int(model.get("atlas_relocation_prepass_limit") or 0)
         if configured_limit <= 0:
             configured_limit = max(int(relocation_limit) * 6, 96)
+        exhaustive_relocation_prepass = bool(
+            configured_strategy == RELOCATION_PREPASS_SHORTLIST_STRATEGY
+            or evaluation_strategy in RELOCATION_AWARE_EVALUATION_STRATEGIES
+        )
         prepass_limit = min(
             int(candidate_count),
-            max(int(relocation_limit), min(configured_limit, MAX_RELOCATION_PREPASS_LIMIT)),
+            int(candidate_count) if exhaustive_relocation_prepass else max(
+                int(relocation_limit),
+                min(configured_limit, MAX_RELOCATION_PREPASS_LIMIT),
+            ),
         )
 
     return {
@@ -411,6 +472,7 @@ def rank_candidate_pool_for_goal(
         relocation_limit=relocation_limit,
         candidate_count=initial_total,
     )
+    score_polarity = get_goal_score_polarity(goal_id)
 
     initial_results: List[Dict[str, Any]] = []
     if initial_total == 0:
@@ -441,7 +503,7 @@ def rank_candidate_pool_for_goal(
                     total=initial_total,
                     candidate_count=initial_total,
                 )
-    initial_results.sort(key=_scored_candidate_sort_key)
+    initial_results.sort(key=lambda item: _scored_candidate_sort_key(item, score_polarity=score_polarity))
 
     prepass_candidates = initial_results[: shortlist_plan["prepass_limit"]]
     relocation_prepass_results: List[Dict[str, Any]] = []
@@ -489,7 +551,7 @@ def rank_candidate_pool_for_goal(
                     total=prepass_total,
                     prepass_count=prepass_total,
                 )
-        relocation_prepass_results.sort(key=_scored_candidate_sort_key)
+        relocation_prepass_results.sort(key=lambda item: _scored_candidate_sort_key(item, score_polarity=score_polarity))
         shortlisted = relocation_prepass_results[:relocation_limit]
         final_results_source = relocation_prepass_results
     else:
@@ -533,10 +595,14 @@ def rank_candidate_pool_for_goal(
                     total=shortlist_total,
                     shortlisted_count=shortlist_total,
                 )
-        final_results_source.sort(key=_scored_candidate_sort_key)
+        final_results_source.sort(key=lambda item: _scored_candidate_sort_key(item, score_polarity=score_polarity))
 
     _check_should_continue(should_continue)
-    viable_results = [item for item in final_results_source if _passes_signal_floor(item)]
+    viable_results = [
+        item
+        for item in final_results_source
+        if _passes_signal_floor(item, score_polarity=score_polarity)
+    ]
     final_results = viable_results[:limit]
 
     _check_should_continue(should_continue)
@@ -569,6 +635,7 @@ def rank_candidate_pool_for_goal(
         "shortlisted_count": len(shortlisted),
         "viable_count": len(viable_results),
         "signal_floor_raw_score": MIN_ATLAS_RAW_SCORE,
+        "score_polarity": score_polarity,
         "results": final_results,
         "ranking": ranking,
     }

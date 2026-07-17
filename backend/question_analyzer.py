@@ -561,7 +561,18 @@ class TraditionalHoraryQuestionAnalyzer:
             if re.search(pattern, question):
                 if self_reproductive_question and pattern in {r"my child", r"my son", r"my daughter"}:
                     continue
-                pronoun_subject_house = inferred_subject_house
+                # In an adoption decision, "they" denotes the current
+                # caretakers while "the baby" is the grammatical object. Do
+                # not let the later child noun steal the subject role. Keep
+                # inferred named relatives for multi-sentence questions such
+                # as "Where is my Dad? Is he ok?".
+                generic_adoption_subject = (
+                    pattern == r"\bwill they\b"
+                    and bool(re.search(r"\b(adopt|adoption)\b", question))
+                )
+                pronoun_subject_house = (
+                    7 if generic_adoption_subject else inferred_subject_house
+                )
                 return {
                     "is_third_person": True,
                     "subject_house": pronoun_subject_house or 7,  # The other person = 7th house by default

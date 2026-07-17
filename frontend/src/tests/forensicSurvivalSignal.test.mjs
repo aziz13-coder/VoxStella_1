@@ -22,6 +22,13 @@ describe('forensic survival signal', () => {
             fatal_pressure: 1.0,
           },
           evidence: { vitality: [], support: [], recovery_support: [], moon: [], danger: [], fatal_pressure: [] },
+          light_mediation_impact: {
+            effect: 'recovery_support',
+            tilt: 'recovery_mitigated',
+            score_without_light_mediation: 1.5,
+            score_delta: 0.25,
+            visibility: 'raw_only',
+          },
           note: 'Derived from significator vitality, benefic support, Moon testimony, malefic pressure, and explicit death-edge findings.',
         },
       },
@@ -33,6 +40,13 @@ describe('forensic survival signal', () => {
     expect(summary.caseType).toBe('adult_female');
     expect(summary.victimSignificators).toEqual(['Mercury', 'Moon', 'Venus']);
     expect(summary.breakdown.recovery_support).toBe(1.2);
+    expect(summary.lightMediationImpact).toEqual({
+      effect: 'recovery_support',
+      tilt: 'recovery_mitigated',
+      score_without_light_mediation: 1.5,
+      score_delta: 0.25,
+      visibility: 'raw_only',
+    });
   });
 
   it('keeps the legacy fallback when no backend summary exists', () => {

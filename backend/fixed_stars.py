@@ -44,6 +44,7 @@ FIXED_STAR_CATALOG: List[Dict[str, Any]] = [
     {"name": "Acrux",      "constellation": "Crux",        "longitude": 222.000},
     {"name": "Achernar",   "constellation": "Eridanus",    "longitude": 345.000},
     {"name": "Alcyone",    "constellation": "Taurus",      "longitude": 59.000},
+    {"name": "Hyades",     "constellation": "Taurus",      "longitude": 65.750},
     {"name": "Algenib",    "constellation": "Pegasus",     "longitude": 9.000},
     {"name": "Markab",     "constellation": "Pegasus",     "longitude": 353.000},
     {"name": "Alhena",     "constellation": "Gemini",      "longitude": 99.000},
@@ -57,8 +58,13 @@ FIXED_STAR_CATALOG: List[Dict[str, Any]] = [
     {"name": "Zosma",      "constellation": "Leo",         "longitude": 171.000},
     # Extended catalog (approximate tropical longitudes)
     {"name": "Rigel",       "constellation": "Orion",       "longitude": 78.000},
+    {"name": "Praesaepe",   "constellation": "Cancer",      "longitude": 127.200},
+    {"name": "North Asellus","constellation": "Cancer",     "longitude": 127.400},
+    {"name": "South Asellus","constellation": "Cancer",     "longitude": 128.583},
+    {"name": "Phecda",      "constellation": "Ursa Major",  "longitude": 150.483},
     {"name": "Rasalhague",  "constellation": "Ophiuchus",   "longitude": 259.000},
     {"name": "Rasalgethi",  "constellation": "Hercules",    "longitude": 242.000},
+    {"name": "Unukalhai",   "constellation": "Serpens",     "longitude": 232.067},
     {"name": "Alphard",     "constellation": "Hydra",       "longitude": 150.000},
     {"name": "Vindemiatrix","constellation": "Virgo",       "longitude": 187.000},
     {"name": "Zuben Elgenubi","constellation": "Libra",    "longitude": 199.000},
@@ -68,6 +74,7 @@ FIXED_STAR_CATALOG: List[Dict[str, Any]] = [
     {"name": "Alnilam",     "constellation": "Orion",       "longitude": 84.000},
     {"name": "Alrescha",    "constellation": "Pisces",      "longitude": 359.000},
     {"name": "Deneb Algedi","constellation": "Capricorn",   "longitude": 300.000},
+    {"name": "Scheat",      "constellation": "Pegasus",     "longitude": 359.367},
     {"name": "Hamal",       "constellation": "Ari",         "longitude": 37.000},
 ]
 

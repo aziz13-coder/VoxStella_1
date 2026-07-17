@@ -95,6 +95,14 @@ def analyze_relative_question_text(
     if any(token in q for token in POSSESSIVE_OBJECT_TOKENS):
         return None
 
+    # A generic partner pronoun in a question that explicitly includes the
+    # querent is still the ordinary L1/L7 relationship axis. Treating "her" or
+    # "he" as the operative subject reverses the querent and quesited (for
+    # example, "Should I wait for her?" becomes [7, 1]).
+    first_person_participant = bool(re.search(r"\b(i|me|us|we|our)\b", q))
+    if subject_house == 7 and first_person_participant:
+        return None
+
     if any(token in q for token in MARRIAGE_TOKENS):
         partner_house = _turn(subject_house, 7)
         return {

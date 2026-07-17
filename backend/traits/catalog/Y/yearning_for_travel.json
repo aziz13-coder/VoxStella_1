@@ -6,7 +6,8 @@
   "confidence": "high",
   "polarity": "positive",
   "sources": [
-    "Carter: 3rd/9th travel axis; Sagittarius/Jupiter"
+    "Carter: 3rd/9th travel axis; Sagittarius/Jupiter",
+    "Morin: H3 movement/messages and H9 journeys/doctrine become specific through Mercury/Jupiter determinations"
   ],
   "logic": { "base": 0,
     "boosts": [
@@ -15,7 +16,9 @@
       { "kind": "house_emphasis", "houses": [9], "min_total": 1, "weight": 3 },
       { "kind": "sign_emphasis", "sign": "Gemini", "min": 1.5, "weight": 3 },
       { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": 3 },
-      { "kind": "house_emphasis", "houses": [3], "min_total": 1, "weight": 2 }
+      { "kind": "house_emphasis", "houses": [3], "min_total": 1, "weight": 2 },
+      { "kind": "planet_area", "planet": "Mercury", "areas": ["short_travel"], "min": 0.45, "weight": 4 },
+      { "kind": "planet_area", "planet": "Jupiter", "areas": ["belief"], "min": 0.45, "weight": 4 }
     ],
     "dampeners": [
       { "kind": "sign_emphasis", "sign": "Cancer", "min": 1.5, "weight": -4 },
@@ -25,4 +28,3 @@
     ],
     "escalators": [] }
 }
-

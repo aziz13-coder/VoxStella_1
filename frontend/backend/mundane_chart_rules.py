@@ -867,16 +867,6 @@ def resolve_chart_resolution(
     resolved_location = location or event_location
     resolved_timezone = timezone_name or event_timezone
 
-    current_overlay_bundle = _resolve_bundle(
-        bundle_resolver,
-        anchor_dt.isoformat(),
-        resolved_location,
-        resolved_timezone,
-        house_system_code,
-        latitude=location_latitude,
-        longitude=location_longitude,
-    )
-
     if chart_type_id == "national_chart":
         if not isinstance(reference_chart, dict):
             raise ValueError("national_chart requires a reference chart")
@@ -1125,6 +1115,15 @@ def resolve_chart_resolution(
         }
 
     if chart_type_id == "eclipse":
+        current_overlay_bundle = _resolve_bundle(
+            bundle_resolver,
+            anchor_dt.isoformat(),
+            resolved_location,
+            resolved_timezone,
+            house_system_code,
+            latitude=location_latitude,
+            longitude=location_longitude,
+        )
         candidate, bundle, node_orb = _find_nearest_eclipse(
             anchor_dt,
             longitudes_at=longitudes_at,

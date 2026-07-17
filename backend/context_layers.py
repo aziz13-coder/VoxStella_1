@@ -21,10 +21,7 @@ from typing import Any, Dict, Optional, Tuple, List
 from datetime import datetime, timedelta, timezone
 import math
 
-try:
-    import swisseph as swe  # type: ignore
-except Exception:  # pragma: no cover
-    swe = None
+from swisseph_state import swisseph as swe
 
 
 def _norm360(x: float) -> float:

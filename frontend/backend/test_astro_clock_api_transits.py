@@ -12,6 +12,7 @@ import app as app_module
 import astro_clock_api
 import context_layers
 import primary_directions
+import transits_morin
 
 
 def _clock_payload():
@@ -143,3 +144,307 @@ def test_select_dominant_occurrence_uses_midpoint_of_strongest_band():
     dominant = astro_clock_api._select_dominant_occurrence(occurrences)
 
     assert dominant == "1615-07-08T12:00:00+00:00"
+
+
+def test_predictor_peak_rows_dedupe_repeated_support_window_identity():
+    def row(timestamp, step_score, count, event_type="promotion", life_area="honors", transit="Jupiter Semi-sextile MC"):
+        return {
+            "timestamp": timestamp,
+            "step_score": step_score,
+            "count": count,
+            "predictions": [
+                {
+                    "date": timestamp,
+                    "event_type": event_type,
+                    "life_area": life_area,
+                    "label": transit,
+                    "description": f"{transit} indicates {event_type}",
+                    "probability": 1.0,
+                    "score": 60.0,
+                    "tags": [event_type, life_area],
+                    "factors": {
+                        "transit": transit,
+                        "determination_strength": 1.0,
+                        "significance": 60.0,
+                    },
+                }
+            ],
+        }
+
+    peaks = astro_clock_api._build_predictor_peak_rows(
+        [
+            row("2026-05-01T00:00:00+00:00", 900.0, 90),
+            row("2026-05-01T10:00:00+00:00", 890.0, 91),
+            row("2026-05-03T20:00:00+00:00", 880.0, 92),
+            row(
+                "2026-05-01T01:00:00+00:00",
+                780.0,
+                80,
+                event_type="family_problems",
+                life_area="home",
+                transit="Mars Square Saturn",
+            ),
+        ],
+        limit=10,
+    )
+    serialized = astro_clock_api._serialize_peak_rows(peaks)
+
+    promotion_peaks = [
+        peak for peak in serialized
+        if peak.get("event_type") == "promotion" and peak.get("transit") == "Jupiter Semi-sextile MC"
+    ]
+
+    assert len(promotion_peaks) == 1
+    assert any(peak.get("event_type") == "family_problems" for peak in serialized)
+
+
+def test_predictor_route_peaks_use_support_groups_not_repeated_row_primary():
+    series = [
+        {
+            "timestamp": "2026-05-01T00:00:00+00:00",
+            "step_score": 900.0,
+            "count": 90,
+            "predictions": [
+                {
+                    "date": "2026-05-01T00:00:00+00:00",
+                    "event_type": "promotion",
+                    "life_area": "honors",
+                    "label": "Jupiter Semi-sextile MC",
+                    "description": "Jupiter Semi-sextile MC indicates promotion",
+                    "probability": 1.0,
+                    "score": 60.0,
+                    "tags": ["promotion", "honors"],
+                    "factors": {"transit": "Jupiter Semi-sextile MC", "determination_strength": 1.0, "significance": 60.0},
+                }
+            ],
+        },
+        {
+            "timestamp": "2026-05-01T01:00:00+00:00",
+            "step_score": 890.0,
+            "count": 88,
+            "predictions": [
+                {
+                    "date": "2026-05-01T01:00:00+00:00",
+                    "event_type": "promotion",
+                    "life_area": "honors",
+                    "label": "Jupiter Semi-sextile MC",
+                    "description": "Jupiter Semi-sextile MC indicates promotion",
+                    "probability": 1.0,
+                    "score": 60.0,
+                    "tags": ["promotion", "honors"],
+                    "factors": {"transit": "Jupiter Semi-sextile MC", "determination_strength": 1.0, "significance": 60.0},
+                }
+            ],
+        },
+    ]
+    groups = [
+        {
+            "event_type": "promotion",
+            "life_area": "honors",
+            "label": "Jupiter Semi-sextile MC",
+            "description": "Jupiter Semi-sextile MC indicates promotion",
+            "transit": "Jupiter Semi-sextile MC",
+            "dominant_timestamp": "2026-05-01T00:00:00+00:00",
+            "support_focus": 500.0,
+            "support_density": 100.0,
+            "support_score": 1000.0,
+            "probability_max": 1.0,
+            "domain_alignment_max": 1.0,
+            "occurrences": [{"date": "2026-05-01T00:00:00+00:00", "support_score": 108.8}],
+        },
+        {
+            "event_type": "family_problems",
+            "life_area": "home",
+            "label": "Mars Square Saturn",
+            "description": "Mars Square Saturn indicates family problems",
+            "transit": "Mars Square Saturn",
+            "dominant_timestamp": "2026-05-01T01:00:00+00:00",
+            "support_focus": 450.0,
+            "support_density": 90.0,
+            "support_score": 900.0,
+            "probability_max": 1.0,
+            "domain_alignment_max": 1.0,
+            "occurrences": [{"date": "2026-05-01T01:00:00+00:00", "support_score": 78.8}],
+        },
+    ]
+
+    peaks = astro_clock_api._build_predictor_group_peak_rows(series, groups, limit=10)
+    serialized = astro_clock_api._serialize_peak_rows(peaks)
+
+    assert [peak["event_type"] for peak in serialized] == ["promotion", "family_problems"]
+    assert serialized[0]["support_score"] == 108.8
+    assert serialized[1]["support_score"] == 78.8
+
+
+def test_transit_scan_routes_reject_oversized_windows_before_scanning(monkeypatch):
+    client = app_module.app.test_client()
+    scan_called = False
+
+    monkeypatch.setattr(
+        astro_clock_api,
+        "_natal_from_query",
+        lambda args: (
+            {
+                "house_rulers": {"1": "Saturn"},
+                "planets": {"Sun": {"longitude": 10.0}},
+            },
+            {
+                "timestamp": "1990-01-01T00:00:00+00:00",
+                "location": "London, UK",
+                "timezone": "Europe/London",
+            },
+        ),
+    )
+    monkeypatch.setattr(astro_clock_api, "_STREAM_MAX_STEPS", 10)
+
+    def fail_scan(*args, **kwargs):
+        nonlocal scan_called
+        scan_called = True
+        raise AssertionError("scan should not run after bounds validation fails")
+
+    monkeypatch.setattr(transits_morin, "scan_morin_transits_window", fail_scan)
+
+    query = {
+        "natal_datetime": "1990-01-01T00:00:00+00:00",
+        "natal_location": "London, UK",
+        "natal_timezone": "Europe/London",
+        "start": "2026-01-01T00:00:00+00:00",
+        "end": "2026-01-01T02:00:00+00:00",
+        "step_minutes": "5",
+    }
+
+    for path in (
+        "/api/astro-clock/transits/window",
+        "/api/astro-clock/predictor",
+        "/api/astro-clock/transits/window/stream",
+        "/api/astro-clock/transits/window/export",
+    ):
+        response = client.get(path, query_string=query)
+        payload = response.get_json()
+
+        assert response.status_code == 400
+        assert payload["success"] is False
+        assert "max is 10" in payload["error"]
+
+    assert scan_called is False
+
+
+def test_exact_transits_route_applies_serialized_filters(monkeypatch):
+    client = app_module.app.test_client()
+
+    monkeypatch.setattr(
+        astro_clock_api,
+        "_natal_from_query",
+        lambda args: (
+            {
+                "house_rulers": {"1": "Saturn"},
+                "planets": {"Sun": {"longitude": 10.0}},
+            },
+            {
+                "timestamp": "1990-01-01T00:00:00+00:00",
+                "location": "London, UK",
+                "timezone": "Europe/London",
+            },
+        ),
+    )
+    monkeypatch.setattr(astro_clock_api, "_compute_pd_windows_for_years", lambda *args, **kwargs: [])
+    monkeypatch.setattr(astro_clock_api, "_retry_enrich_transit_hits", lambda _cd, hits, _ts, **kwargs: hits)
+
+    def fake_compute(*args, **kwargs):
+        return [
+            {
+                "transiting": "Jupiter",
+                "natal": "Moon",
+                "target_label": "Moon",
+                "aspect": "Trine",
+                "orb": 0.2,
+                "score": 20,
+                "significance": 20,
+            },
+            {
+                "transiting": "Saturn",
+                "natal": "Sun",
+                "target_label": "Sun",
+                "aspect": "Square",
+                "orb": 0.1,
+                "score": 40,
+                "significance": 40,
+                "prediction": {"eventType": "illness", "lifeArea": "health"},
+            },
+        ]
+
+    monkeypatch.setattr(transits_morin, "compute_morin_transits_to_natal", fake_compute)
+
+    response = client.get(
+        "/api/astro-clock/transits",
+        query_string={
+            "natal_datetime": "1990-01-01T00:00:00+00:00",
+            "natal_location": "London, UK",
+            "natal_timezone": "Europe/London",
+            "transit_datetime": "2026-01-01T00:00:00+00:00",
+            "transiting": "Saturn",
+            "natal": "Sun",
+            "aspect": "Square",
+        },
+    )
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert payload["success"] is True
+    rows = payload["data"]["transits"]
+    assert len(rows) == 1
+    assert rows[0]["transiting"] == "Saturn"
+    assert rows[0]["natal"] == "Sun"
+    assert rows[0]["aspect"] == "Square"
+
+
+def test_transit_scan_routes_reject_invalid_step_before_scanning(monkeypatch):
+    client = app_module.app.test_client()
+    scan_called = False
+
+    monkeypatch.setattr(
+        astro_clock_api,
+        "_natal_from_query",
+        lambda args: (
+            {
+                "house_rulers": {"1": "Saturn"},
+                "planets": {"Sun": {"longitude": 10.0}},
+            },
+            {
+                "timestamp": "1990-01-01T00:00:00+00:00",
+                "location": "London, UK",
+                "timezone": "Europe/London",
+            },
+        ),
+    )
+
+    def fail_scan(*args, **kwargs):
+        nonlocal scan_called
+        scan_called = True
+        raise AssertionError("scan should not run after step validation fails")
+
+    monkeypatch.setattr(transits_morin, "scan_morin_transits_window", fail_scan)
+
+    query = {
+        "natal_datetime": "1990-01-01T00:00:00+00:00",
+        "natal_location": "London, UK",
+        "natal_timezone": "Europe/London",
+        "start": "2026-01-01T00:00:00+00:00",
+        "end": "2026-01-01T02:00:00+00:00",
+        "step_minutes": "not-a-number",
+    }
+
+    for path in (
+        "/api/astro-clock/transits/window",
+        "/api/astro-clock/predictor",
+        "/api/astro-clock/transits/window/stream",
+        "/api/astro-clock/transits/window/export",
+    ):
+        response = client.get(path, query_string=query)
+        payload = response.get_json()
+
+        assert response.status_code == 400
+        assert payload["success"] is False
+        assert payload["error"] == "Invalid step_minutes"
+
+    assert scan_called is False

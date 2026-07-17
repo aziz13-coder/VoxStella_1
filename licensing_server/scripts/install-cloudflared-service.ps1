@@ -2,7 +2,8 @@ param(
   [Parameter(Mandatory=$true)] [string]$TunnelUUID,
   [string]$Hostname = "license.voxstella.app",
   [string]$OriginURL = "http://127.0.0.1:8787",
-  [string]$CloudflaredPath = "cloudflared.exe"
+  [string]$CloudflaredPath = "cloudflared.exe",
+  [string]$Protocol = "http2"
 )
 
 $systemProfileDir = "C:\\Windows\\System32\\config\\systemprofile\\.cloudflared"
@@ -22,6 +23,7 @@ if (Test-Path $userCred) {
 $cfg = @()
 $cfg += "tunnel: $TunnelUUID"
 $cfg += "credentials-file: $credPath"
+$cfg += "protocol: $Protocol"
 $cfg += "ingress:"
 $cfg += "  - hostname: $Hostname"
 $cfg += "    service: $OriginURL"
@@ -34,4 +36,3 @@ Write-Host "Wrote systemprofile Cloudflared config: $cfgPath" -ForegroundColor G
 & $CloudflaredPath service install | Out-Null
 Start-Service -Name Cloudflared
 Write-Host "Cloudflared Windows service installed and started." -ForegroundColor Green
-

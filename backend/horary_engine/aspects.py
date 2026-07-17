@@ -6,7 +6,7 @@ import datetime
 import math
 from typing import Dict, List, Optional, Tuple
 
-import swisseph as swe
+from swisseph_state import swisseph as swe
 
 from horary_config import cfg
 try:

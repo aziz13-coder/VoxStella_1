@@ -1,0 +1,1218 @@
+{
+  "generated_at": "2026-05-20T00:00:00+00:00",
+  "purpose": "Untouched 30-case forensic holdout benchmark for one-shot evaluation of case-axis detection, survivability outcome direction, and relationship status after the 29-case development/calibration set.",
+  "benchmark_policy": {
+    "status": "untouched_holdout_evaluation",
+    "protocol": "Labels were assigned from source facts before running the engine against this fixture. Do not tune or calibrate against this file before using it as an evaluation set.",
+    "notes": "Cases use FBI active-shooter annual reports as the factual source for local time, location, casualties, location category, and visible relationship context. Coordinates are event-location approximations used for chart replay, not exact survey coordinates."
+  },
+  "comparison_axes": [
+    "violence_homicide",
+    "abduction_missing_person",
+    "deception_coverup",
+    "domestic_partner_involvement",
+    "family_involvement",
+    "child_victim",
+    "water_disappearance_or_drowning",
+    "accident_or_disaster",
+    "friend_or_close_associate",
+    "authority_or_public_case",
+    "accomplice_or_witness",
+    "route_vehicle_transport"
+  ],
+  "relationship_status_labels": [
+    "intimate_partner",
+    "family",
+    "friend_acquaintance",
+    "stranger_public"
+  ],
+  "sources": [
+    {
+      "id": "fbi_active_shooter_2019",
+      "kind": "official_law_enforcement_report",
+      "title": "Active Shooter Incidents in the United States in 2019",
+      "url": "https://www.fbi.gov/file-repository/active-shooter-incidents-in-the-us-2019-042820.pdf",
+      "metadata_strength": "high",
+      "notes": "FBI report gives local time, location/category, casualties, and incident summaries for 2019 active shooter incidents."
+    },
+    {
+      "id": "fbi_active_shooter_2020",
+      "kind": "official_law_enforcement_report",
+      "title": "Active Shooter Incidents in the United States in 2020",
+      "url": "https://www.fbi.gov/file-repository/active-shooter-incidents-in-the-us-2020-070121.pdf",
+      "metadata_strength": "high",
+      "notes": "FBI report gives local time, location/category, casualties, and incident summaries for 2020 active shooter incidents."
+    },
+    {
+      "id": "fbi_active_shooter_2021",
+      "kind": "official_law_enforcement_report",
+      "title": "Active Shooter Incidents in the United States in 2021",
+      "url": "https://www.fbi.gov/file-repository/reports-and-publications/active-shooter-incidents-in-the-us-2021-052422.pdf",
+      "metadata_strength": "high",
+      "notes": "FBI report gives local time, location/category, casualties, and incident summaries for 2021 active shooter incidents."
+    },
+    {
+      "id": "fbi_active_shooter_2022",
+      "kind": "official_law_enforcement_report",
+      "title": "Active Shooter Incidents in the United States in 2022",
+      "url": "https://www.fbi.gov/file-repository/reports-and-publications/active-shooter-incidents-in-the-us-2022-042623.pdf",
+      "metadata_strength": "high",
+      "notes": "FBI report gives local time, location/category, casualties, and incident summaries for 2022 active shooter incidents."
+    },
+    {
+      "id": "fbi_active_shooter_2023",
+      "kind": "official_law_enforcement_report",
+      "title": "Active Shooter Incidents in the United States in 2023",
+      "url": "https://www.fbi.gov/file-repository/reports-and-publications/2023-active-shooter-report-062124.pdf",
+      "metadata_strength": "high",
+      "notes": "FBI report gives local time, location/category, casualties, known shooter connections, and incident summaries for 2023 active shooter incidents."
+    }
+  ],
+  "cases": [
+    {
+      "id": "holdout_2019_suntrust_bank_sebring",
+      "title": "SunTrust Bank active shooter, Sebring",
+      "event_source_ids": ["fbi_active_shooter_2019"],
+      "event_anchor": {
+        "date_local": "2019-01-23",
+        "time_local": "12:37:00",
+        "timezone": "America/New_York",
+        "location": "SunTrust Bank, Sebring, FL, USA",
+        "latitude": 27.4956,
+        "longitude": -81.4409,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI summary: 12:37 p.m. bank shooting; five people killed, no wounded."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2019-01-23T12:37:00",
+        "location": "SunTrust Bank, Sebring, FL, USA",
+        "timezone": "America/New_York",
+        "house_system_code": "R",
+        "latitude": "27.4956",
+        "longitude": "-81.4409"
+      },
+      "hard_outcome": {
+        "event_family": "bank active shooter",
+        "outcome": "fatal public-commerce shooting",
+        "survivability_direction": "fatal_dominant",
+        "known_scene_markers": ["bank", "five killed", "no wounded", "commerce"]
+      },
+      "expected_primary_axes": ["violence_homicide"],
+      "contradictory_axes": ["child_victim", "domestic_partner_involvement", "family_involvement", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      },
+      "expected_relationship_labels": ["stranger_public"]
+    },
+    {
+      "id": "holdout_2019_pj_harrigans_state_college",
+      "title": "PJ Harrigan's Bar and Grill and residence shooting",
+      "event_source_ids": ["fbi_active_shooter_2019"],
+      "event_anchor": {
+        "date_local": "2019-01-24",
+        "time_local": "22:15:00",
+        "timezone": "America/New_York",
+        "location": "PJ Harrigan's Bar and Grill, State College, PA, USA",
+        "latitude": 40.7934,
+        "longitude": -77.86,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI summary: 10:15 p.m. bar shooting, then nearby residence; three killed and the shooter's ex-girlfriend wounded."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2019-01-24T22:15:00",
+        "location": "PJ Harrigan's Bar and Grill, State College, PA, USA",
+        "timezone": "America/New_York",
+        "house_system_code": "R",
+        "latitude": "40.7934",
+        "longitude": "-77.86"
+      },
+      "hard_outcome": {
+        "event_family": "bar and residence shooting involving ex-girlfriend",
+        "outcome": "fatal mixed intimate/public shooting",
+        "survivability_direction": "fatal_dominant",
+        "known_scene_markers": ["bar", "nearby residence", "ex-girlfriend wounded", "three killed"]
+      },
+      "expected_primary_axes": ["violence_homicide", "domestic_partner_involvement"],
+      "contradictory_axes": ["child_victim", "family_involvement", "route_vehicle_transport", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      },
+      "expected_relationship_labels": ["intimate_partner", "stranger_public"]
+    },
+    {
+      "id": "holdout_2019_henry_pratt_aurora",
+      "title": "Henry Pratt Company Warehouse shooting",
+      "event_source_ids": ["fbi_active_shooter_2019"],
+      "event_anchor": {
+        "date_local": "2019-02-15",
+        "time_local": "13:24:00",
+        "timezone": "America/Chicago",
+        "location": "Henry Pratt Company Warehouse, Aurora, IL, USA",
+        "latitude": 41.7536,
+        "longitude": -88.3201,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI summary: 1:24 p.m. termination-meeting shooting; five employees killed and six wounded."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2019-02-15T13:24:00",
+        "location": "Henry Pratt Company Warehouse, Aurora, IL, USA",
+        "timezone": "America/Chicago",
+        "house_system_code": "R",
+        "latitude": "41.7536",
+        "longitude": "-88.3201"
+      },
+      "hard_outcome": {
+        "event_family": "workplace termination shooting",
+        "outcome": "fatal co-worker shooting",
+        "survivability_direction": "fatal_dominant",
+        "known_scene_markers": ["termination meeting", "employees killed", "co-workers", "five killed"]
+      },
+      "expected_primary_axes": ["violence_homicide", "friend_or_close_associate"],
+      "contradictory_axes": ["child_victim", "domestic_partner_involvement", "family_involvement", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      },
+      "expected_relationship_labels": ["friend_acquaintance"]
+    },
+    {
+      "id": "holdout_2019_tmart_elizabethtown",
+      "title": "T-Mart Convenience Store shooting",
+      "event_source_ids": ["fbi_active_shooter_2019"],
+      "event_anchor": {
+        "date_local": "2019-02-21",
+        "time_local": "23:30:00",
+        "timezone": "America/New_York",
+        "location": "T-Mart Convenience Store, Elizabethtown, KY, USA",
+        "latitude": 37.7031,
+        "longitude": -85.8649,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI summary: 11:30 p.m. store shooting; shooter had killed his girlfriend near their home before the store shooting."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2019-02-21T23:30:00",
+        "location": "T-Mart Convenience Store, Elizabethtown, KY, USA",
+        "timezone": "America/New_York",
+        "house_system_code": "R",
+        "latitude": "37.7031",
+        "longitude": "-85.8649"
+      },
+      "hard_outcome": {
+        "event_family": "convenience-store shooting preceded by girlfriend homicide",
+        "outcome": "fatal intimate/public shooting",
+        "survivability_direction": "fatal_dominant",
+        "known_scene_markers": ["girlfriend killed", "store co-owner killed", "two killed", "two wounded"]
+      },
+      "expected_primary_axes": ["violence_homicide", "domestic_partner_involvement"],
+      "contradictory_axes": ["child_victim", "family_involvement", "route_vehicle_transport", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      },
+      "expected_relationship_labels": ["intimate_partner"]
+    },
+    {
+      "id": "holdout_2019_west_palm_beach_va_medical_center",
+      "title": "West Palm Beach VA Medical Center shooting",
+      "event_source_ids": ["fbi_active_shooter_2019"],
+      "event_anchor": {
+        "date_local": "2019-02-27",
+        "time_local": "18:30:00",
+        "timezone": "America/New_York",
+        "location": "West Palm Beach VA Medical Center, West Palm Beach, FL, USA",
+        "latitude": 26.7366,
+        "longitude": -80.1039,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI summary: 6:30 p.m. emergency-room shooting by a patient; no deaths and two wounded."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2019-02-27T18:30:00",
+        "location": "West Palm Beach VA Medical Center, West Palm Beach, FL, USA",
+        "timezone": "America/New_York",
+        "house_system_code": "R",
+        "latitude": "26.7366",
+        "longitude": "-80.1039"
+      },
+      "hard_outcome": {
+        "event_family": "patient-on-staff hospital shooting",
+        "outcome": "nonfatal wounded survivor case",
+        "survivability_direction": "nonfatal_survivor",
+        "known_scene_markers": ["patient", "emergency room", "doctor wounded", "no deaths"]
+      },
+      "expected_primary_axes": ["violence_homicide", "friend_or_close_associate"],
+      "contradictory_axes": ["child_victim", "domestic_partner_involvement", "family_involvement", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Moderate", "Higher"],
+        "bands": ["risk_loaded_survival", "mixed_nonfatal", "nonfatal_tilt"]
+      },
+      "expected_relationship_labels": ["friend_acquaintance"]
+    },
+    {
+      "id": "holdout_2019_stem_highlands_ranch",
+      "title": "STEM School Highlands Ranch shooting",
+      "event_source_ids": ["fbi_active_shooter_2019"],
+      "event_anchor": {
+        "date_local": "2019-05-07",
+        "time_local": "13:50:00",
+        "timezone": "America/Denver",
+        "location": "STEM School Highlands Ranch, Highlands Ranch, CO, USA",
+        "latitude": 39.5539,
+        "longitude": -104.9966,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI summary: 1:50 p.m. two-student school shooting; one student killed and eight students wounded."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2019-05-07T13:50:00",
+        "location": "STEM School Highlands Ranch, Highlands Ranch, CO, USA",
+        "timezone": "America/Denver",
+        "house_system_code": "R",
+        "latitude": "39.5539",
+        "longitude": "-104.9966",
+        "case_type": "child"
+      },
+      "hard_outcome": {
+        "event_family": "student school shooting with two shooters",
+        "outcome": "fatal child/student shooting",
+        "survivability_direction": "fatal_dominant",
+        "known_scene_markers": ["two current students", "student killed", "students wounded", "school"]
+      },
+      "expected_primary_axes": ["violence_homicide", "child_victim", "friend_or_close_associate", "accomplice_or_witness"],
+      "contradictory_axes": ["domestic_partner_involvement", "family_involvement", "route_vehicle_transport", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      },
+      "expected_relationship_labels": ["friend_acquaintance"]
+    },
+    {
+      "id": "holdout_2019_virginia_beach_municipal_center",
+      "title": "Virginia Beach Municipal Center shooting",
+      "event_source_ids": ["fbi_active_shooter_2019"],
+      "event_anchor": {
+        "date_local": "2019-05-31",
+        "time_local": "16:00:00",
+        "timezone": "America/New_York",
+        "location": "Virginia Beach Municipal Center, Virginia Beach, VA, USA",
+        "latitude": 36.7528,
+        "longitude": -76.061,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI summary: 4:00 p.m. municipal-center shooting by a former employee; 12 killed and four wounded."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2019-05-31T16:00:00",
+        "location": "Virginia Beach Municipal Center, Virginia Beach, VA, USA",
+        "timezone": "America/New_York",
+        "house_system_code": "R",
+        "latitude": "36.7528",
+        "longitude": "-76.061"
+      },
+      "hard_outcome": {
+        "event_family": "government workplace shooting by former employee",
+        "outcome": "fatal employee/contractor shooting",
+        "survivability_direction": "fatal_dominant",
+        "known_scene_markers": ["municipal center", "former employee", "employees killed", "12 killed"]
+      },
+      "expected_primary_axes": ["violence_homicide", "friend_or_close_associate", "authority_or_public_case"],
+      "contradictory_axes": ["child_victim", "domestic_partner_involvement", "family_involvement", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      },
+      "expected_relationship_labels": ["friend_acquaintance"]
+    },
+    {
+      "id": "holdout_2019_earle_cabell_federal_courthouse",
+      "title": "Earle Cabell Federal Courthouse shooting",
+      "event_source_ids": ["fbi_active_shooter_2019"],
+      "event_anchor": {
+        "date_local": "2019-06-17",
+        "time_local": "08:38:00",
+        "timezone": "America/Chicago",
+        "location": "Earle Cabell Federal Courthouse, Dallas, TX, USA",
+        "latitude": 32.7798,
+        "longitude": -96.8047,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI summary: 8:38 a.m. shooting outside federal courthouse; no deaths and no wounded."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2019-06-17T08:38:00",
+        "location": "Earle Cabell Federal Courthouse, Dallas, TX, USA",
+        "timezone": "America/Chicago",
+        "house_system_code": "R",
+        "latitude": "32.7798",
+        "longitude": "-96.8047"
+      },
+      "hard_outcome": {
+        "event_family": "federal courthouse shooting attempt",
+        "outcome": "nonfatal no-casualty public-authority attack",
+        "survivability_direction": "nonfatal_survivor",
+        "known_scene_markers": ["federal courthouse", "no one killed", "no one wounded", "law enforcement exchange"]
+      },
+      "expected_primary_axes": ["violence_homicide", "authority_or_public_case"],
+      "contradictory_axes": ["child_victim", "domestic_partner_involvement", "family_involvement", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Moderate", "Higher"],
+        "bands": ["risk_loaded_survival", "release_favored", "nonfatal_tilt"]
+      },
+      "expected_relationship_labels": ["stranger_public"]
+    },
+    {
+      "id": "holdout_2019_best_moves_san_antonio",
+      "title": "Best Moves workplace shooting",
+      "event_source_ids": ["fbi_active_shooter_2019"],
+      "event_anchor": {
+        "date_local": "2019-07-16",
+        "time_local": "17:36:00",
+        "timezone": "America/Chicago",
+        "location": "Best Moves, San Antonio, TX, USA",
+        "latitude": 29.4241,
+        "longitude": -98.4936,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI summary: 5:36 p.m. co-worker shooting; no deaths and five wounded."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2019-07-16T17:36:00",
+        "location": "Best Moves, San Antonio, TX, USA",
+        "timezone": "America/Chicago",
+        "house_system_code": "R",
+        "latitude": "29.4241",
+        "longitude": "-98.4936"
+      },
+      "hard_outcome": {
+        "event_family": "workplace co-worker shooting",
+        "outcome": "nonfatal wounded survivor case",
+        "survivability_direction": "nonfatal_survivor",
+        "known_scene_markers": ["co-workers", "five wounded", "no deaths", "workplace"]
+      },
+      "expected_primary_axes": ["violence_homicide", "friend_or_close_associate"],
+      "contradictory_axes": ["child_victim", "domestic_partner_involvement", "family_involvement", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Moderate", "Higher"],
+        "bands": ["risk_loaded_survival", "mixed_nonfatal", "nonfatal_tilt"]
+      },
+      "expected_relationship_labels": ["friend_acquaintance"]
+    },
+    {
+      "id": "holdout_2019_san_fernando_valley_multiple_locations",
+      "title": "San Fernando Valley multiple-location shooting",
+      "event_source_ids": ["fbi_active_shooter_2019"],
+      "event_anchor": {
+        "date_local": "2019-07-25",
+        "time_local": "02:00:00",
+        "timezone": "America/Los_Angeles",
+        "location": "North Hollywood Shell gas station, Los Angeles, CA, USA",
+        "latitude": 34.187,
+        "longitude": -118.3813,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI summary: 2:00 a.m. gas-station shooting; source also records father, brother, mother, female acquaintance, and bus passenger victims across locations."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2019-07-25T02:00:00",
+        "location": "North Hollywood Shell gas station, Los Angeles, CA, USA",
+        "timezone": "America/Los_Angeles",
+        "house_system_code": "R",
+        "latitude": "34.187",
+        "longitude": "-118.3813"
+      },
+      "hard_outcome": {
+        "event_family": "multi-location family/acquaintance/public shooting",
+        "outcome": "fatal family and acquaintance shooting",
+        "survivability_direction": "fatal_dominant",
+        "known_scene_markers": ["father killed", "brother killed", "mother wounded", "female acquaintance killed", "bus passenger killed"]
+      },
+      "expected_primary_axes": ["violence_homicide", "family_involvement", "friend_or_close_associate", "route_vehicle_transport"],
+      "contradictory_axes": ["child_victim", "domestic_partner_involvement", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      },
+      "expected_relationship_labels": ["family", "friend_acquaintance"]
+    },
+    {
+      "id": "holdout_2019_gilroy_garlic_festival",
+      "title": "Gilroy Garlic Festival shooting",
+      "event_source_ids": ["fbi_active_shooter_2019"],
+      "event_anchor": {
+        "date_local": "2019-07-28",
+        "time_local": "17:40:00",
+        "timezone": "America/Los_Angeles",
+        "location": "Gilroy Garlic Festival, Gilroy, CA, USA",
+        "latitude": 37.0138,
+        "longitude": -121.5855,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI summary: 5:40 p.m. festival shooting; three killed and 17 wounded."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2019-07-28T17:40:00",
+        "location": "Gilroy Garlic Festival, Gilroy, CA, USA",
+        "timezone": "America/Los_Angeles",
+        "house_system_code": "R",
+        "latitude": "37.0138",
+        "longitude": "-121.5855"
+      },
+      "hard_outcome": {
+        "event_family": "outdoor festival shooting",
+        "outcome": "fatal public-venue shooting",
+        "survivability_direction": "fatal_dominant",
+        "known_scene_markers": ["festival", "open space", "three killed", "17 wounded"]
+      },
+      "expected_primary_axes": ["violence_homicide"],
+      "contradictory_axes": ["domestic_partner_involvement", "family_involvement", "friend_or_close_associate", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      },
+      "expected_relationship_labels": ["stranger_public"]
+    },
+    {
+      "id": "holdout_2019_el_paso_walmart",
+      "title": "Cielo Vista Walmart Supercenter shooting",
+      "event_source_ids": ["fbi_active_shooter_2019"],
+      "event_anchor": {
+        "date_local": "2019-08-03",
+        "time_local": "10:38:00",
+        "timezone": "America/Denver",
+        "location": "Cielo Vista Walmart Supercenter, El Paso, TX, USA",
+        "latitude": 31.7754,
+        "longitude": -106.3836,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI summary: 10:38 a.m. Walmart shooting; 23 killed and 22 wounded."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2019-08-03T10:38:00",
+        "location": "Cielo Vista Walmart Supercenter, El Paso, TX, USA",
+        "timezone": "America/Denver",
+        "house_system_code": "R",
+        "latitude": "31.7754",
+        "longitude": "-106.3836"
+      },
+      "hard_outcome": {
+        "event_family": "large public-commerce mass shooting",
+        "outcome": "mass fatality",
+        "survivability_direction": "fatal_dominant",
+        "known_scene_markers": ["Walmart", "23 killed", "22 wounded", "commerce"]
+      },
+      "expected_primary_axes": ["violence_homicide"],
+      "contradictory_axes": ["child_victim", "domestic_partner_involvement", "family_involvement", "friend_or_close_associate", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      },
+      "expected_relationship_labels": ["stranger_public"]
+    },
+    {
+      "id": "holdout_2019_midland_odessa_multiple_locations",
+      "title": "Midland and Odessa multiple-location shooting",
+      "event_source_ids": ["fbi_active_shooter_2019"],
+      "event_anchor": {
+        "date_local": "2019-08-31",
+        "time_local": "15:17:00",
+        "timezone": "America/Chicago",
+        "location": "Midland and Odessa, TX, USA",
+        "latitude": 31.8457,
+        "longitude": -102.3676,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI summary: 3:17 p.m. traffic-stop origin, vehicle and street shootings, postal truck hijacking; seven killed and 21 wounded."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2019-08-31T15:17:00",
+        "location": "Midland and Odessa, TX, USA",
+        "timezone": "America/Chicago",
+        "house_system_code": "R",
+        "latitude": "31.8457",
+        "longitude": "-102.3676"
+      },
+      "hard_outcome": {
+        "event_family": "route/vehicle and law-enforcement shooting",
+        "outcome": "fatal mobile public shooting",
+        "survivability_direction": "fatal_dominant",
+        "known_scene_markers": ["traffic stop", "people in vehicles", "postal truck hijacking", "law-enforcement officers wounded"]
+      },
+      "expected_primary_axes": ["violence_homicide", "route_vehicle_transport", "authority_or_public_case"],
+      "contradictory_axes": ["child_victim", "domestic_partner_involvement", "family_involvement", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      },
+      "expected_relationship_labels": ["stranger_public"]
+    },
+    {
+      "id": "holdout_2019_west_freeway_church",
+      "title": "West Freeway Church of Christ shooting",
+      "event_source_ids": ["fbi_active_shooter_2019"],
+      "event_anchor": {
+        "date_local": "2019-12-29",
+        "time_local": "11:50:00",
+        "timezone": "America/Chicago",
+        "location": "West Freeway Church of Christ, White Settlement, TX, USA",
+        "latitude": 32.7596,
+        "longitude": -97.4598,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI summary: 11:50 a.m. church shooting; shooter was not a congregant but was known to church members."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2019-12-29T11:50:00",
+        "location": "West Freeway Church of Christ, White Settlement, TX, USA",
+        "timezone": "America/Chicago",
+        "house_system_code": "R",
+        "latitude": "32.7596",
+        "longitude": "-97.4598"
+      },
+      "hard_outcome": {
+        "event_family": "house-of-worship shooting with known-person context",
+        "outcome": "fatal church security-team shooting",
+        "survivability_direction": "fatal_dominant",
+        "known_scene_markers": ["known to church members", "two killed", "two wounded", "armed citizen intervention"]
+      },
+      "expected_primary_axes": ["violence_homicide", "friend_or_close_associate"],
+      "contradictory_axes": ["child_victim", "domestic_partner_involvement", "family_involvement", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      },
+      "expected_relationship_labels": ["friend_acquaintance"]
+    },
+    {
+      "id": "holdout_2020_molson_coors_milwaukee",
+      "title": "Molson Coors building shooting",
+      "event_source_ids": ["fbi_active_shooter_2020"],
+      "event_anchor": {
+        "date_local": "2020-02-26",
+        "time_local": "14:08:00",
+        "timezone": "America/Chicago",
+        "location": "Molson Coors building, Milwaukee, WI, USA",
+        "latitude": 43.0439,
+        "longitude": -87.9619,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI summary: 2:08 p.m. workplace shooting; five employees killed."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2020-02-26T14:08:00",
+        "location": "Molson Coors building, Milwaukee, WI, USA",
+        "timezone": "America/Chicago",
+        "house_system_code": "R",
+        "latitude": "43.0439",
+        "longitude": "-87.9619"
+      },
+      "hard_outcome": {
+        "event_family": "workplace employee shooting",
+        "outcome": "fatal employee shooting",
+        "survivability_direction": "fatal_dominant",
+        "known_scene_markers": ["workplace", "employees killed", "five killed", "commerce"]
+      },
+      "expected_primary_axes": ["violence_homicide", "friend_or_close_associate"],
+      "contradictory_axes": ["child_victim", "domestic_partner_involvement", "family_involvement", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      },
+      "expected_relationship_labels": ["friend_acquaintance"]
+    },
+    {
+      "id": "holdout_2020_kum_and_go_springfield",
+      "title": "Kum & Go Gas Station shooting",
+      "event_source_ids": ["fbi_active_shooter_2020"],
+      "event_anchor": {
+        "date_local": "2020-03-15",
+        "time_local": "23:24:00",
+        "timezone": "America/Chicago",
+        "location": "Kum & Go gas station, Springfield, MO, USA",
+        "latitude": 37.216,
+        "longitude": -93.2923,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI summary: 11:24 p.m. gas-station shooting; four killed including one officer and one employee, two wounded including one officer."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2020-03-15T23:24:00",
+        "location": "Kum & Go gas station, Springfield, MO, USA",
+        "timezone": "America/Chicago",
+        "house_system_code": "R",
+        "latitude": "37.216",
+        "longitude": "-93.2923"
+      },
+      "hard_outcome": {
+        "event_family": "gas-station and police active shooter",
+        "outcome": "fatal public-authority shooting",
+        "survivability_direction": "fatal_dominant",
+        "known_scene_markers": ["gas station", "officer killed", "employee killed", "police exchange"]
+      },
+      "expected_primary_axes": ["violence_homicide", "authority_or_public_case"],
+      "contradictory_axes": ["child_victim", "domestic_partner_involvement", "family_involvement", "friend_or_close_associate", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      },
+      "expected_relationship_labels": ["stranger_public"]
+    },
+    {
+      "id": "holdout_2020_westgate_entertainment_glendale",
+      "title": "Westgate Entertainment District shooting",
+      "event_source_ids": ["fbi_active_shooter_2020"],
+      "event_anchor": {
+        "date_local": "2020-05-20",
+        "time_local": "19:25:00",
+        "timezone": "America/Phoenix",
+        "location": "Westgate Entertainment District, Glendale, AZ, USA",
+        "latitude": 33.5333,
+        "longitude": -112.261,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI summary: 7:25 p.m. entertainment-district shooting; three people wounded and no deaths."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2020-05-20T19:25:00",
+        "location": "Westgate Entertainment District, Glendale, AZ, USA",
+        "timezone": "America/Phoenix",
+        "house_system_code": "R",
+        "latitude": "33.5333",
+        "longitude": "-112.261"
+      },
+      "hard_outcome": {
+        "event_family": "public entertainment district shooting",
+        "outcome": "nonfatal wounded survivor case",
+        "survivability_direction": "nonfatal_survivor",
+        "known_scene_markers": ["entertainment district", "three wounded", "no deaths", "public commerce"]
+      },
+      "expected_primary_axes": ["violence_homicide"],
+      "contradictory_axes": ["child_victim", "domestic_partner_involvement", "family_involvement", "friend_or_close_associate", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Moderate", "Higher"],
+        "bands": ["risk_loaded_survival", "mixed_nonfatal", "nonfatal_tilt"]
+      },
+      "expected_relationship_labels": ["stranger_public"]
+    },
+    {
+      "id": "holdout_2020_centennial_bridge_leavenworth",
+      "title": "Centennial Bridge shooting",
+      "event_source_ids": ["fbi_active_shooter_2020"],
+      "event_anchor": {
+        "date_local": "2020-05-27",
+        "time_local": "11:00:00",
+        "timezone": "America/Chicago",
+        "location": "Centennial Bridge, Leavenworth, KS, USA",
+        "latitude": 39.3154,
+        "longitude": -94.9227,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI summary: 11:00 a.m. bridge shooting at vehicles; one wounded, no deaths, active-duty soldier intervened with vehicle."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2020-05-27T11:00:00",
+        "location": "Centennial Bridge, Leavenworth, KS, USA",
+        "timezone": "America/Chicago",
+        "house_system_code": "R",
+        "latitude": "39.3154",
+        "longitude": "-94.9227"
+      },
+      "hard_outcome": {
+        "event_family": "bridge vehicle-targeting shooting",
+        "outcome": "nonfatal wounded survivor case",
+        "survivability_direction": "nonfatal_survivor",
+        "known_scene_markers": ["bridge", "vehicles", "one wounded", "vehicle intervention"]
+      },
+      "expected_primary_axes": ["violence_homicide", "route_vehicle_transport"],
+      "contradictory_axes": ["child_victim", "domestic_partner_involvement", "family_involvement", "friend_or_close_associate", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Moderate", "Higher"],
+        "bands": ["risk_loaded_survival", "release_favored", "nonfatal_tilt"]
+      },
+      "expected_relationship_labels": ["stranger_public"]
+    },
+    {
+      "id": "holdout_2021_king_soopers_boulder",
+      "title": "King Soopers Grocery Store shooting",
+      "event_source_ids": ["fbi_active_shooter_2021"],
+      "event_anchor": {
+        "date_local": "2021-03-22",
+        "time_local": "14:30:00",
+        "timezone": "America/Denver",
+        "location": "King Soopers Grocery Store, Boulder, CO, USA",
+        "latitude": 39.986,
+        "longitude": -105.25,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI summary: 2:30 p.m. grocery-store shooting; ten killed including one law-enforcement officer."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2021-03-22T14:30:00",
+        "location": "King Soopers Grocery Store, Boulder, CO, USA",
+        "timezone": "America/Denver",
+        "house_system_code": "R",
+        "latitude": "39.986",
+        "longitude": "-105.25"
+      },
+      "hard_outcome": {
+        "event_family": "public grocery-store mass shooting",
+        "outcome": "fatal public-authority shooting",
+        "survivability_direction": "fatal_dominant",
+        "known_scene_markers": ["grocery store", "ten killed", "law-enforcement officer killed", "commerce"]
+      },
+      "expected_primary_axes": ["violence_homicide", "authority_or_public_case"],
+      "contradictory_axes": ["child_victim", "domestic_partner_involvement", "family_involvement", "friend_or_close_associate", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      },
+      "expected_relationship_labels": ["stranger_public"]
+    },
+    {
+      "id": "holdout_2021_fedex_plainfield_indianapolis",
+      "title": "FedEx Ground Plainfield Operations Center shooting",
+      "event_source_ids": ["fbi_active_shooter_2021"],
+      "event_anchor": {
+        "date_local": "2021-04-15",
+        "time_local": "23:00:00",
+        "timezone": "America/Indiana/Indianapolis",
+        "location": "FedEx Ground Plainfield Operations Center, Indianapolis, IN, USA",
+        "latitude": 39.7106,
+        "longitude": -86.3134,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI summary: 11:00 p.m. FedEx facility shooting; eight employees killed and seven employees wounded."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2021-04-15T23:00:00",
+        "location": "FedEx Ground Plainfield Operations Center, Indianapolis, IN, USA",
+        "timezone": "America/Indiana/Indianapolis",
+        "house_system_code": "R",
+        "latitude": "39.7106",
+        "longitude": "-86.3134"
+      },
+      "hard_outcome": {
+        "event_family": "workplace distribution-center shooting",
+        "outcome": "fatal employee shooting",
+        "survivability_direction": "fatal_dominant",
+        "known_scene_markers": ["FedEx facility", "employees killed", "employees wounded", "eight killed"]
+      },
+      "expected_primary_axes": ["violence_homicide", "friend_or_close_associate"],
+      "contradictory_axes": ["child_victim", "domestic_partner_involvement", "family_involvement", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      },
+      "expected_relationship_labels": ["friend_acquaintance"]
+    },
+    {
+      "id": "holdout_2021_rigby_middle_school",
+      "title": "Rigby Middle School shooting",
+      "event_source_ids": ["fbi_active_shooter_2021"],
+      "event_anchor": {
+        "date_local": "2021-05-06",
+        "time_local": "09:08:00",
+        "timezone": "America/Boise",
+        "location": "Rigby Middle School, Rigby, ID, USA",
+        "latitude": 43.6727,
+        "longitude": -111.914,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI summary: 9:08 a.m. middle-school shooting; two students and one school employee wounded, no deaths."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2021-05-06T09:08:00",
+        "location": "Rigby Middle School, Rigby, ID, USA",
+        "timezone": "America/Boise",
+        "house_system_code": "R",
+        "latitude": "43.6727",
+        "longitude": "-111.914",
+        "case_type": "child"
+      },
+      "hard_outcome": {
+        "event_family": "middle-school child-victim shooting",
+        "outcome": "nonfatal wounded child/student case",
+        "survivability_direction": "nonfatal_survivor",
+        "known_scene_markers": ["middle school", "students wounded", "school employee wounded", "teacher disarmed shooter"]
+      },
+      "expected_primary_axes": ["violence_homicide", "child_victim", "friend_or_close_associate"],
+      "contradictory_axes": ["domestic_partner_involvement", "family_involvement", "route_vehicle_transport", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Moderate", "Higher"],
+        "bands": ["risk_loaded_survival", "release_favored", "nonfatal_tilt"]
+      },
+      "expected_relationship_labels": ["friend_acquaintance"]
+    },
+    {
+      "id": "holdout_2021_santa_clara_vta_rail_yard",
+      "title": "Santa Clara Valley Transportation Authority Rail Yard shooting",
+      "event_source_ids": ["fbi_active_shooter_2021"],
+      "event_anchor": {
+        "date_local": "2021-05-26",
+        "time_local": "06:34:00",
+        "timezone": "America/Los_Angeles",
+        "location": "Santa Clara Valley Transportation Authority Rail Yard, San Jose, CA, USA",
+        "latitude": 37.3639,
+        "longitude": -121.903,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI summary: 6:34 a.m. rail-yard shooting; nine employees killed."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2021-05-26T06:34:00",
+        "location": "Santa Clara Valley Transportation Authority Rail Yard, San Jose, CA, USA",
+        "timezone": "America/Los_Angeles",
+        "house_system_code": "R",
+        "latitude": "37.3639",
+        "longitude": "-121.903"
+      },
+      "hard_outcome": {
+        "event_family": "public-transport rail-yard workplace shooting",
+        "outcome": "fatal employee transit-yard shooting",
+        "survivability_direction": "fatal_dominant",
+        "known_scene_markers": ["rail yard", "transport authority", "employees killed", "nine killed"]
+      },
+      "expected_primary_axes": ["violence_homicide", "friend_or_close_associate", "authority_or_public_case", "route_vehicle_transport"],
+      "contradictory_axes": ["child_victim", "domestic_partner_involvement", "family_involvement", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      },
+      "expected_relationship_labels": ["friend_acquaintance"]
+    },
+    {
+      "id": "holdout_2022_tops_buffalo",
+      "title": "Tops Friendly Markets shooting",
+      "event_source_ids": ["fbi_active_shooter_2022"],
+      "event_anchor": {
+        "date_local": "2022-05-14",
+        "time_local": "14:32:00",
+        "timezone": "America/New_York",
+        "location": "Tops Friendly Markets, Buffalo, NY, USA",
+        "latitude": 42.9109,
+        "longitude": -78.8526,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI summary: 2:32 p.m. grocery-store shooting; ten killed including one armed security officer, three wounded."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2022-05-14T14:32:00",
+        "location": "Tops Friendly Markets, Buffalo, NY, USA",
+        "timezone": "America/New_York",
+        "house_system_code": "R",
+        "latitude": "42.9109",
+        "longitude": "-78.8526"
+      },
+      "hard_outcome": {
+        "event_family": "public grocery-store mass shooting",
+        "outcome": "fatal public-commerce shooting",
+        "survivability_direction": "fatal_dominant",
+        "known_scene_markers": ["grocery store", "ten killed", "security officer killed", "three wounded"]
+      },
+      "expected_primary_axes": ["violence_homicide"],
+      "contradictory_axes": ["child_victim", "domestic_partner_involvement", "family_involvement", "friend_or_close_associate", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      },
+      "expected_relationship_labels": ["stranger_public"]
+    },
+    {
+      "id": "holdout_2022_robb_elementary_uvalde",
+      "title": "Robb Elementary School shooting",
+      "event_source_ids": ["fbi_active_shooter_2022"],
+      "event_anchor": {
+        "date_local": "2022-05-24",
+        "time_local": "11:32:00",
+        "timezone": "America/Chicago",
+        "location": "Robb Elementary School, Uvalde, TX, USA",
+        "latitude": 29.1994,
+        "longitude": -99.7881,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI summary: 11:32 a.m. elementary-school shooting; 21 killed including 19 students and two teachers, 17 wounded."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2022-05-24T11:32:00",
+        "location": "Robb Elementary School, Uvalde, TX, USA",
+        "timezone": "America/Chicago",
+        "house_system_code": "R",
+        "latitude": "29.1994",
+        "longitude": "-99.7881",
+        "case_type": "child"
+      },
+      "hard_outcome": {
+        "event_family": "elementary-school child-victim mass shooting",
+        "outcome": "fatal child/student mass shooting",
+        "survivability_direction": "fatal_dominant",
+        "known_scene_markers": ["elementary school", "19 students killed", "two teachers killed", "17 wounded"]
+      },
+      "expected_primary_axes": ["violence_homicide", "child_victim"],
+      "contradictory_axes": ["domestic_partner_involvement", "family_involvement", "friend_or_close_associate", "route_vehicle_transport", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      },
+      "expected_relationship_labels": ["stranger_public"]
+    },
+    {
+      "id": "holdout_2022_edmund_burke_school_dc",
+      "title": "Edmund Burke School shooting",
+      "event_source_ids": ["fbi_active_shooter_2022"],
+      "event_anchor": {
+        "date_local": "2022-04-22",
+        "time_local": "15:28:00",
+        "timezone": "America/New_York",
+        "location": "Edmund Burke School, Washington, DC, USA",
+        "latitude": 38.9468,
+        "longitude": -77.0619,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI summary: 3:28 p.m. school shooting; four people wounded including one security officer, no deaths."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2022-04-22T15:28:00",
+        "location": "Edmund Burke School, Washington, DC, USA",
+        "timezone": "America/New_York",
+        "house_system_code": "R",
+        "latitude": "38.9468",
+        "longitude": "-77.0619",
+        "case_type": "child"
+      },
+      "hard_outcome": {
+        "event_family": "school shooting with nonfatal wounds",
+        "outcome": "nonfatal wounded survivor case",
+        "survivability_direction": "nonfatal_survivor",
+        "known_scene_markers": ["school", "security officer wounded", "four wounded", "no deaths"]
+      },
+      "expected_primary_axes": ["violence_homicide", "child_victim"],
+      "contradictory_axes": ["domestic_partner_involvement", "family_involvement", "friend_or_close_associate", "route_vehicle_transport", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Moderate", "Higher"],
+        "bands": ["risk_loaded_survival", "mixed_nonfatal", "nonfatal_tilt"]
+      },
+      "expected_relationship_labels": ["stranger_public"]
+    },
+    {
+      "id": "holdout_2022_club_q_colorado_springs",
+      "title": "Club Q shooting",
+      "event_source_ids": ["fbi_active_shooter_2022"],
+      "event_anchor": {
+        "date_local": "2022-11-19",
+        "time_local": "23:56:00",
+        "timezone": "America/Denver",
+        "location": "Club Q, Colorado Springs, CO, USA",
+        "latitude": 38.852,
+        "longitude": -104.8247,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI summary: 11:56 p.m. club shooting; five killed including two employees and 28 wounded."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2022-11-19T23:56:00",
+        "location": "Club Q, Colorado Springs, CO, USA",
+        "timezone": "America/Denver",
+        "house_system_code": "R",
+        "latitude": "38.852",
+        "longitude": "-104.8247"
+      },
+      "hard_outcome": {
+        "event_family": "nightclub mass shooting",
+        "outcome": "fatal public-venue shooting",
+        "survivability_direction": "fatal_dominant",
+        "known_scene_markers": ["club", "five killed", "28 wounded", "citizen restraint"]
+      },
+      "expected_primary_axes": ["violence_homicide"],
+      "contradictory_axes": ["child_victim", "domestic_partner_involvement", "family_involvement", "friend_or_close_associate", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      },
+      "expected_relationship_labels": ["stranger_public"]
+    },
+    {
+      "id": "holdout_2023_half_moon_bay_farms",
+      "title": "Half Moon Bay farm shootings",
+      "event_source_ids": ["fbi_active_shooter_2023"],
+      "event_anchor": {
+        "date_local": "2023-01-23",
+        "time_local": "14:22:00",
+        "timezone": "America/Los_Angeles",
+        "location": "California Terra Garden and Concord Farms, Half Moon Bay, CA, USA",
+        "latitude": 37.4666,
+        "longitude": -122.429,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI summary: 2:22 p.m. shootings at California Terra Garden and Concord Farms; seven employees killed and one employee wounded."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2023-01-23T14:22:00",
+        "location": "California Terra Garden and Concord Farms, Half Moon Bay, CA, USA",
+        "timezone": "America/Los_Angeles",
+        "house_system_code": "R",
+        "latitude": "37.4666",
+        "longitude": "-122.429"
+      },
+      "hard_outcome": {
+        "event_family": "farm workplace shooting",
+        "outcome": "fatal employee shooting",
+        "survivability_direction": "fatal_dominant",
+        "known_scene_markers": ["farms", "employees killed", "employee wounded", "seven killed"]
+      },
+      "expected_primary_axes": ["violence_homicide", "friend_or_close_associate"],
+      "contradictory_axes": ["child_victim", "domestic_partner_involvement", "family_involvement", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      },
+      "expected_relationship_labels": ["friend_acquaintance"]
+    },
+    {
+      "id": "holdout_2023_covenant_school_nashville",
+      "title": "Covenant Presbyterian School shooting",
+      "event_source_ids": ["fbi_active_shooter_2023"],
+      "event_anchor": {
+        "date_local": "2023-03-27",
+        "time_local": "10:13:00",
+        "timezone": "America/Chicago",
+        "location": "Covenant Presbyterian School, Nashville, TN, USA",
+        "latitude": 36.0901,
+        "longitude": -86.832,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI summary: 10:13 a.m. school shooting; six killed including three students and three faculty. FBI shooter-connection summary identifies the incident as a former-student connection."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2023-03-27T10:13:00",
+        "location": "Covenant Presbyterian School, Nashville, TN, USA",
+        "timezone": "America/Chicago",
+        "house_system_code": "R",
+        "latitude": "36.0901",
+        "longitude": "-86.832",
+        "case_type": "child"
+      },
+      "hard_outcome": {
+        "event_family": "private school shooting by former student",
+        "outcome": "fatal child/faculty shooting",
+        "survivability_direction": "fatal_dominant",
+        "known_scene_markers": ["school", "former student connection", "three students killed", "three faculty killed"]
+      },
+      "expected_primary_axes": ["violence_homicide", "child_victim", "friend_or_close_associate"],
+      "contradictory_axes": ["domestic_partner_involvement", "family_involvement", "route_vehicle_transport", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      },
+      "expected_relationship_labels": ["friend_acquaintance"]
+    },
+    {
+      "id": "holdout_2023_cooks_corner_trabuco_canyon",
+      "title": "Cook's Corner shooting",
+      "event_source_ids": ["fbi_active_shooter_2023"],
+      "event_anchor": {
+        "date_local": "2023-08-23",
+        "time_local": "19:04:00",
+        "timezone": "America/Los_Angeles",
+        "location": "Cook's Corner, Trabuco Canyon, CA, USA",
+        "latitude": 33.645,
+        "longitude": -117.5827,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI summary: 7:04 p.m. shooting inside and outside Cook's Corner; three killed and six wounded. FBI shooter-connection summary marks incident 36 as domestic relationship."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2023-08-23T19:04:00",
+        "location": "Cook's Corner, Trabuco Canyon, CA, USA",
+        "timezone": "America/Los_Angeles",
+        "house_system_code": "R",
+        "latitude": "33.645",
+        "longitude": "-117.5827"
+      },
+      "hard_outcome": {
+        "event_family": "bar shooting with domestic relationship origin",
+        "outcome": "fatal domestic/public shooting",
+        "survivability_direction": "fatal_dominant",
+        "known_scene_markers": ["domestic relationship", "bar", "three killed", "six wounded"]
+      },
+      "expected_primary_axes": ["violence_homicide", "domestic_partner_involvement"],
+      "contradictory_axes": ["child_victim", "family_involvement", "route_vehicle_transport", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      },
+      "expected_relationship_labels": ["intimate_partner"]
+    },
+    {
+      "id": "holdout_2023_lewiston_just_in_time_schemengees",
+      "title": "Lewiston Just-In-Time Recreation and Schemengees shooting",
+      "event_source_ids": ["fbi_active_shooter_2023"],
+      "event_anchor": {
+        "date_local": "2023-10-25",
+        "time_local": "18:56:00",
+        "timezone": "America/New_York",
+        "location": "Just-In-Time Recreation and Schemengees Bar & Grille, Lewiston, ME, USA",
+        "latitude": 44.095,
+        "longitude": -70.197,
+        "metadata_basis": "official_fbi_incident_time",
+        "metadata_confidence": "high",
+        "notes": "FBI summary: between 6:56 p.m. and 7:08 p.m. shootings at two commerce locations; 18 killed and 13 wounded."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2023-10-25T18:56:00",
+        "location": "Just-In-Time Recreation and Schemengees Bar & Grille, Lewiston, ME, USA",
+        "timezone": "America/New_York",
+        "house_system_code": "R",
+        "latitude": "44.095",
+        "longitude": "-70.197"
+      },
+      "hard_outcome": {
+        "event_family": "two-location public-commerce mass shooting",
+        "outcome": "mass fatality",
+        "survivability_direction": "fatal_dominant",
+        "known_scene_markers": ["bowling alley", "bar and grill", "18 killed", "13 wounded"]
+      },
+      "expected_primary_axes": ["violence_homicide"],
+      "contradictory_axes": ["child_victim", "domestic_partner_involvement", "family_involvement", "friend_or_close_associate", "route_vehicle_transport", "accident_or_disaster"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      },
+      "expected_relationship_labels": ["stranger_public"]
+    }
+  ]
+}

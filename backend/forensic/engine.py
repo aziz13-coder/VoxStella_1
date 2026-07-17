@@ -146,8 +146,8 @@ def load_knowledge(dir_path: str) -> List[Dict[str, Any]]:
                 data = yaml.safe_load(f) or []
                 if isinstance(data, list):
                     rules.extend(data)
-        except Exception:
-            continue
+        except Exception as exc:
+            raise RuntimeError(f"Failed to load forensic knowledge file {fp}") from exc
 
     # Update cache on successful read
     try:

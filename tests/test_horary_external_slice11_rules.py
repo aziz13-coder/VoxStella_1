@@ -46,12 +46,12 @@ def test_sell_house_keeps_property_and_buyer_axes():
     assert analysis["significators"]["property_family"] == "sale"
 
 
-def test_property_advisability_keeps_fourth_seventh_and_tenth():
+def test_property_advisability_keeps_fourth_and_tenth_primary():
     analyzer = TraditionalHoraryQuestionAnalyzer()
     analysis = analyzer.analyze_question("Should we buy the house?")
 
     assert analysis["question_type"] == Category.PROPERTY
-    assert analysis["relevant_houses"] == [1, 4, 7, 10]
+    assert analysis["relevant_houses"] == [1, 4, 10]
     assert analysis["significators"]["quesited_house"] == 4
     assert analysis["significators"]["property_house"] == 4
     assert analysis["significators"]["counterparty_house"] == 7

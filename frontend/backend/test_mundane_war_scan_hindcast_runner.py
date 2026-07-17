@@ -103,6 +103,8 @@ def test_run_war_scan_hindcast_suite_summarizes_pass_and_fail(monkeypatch):
     report = runner.run_war_scan_hindcast_suite()
 
     assert report["case_count"] == 2
+    assert report["source_backed_case_count"] == 2
+    assert report["source_assertion_count"] >= 2
     assert report["place_recall_count"] == 2
     assert report["alignment_pass_count"] == 1
     assert report["target_window_hit_count"] == 1
@@ -111,6 +113,8 @@ def test_run_war_scan_hindcast_suite_summarizes_pass_and_fail(monkeypatch):
     assert report["family_summary"]["campaign_escalation"]["failure_reasons"]["control_window_outperformed_target"] == 1
     assert report["cases"][0]["alignment_passed"] is True
     assert report["cases"][0]["target_beats_all_controls"] is True
+    assert report["cases"][0]["source_backing"]
+    assert report["cases"][0]["source_backing"][0]["source_assertions"]
     assert report["cases"][1]["alignment_passed"] is False
     assert "control_window_outperformed_target" in report["cases"][1]["failure_reasons"]
 
@@ -127,6 +131,76 @@ def test_target_place_not_returned_fails_cleanly():
     assert summary["target_place_found"] is False
     assert summary["alignment_passed"] is False
     assert "target_place_not_returned" in summary["failure_reasons"]
+    assert summary["source_backing"][0]["case_id"] == "war_outbreak_desert_storm_1991"
+
+
+def test_war_scan_hindcast_cases_resolve_local_source_backing():
+    cases = runner.load_war_scan_hindcast_cases()
+
+    assert cases
+    for case in cases:
+        source_backing = runner._source_backing_summary(case)
+        assert source_backing
+        assert source_backing[0]["event"]
+        assert source_backing[0]["source_assertions"]
+
+
+def test_period_place_discovery_strips_known_target_anchors():
+    case = _case("anchored_case")
+    case["request"].update(
+        {
+            "reference_location": "Tehran, Iran",
+            "reference_latitude": 35.6892,
+            "reference_longitude": 51.389,
+            "event_location": "Tehran, Iran",
+            "event_timezone": "Asia/Tehran",
+        }
+    )
+
+    discovery_case = runner._period_place_discovery_case(case)
+
+    assert discovery_case["period_place_discovery"] is True
+    for field_name in runner.DISCOVERY_STRIPPED_REQUEST_FIELDS:
+        assert field_name not in discovery_case["request"]
+    assert case["request"]["reference_location"] == "Tehran, Iran"
+
+
+def test_period_place_discovery_suite_marks_report_and_scan_case(monkeypatch):
+    seen_requests = []
+    anchored = _case("anchored_case")
+    anchored["request"].update(
+        {
+            "reference_location": "Baghdad, Iraq",
+            "reference_latitude": 33.3152,
+            "reference_longitude": 44.3661,
+        }
+    )
+    monkeypatch.setattr(runner, "load_war_scan_hindcast_cases", lambda **_: [anchored])
+
+    def fake_run(case, *, quiet_engine):
+        seen_requests.append(case["request"])
+        return _scan_result("Baghdad, Iraq", [10, 20, 40, 38, 12], "2026-04-01T12:00:00+00:00")
+
+    monkeypatch.setattr(runner, "_run_case_scan", fake_run)
+
+    report = runner.run_war_scan_hindcast_suite(period_place_discovery=True)
+
+    assert report["period_place_discovery"] is True
+    assert report["cases"][0]["period_place_discovery"] is True
+    assert "reference_location" not in seen_requests[0]
+    assert report["alignment_pass_count"] == 1
+
+
+def test_unresolved_benchmark_ref_fails_source_backing():
+    case = _case("missing_ref")
+    case["benchmark_refs"] = ["does_not_exist"]
+
+    try:
+        runner._resolve_source_backing(case)
+    except ValueError as exc:
+        assert "unresolved benchmark_refs" in str(exc)
+    else:
+        raise AssertionError("expected unresolved benchmark ref to fail")
 
 
 def test_place_matching_does_not_accept_country_only_when_place_token_exists():

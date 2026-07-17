@@ -60,6 +60,56 @@ def test_extract_features_creates_bidirectional_aspect_aliases():
     assert aspects["Mercury_to_Neptune"]["type"] == aspects["Neptune_to_Mercury"]["type"]
 
 
+def test_extract_features_accepts_precise_aspect_phase_as_applying():
+    dashboard = {
+        "planets": [
+            {"planet": "Mercury", "longitude": 20.0, "house": 2, "sign": "Aries"},
+            {"planet": "Neptune", "longitude": 200.0, "house": 8, "sign": "Libra"},
+        ],
+        "all_aspects": [
+            {
+                "planet1": "Mercury",
+                "planet2": "Neptune",
+                "aspect": "Square",
+                "phase": "applying",
+                "orb": 1.8,
+            }
+        ],
+    }
+
+    features = extract_features(dashboard)
+    aspects = features.get("aspects") or {}
+    assert aspects["Mercury_to_Neptune"]["applying"] is True
+
+
+def test_extract_features_preserves_asteroids_and_angles_for_forensic_auxiliary_rules():
+    dashboard = {
+        "planets": [
+            {"planet": "Moon", "longitude": 75.0, "house": 1, "sign": "Gemini"},
+        ],
+        "house_cusps": [0.0, 30.0, 60.0, 90.0, 120.0, 150.0, 180.0, 210.0, 240.0, 270.0, 300.0, 330.0],
+        "asteroids": {
+            "items": [
+                {
+                    "name": "Juno",
+                    "number": 3,
+                    "tier": "major",
+                    "longitude": 180.25,
+                    "house": 7,
+                    "sign": "Libra",
+                    "speed": 0.1,
+                }
+            ]
+        },
+    }
+
+    features = extract_features(dashboard)
+
+    assert features["asteroids"]["Juno"]["house"] == 7
+    assert features["asteroids"]["Juno"]["degree_in_sign"] == 0.25
+    assert features["angles"]["Descendant"]["longitude"] == 180.0
+
+
 def test_rule_path_with_north_node_space_resolves():
     features = {
         "aspects": {

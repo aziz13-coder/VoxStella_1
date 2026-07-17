@@ -11,7 +11,20 @@ const getApiBaseUrl = () => {
   return 'http://127.0.0.1:52525';
 };
 
-const LicenseTokenProvider = (() => {
+const isBrowserDevelopmentRuntime = () => {
+  if (typeof window === 'undefined') return false;
+  if (window.IS_PACKAGED === false) return true;
+  return Boolean(import.meta.env.DEV && !window.electronAPI);
+};
+
+const getBrowserDevelopmentLicenseToken = () => {
+  if (!isBrowserDevelopmentRuntime()) return null;
+  const configuredToken = import.meta.env.VITE_DEV_LICENSE_TOKEN;
+  if (typeof configuredToken !== 'string') return null;
+  return configuredToken.trim() || null;
+};
+
+export const AstroClockLicenseTokenProvider = (() => {
   let cachedToken = null;
   let cacheExpiresAtMs = 0;
   let inflight = null;
@@ -55,13 +68,10 @@ const LicenseTokenProvider = (() => {
       if (typeof window !== 'undefined' && window.electronAPI?.getLicenseToken) {
         return storeToken(await window.electronAPI.getLicenseToken());
       }
-      if (import.meta?.env?.VITE_DEV_LICENSE_TOKEN) {
-        return storeToken(import.meta.env.VITE_DEV_LICENSE_TOKEN);
-      }
-      if (import.meta?.env?.DEV && !(typeof window !== 'undefined' && window.electronAPI)) {
+      if (isBrowserDevelopmentRuntime()) {
         // Browser dev should rely on the source backend's explicit dev-bypass mode,
-        // not emit a fake token that the backend will reject as malformed.
-        return storeToken(null);
+        // or use the configured strict-license token when one is supplied.
+        return storeToken(getBrowserDevelopmentLicenseToken());
       }
     } catch (_) {}
     return storeToken(null);
@@ -144,7 +154,7 @@ export async function request(path, options = {}) {
     try {
       const res = await fetch(url, { ...rawOptions, headers: baseHeaders, signal: controller.signal });
       if ((res.status === 402 || res.status === 403) && !skipLicense) {
-        LicenseTokenProvider.invalidate();
+        AstroClockLicenseTokenProvider.invalidate();
       }
       if (expectedType === 'blob') {
         if (!res.ok) {
@@ -188,7 +198,7 @@ export async function request(path, options = {}) {
         throw new Error(`Request timed out after ${Math.round(effectiveTimeoutMs / 1000)}s`);
       }
       if (error?.authFailure) {
-        const retryToken = await LicenseTokenProvider.getToken().catch(() => null);
+        const retryToken = await AstroClockLicenseTokenProvider.getToken().catch(() => null);
         if (retryToken && retryToken !== token) {
           return send(retryToken, false);
         }
@@ -202,7 +212,7 @@ export async function request(path, options = {}) {
     }
   };
 
-  const initialToken = skipLicense ? null : await LicenseTokenProvider.getToken().catch(() => null);
+  const initialToken = skipLicense ? null : await AstroClockLicenseTokenProvider.getToken().catch(() => null);
   return send(initialToken, true);
 }
 
@@ -215,6 +225,13 @@ function appendClockContext(params, opts = {}) {
   if (opts.location) params.set('location', String(opts.location));
   if (opts.timezone) params.set('timezone', String(opts.timezone));
   if (opts.houseSystem) params.set('house_system_code', String(opts.houseSystem));
+  appendCoordinates(params, opts);
+}
+
+function appendCoordinates(params, opts = {}) {
+  if (!(params instanceof URLSearchParams)) return;
+  if (opts.latitude != null) params.set('latitude', String(opts.latitude));
+  if (opts.longitude != null) params.set('longitude', String(opts.longitude));
 }
 
 function appendElectionParams(params, opts = {}) {
@@ -225,6 +242,7 @@ function appendElectionParams(params, opts = {}) {
   if (opts.location) params.set('location', String(opts.location));
   if (opts.timezone) params.set('timezone', String(opts.timezone));
   if (opts.houseSystem) params.set('house_system_code', String(opts.houseSystem));
+  appendCoordinates(params, opts);
   if (opts.stepMinutes != null) params.set('step_minutes', String(opts.stepMinutes));
   if (opts.limit != null) params.set('limit', String(opts.limit));
   if (opts.includeSrLr) params.set('include_sr_lr', '1');
@@ -238,6 +256,7 @@ function appendElectionParams(params, opts = {}) {
   if (opts.hourEnd != null && String(opts.hourEnd).trim() !== '') params.set('hour_end', String(opts.hourEnd));
   if (opts.marriageAlgorithm) params.set('marriage_algorithm', String(opts.marriageAlgorithm));
   if (opts.businessAlgorithm) params.set('business_algorithm', String(opts.businessAlgorithm));
+  if (opts.estateDirection) params.set('estate_direction', String(opts.estateDirection));
   if (opts.businessBetaDisplayMode) params.set('business_beta_display_mode', String(opts.businessBetaDisplayMode));
   if (opts.businessBetaScope) params.set('business_beta_scope', String(opts.businessBetaScope));
   if (opts.businessBetaCurrentLineId) params.set('business_beta_current_line_id', String(opts.businessBetaCurrentLineId));
@@ -251,8 +270,22 @@ function appendElectionParams(params, opts = {}) {
       }
     });
   }
+  if (opts.estateDisplayMode) params.set('estate_display_mode', String(opts.estateDisplayMode));
+  if (opts.estateScope) params.set('estate_scope', String(opts.estateScope));
+  if (opts.estateCurrentLineId) params.set('estate_current_line_id', String(opts.estateCurrentLineId));
+  if (opts.estateLevelPercent != null) {
+    params.set('estate_level_percent', String(opts.estateLevelPercent));
+  }
+  if (Array.isArray(opts.estateSelectedLineIds)) {
+    opts.estateSelectedLineIds.forEach((lineId) => {
+      if (lineId != null && String(lineId).trim() !== '') {
+        params.append('estate_selected_line_id', String(lineId).trim());
+      }
+    });
+  }
   if (opts.participantASnapId) params.set('participant_a_snap_id', String(opts.participantASnapId));
   if (opts.participantBSnapId) params.set('participant_b_snap_id', String(opts.participantBSnapId));
+  if (opts.estateParticipantSnapId) params.set('estate_participant_snap_id', String(opts.estateParticipantSnapId));
   if (Array.isArray(opts.participantSnapIds)) {
     opts.participantSnapIds.forEach((snapId) => {
       if (snapId != null && String(snapId).trim() !== '') params.append('participant_snap_id', String(snapId).trim());
@@ -262,7 +295,9 @@ function appendElectionParams(params, opts = {}) {
   if (opts.natalDatetime) params.set('natal_datetime', String(opts.natalDatetime));
   if (opts.natalLocation) params.set('natal_location', String(opts.natalLocation));
   if (opts.natalTimezone) params.set('natal_timezone', String(opts.natalTimezone));
-  if (opts.gender) params.set('gender', String(opts.gender));
+  if (opts.considerMode) params.set('consider_mode', String(opts.considerMode));
+  if (opts.levelPercent != null) params.set('level_percent', String(opts.levelPercent));
+  if (opts.gender && String(opts.matter || '') === 'conception') params.set('gender', String(opts.gender));
   if (opts.hairGoal) params.set('hair_goal', String(opts.hairGoal));
   if (opts.surgerySign) params.set('surgery_sign', String(opts.surgerySign));
   if (opts.procedure) params.set('procedure', String(opts.procedure));
@@ -343,6 +378,7 @@ function buildTransitsExportQuery(opts = {}) {
   if (opts.natalLocation) p.set('natal_location', opts.natalLocation);
   if (opts.natalTimezone) p.set('natal_timezone', opts.natalTimezone);
   if (opts.houseSystem) p.set('house_system_code', opts.houseSystem);
+  appendCoordinates(p, opts);
   if (opts.transitDatetime) p.set('transit_datetime', opts.transitDatetime);
   if (opts.includeModern) p.set('include_modern', '1');
   if (opts.includeNatalModern) p.set('include_natal_modern', '1');
@@ -367,6 +403,7 @@ function buildTransitsWindowExportQuery(opts = {}) {
   if (opts.natalLocation) p.set('natal_location', opts.natalLocation);
   if (opts.natalTimezone) p.set('natal_timezone', opts.natalTimezone);
   if (opts.houseSystem) p.set('house_system_code', opts.houseSystem);
+  appendCoordinates(p, opts);
   if (opts.start) p.set('start', opts.start);
   if (opts.end) p.set('end', opts.end);
   if (opts.center) p.set('center', opts.center);
@@ -401,7 +438,7 @@ async function buildStreamUrlWithTicket(pathWithQuery, { suppressErrors = false 
     throw new Error('Invalid stream path');
   }
   if (suppressErrors) {
-    const token = await LicenseTokenProvider.getToken({ forceRefresh: true }).catch(() => null);
+    const token = await AstroClockLicenseTokenProvider.getToken({ forceRefresh: true }).catch(() => null);
     if (!token) {
       return null;
     }
@@ -425,7 +462,16 @@ async function buildStreamUrlWithTicket(pathWithQuery, { suppressErrors = false 
 }
 
 export const AstroClockAPI = {
-  getCurrent: () => request('/api/astro-clock/current'),
+  getCurrent: (opts = {}) => {
+    const signal = opts?.signal;
+    const params = new URLSearchParams();
+    appendClockContext(params, opts);
+    const q = params.toString();
+    return request(`/api/astro-clock/current${q ? `?${q}` : ''}`, {
+      signal,
+      timeoutMs: ASTRO_CLOCK_CORE_TIMEOUT_MS,
+    });
+  },
   getTransits: (opts={}) => {
     const params = new URLSearchParams();
     if (opts.natalSnapId) params.set('natal_snap_id', opts.natalSnapId);
@@ -433,6 +479,7 @@ export const AstroClockAPI = {
     if (opts.natalLocation) params.set('natal_location', opts.natalLocation);
     if (opts.natalTimezone) params.set('natal_timezone', opts.natalTimezone);
     if (opts.houseSystem) params.set('house_system_code', opts.houseSystem);
+    appendCoordinates(params, opts);
     if (opts.transitDatetime) params.set('transit_datetime', opts.transitDatetime);
     if (opts.includeModern) params.set('include_modern', '1');
     if (opts.includeNatalModern) params.set('include_natal_modern', '1');
@@ -457,6 +504,7 @@ export const AstroClockAPI = {
     if (opts.natalLocation) p.set('natal_location', opts.natalLocation);
     if (opts.natalTimezone) p.set('natal_timezone', opts.natalTimezone);
     if (opts.houseSystem) p.set('house_system_code', opts.houseSystem);
+    appendCoordinates(p, opts);
     if (opts.start) p.set('start', opts.start);
     if (opts.end) p.set('end', opts.end);
     if (opts.center) p.set('center', opts.center);
@@ -492,6 +540,7 @@ export const AstroClockAPI = {
       if (opts.natalLocation) p.set('natal_location', opts.natalLocation);
       if (opts.natalTimezone) p.set('natal_timezone', opts.natalTimezone);
       if (opts.houseSystem) p.set('house_system_code', opts.houseSystem);
+      appendCoordinates(p, opts);
       if (opts.start) p.set('start', opts.start);
       if (opts.end) p.set('end', opts.end);
       if (opts.center) p.set('center', opts.center);
@@ -528,6 +577,7 @@ export const AstroClockAPI = {
     if (opts.natalLocation) p.set('natal_location', opts.natalLocation);
     if (opts.natalTimezone) p.set('natal_timezone', opts.natalTimezone);
     if (opts.houseSystem) p.set('house_system_code', opts.houseSystem);
+    appendCoordinates(p, opts);
     if (opts.start) p.set('start', opts.start);
     if (opts.end) p.set('end', opts.end);
     if (opts.stepMinutes != null) p.set('step_minutes', String(opts.stepMinutes));
@@ -593,6 +643,19 @@ export const AstroClockAPI = {
       timeoutMs: ASTRO_CLOCK_CORE_TIMEOUT_MS,
     });
   },
+  getDegreeHitPoints: (opts={}) => {
+    const signal = opts?.signal;
+    const params = new URLSearchParams();
+    appendClockContext(params, opts);
+    if (opts.sexCode != null && String(opts.sexCode).trim() !== '') {
+      params.set('sex_code', String(opts.sexCode));
+    }
+    const q = params.toString();
+    return request(`/api/astro-clock/points/degree-hits${q ? `?${q}` : ''}`, {
+      signal,
+      timeoutMs: ASTRO_CLOCK_CORE_TIMEOUT_MS,
+    });
+  },
   getPlanetaryHours: (opts) => {
     let query = '';
     let signal;
@@ -612,13 +675,90 @@ export const AstroClockAPI = {
       timeoutMs: ASTRO_CLOCK_CORE_TIMEOUT_MS,
     });
   },
-  createSnap: ({ label, includeModern, specialDegrees } = {}) => request('/api/astro-clock/snap', {
+  createSnap: ({
+    label,
+    includeModern,
+    specialDegrees,
+    mode,
+    datetime,
+    location,
+    timezone,
+    latitude,
+    longitude,
+    houseSystem,
+    certification,
+    dashboard,
+  } = {}) => request('/api/astro-clock/snap', {
     method: 'POST',
-    body: JSON.stringify({ label, include_modern: !!includeModern, special_degrees: Array.isArray(specialDegrees) ? specialDegrees : undefined })
+    timeoutMs: ASTRO_CLOCK_CORE_TIMEOUT_MS,
+    body: JSON.stringify({
+      label,
+      include_modern: !!includeModern,
+      special_degrees: Array.isArray(specialDegrees) ? specialDegrees : undefined,
+      mode,
+      datetime,
+      location,
+      timezone,
+      latitude,
+      longitude,
+      house_system: houseSystem,
+      house_system_code: houseSystem,
+      certification,
+      dashboard,
+    })
   }),
   listSnaps: () => request('/api/astro-clock/snaps'),
-  getSnap: (id) => request(`/api/astro-clock/snaps/${encodeURIComponent(id)}`),
+  getSnap: (id, opts = {}) => request(`/api/astro-clock/snaps/${encodeURIComponent(id)}`, { signal: opts?.signal }),
   deleteSnap: (id) => request(`/api/astro-clock/snaps/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  getChineseAstrologyBazi: (opts = {}) => request('/api/astro-clock/chinese-astrology/bazi', {
+    method: 'POST',
+    timeoutMs: ASTRO_CLOCK_CORE_TIMEOUT_MS,
+    body: JSON.stringify({
+      snap_id: opts.snapId || opts.natalSnapId || '',
+      birth: opts.birth || undefined,
+      date: opts.date || undefined,
+      time: opts.time || undefined,
+      location: opts.location || undefined,
+      timezone: opts.timezone || undefined,
+      latitude: opts.latitude,
+      longitude: opts.longitude,
+      calculation_sex: opts.calculationSex || undefined,
+      include_luck_pillars: !!opts.includeLuckPillars,
+      use_true_solar_time: !!opts.useTrueSolarTime,
+      day_boundary_rule: opts.dayBoundaryRule || undefined,
+      hour_pillar_variant: opts.hourPillarVariant || undefined,
+      luck_direction_rule: opts.luckDirectionRule || undefined,
+    }),
+  }),
+  getChineseAstrologyCompatibility: (opts = {}) => request('/api/astro-clock/chinese-astrology/compatibility', {
+    method: 'POST',
+    timeoutMs: ASTRO_CLOCK_CORE_TIMEOUT_MS,
+    body: JSON.stringify({
+      primary_snap_id: opts.primarySnapId || opts.snapAId || opts.snapId || '',
+      relationship_snap_id: opts.relationshipSnapId || opts.comparisonSnapId || opts.snapBId || '',
+      relationship_context: opts.relationshipContext || opts.pairContext || opts.relationshipType || undefined,
+      primary_calculation_sex: opts.primaryCalculationSex || undefined,
+      relationship_calculation_sex: opts.relationshipCalculationSex || undefined,
+      calculation_sex: opts.calculationSex || undefined,
+      include_luck_pillars: opts.includeLuckPillars !== false,
+      use_true_solar_time: !!opts.useTrueSolarTime,
+      day_boundary_rule: opts.dayBoundaryRule || undefined,
+      hour_pillar_variant: opts.hourPillarVariant || undefined,
+      luck_direction_rule: opts.luckDirectionRule || undefined,
+    }),
+  }),
+  getChineseAstrologyIChingOracle: (opts = {}) => request('/api/astro-clock/chinese-astrology/iching-oracle', {
+    method: 'POST',
+    timeoutMs: ASTRO_CLOCK_CORE_TIMEOUT_MS,
+    body: JSON.stringify({
+      question: opts.question || '',
+      method: opts.method || opts.castingMethod || 'coins',
+      lines: Array.isArray(opts.lines) ? opts.lines : undefined,
+      coins: Array.isArray(opts.coins) ? opts.coins : undefined,
+      seed: opts.seed,
+      coin_value_scheme: opts.coinValueScheme || opts.coin_value_scheme || undefined,
+    }),
+  }),
   getAstrocartographyMap: (opts = {}) => {
     const p = new URLSearchParams();
     if (opts.natalSnapId) p.set('natal_snap_id', String(opts.natalSnapId));
@@ -626,6 +766,7 @@ export const AstroClockAPI = {
     if (opts.natalLocation) p.set('natal_location', String(opts.natalLocation));
     if (opts.natalTimezone) p.set('natal_timezone', String(opts.natalTimezone));
     if (opts.houseSystem) p.set('house_system_code', String(opts.houseSystem));
+    appendCoordinates(p, opts);
     if (opts.transitDatetime) p.set('transit_datetime', String(opts.transitDatetime));
     if (opts.transitLocation) p.set('transit_location', String(opts.transitLocation));
     if (opts.transitTimezone) p.set('transit_timezone', String(opts.transitTimezone));
@@ -649,6 +790,7 @@ export const AstroClockAPI = {
     if (opts.natalLocation) p.set('natal_location', String(opts.natalLocation));
     if (opts.natalTimezone) p.set('natal_timezone', String(opts.natalTimezone));
     if (opts.houseSystem) p.set('house_system_code', String(opts.houseSystem));
+    appendCoordinates(p, opts);
     if (opts.goalId) p.set('goal_id', String(opts.goalId));
     if (opts.transitDatetime) p.set('transit_datetime', String(opts.transitDatetime));
     if (opts.transitLocation) p.set('transit_location', String(opts.transitLocation));
@@ -675,6 +817,7 @@ export const AstroClockAPI = {
     if (opts.natalLocation) p.set('natal_location', String(opts.natalLocation));
     if (opts.natalTimezone) p.set('natal_timezone', String(opts.natalTimezone));
     if (opts.houseSystem) p.set('house_system_code', String(opts.houseSystem));
+    appendCoordinates(p, opts);
     if (opts.goalId) p.set('goal_id', String(opts.goalId));
     if (opts.query) p.set('query', String(opts.query));
     if (opts.countryCode) p.set('country_code', String(opts.countryCode).toUpperCase());
@@ -706,6 +849,8 @@ export const AstroClockAPI = {
       natal_datetime: opts.natalDatetime || '',
       natal_location: opts.natalLocation || '',
       natal_timezone: opts.natalTimezone || '',
+      latitude: opts.latitude,
+      longitude: opts.longitude,
       house_system_code: opts.houseSystem || '',
       goal_id: opts.goalId || '',
       query: opts.query || '',
@@ -742,6 +887,7 @@ export const AstroClockAPI = {
     if (opts.natalLocation) p.set('natal_location', String(opts.natalLocation));
     if (opts.natalTimezone) p.set('natal_timezone', String(opts.natalTimezone));
     if (opts.houseSystem) p.set('house_system_code', String(opts.houseSystem));
+    appendCoordinates(p, opts);
     if (opts.goalId) p.set('goal_id', String(opts.goalId));
     if (opts.transitDatetime) p.set('transit_datetime', String(opts.transitDatetime));
     if (opts.transitLocation) p.set('transit_location', String(opts.transitLocation));
@@ -897,11 +1043,20 @@ export const AstroClockAPI = {
       timeoutMs: 300000,
     });
   },
-  setMode: ({ mode, datetime, location, timezone, houseSystem, signal }) => request('/api/astro-clock/mode', {
+  setMode: ({ mode, datetime, location, timezone, latitude, longitude, houseSystem, signal }) => request('/api/astro-clock/mode', {
     method: 'POST',
     signal,
     timeoutMs: ASTRO_CLOCK_CORE_TIMEOUT_MS,
-    body: JSON.stringify({ mode, datetime, location, timezone, house_system: houseSystem, house_system_code: houseSystem })
+    body: JSON.stringify({
+      mode,
+      datetime,
+      location,
+      timezone,
+      latitude,
+      longitude,
+      house_system: houseSystem,
+      house_system_code: houseSystem,
+    })
   }),
   setLocation: (location) => request('/api/astro-clock/location', { method: 'POST', body: JSON.stringify({ location }) }),
   createStream: async (opts={}) => {
@@ -916,11 +1071,7 @@ export const AstroClockAPI = {
   },
     getForensic: (opts = {}) => {
       const params = new URLSearchParams();
-      if (opts.mode) params.set('mode', opts.mode);
-      if (opts.datetime) params.set('datetime', opts.datetime);
-      if (opts.location) params.set('location', opts.location);
-      if (opts.timezone) params.set('timezone', opts.timezone);
-      if (opts.houseSystem) params.set('house_system_code', String(opts.houseSystem));
+      appendClockContext(params, opts);
       if (opts.caseType) params.set('case_type', String(opts.caseType));
       if (opts.abduction) params.set('abduction', opts.abduction ? '1' : '0');
       if (opts.origin && typeof opts.origin === 'string') params.set('origin', opts.origin);
@@ -933,8 +1084,12 @@ export const AstroClockAPI = {
     const qs = params.toString();
     return request(`/api/astro-clock/forensic${qs ? `?${qs}` : ''}`);
   },
-  getReceptions: () => request('/api/astro-clock/receptions')
-  ,
+  getReceptions: (opts = {}) => {
+    const params = new URLSearchParams();
+    appendClockContext(params, opts);
+    const qs = params.toString();
+    return request(`/api/astro-clock/receptions${qs ? `?${qs}` : ''}`);
+  },
   validateElection: (opts={}) => {
     const p = new URLSearchParams();
     appendElectionParams(p, opts);
@@ -950,11 +1105,26 @@ export const AstroClockAPI = {
   }
   ,
   getCompass: (opts={}) => {
-    const params = [];
-    if (opts.includeModern) params.push('include_modern=1');
-    const q = params.length ? `?${params.join('&')}` : '';
-    return request(`/api/astro-clock/compass${q}`);
+    const params = new URLSearchParams();
+    if (opts.includeModern) params.set('include_modern', '1');
+    appendClockContext(params, opts);
+    const q = params.toString();
+    return request(`/api/astro-clock/compass${q ? `?${q}` : ''}`);
   }
+  ,
+  getDirectional3d: (opts={}) => {
+    const params = new URLSearchParams();
+    if (opts.includeModern) params.set('include_modern', '1');
+    appendClockContext(params, opts);
+    const q = params.toString();
+    return request(`/api/astro-clock/directional-3d${q ? `?${q}` : ''}`);
+  }
+  ,
+  rectifyBirthTime: (body={}) => request('/api/astro-clock/certification/rectify', {
+    method: 'POST',
+    body: JSON.stringify(body),
+    timeoutMs: 300000,
+  })
   ,
   resolveTimezone: (location) => request('/api/get-timezone', { method: 'POST', body: JSON.stringify({ location }) })
   ,
@@ -965,6 +1135,7 @@ export const AstroClockAPI = {
     if (opts.natalLocation) p.set('natal_location', opts.natalLocation);
     if (opts.natalTimezone) p.set('natal_timezone', opts.natalTimezone);
     if (opts.houseSystem) p.set('house_system_code', opts.houseSystem);
+    appendCoordinates(p, opts);
     if (opts.year) p.set('year', String(opts.year));
     // Anchor period for PD/SR/Progressions derivation
     if (opts.anchorStart) p.set('anchor_start', opts.anchorStart);
@@ -1027,6 +1198,14 @@ export const AstroClockAPI = {
   ,
   researchCompile: (body={}) => request('/api/astro-clock/research/lotto/compile', {
     method: 'POST',
+    body: JSON.stringify(body)
+  })
+  ,
+  listResearchEvaluators: () => request('/api/astro-clock/research/evaluators')
+  ,
+  runResearchAnalysis: (body={}) => request('/api/astro-clock/research/analyze', {
+    method: 'POST',
+    timeoutMs: 300000,
     body: JSON.stringify(body)
   })
 };

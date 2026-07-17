@@ -8,6 +8,8 @@ onedir bundle to avoid PyInstaller onefile extraction latency during packaged
 launches.
 """
 
+import importlib.metadata
+import os
 import sys
 import subprocess
 import shutil
@@ -20,14 +22,17 @@ CRITICAL_MODULES = (
     "flask_cors",
     "swisseph",
     "timezonefinder",
-    "geopy",
     "pytz",
     "nacl",
     "nacl.signing",
 )
 
+REQUIRED_PYTHON = (3, 12)
+REQUIRED_PYINSTALLER = "6.21.0"
+
 RUNTIME_HIDDEN_IMPORTS = (
     "astro_clock_api",
+    "birth_certification",
     "runtime_import_paths",
     "licensing",
     "mundane_assets",
@@ -71,6 +76,10 @@ RUNTIME_DATA_ENTRIES = (
     ("ephemeris/sweph", "ephemeris/sweph"),
 )
 
+OPTIONAL_RUNTIME_DATA_ENTRIES = (
+    ("../extracted_text_docs/new_sources_inspection", "traits/corpus/new_sources_inspection"),
+)
+
 
 def _log_ok(message: str) -> None:
     print(f"[OK] {message}")
@@ -84,13 +93,41 @@ def build_runtime_data_args(backend_dir: Path, build_metadata_path: Path) -> lis
     """Return the PyInstaller --add-data arguments required by the runtime bundle."""
     data_args: list[str] = []
     for relative_source, destination in RUNTIME_DATA_ENTRIES:
-        data_args.extend(["--add-data", f"{backend_dir / relative_source};{destination}"])
+        source = (backend_dir / relative_source).resolve()
+        if not source.exists():
+            raise FileNotFoundError(f"Required runtime data is missing: {source}")
+        data_args.extend(["--add-data", f"{source};{destination}"])
+    for relative_source, destination in OPTIONAL_RUNTIME_DATA_ENTRIES:
+        source = (backend_dir / relative_source).resolve()
+        if source.exists():
+            data_args.extend(["--add-data", f"{source};{destination}"])
+        else:
+            print(f"[WARN] Optional runtime data is unavailable: {source}")
     data_args.extend(["--add-data", f"{build_metadata_path};."])
     return data_args
 
 
 def check_build_dependencies() -> bool:
     """Fail fast if required runtime modules are not available."""
+    if sys.version_info[:2] != REQUIRED_PYTHON:
+        _log_error(
+            "Release backend builds require Python "
+            f"{REQUIRED_PYTHON[0]}.{REQUIRED_PYTHON[1]}; found "
+            f"{sys.version_info.major}.{sys.version_info.minor}."
+        )
+        return False
+
+    try:
+        pyinstaller_version = importlib.metadata.version("pyinstaller")
+    except importlib.metadata.PackageNotFoundError:
+        pyinstaller_version = None
+    if pyinstaller_version != REQUIRED_PYINSTALLER:
+        _log_error(
+            f"PyInstaller {REQUIRED_PYINSTALLER} is required; "
+            f"found {pyinstaller_version or 'not installed'}."
+        )
+        return False
+
     missing = []
     for mod in CRITICAL_MODULES:
         try:
@@ -133,8 +170,11 @@ def build_backend():
             extra={
                 "build_target": "pyinstaller_onedir",
                 "bundle_name": "horary_backend",
+                "app_version": os.environ.get("VOX_STELLA_BUILD_VERSION", "").strip() or None,
             },
         )
+        spec_dir = build_dir / "spec"
+        spec_dir.mkdir(parents=True, exist_ok=True)
 
         pyinstaller_cmd = [
             sys.executable,
@@ -148,7 +188,7 @@ def build_backend():
             "--workpath",
             str(build_dir),
             "--specpath",
-            str(backend_dir),
+            str(spec_dir),
             "--console",
             "--clean",
             str(app_py),
@@ -158,7 +198,6 @@ def build_backend():
         hidden_imports = [
             "swisseph",
             "timezonefinder",
-            "geopy",
             "pytz",
             "flask",
             "flask_cors",

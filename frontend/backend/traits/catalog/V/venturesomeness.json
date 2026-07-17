@@ -5,13 +5,19 @@
   "description": "Inclination to explore and take bold steps with Fire positivity and Sagittarius/Jupiter expansion; Water/Saturn prudence tempers.",
   "confidence": "medium",
   "polarity": "neutral",
-  "sources": ["Carter: Fire positivity/outgoing energy; Sagittarius hope/self‑development"],
+  "sources": ["Carter: Fire positivity/outgoing energy; Sagittarius hope/self-development", "Morin: H9 journeys/doctrine requires Jupiter determination for exploration"],
   "logic": { "base": 0,
     "boosts": [
       { "kind": "element", "element": "Fire", "min_share": 0.35, "weight": 8 },
       { "kind": "sign_emphasis", "sign": "Sagittarius", "min": 1.5, "weight": 6 },
       { "kind": "planet_status", "planet": "Jupiter", "strong": true, "weight": 6 },
-      { "kind": "house_emphasis", "houses": [5,9], "min_total": 1, "weight": 4 }
+      { "kind": "house_emphasis", "houses": [5,9], "min_total": 1, "weight": 4 },
+      { "kind": "element", "element": "Air", "min_share": 0.35, "weight": 4 },
+      { "kind": "sign_emphasis", "sign": "Leo", "min": 1.5, "weight": 4 },
+      { "kind": "planet_status", "planet": "Sun", "strong": true, "weight": 4 },
+      { "kind": "modality", "modality": "Mutable", "min_share": 0.35, "weight": 6 },
+      { "kind": "angle_aspect", "planet": "Uranus", "type": "any", "angle": "MC", "max_orb": 10, "weight": 4 },
+      { "kind": "planet_area", "planet": "Jupiter", "areas": ["belief"], "min": 0.45, "weight": 5 }
     ],
     "dampeners": [
       { "kind": "element", "element": "Water", "min_share": 0.40, "weight": -6 },
@@ -19,4 +25,3 @@
     ],
     "escalators": [] }
 }
-

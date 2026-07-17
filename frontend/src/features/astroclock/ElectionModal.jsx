@@ -15,6 +15,12 @@ export const BUSINESS_BETA_DESCRIPTION =
   'Beta scans one event line plus one founder-owner fit line per selected saved chart and keeps those lines separate in the result.';
 export const BUSINESS_BETA_PARTICIPANT_HELP =
   'Beta uses one or more saved charts from Astro Clock as founder or owner charts. It scores the event chart first, then checks founder fit for each selected chart. In this beta path the selected charts are treated as certified, so Ascendant-based founder fit stays active.';
+export const ESTATE_DESCRIPTION =
+  'Estate scans one event line plus one buyer or seller fit line from a selected saved chart, with separate buy and sell direction rules.';
+export const ESTATE_PARTICIPANT_HELP =
+  'Estate uses one saved Astro Clock chart as the buyer or seller chart. The scan scores the property event first, then checks the selected chart against the event Moon, Ascendant, Fortuna, and property set.';
+export const LUNAR_FERTILITY_DESCRIPTION =
+  'Lunar Fertility Windows scans natal Sun-Moon phase returns as hourly fertility windows with phase, antiphase, and Moon-sign polarity labels.';
 
 function sanitizeWeightedElectionTagDisplay(tag) {
   const text = String(tag || '').trim();
@@ -56,11 +62,19 @@ export function sanitizeBusinessBetaTagDisplay(tag) {
   return sanitizeWeightedElectionTagDisplay(tag);
 }
 
+export function sanitizeEstateTagDisplay(tag) {
+  return sanitizeWeightedElectionTagDisplay(tag);
+}
+
 export function sanitizeMarriageBetaElectionRow(row) {
   return sanitizeWeightedElectionRow(row);
 }
 
 export function sanitizeBusinessBetaElectionRow(row) {
+  return sanitizeWeightedElectionRow(row);
+}
+
+export function sanitizeEstateElectionRow(row) {
   return sanitizeWeightedElectionRow(row);
 }
 
@@ -86,6 +100,33 @@ export function buildBusinessBetaLineOptions({
       kind: 'participant',
     });
   });
+  return options;
+}
+
+export function buildEstateLineOptions({
+  snaps = [],
+  estateParticipantSnapId = '',
+  participantItems = [],
+} = {}) {
+  const options = [{ id: 'event', label: 'Event line', kind: 'event' }];
+  const item = Array.isArray(participantItems) && participantItems.length
+    ? participantItems[0]
+    : (() => {
+        const snap = Array.isArray(snaps) ? snaps.find((row) => String(row?.id || '') === String(estateParticipantSnapId || '')) : null;
+        return estateParticipantSnapId
+          ? {
+              snap_id: estateParticipantSnapId,
+              label: String(snap?.label || '').trim() || String(snap?.location || '').trim() || 'Estate participant',
+            }
+          : null;
+      })();
+  if (item) {
+    options.push({
+      id: 'participant:1',
+      label: String(item?.label || '').trim() || 'Estate participant',
+      kind: 'participant',
+    });
+  }
   return options;
 }
 
@@ -229,6 +270,253 @@ function pickElectionPeakRows(rows, stepMinutes = 60, limit = 4) {
   return chosen;
 }
 
+function escapeReportHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function reportCell(value, fallback = '-') {
+  const text = String(value ?? '').trim();
+  return escapeReportHtml(text || fallback);
+}
+
+function reportTime(value, timezone) {
+  return value ? formatTs(value, timezone) : '-';
+}
+
+function reportShortTime(value, timezone) {
+  return value ? formatShortTs(value, timezone) : '-';
+}
+
+function reportStrengthBar(score) {
+  const value = Math.max(0, Math.min(100, Number(score) || 0));
+  const filled = Math.max(1, Math.round(value / 10));
+  return `${'#'.repeat(filled)}${'-'.repeat(Math.max(0, 10 - filled))}`;
+}
+
+function reportModeLabel(mode) {
+  if (mode === 'phase') return 'Phase';
+  if (mode === 'antiphase') return 'Antiphase';
+  return 'Phase + Antiphase';
+}
+
+function reportSexPhase(row) {
+  const sex = String(row?.sex_label || 'unknown').trim() || 'unknown';
+  const phase = row?.phase_kind === 'antiphase' ? 'antiphase' : row?.phase_kind === 'phase' ? 'phase' : 'unknown';
+  return `${sex}, ${phase}`;
+}
+
+function fertilityReportRows(rows) {
+  return normalizeElectionSeriesRows(rows)
+    .filter((row) => Number(row?.score || 0) > 0);
+}
+
+export function buildLunarFertilityReportDefaultPath(context = {}) {
+  const stamp = String(context?.generatedAt || new Date().toISOString()).slice(0, 10) || 'report';
+  return `LunarFertilityReport_${stamp}.pdf`;
+}
+
+export function buildLunarFertilityReportHtml({
+  result,
+  topRows = [],
+  seriesRows = [],
+  periods = [],
+  context = {},
+} = {}) {
+  if (!result || result.matter !== 'lunar_fertility') {
+    throw new Error('Lunar fertility report can only be built for Lunar Fertility Windows results.');
+  }
+
+  const timezoneName = result.timezone || context.timezone || '';
+  const rows = fertilityReportRows(seriesRows.length ? seriesRows : (result.series || []));
+  const rankedTop = normalizeElectionSeriesRows(topRows.length ? topRows : (result.top || []))
+    .slice()
+    .sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
+  const periodRows = Array.isArray(periods) ? periods : [];
+  const level = Math.max(0, Math.min(100, Number(result.level_percent ?? context.levelPercent ?? 33) || 0));
+  const generatedAt = context.generatedAt || new Date().toISOString();
+  const firstRow = rows[0] || rankedTop[0] || null;
+  const lastRow = rows[rows.length - 1] || rankedTop[rankedTop.length - 1] || null;
+  const natalSnap = context.natalSnap && typeof context.natalSnap === 'object' ? context.natalSnap : {};
+  const natalDashboard = natalSnap.dashboard && typeof natalSnap.dashboard === 'object' ? natalSnap.dashboard : {};
+  const natalLat = natalSnap.latitude ?? natalDashboard.latitude;
+  const natalLon = natalSnap.longitude ?? natalDashboard.longitude;
+  const natalCoords = natalLat != null && natalLon != null
+    ? `${Number(natalLat).toFixed(4)}, ${Number(natalLon).toFixed(4)}`
+    : '';
+  const forecastLat = result.latitude ?? context.latitude;
+  const forecastLon = result.longitude ?? context.longitude;
+  const forecastCoords = forecastLat != null && forecastLon != null
+    ? `${Number(forecastLat).toFixed(4)}, ${Number(forecastLon).toFixed(4)}`
+    : '';
+  const maxScore = Math.max(100, ...rows.map((row) => Number(row.score || 0)));
+  const periodStart = context.rangeStart || firstRow?.timestamp_local || firstRow?.timestamp || '';
+  const periodEnd = context.rangeEnd || lastRow?.timestamp_local || lastRow?.timestamp || '';
+
+  const metaRows = [
+    ['Feature', 'Lunar Fertility Windows'],
+    ['Selected period', `${reportTime(periodStart, timezoneName)} - ${reportTime(periodEnd, timezoneName)}`],
+    ['Forecast place', result.location || context.location || ''],
+    ['Forecast coordinates', forecastCoords],
+    ['Timezone', timezoneName],
+    ['Natal chart', natalSnap.label || natalSnap.id || 'Saved chart'],
+    ['Natal datetime', natalSnap.effective_datetime ? reportTime(natalSnap.effective_datetime, natalDashboard.timezone || timezoneName) : ''],
+    ['Natal place', natalSnap.location || natalDashboard.location || ''],
+    ['Natal coordinates', natalCoords],
+    ['House system', context.houseSystem || ''],
+    ['Consider', reportModeLabel(result.consider_mode || context.considerMode)],
+    ['Level', `${level.toFixed(0)}%`],
+    ['Generated', reportTime(generatedAt, timezoneName)],
+  ];
+
+  const metaHtml = metaRows.map(([label, value]) => `
+    <tr><th>${reportCell(label)}</th><td>${reportCell(value)}</td></tr>
+  `).join('');
+
+  const graphBars = rows.length
+    ? rows.map((row) => {
+      const score = Math.max(0, Number(row.score || 0));
+      const height = Math.max(4, Math.round((score / maxScore) * 132));
+      const color = row.sex_label === 'male' ? '#2563eb' : row.sex_label === 'female' ? '#db2777' : '#71717a';
+      const opacity = row.phase_kind === 'antiphase' ? 0.45 : 0.95;
+      const title = `${reportShortTime(row.timestamp_local || row.timestamp, timezoneName)} | ${score.toFixed(0)} | ${reportSexPhase(row)}`;
+      return `<div class="bar" title="${escapeReportHtml(title)}" style="height:${height}px;background:${color};opacity:${opacity};"></div>`;
+    }).join('')
+    : '<div class="empty">No favorable hourly rows retained.</div>';
+
+  const periodHtml = periodRows.length
+    ? periodRows.map((period) => `
+      <tr>
+        <td>${reportCell(`${reportTime(period.start_local || period.start, timezoneName)} - ${reportTime(period.end_local || period.end, timezoneName)}`)}</td>
+        <td>${reportCell(period.best_timestamp_local || period.best_timestamp ? reportTime(period.best_timestamp_local || period.best_timestamp, timezoneName) : '-')}</td>
+        <td class="num">${reportCell(Number(period.best_score || 0).toFixed(0))}</td>
+        <td>${reportCell(`${period.sex_label || 'unknown'}, ${period.phase_kind || 'unknown'}`)}</td>
+        <td>${reportCell(period.moon_sign || '-')}</td>
+      </tr>
+    `).join('')
+    : '<tr><td colspan="5">No grouped fertility periods reached the selected level.</td></tr>';
+
+  const hourlyHtml = rows.length
+    ? rows.map((row) => `
+      <tr>
+        <td>${reportCell(reportTime(row.timestamp_local || row.timestamp, timezoneName))}</td>
+        <td class="bartext">${reportCell(reportStrengthBar(row.score))}</td>
+        <td class="num">${reportCell(Number(row.score || 0).toFixed(0))}</td>
+        <td>${reportCell(reportSexPhase(row))}</td>
+        <td>${reportCell(row.moon_sign || '-')}</td>
+      </tr>
+    `).join('')
+    : '<tr><td colspan="5">No hourly fertility rows are available.</td></tr>';
+
+  const topHtml = rankedTop.length
+    ? rankedTop.slice(0, 24).map((row) => `
+      <tr>
+        <td>${reportCell(reportTime(row.timestamp_local || row.timestamp, timezoneName))}</td>
+        <td class="num">${reportCell(Number(row.score || 0).toFixed(0))}</td>
+        <td>${reportCell(reportSexPhase(row))}</td>
+        <td>${reportCell(row.moon_sign || '-')}</td>
+      </tr>
+    `).join('')
+    : '<tr><td colspan="4">No top timepoints are available.</td></tr>';
+
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Lunar Fertility Windows Report</title>
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; color: #18181b; margin: 34px; line-height: 1.35; }
+    h1 { font-size: 24px; margin: 0 0 6px; }
+    h2 { font-size: 15px; margin: 24px 0 8px; letter-spacing: 0.08em; text-transform: uppercase; }
+    .subtitle { color: #52525b; margin-bottom: 18px; }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    th, td { border: 1px solid #d4d4d8; padding: 6px 7px; vertical-align: top; }
+    th { text-align: left; background: #f4f4f5; font-weight: 700; }
+    .meta th { width: 185px; }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .bartext { font-family: Consolas, monospace; letter-spacing: 1px; }
+    .graph { position: relative; min-height: 160px; border: 1px solid #d4d4d8; background: #fafafa; padding: 14px 10px 10px; overflow: hidden; }
+    .bars { position: relative; z-index: 2; height: 138px; display: flex; align-items: end; gap: 2px; }
+    .bar { flex: 1 1 4px; min-width: 2px; border-radius: 2px 2px 0 0; }
+    .level { position: absolute; left: 0; right: 0; border-top: 1px dashed #18181b; z-index: 1; }
+    .legend { display: flex; gap: 18px; color: #52525b; font-size: 10px; margin-top: 7px; }
+    .swatch { display: inline-block; width: 10px; height: 10px; margin-right: 4px; vertical-align: -1px; }
+    .page-break { break-before: page; page-break-before: always; }
+    .empty { color: #71717a; padding: 48px 0; text-align: center; width: 100%; }
+  </style>
+</head>
+<body>
+  <h1>Lunar Fertility Windows Report</h1>
+  <div class="subtitle">Natal Sun-Moon phase recurrence, grouped periods, hourly favorable rows, and top timepoints.</div>
+
+  <h2>Shared Header</h2>
+  <table class="meta"><tbody>${metaHtml}</tbody></table>
+
+  <h2>Graphic Timeline</h2>
+  <div class="graph">
+    <div class="level" style="bottom:${Math.max(0, Math.min(100, level))}%;"></div>
+    <div class="bars">${graphBars}</div>
+  </div>
+  <div class="legend">
+    <span><span class="swatch" style="background:#2563eb;"></span>male Moon-sign polarity</span>
+    <span><span class="swatch" style="background:#db2777;"></span>female Moon-sign polarity</span>
+    <span>solid = phase, faded = antiphase, dashed line = selected level</span>
+  </div>
+
+  <h2>Grouped Fertility Periods</h2>
+  <table>
+    <thead><tr><th>Period</th><th>Peak time</th><th>Peak</th><th>Sex, phase</th><th>Peak Moon sign</th></tr></thead>
+    <tbody>${periodHtml}</tbody>
+  </table>
+
+  <h2>Top Timepoints</h2>
+  <table>
+    <thead><tr><th>Date time</th><th>Strength</th><th>Sex, phase</th><th>Moon sign</th></tr></thead>
+    <tbody>${topHtml}</tbody>
+  </table>
+
+  <h2 class="page-break">Full Hourly Favorable Table</h2>
+  <table>
+    <thead><tr><th>Date time</th><th>Strength bar</th><th>Strength</th><th>Sex, phase</th><th>Moon sign</th></tr></thead>
+    <tbody>${hourlyHtml}</tbody>
+  </table>
+</body>
+</html>`;
+}
+
+function openPrintableReportWindow(html) {
+  if (typeof window === 'undefined') return false;
+  const reportWindow = window.open('', '_blank');
+  if (!reportWindow || !reportWindow.document) return false;
+  reportWindow.document.write(html);
+  reportWindow.document.close();
+  setTimeout(() => {
+    try {
+      reportWindow.focus();
+      reportWindow.print();
+    } catch (_) {}
+  }, 250);
+  return true;
+}
+
+function downloadReportHtmlFallback(html, filename) {
+  if (typeof document === 'undefined' || typeof URL === 'undefined') return false;
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = String(filename || 'lunar-fertility-report.html').replace(/\.pdf$/i, '.html');
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  URL.revokeObjectURL(url);
+  return true;
+}
+
 const BEAUTY_BODY_PART_OPTIONS = [
   'Face',
   'Lips',
@@ -282,7 +570,14 @@ const BEAUTY_PROCEDURE_LABELS = {
   reduction: 'Reduction / contouring',
 };
 
-export default function ElectionModal({ open, onClose, onJumpToTime, defaultHouseSystem }) {
+export default function ElectionModal({
+  open,
+  onClose,
+  onJumpToTime,
+  defaultHouseSystem,
+  snaps: initialSnaps = [],
+  activeSnapId = '',
+}) {
   // Model selection (toggle). Supports 'marriage' and 'surgery'.
   const [matter, setMatter] = useState('marriage');
   // Surgery child options
@@ -303,17 +598,20 @@ export default function ElectionModal({ open, onClose, onJumpToTime, defaultHous
   const [hourEnd, setHourEnd] = useState('');   // 'HH:MM'
   const [marriageAlgorithm, setMarriageAlgorithm] = useState('alpha');
   const [businessAlgorithm, setBusinessAlgorithm] = useState('alpha');
-  const [sourceMode, setSourceMode] = useState('none'); // 'none' | 'snap'
-  const [snaps, setSnaps] = useState([]);
-  const [selectedSnapId, setSelectedSnapId] = useState('');
+  const [sourceMode, setSourceMode] = useState(activeSnapId ? 'snap' : 'none'); // 'none' | 'snap'
+  const [snaps, setSnaps] = useState(() => (Array.isArray(initialSnaps) ? initialSnaps : []));
+  const [selectedSnapId, setSelectedSnapId] = useState(activeSnapId || '');
   const [participantASnapId, setParticipantASnapId] = useState('');
   const [participantBSnapId, setParticipantBSnapId] = useState('');
   const [businessParticipantSnapIds, setBusinessParticipantSnapIds] = useState([]);
+  const [estateParticipantSnapId, setEstateParticipantSnapId] = useState('');
   const [includeSrLr, setIncludeSrLr] = useState(true);
   // Surgery/Contract optional heavy checks
   const [includeLunationScreen, setIncludeLunationScreen] = useState(false);
   const [includeFixedStars, setIncludeFixedStars] = useState(false);
   const [genderPref, setGenderPref] = useState('');
+  const [lunarFertilityConsiderMode, setLunarFertilityConsiderMode] = useState('phase_and_antiphase');
+  const [lunarFertilityLevelPercent, setLunarFertilityLevelPercent] = useState(33);
   // Contract options
   const [preferFixedAsc, setPreferFixedAsc] = useState(true);
   const [saturnBindingOk, setSaturnBindingOk] = useState(true);
@@ -328,6 +626,13 @@ export default function ElectionModal({ open, onClose, onJumpToTime, defaultHous
   const [businessBetaLevelPercent, setBusinessBetaLevelPercent] = useState(67);
   const [businessBetaCurrentLineId, setBusinessBetaCurrentLineId] = useState('event');
   const [businessBetaSelectedLineIds, setBusinessBetaSelectedLineIds] = useState(['event']);
+  // Estate options
+  const [estateDirection, setEstateDirection] = useState('buy');
+  const [estateDisplayMode, setEstateDisplayMode] = useState('total');
+  const [estateScope, setEstateScope] = useState('all');
+  const [estateLevelPercent, setEstateLevelPercent] = useState(67);
+  const [estateCurrentLineId, setEstateCurrentLineId] = useState('event');
+  const [estateSelectedLineIds, setEstateSelectedLineIds] = useState(['event']);
   // Journey options
   const [journeyType, setJourneyType] = useState('long'); // 'long' | 'short'
   // Battle options
@@ -348,23 +653,37 @@ export default function ElectionModal({ open, onClose, onJumpToTime, defaultHous
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
   const [selectedSeriesTimestamp, setSelectedSeriesTimestamp] = useState('');
+  const [reportStatus, setReportStatus] = useState('');
 
   useEffect(() => {
     if (open) {
-      setResult(null); setError(null); setLoading(false);
+      setResult(null); setError(null); setLoading(false); setReportStatus('');
       setSelectedSeriesTimestamp('');
       scanTerminalRef.current = false;
       if (matter === 'legal') {
         setLegalAction('filing');
       }
       // Prefetch snaps for convenience
-      AstroClockAPI.listSnaps().then(res => setSnaps(res?.items || [])).catch(()=>{});
+      const seededSnaps = Array.isArray(initialSnaps) ? initialSnaps : [];
+      if (seededSnaps.length) setSnaps(seededSnaps);
+      if (activeSnapId) {
+        setSelectedSnapId(String(activeSnapId));
+        setSourceMode('snap');
+      }
+      AstroClockAPI.listSnaps().then((res) => {
+        const items = res?.items || [];
+        setSnaps(items);
+        if (activeSnapId && items.some((snap) => String(snap?.id || '') === String(activeSnapId))) {
+          setSelectedSnapId(String(activeSnapId));
+          setSourceMode('snap');
+        }
+      }).catch(()=>{});
       // Reset beautification selections to the default procedure
       setBeautyProcedureType('fillers');
       setBeautyBodyParts([...(BEAUTY_PROCEDURE_DEFAULTS['fillers'] || [])]);
       setBeautyBodySigns('');
     }
-  }, [open]);
+  }, [activeSnapId, initialSnaps, open]);
 
   useEffect(() => {
     if (matter !== 'conception' && genderPref) {
@@ -373,11 +692,19 @@ export default function ElectionModal({ open, onClose, onJumpToTime, defaultHous
   }, [matter, genderPref]);
 
   useEffect(() => {
+    if (matter === 'lunar_fertility' && sourceMode === 'none') {
+      setSourceMode('snap');
+      setIncludeSrLr(false);
+    }
+  }, [matter, sourceMode]);
+
+  useEffect(() => {
     if (
       includeSrLr
       && (
         (matter === 'marriage' && marriageAlgorithm === 'beta')
         || (matter === 'business' && businessAlgorithm === 'beta')
+        || matter === 'estate'
       )
     ) {
       setIncludeSrLr(false);
@@ -388,14 +715,27 @@ export default function ElectionModal({ open, onClose, onJumpToTime, defaultHous
 
   const isMarriageMatter = matter === 'marriage';
   const isBusinessMatter = matter === 'business';
+  const isEstateMatter = matter === 'estate';
+  const isLunarFertilityMatter = matter === 'lunar_fertility';
   const isMarriageBeta = isMarriageMatter && marriageAlgorithm === 'beta';
   const isBusinessBeta = isBusinessMatter && businessAlgorithm === 'beta';
-  const participantModeActive = isMarriageBeta || isBusinessBeta;
+  const participantModeActive = isMarriageBeta || isBusinessBeta || isEstateMatter;
   const natalAvailable = !participantModeActive && (sourceMode === 'snap' && !!selectedSnapId);
   const hasSavedSnaps = Array.isArray(snaps) && snaps.length > 0;
   const currentProcedureLabel = BEAUTY_PROCEDURE_LABELS[beautyProcedureType] || 'Selected procedure';
   const businessBetaExtraction = result?.business_beta_extraction || null;
   const businessBetaPeriods = Array.isArray(result?.business_beta_periods) ? result.business_beta_periods : [];
+  const estateExtraction = result?.estate_extraction || null;
+  const estatePeriods = Array.isArray(result?.estate_periods) ? result.estate_periods : [];
+  const lineExtraction = businessBetaExtraction || estateExtraction;
+  const extractedPeriods = businessBetaExtraction ? businessBetaPeriods : estatePeriods;
+  const lunarFertilityPeriods = result?.matter === 'lunar_fertility' && Array.isArray(result?.periods)
+    ? result.periods
+    : [];
+  const hasLunarFertilityResult = result?.matter === 'lunar_fertility';
+  const extractionPassKey = estateExtraction ? 'estate_pass' : 'business_beta_pass';
+  const extractionThresholdKey = estateExtraction ? 'estate_selected_threshold' : 'business_beta_selected_threshold';
+  const lineModelLabel = estateExtraction ? 'Estate lines' : 'Business beta lines';
   const businessBetaLineOptions = useMemo(
     () => (
       buildBusinessBetaLineOptions({
@@ -405,6 +745,16 @@ export default function ElectionModal({ open, onClose, onJumpToTime, defaultHous
       })
     ),
     [businessParticipantSnapIds, result?.participants?.items, snaps],
+  );
+  const estateLineOptions = useMemo(
+    () => (
+      buildEstateLineOptions({
+        snaps,
+        estateParticipantSnapId,
+        participantItems: result?.matter === 'estate' ? (result?.participants?.items || []) : [],
+      })
+    ),
+    [estateParticipantSnapId, result?.matter, result?.participants?.items, snaps],
   );
 
   useEffect(() => {
@@ -423,6 +773,23 @@ export default function ElectionModal({ open, onClose, onJumpToTime, defaultHous
       return filtered.length ? filtered : availableIds;
     });
   }, [businessBetaLineOptions, isBusinessBeta]);
+
+  useEffect(() => {
+    if (!isEstateMatter) return;
+    const availableIds = estateLineOptions.map((item) => item.id);
+    if (!availableIds.length) {
+      setEstateCurrentLineId('event');
+      setEstateSelectedLineIds(['event']);
+      return;
+    }
+    setEstateCurrentLineId((current) => (
+      availableIds.includes(current) ? current : availableIds[0]
+    ));
+    setEstateSelectedLineIds((current) => {
+      const filtered = Array.isArray(current) ? current.filter((lineId) => availableIds.includes(lineId)) : [];
+      return filtered.length ? filtered : availableIds;
+    });
+  }, [estateLineOptions, isEstateMatter]);
 
   const updateWeekdaySelection = (nextDays, nextMode = null) => {
     const normalized = ALL_WEEKDAYS.filter((day) => Array.isArray(nextDays) && nextDays.includes(day));
@@ -454,7 +821,7 @@ export default function ElectionModal({ open, onClose, onJumpToTime, defaultHous
   };
 
   const close = () => {
-    setResult(null); setError(null); setLoading(false); onClose?.();
+    setResult(null); setError(null); setLoading(false); setReportStatus(''); onClose?.();
     scanTerminalRef.current = false;
     if (progRef.current) { clearInterval(progRef.current); progRef.current = null; }
     if (scanSrcRef.current) { try { scanSrcRef.current.close(); } catch(_) {} scanSrcRef.current = null; }
@@ -463,7 +830,7 @@ export default function ElectionModal({ open, onClose, onJumpToTime, defaultHous
   };
 
   const doScan = async () => {
-    setLoading(true); setError(null); setProgress(0);
+    setLoading(true); setError(null); setReportStatus(''); setProgress(0);
     scanTerminalRef.current = false;
     try {
       const startIso = buildIso(rangeStartDate, rangeStartTime);
@@ -516,10 +883,29 @@ export default function ElectionModal({ open, onClose, onJumpToTime, defaultHous
         hourStart: hourStart || undefined,
         hourEnd: hourEnd || undefined,
         ...(matter === 'conception' && genderPref ? { gender: genderPref } : {}),
+        ...(matter === 'lunar_fertility' ? {
+          considerMode: lunarFertilityConsiderMode,
+          levelPercent: Number.isFinite(Number(lunarFertilityLevelPercent))
+            ? Math.max(0, Math.min(100, Number(lunarFertilityLevelPercent)))
+            : 33,
+        } : {}),
       };
       if (isMarriageMatter) base.marriageAlgorithm = marriageAlgorithm;
       if (isBusinessMatter) base.businessAlgorithm = businessAlgorithm;
       if (natalAvailable) base.includeSrLr = includeSrLr;
+      if (isEstateMatter) {
+        base.estateDirection = estateDirection === 'sell' ? 'sell' : 'buy';
+        base.includeTraditionalTiming = true;
+        base.estateDisplayMode = estateDisplayMode;
+        base.estateScope = estateScope;
+        base.estateLevelPercent = Number.isFinite(Number(estateLevelPercent))
+          ? Math.max(0, Math.min(100, Number(estateLevelPercent)))
+          : 67;
+        if (estateCurrentLineId) base.estateCurrentLineId = estateCurrentLineId;
+        if (estateScope === 'selected' && Array.isArray(estateSelectedLineIds) && estateSelectedLineIds.length) {
+          base.estateSelectedLineIds = estateSelectedLineIds;
+        }
+      }
       if (matter === 'surgery') {
         if (surgerySign) base.surgerySign = surgerySign;
         if (procedure) base.procedure = procedure;
@@ -609,6 +995,20 @@ export default function ElectionModal({ open, onClose, onJumpToTime, defaultHous
           return;
         }
       }
+      if (isEstateMatter) {
+        if (!estateParticipantSnapId) {
+          setError('Estate election requires one buyer or seller saved chart.');
+          setLoading(false);
+          return;
+        }
+      }
+      if (isLunarFertilityMatter) {
+        if (sourceMode !== 'snap' || !selectedSnapId) {
+          setError('Lunar Fertility Windows requires one saved natal chart.');
+          setLoading(false);
+          return;
+        }
+      }
       const opts = isMarriageBeta
         ? {
             ...base,
@@ -619,6 +1019,11 @@ export default function ElectionModal({ open, onClose, onJumpToTime, defaultHous
           ? {
               ...base,
               participantSnapIds: businessParticipantSnapIds.filter(Boolean),
+            }
+        : isEstateMatter
+          ? {
+              ...base,
+              estateParticipantSnapId,
             }
         : (sourceMode === 'snap' && selectedSnapId)
           ? { ...base, natalSnapId: selectedSnapId }
@@ -672,13 +1077,15 @@ export default function ElectionModal({ open, onClose, onJumpToTime, defaultHous
   const usesWeightedTagSanitizer = Boolean(
     isMarriageBeta
     || isBusinessBeta
+    || isEstateMatter
     || result?.marriage_algorithm === 'beta'
     || result?.business_algorithm === 'beta'
+    || result?.matter === 'estate'
   );
   const top = useMemo(() => {
     const rows = Array.isArray(result?.top) ? result.top : [];
     return usesWeightedTagSanitizer ? rows.map(sanitizeWeightedElectionRow) : rows;
-  }, [result?.business_algorithm, result?.marriage_algorithm, result?.top, usesWeightedTagSanitizer]);
+  }, [result?.business_algorithm, result?.marriage_algorithm, result?.matter, result?.top, usesWeightedTagSanitizer]);
   const series = result?.series || [];
   const retainedSeries = useMemo(() => normalizeElectionSeriesRows(series), [series]);
   const timelineSeries = useMemo(() => mergeElectionTimelineRows(retainedSeries, top), [retainedSeries, top]);
@@ -789,6 +1196,68 @@ export default function ElectionModal({ open, onClose, onJumpToTime, defaultHous
     }
   };
 
+  const doExportLunarFertilityReport = async () => {
+    try {
+      if (result?.matter !== 'lunar_fertility') {
+        setError('Fertility reporting is only available for Lunar Fertility Windows.');
+        return;
+      }
+      if (!timelineSeries.length) {
+        setError('No fertility rows to report. Run a Lunar Fertility scan first.');
+        return;
+      }
+
+      const natalSnap = Array.isArray(snaps)
+        ? snaps.find((snap) => String(snap?.id || '') === String(selectedSnapId || ''))
+        : null;
+      const generatedAt = new Date().toISOString();
+      const filename = buildLunarFertilityReportDefaultPath({ generatedAt });
+      const html = buildLunarFertilityReportHtml({
+        result,
+        topRows: top,
+        seriesRows: timelineSeries,
+        periods: lunarFertilityPeriods,
+        context: {
+          rangeStart: buildIso(rangeStartDate, rangeStartTime),
+          rangeEnd: buildIso(rangeEndDate, rangeEndTime),
+          location,
+          timezone,
+          houseSystem,
+          considerMode: lunarFertilityConsiderMode,
+          levelPercent: lunarFertilityLevelPercent,
+          natalSnap,
+          generatedAt,
+        },
+      });
+
+      const exporter = typeof window !== 'undefined' ? window.electronAPI?.exportReport : null;
+      if (exporter) {
+        const response = await exporter({
+          html,
+          pageSize: 'A4',
+          title: 'Save Lunar Fertility Report',
+          defaultPath: filename,
+        });
+        if (response?.ok) {
+          setReportStatus(`Report saved: ${response.path || filename}`);
+          return;
+        }
+        setReportStatus(response?.error || 'Report export canceled.');
+        return;
+      }
+
+      if (openPrintableReportWindow(html)) {
+        setReportStatus('Opened browser print dialog - choose Save as PDF.');
+      } else if (downloadReportHtmlFallback(html, filename)) {
+        setReportStatus('Downloaded HTML fertility report.');
+      } else {
+        setError('Unable to open or download the fertility report.');
+      }
+    } catch (e) {
+      setError(e?.message || String(e));
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-start justify-center p-4 overflow-auto">
       <div className="absolute inset-0" onClick={close} />
@@ -832,6 +1301,13 @@ export default function ElectionModal({ open, onClose, onJumpToTime, defaultHous
                 </button>
                 <button
                   type="button"
+                  className={`px-3 py-1 text-sm rounded-full border transition-colors ${matter==='estate' ? 'bg-gray-900 text-white border-gray-900' : 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600'}`}
+                  onClick={()=>setMatter('estate')}
+                >
+                  Real Estate
+                </button>
+                <button
+                  type="button"
                   className={`px-3 py-1 text-sm rounded-full border transition-colors ${matter==='contract' ? 'bg-gray-900 text-white border-gray-900' : 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600'}`}
                   onClick={()=>setMatter('contract')}
                 >
@@ -865,6 +1341,13 @@ export default function ElectionModal({ open, onClose, onJumpToTime, defaultHous
                   onClick={()=>setMatter('conception')}
                 >
                   Conception
+                </button>
+                <button
+                  type="button"
+                  className={`px-3 py-1 text-sm rounded-full border transition-colors ${matter==='lunar_fertility' ? 'bg-gray-900 text-white border-gray-900' : 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600'}`}
+                  onClick={()=>setMatter('lunar_fertility')}
+                >
+                  Lunar Fertility Windows
                 </button>
                 <button
                   type="button"
@@ -939,6 +1422,121 @@ export default function ElectionModal({ open, onClose, onJumpToTime, defaultHous
                     ? BUSINESS_BETA_DESCRIPTION
                     : BUSINESS_ALPHA_DESCRIPTION}
                 </p>
+              </div>
+            )}
+            {isEstateMatter && (
+              <div className="md:col-span-2">
+                <label className="block text-xs text-zinc-600 mb-1">Estate direction</label>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className={`px-3 py-1 text-sm rounded-full border transition-colors ${estateDirection === 'buy' ? 'bg-gray-900 text-white border-gray-900' : 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600'}`}
+                    onClick={() => setEstateDirection('buy')}
+                  >
+                    Buy
+                  </button>
+                  <button
+                    type="button"
+                    className={`px-3 py-1 text-sm rounded-full border transition-colors ${estateDirection === 'sell' ? 'bg-gray-900 text-white border-gray-900' : 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600'}`}
+                    onClick={() => setEstateDirection('sell')}
+                  >
+                    Sell
+                  </button>
+                </div>
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1">
+                  {ESTATE_DESCRIPTION}
+                </p>
+                <div className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50/80 p-3 dark:border-gray-700 dark:bg-gray-900/40">
+                  <div className="text-[11px] uppercase tracking-[0.24em] text-zinc-500 dark:text-zinc-400">Estate period extraction</div>
+                  <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
+                    <div>
+                      <label className="block text-xs text-zinc-600 mb-1">Mode</label>
+                      <select
+                        className="px-2 py-1 border rounded w-full"
+                        value={estateDisplayMode}
+                        onChange={(e) => setEstateDisplayMode(e.target.value)}
+                      >
+                        <option value="total">Show total</option>
+                        <option value="detail">Show detail</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-zinc-600 mb-1">Line scope</label>
+                      <select
+                        className="px-2 py-1 border rounded w-full"
+                        value={estateScope}
+                        onChange={(e) => setEstateScope(e.target.value)}
+                      >
+                        <option value="all">All lines</option>
+                        <option value="current">Current line</option>
+                        <option value="selected">Selected subset</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-zinc-600 mb-1">Threshold %</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="1"
+                        className="px-2 py-1 border rounded w-full"
+                        value={estateLevelPercent}
+                        onChange={(e) => setEstateLevelPercent(Number(e.target.value || 67))}
+                      />
+                    </div>
+                  </div>
+                  {estateScope === 'current' && (
+                    <div className="mt-3">
+                      <label className="block text-xs text-zinc-600 mb-1">Current line</label>
+                      <select
+                        className="px-2 py-1 border rounded w-full"
+                        value={estateCurrentLineId}
+                        onChange={(e) => setEstateCurrentLineId(e.target.value)}
+                      >
+                        {estateLineOptions.map((option) => (
+                          <option key={option.id} value={option.id}>{option.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  {estateScope === 'selected' && (
+                    <div className="mt-3">
+                      <label className="block text-xs text-zinc-600 mb-1">Selected lines</label>
+                      <div className="flex flex-wrap gap-2">
+                        {estateLineOptions.map((option) => {
+                          const checked = estateSelectedLineIds.includes(option.id);
+                          return (
+                            <label
+                              key={option.id}
+                              className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[12px] ${
+                                checked
+                                  ? 'border-zinc-900 bg-zinc-900 text-white dark:border-zinc-200 dark:bg-zinc-100 dark:text-zinc-900'
+                                  : 'border-zinc-300 bg-white text-zinc-700 dark:border-gray-600 dark:bg-gray-800 dark:text-zinc-200'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                className="hidden"
+                                checked={checked}
+                                onChange={() => {
+                                  setEstateSelectedLineIds((current) => {
+                                    const next = Array.isArray(current) ? [...current] : [];
+                                    if (next.includes(option.id)) {
+                                      const filtered = next.filter((lineId) => lineId !== option.id);
+                                      return filtered.length ? filtered : [option.id];
+                                    }
+                                    return [...next, option.id];
+                                  });
+                                }}
+                              />
+                              <span>{option.label}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
             <div>
@@ -1266,6 +1864,55 @@ export default function ElectionModal({ open, onClose, onJumpToTime, defaultHous
                 </div>
               </>
             )}
+            {matter==='lunar_fertility' && (
+              <>
+                <div className="md:col-span-2 text-xs">
+                  {natalAvailable ? (
+                    <p className="text-emerald-700 dark:text-emerald-400">
+                      Saved natal chart selected. The scan will use its Sun-Moon phase signature.
+                    </p>
+                  ) : (
+                    <p className="text-zinc-500 dark:text-zinc-400">
+                      Select a saved natal chart below. This model requires natal Sun and Moon longitudes.
+                    </p>
+                  )}
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs text-zinc-600 mb-1">Consider</label>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { value: 'phase', label: 'Phase' },
+                      { value: 'phase_and_antiphase', label: 'Phase + Antiphase' },
+                      { value: 'antiphase', label: 'Antiphase' },
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        className={`px-3 py-1 text-sm rounded-full border transition-colors ${lunarFertilityConsiderMode === option.value ? 'bg-gray-900 text-white border-gray-900' : 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600'}`}
+                        onClick={() => setLunarFertilityConsiderMode(option.value)}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-zinc-600 mb-1">Level %</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="1"
+                    className="px-2 py-1 border rounded w-full"
+                    value={lunarFertilityLevelPercent}
+                    onChange={(e) => setLunarFertilityLevelPercent(Number(e.target.value || 33))}
+                  />
+                </div>
+                <div className="md:col-span-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+                  {LUNAR_FERTILITY_DESCRIPTION}
+                </div>
+              </>
+            )}
             {matter==='viral' && (
               <>
                 <div className="md:col-span-2 text-xs">
@@ -1581,9 +2228,6 @@ export default function ElectionModal({ open, onClose, onJumpToTime, defaultHous
                   <label className="block text-xs text-zinc-600 mb-1">Saved chart A</label>
                   <select className="px-2 py-1 border rounded w-full" value={participantASnapId} onChange={e=>setParticipantASnapId(e.target.value)} disabled={!hasSavedSnaps}>
                     <option value="">{hasSavedSnaps ? 'Select saved chart' : 'No saved charts found'}</option>
-                    {/*
-                  <option value="">вЂ” Select вЂ”</option>
-                    */}
                     {snaps.map(s => (
                       <option key={s.id} value={s.id}>{formatSavedSnapLabel(s)}</option>
                     ))}
@@ -1593,9 +2237,6 @@ export default function ElectionModal({ open, onClose, onJumpToTime, defaultHous
                   <label className="block text-xs text-zinc-600 mb-1">Saved chart B</label>
                   <select className="px-2 py-1 border rounded w-full" value={participantBSnapId} onChange={e=>setParticipantBSnapId(e.target.value)} disabled={!hasSavedSnaps}>
                     <option value="">{hasSavedSnaps ? 'Select saved chart' : 'No saved charts found'}</option>
-                    {/*
-                    <option value="">вЂ” Select вЂ”</option>
-                    */}
                     {snaps.map(s => (
                       <option key={s.id} value={s.id}>{formatSavedSnapLabel(s)}</option>
                     ))}
@@ -1641,8 +2282,34 @@ export default function ElectionModal({ open, onClose, onJumpToTime, defaultHous
                   </p>
                 </div>
               </>
+            ) : isEstateMatter ? (
+              <>
+                <div className="md:col-span-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+                  {ESTATE_PARTICIPANT_HELP}
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs text-zinc-600 mb-1">Buyer / seller chart</label>
+                  <select
+                    className="px-2 py-1 border rounded w-full"
+                    value={estateParticipantSnapId}
+                    onChange={(e) => setEstateParticipantSnapId(e.target.value)}
+                    disabled={!hasSavedSnaps}
+                  >
+                    <option value="">{hasSavedSnaps ? 'Select saved chart' : 'No saved charts found'}</option>
+                    {snaps.map((snap) => (
+                      <option key={snap.id} value={snap.id}>{formatSavedSnapLabel(snap)}</option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                    {estateParticipantSnapId
+                      ? `${estateDirection === 'sell' ? 'Seller' : 'Buyer'} fit line will use the selected saved chart.`
+                      : `Select one saved chart for ${estateDirection === 'sell' ? 'seller' : 'buyer'} fit scoring.`}
+                  </p>
+                </div>
+              </>
             ) : (
               <>
+                {!isLunarFertilityMatter && (
                 <div className="flex items-center gap-2 mt-5">
               <input id="sr-lr" type="checkbox" checked={includeSrLr} disabled={!natalAvailable} onChange={e=>setIncludeSrLr(e.target.checked)} />
               <label htmlFor="sr-lr" className={`text-sm ${!natalAvailable ? 'opacity-60' : ''}`}>Include SR/LR weighting</label>
@@ -1650,10 +2317,13 @@ export default function ElectionModal({ open, onClose, onJumpToTime, defaultHous
                 <span className="text-xs text-zinc-500" title="Requires a natal source (saved snap)">Requires natal</span>
               )}
             </div>
+                )}
             <div>
               <label className="block text-xs text-zinc-600 mb-1">Natal source</label>
               <div className="flex items-center gap-3 text-sm">
-                <label className="flex items-center gap-1"><input type="radio" name="elsrc" checked={sourceMode==='none'} onChange={()=>{ setSourceMode('none'); setIncludeSrLr(false); }} /> None</label>
+                {!isLunarFertilityMatter && (
+                  <label className="flex items-center gap-1"><input type="radio" name="elsrc" checked={sourceMode==='none'} onChange={()=>{ setSourceMode('none'); setIncludeSrLr(false); }} /> None</label>
+                )}
                 <label className="flex items-center gap-1"><input type="radio" name="elsrc" checked={sourceMode==='snap'} onChange={()=>setSourceMode('snap')} /> Saved chart</label>
               </div>
             </div>
@@ -1662,9 +2332,6 @@ export default function ElectionModal({ open, onClose, onJumpToTime, defaultHous
                 <label className="block text-xs text-zinc-600 mb-1">Saved chart</label>
                 <select className="px-2 py-1 border rounded w-full" value={selectedSnapId} onChange={e=>setSelectedSnapId(e.target.value)} disabled={!hasSavedSnaps}>
                   <option value="">{hasSavedSnaps ? 'Select saved chart' : 'No saved charts found'}</option>
-                  {/*
-                  <option value="">— Select —</option>
-                  */}
                   {snaps.map(s => (
                     <option key={s.id} value={s.id}>{formatSavedSnapLabel(s)}</option>
                   ))}
@@ -1700,9 +2367,13 @@ export default function ElectionModal({ open, onClose, onJumpToTime, defaultHous
                   <div className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
                     {Number(result?.stats?.series_retained || retainedSeries.length)} retained windows across the scan.
                   </div>
-                  {businessBetaExtraction ? (
+                  {lineExtraction ? (
                     <div className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
-                      {Number(businessBetaExtraction.period_count || 0)} extracted period{Number(businessBetaExtraction.period_count || 0) === 1 ? '' : 's'} • {businessBetaExtraction.display_mode === 'detail' ? 'Show detail' : 'Show total'} • {businessBetaExtraction.scope === 'current' ? 'Current line' : businessBetaExtraction.scope === 'selected' ? 'Selected subset' : 'All lines'}
+                      {Number(lineExtraction.period_count || 0)} extracted period{Number(lineExtraction.period_count || 0) === 1 ? '' : 's'} • {lineExtraction.display_mode === 'detail' ? 'Show detail' : 'Show total'} • {lineExtraction.scope === 'current' ? 'Current line' : lineExtraction.scope === 'selected' ? 'Selected subset' : 'All lines'}
+                    </div>
+                  ) : hasLunarFertilityResult ? (
+                    <div className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                      {lunarFertilityPeriods.length} period{lunarFertilityPeriods.length === 1 ? '' : 's'} at or above {Number(result?.level_percent || 0).toFixed(0)}%.
                     </div>
                   ) : null}
                 </div>
@@ -1734,7 +2405,7 @@ export default function ElectionModal({ open, onClose, onJumpToTime, defaultHous
                       const barHeight = Math.max(18, Math.round(24 + ratio * 102));
                       const isSelected = selectedSeriesRow?.timestamp === row.timestamp;
                       const isPeak = peakSeriesRows.some((peak) => peak.timestamp === row.timestamp);
-                      const passesBusinessBeta = Boolean(row?.business_beta_pass);
+                      const passesLineExtraction = Boolean(row?.[extractionPassKey]);
                       return (
                         <button
                           key={`${row.timestamp || idx}-${idx}`}
@@ -1744,7 +2415,7 @@ export default function ElectionModal({ open, onClose, onJumpToTime, defaultHous
                           className={`group relative flex w-3.5 items-end rounded-full border transition-all ${
                             isSelected
                               ? 'border-zinc-500 bg-zinc-100 dark:bg-zinc-800/80'
-                              : passesBusinessBeta
+                              : passesLineExtraction
                                 ? 'border-emerald-300 bg-emerald-50 dark:border-emerald-700 dark:bg-emerald-950/20'
                                 : isPeak
                                 ? 'border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/30'
@@ -1756,7 +2427,7 @@ export default function ElectionModal({ open, onClose, onJumpToTime, defaultHous
                             className={`block w-full rounded-full ${
                               isSelected
                                 ? 'bg-zinc-700 dark:bg-zinc-200'
-                                : passesBusinessBeta
+                                : passesLineExtraction
                                   ? 'bg-emerald-500'
                                   : isPeak
                                   ? 'bg-emerald-500'
@@ -1800,19 +2471,27 @@ export default function ElectionModal({ open, onClose, onJumpToTime, defaultHous
                         </div>
                         <div className="text-right">
                           <div className="text-[11px] uppercase tracking-[0.24em] text-zinc-500 dark:text-zinc-400">
-                            {businessBetaExtraction ? 'Selected signal' : 'Score'}
+                            {lineExtraction ? 'Selected signal' : 'Score'}
                           </div>
                           <div className="mt-1 text-2xl font-semibold">{Number(selectedSeriesRow.score || 0).toFixed(2)}</div>
-                          {businessBetaExtraction && Number.isFinite(Number(selectedSeriesRow.aggregate_score)) ? (
+                          {lineExtraction && Number.isFinite(Number(selectedSeriesRow.aggregate_score)) ? (
                             <div className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
                               Aggregate {Number(selectedSeriesRow.aggregate_score || 0).toFixed(2)}
                             </div>
                           ) : null}
                         </div>
                       </div>
-                      {businessBetaExtraction ? (
+                      {lineExtraction ? (
                         <div className="mt-2 text-[11px] text-zinc-500 dark:text-zinc-400">
-                          Threshold {Number(selectedSeriesRow.business_beta_selected_threshold || 0).toFixed(2)} • {selectedSeriesRow.business_beta_pass ? 'passes extraction cut' : 'below extraction cut'}
+                          Threshold {Number(selectedSeriesRow?.[extractionThresholdKey] || 0).toFixed(2)} • {selectedSeriesRow?.[extractionPassKey] ? 'passes extraction cut' : 'below extraction cut'}
+                        </div>
+                      ) : null}
+                      {hasLunarFertilityResult ? (
+                        <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+                          <span>{selectedSeriesRow.phase_kind === 'antiphase' ? 'Antiphase' : 'Phase'}</span>
+                          <span>{selectedSeriesRow.sex_label === 'male' ? 'Male sign' : selectedSeriesRow.sex_label === 'female' ? 'Female sign' : 'Unknown sign'}</span>
+                          {selectedSeriesRow.moon_sign ? <span>Moon in {selectedSeriesRow.moon_sign}</span> : null}
+                          {selectedSeriesRow.anchor_offset_hours != null ? <span>{Number(selectedSeriesRow.anchor_offset_hours).toFixed(1)}h from anchor</span> : null}
                         </div>
                       ) : null}
                       {pros.length > 0 ? (
@@ -1837,7 +2516,7 @@ export default function ElectionModal({ open, onClose, onJumpToTime, defaultHous
                       </div>
                       {lineRows.length > 0 ? (
                         <div className="mt-4 border-t border-zinc-200 pt-3 dark:border-gray-700">
-                          <div className="text-[11px] uppercase tracking-[0.24em] text-zinc-500 dark:text-zinc-400">Business beta lines</div>
+                          <div className="text-[11px] uppercase tracking-[0.24em] text-zinc-500 dark:text-zinc-400">{lineModelLabel}</div>
                           <div className="mt-3 space-y-3">
                             {lineRows.map((line, idx) => {
                               const { pros: linePros, cautions: lineCautions } = splitRowTags(line, 3, 2);
@@ -1851,19 +2530,19 @@ export default function ElectionModal({ open, onClose, onJumpToTime, defaultHous
                                     <span>Favorable {Number(line.favorable || 0).toFixed(2)}</span>
                                     <span>Tense {Number(line.tense || 0).toFixed(2)}</span>
                                     {line.kind === 'participant' ? (
-                                      <span>{line.precision_class === 'certified' ? 'Certified founder chart' : `Precision: ${line.precision_class || 'unknown'}`}</span>
+                                      <span>{line.precision_class === 'certified' ? (estateExtraction ? 'Certified estate chart' : 'Certified founder chart') : `Precision: ${line.precision_class || 'unknown'}`}</span>
                                     ) : null}
                                   </div>
                                   {linePros.length > 0 ? (
                                     <div className="mt-2 text-[11px] text-emerald-700 dark:text-emerald-300">
                                       <span className="uppercase tracking-wide mr-1">Pros:</span>
-                                      <span>{linePros.join(' В· ')}</span>
+                                      <span>{linePros.join(' · ')}</span>
                                     </div>
                                   ) : null}
                                   {lineCautions.length > 0 ? (
                                     <div className="mt-1 text-[11px] text-rose-700 dark:text-rose-300">
                                       <span className="uppercase tracking-wide mr-1">Cautions:</span>
-                                      <span>{lineCautions.join(' В· ')}</span>
+                                      <span>{lineCautions.join(' · ')}</span>
                                     </div>
                                   ) : null}
                                 </div>
@@ -1875,11 +2554,11 @@ export default function ElectionModal({ open, onClose, onJumpToTime, defaultHous
                     </div>
                     <div className="rounded-xl border border-zinc-200 bg-white/90 p-3 dark:border-gray-700 dark:bg-gray-900/70">
                       <div className="text-[11px] uppercase tracking-[0.24em] text-zinc-500 dark:text-zinc-400">
-                        {businessBetaExtraction ? 'Extracted periods' : 'Peak windows'}
+                        {lineExtraction ? 'Extracted periods' : hasLunarFertilityResult ? 'Lunar periods' : 'Peak windows'}
                       </div>
-                      {businessBetaExtraction ? (
+                      {lineExtraction ? (
                         <div className="mt-3 space-y-2">
-                          {businessBetaPeriods.length ? businessBetaPeriods.map((period) => (
+                          {extractedPeriods.length ? extractedPeriods.map((period) => (
                             <button
                               key={period.id || `${period.start}-${period.end}`}
                               type="button"
@@ -1902,6 +2581,35 @@ export default function ElectionModal({ open, onClose, onJumpToTime, defaultHous
                           )) : (
                             <div className="rounded-lg border border-dashed border-zinc-300 px-3 py-4 text-sm text-zinc-500 dark:border-gray-700 dark:text-zinc-400">
                               No extracted periods survived the current threshold and line-scope settings.
+                            </div>
+                          )}
+                        </div>
+                      ) : hasLunarFertilityResult ? (
+                        <div className="mt-3 space-y-2">
+                          {lunarFertilityPeriods.length ? lunarFertilityPeriods.map((period) => (
+                            <button
+                              key={period.id || `${period.start}-${period.end}`}
+                              type="button"
+                              onClick={() => {
+                                if (period.best_timestamp) setSelectedSeriesTimestamp(period.best_timestamp);
+                              }}
+                              className={`flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left transition-colors ${
+                                selectedSeriesRow?.timestamp === period.best_timestamp
+                                  ? 'border-zinc-500 bg-zinc-100 dark:border-zinc-500 dark:bg-zinc-800/80'
+                                  : 'border-zinc-200 bg-white dark:border-gray-700 dark:bg-gray-800'
+                              }`}
+                            >
+                              <span className="text-sm">
+                                {`${formatShortTs(period.start_local || period.start, result?.timezone)} -> ${formatShortTs(period.end_local || period.end, result?.timezone)}`}
+                              </span>
+                              <span className="text-right text-[11px] text-zinc-500 dark:text-zinc-400">
+                                <span className="block font-medium text-zinc-700 dark:text-zinc-200">{Number(period.best_score || 0).toFixed(2)}</span>
+                                <span>{period.phase_kind === 'antiphase' ? 'Antiphase' : 'Phase'} / {period.sex_label || 'unknown'}</span>
+                              </span>
+                            </button>
+                          )) : (
+                            <div className="rounded-lg border border-dashed border-zinc-300 px-3 py-4 text-sm text-zinc-500 dark:border-gray-700 dark:text-zinc-400">
+                              No periods reached the selected level.
                             </div>
                           )}
                         </div>
@@ -1935,7 +2643,7 @@ export default function ElectionModal({ open, onClose, onJumpToTime, defaultHous
             <>
               <div className="mb-2 flex items-center justify-between gap-2">
                 <div className="text-[11px] uppercase tracking-[0.24em] text-zinc-500 dark:text-zinc-400">
-                  {businessBetaExtraction ? 'Top extracted windows' : 'Top ranked windows'}
+                  {lineExtraction ? 'Top extracted windows' : hasLunarFertilityResult ? 'Top lunar fertility hours' : 'Top ranked windows'}
                 </div>
                 <div className="text-[11px] text-zinc-500 dark:text-zinc-400">{top.length} rows</div>
               </div>
@@ -1947,7 +2655,7 @@ export default function ElectionModal({ open, onClose, onJumpToTime, defaultHous
                     <div className="flex items-center gap-2">
                       <div className="font-medium text-sm w-56">{formatTs(r.timestamp_local || r.timestamp, result?.timezone)}</div>
                       <div className="text-sm">
-                        {businessBetaExtraction ? 'Signal' : 'Score'}: <span className="font-semibold">{Number(r.score).toFixed(2)}</span>
+                        {lineExtraction ? 'Signal' : 'Score'}: <span className="font-semibold">{Number(r.score).toFixed(2)}</span>
                       </div>
                       <button className="ml-auto px-2 py-1 rounded border text-[12px]" onClick={() => jumpToElectionRow(r)}>Jump</button>
                     </div>
@@ -1968,7 +2676,7 @@ export default function ElectionModal({ open, onClose, onJumpToTime, defaultHous
               })}
               </div>
             </>
-          ) : timelineSeries.length > 0 && businessBetaExtraction ? (
+          ) : timelineSeries.length > 0 && lineExtraction ? (
             <div className="text-xs text-zinc-500">
               No extracted top windows survived the current threshold and line-scope settings.
             </div>
@@ -1992,8 +2700,14 @@ export default function ElectionModal({ open, onClose, onJumpToTime, defaultHous
           )}
 
           {(Array.isArray(top) && top.length > 0) ? (
-            <div className="mt-3 flex items-center gap-2">
+            <div className="mt-3 flex flex-wrap items-center gap-2">
               <button className="px-2 py-1 rounded border text-[12px]" onClick={doDownloadTopLocal}>Download Top (CSV)</button>
+              {hasLunarFertilityResult ? (
+                <button className="px-2 py-1 rounded border text-[12px]" onClick={doExportLunarFertilityReport}>Export Fertility Report</button>
+              ) : null}
+              {reportStatus ? (
+                <span className="text-[11px] text-zinc-500 dark:text-zinc-400">{reportStatus}</span>
+              ) : null}
             </div>
           ) : null}
         </div>

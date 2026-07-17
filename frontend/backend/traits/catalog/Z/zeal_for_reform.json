@@ -12,7 +12,7 @@
     "boosts": [
       { "kind": "sign_emphasis", "sign": "Aquarius", "min": 1.5, "weight": 5 },
       { "kind": "planet_status", "planet": "Uranus", "strong": true, "weight": 6 },
-      { "kind": "house_emphasis", "houses": [11], "min_total": 1, "weight": 3 }
+      { "kind": "house_emphasis", "houses": [11], "min_total": 1, "weight": 6 }
     ],
     "dampeners": [
       { "kind": "sign_emphasis", "sign": "Capricorn", "min": 1.5, "weight": -4 },
@@ -21,4 +21,3 @@
     ],
     "escalators": [] }
 }
-

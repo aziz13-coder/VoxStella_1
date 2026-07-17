@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any, Dict
 
 try:
@@ -29,7 +30,15 @@ def analyze_immigration_question_text(
         return None
 
     def has_any(*tokens: str) -> bool:
-        return any(token in q for token in tokens)
+        """Match complete words/phrases, not substrings inside unrelated words."""
+
+        return any(
+            re.search(
+                r"(?<!\w)" + re.escape(token).replace(r"\ ", r"\s+") + r"(?!\w)",
+                q,
+            )
+            for token in tokens
+        )
 
     authorization_tokens = (
         "visa",

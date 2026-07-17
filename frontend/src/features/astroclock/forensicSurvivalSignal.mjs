@@ -69,6 +69,7 @@ export function summarizeForensicSurvivalSignal({
       outcomeBand: serverSummary.outcome_band || null,
       breakdown: serverSummary.breakdown || null,
       evidence: serverSummary.evidence || null,
+      lightMediationImpact: serverSummary.light_mediation_impact || null,
       victimSignificators: Array.isArray(serverSummary.victim_significators)
         ? serverSummary.victim_significators
         : [],

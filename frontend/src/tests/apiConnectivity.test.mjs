@@ -15,12 +15,22 @@ describe('resolveApiStatusAfterPingFailure', () => {
     ).toBe('checking');
   });
 
-  it('marks the API offline after the startup grace window expires', () => {
+  it('waits for repeated failures after the startup grace window expires', () => {
     expect(
       resolveApiStatusAfterPingFailure({
         currentStatus: 'checking',
         startupDeadlineMs: 2_000,
         nowMs: 2_500,
+        failureCount: 1,
+      })
+    ).toBe('checking');
+
+    expect(
+      resolveApiStatusAfterPingFailure({
+        currentStatus: 'checking',
+        startupDeadlineMs: 2_000,
+        nowMs: 2_500,
+        failureCount: 3,
       })
     ).toBe('offline');
   });

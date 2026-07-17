@@ -4,9 +4,10 @@ licensing_server/licenses.db
 licensing_server/*.db
 licensing_server/*.db-shm
 licensing_server/*.db-wal
+licensing_server/.env
+licensing_server/paypal.env
 licensing_server/keys/*.key
 licensing_server/keys/*.pem
-frontend/license.config.json
 frontend/.env
 frontend/.env.local
 frontend/.env.production
@@ -31,6 +32,8 @@ tmp_*
 # Generated build artifacts (source of truth is src/backend folders)
 backend/build/
 backend/dist/
+backend/*.spec
+backend/.release-venv/
 frontend/dist/
 frontend/dist-electron/
 frontend/backend/build/

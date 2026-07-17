@@ -20,7 +20,6 @@ CRITICAL_MODULES = (
     "flask_cors",
     "swisseph",
     "timezonefinder",
-    "geopy",
     "pytz",
     "nacl",
     "nacl.signing",
@@ -28,6 +27,7 @@ CRITICAL_MODULES = (
 
 RUNTIME_HIDDEN_IMPORTS = (
     "astro_clock_api",
+    "birth_certification",
     "runtime_import_paths",
     "licensing",
     "mundane_assets",
@@ -158,7 +158,6 @@ def build_backend():
         hidden_imports = [
             "swisseph",
             "timezonefinder",
-            "geopy",
             "pytz",
             "flask",
             "flask_cors",

@@ -57,7 +57,12 @@ def test_synastry_helpers_configure_swisseph_to_use_resolved_ephemeris_path(monk
     )
 
     assert capability["chiron_supported"] is True
-    assert captured_paths == [r"C:\SwissEph\ephemeris", r"C:\SwissEph\ephemeris"]
+    assert captured_paths == [
+        r"C:\SwissEph\ephemeris",
+        "",
+        r"C:\SwissEph\ephemeris",
+        "",
+    ]
     assert "Chiron" in (enriched.get("planets") or {})
 
 

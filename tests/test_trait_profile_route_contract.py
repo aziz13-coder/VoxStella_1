@@ -24,6 +24,13 @@ def _make_app() -> Flask:
 
 
 class TraitProfileRouteContractTests(TestCase):
+    def setUp(self):
+        self._previous_traits_engine = getattr(astro_clock_api, "_traits_engine", None)
+        astro_clock_api._traits_engine = None
+
+    def tearDown(self):
+        astro_clock_api._traits_engine = self._previous_traits_engine
+
     def test_trait_profile_returns_chart_snapshot_and_profile_payload(self):
         class _StubSettings:
             mode = "realtime"
@@ -114,7 +121,10 @@ class TraitProfileRouteContractTests(TestCase):
         self.assertEqual(data["special_degrees"], ["25 Leo"])
         self.assertEqual(data["chart_snapshot"]["location"], "Jerusalem")
         self.assertEqual(data["chart_snapshot"]["house_system"], "R")
-        self.assertEqual(data["chart_snapshot"]["morin_patterns"]["translation"][0]["planet"], "Mercury")
+        self.assertEqual(
+            data["chart_snapshot"]["morin_patterns"]["translation"][0]["planet"],
+            "Mercury",
+        )
         self.assertEqual(data["top_traits"][0]["id"], "warlike")
         self.assertEqual(data["summary_traits"][0]["id"], "warlike")
         self.assertEqual(data["top_traits_by_polarity"]["neutral"][0]["id"], "warlike")
@@ -180,4 +190,4 @@ class TraitProfileRouteContractTests(TestCase):
         self.assertEqual(data["guidance"], [])
         self.assertEqual(data["house_influences"], {"houses": []})
         self.assertIsNone(data["sect"])
-        self.assertEqual(data["chart_snapshot"]["location"], None)
+        self.assertEqual(data["chart_snapshot"]["location"], "Jerusalem")

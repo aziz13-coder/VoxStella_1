@@ -16,7 +16,7 @@ Created for computational functions used in horary judgment
 import math
 import datetime
 from typing import Tuple, Optional, Dict, Any
-import swisseph as swe
+from swisseph_state import swisseph as swe
 
 
 def calculate_next_station_time(planet_id: int, jd_start: float, 

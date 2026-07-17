@@ -2,22 +2,24 @@
 """
 Sect (diurnal/nocturnal) helper — engine-agnostic.
 
-Computes chart sect and per-planet sect comfort based only on serialized
-chart_data (planets with sign/house/longitude and house cusps).
+Computes chart sect and per-planet sect comfort from serialized chart data.
 
 Rules implemented:
-- Day chart if Sun is above horizon (houses 7–12), night otherwise.
+- Day chart if the Sun's altitude is at/above the horizon, night if below.
+  Sun house is only a fallback when altitude cannot be established.
 - Diurnal planets: Sun, Jupiter, Saturn. Nocturnal: Moon, Venus, Mars.
 - Mercury is "flex": day sect if morning star (west of Sun, oriental),
   night sect if evening star (east of Sun, occidental), based on ecliptic
   longitudes.
-- Sign polarity: day prefers masculine signs (fire/air), night prefers
-  feminine (earth/water).
-- Hemisphere match: day prefers above horizon; night prefers below.
+- Sign polarity follows the planet's assigned sect: diurnal prefers
+  masculine signs (fire/air), nocturnal prefers feminine signs (earth/water).
+- Hemisphere match follows planetary sect in chart context: planets of the
+  chart sect prefer above the horizon, contrary-sect planets below.
 - Hayz: sect match + sign polarity match + hemisphere match.
 """
 
-from typing import Any, Dict, List, Optional
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional, Tuple
 
 
 MASC_SIGNS = {"Aries", "Gemini", "Leo", "Libra", "Sagittarius", "Aquarius"}
@@ -83,6 +85,128 @@ def _get_num(x, default=None):
         return float(x)
     except Exception:
         return default
+
+
+def _chart_coords(chart_data: Dict[str, Any]) -> Tuple[Optional[float], Optional[float]]:
+    lat = _get_num(chart_data.get("latitude"))
+    lon = _get_num(chart_data.get("longitude"))
+    if lat is not None and lon is not None:
+        return lat, lon
+
+    tz_info = chart_data.get("timezone_info")
+    if isinstance(tz_info, dict):
+        coords = tz_info.get("coordinates")
+        if isinstance(coords, dict):
+            lat = _get_num(coords.get("latitude"))
+            lon = _get_num(coords.get("longitude"))
+            if lat is not None and lon is not None:
+                return lat, lon
+
+    location = chart_data.get("location")
+    if isinstance(location, (list, tuple)) and len(location) >= 2:
+        lat = _get_num(location[0])
+        lon = _get_num(location[1])
+        if lat is not None and lon is not None:
+            return lat, lon
+
+    return None, None
+
+
+def _parse_utc_datetime(chart_data: Dict[str, Any]) -> Optional[datetime]:
+    tz_info = chart_data.get("timezone_info")
+    candidates: List[Any] = []
+    if isinstance(tz_info, dict):
+        candidates.append(tz_info.get("utc_time"))
+    candidates.extend([
+        chart_data.get("utc_time"),
+        chart_data.get("timestamp_utc"),
+        chart_data.get("timestamp"),
+        chart_data.get("date_time_utc"),
+    ])
+
+    for raw in candidates:
+        if not raw:
+            continue
+        try:
+            text = str(raw).strip()
+            if text.endswith("Z"):
+                text = f"{text[:-1]}+00:00"
+            dt = datetime.fromisoformat(text)
+            if dt.tzinfo is None:
+                return dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(timezone.utc)
+        except Exception:
+            continue
+    return None
+
+
+def _direct_sun_altitude(chart_data: Dict[str, Any], sun: Dict[str, Any]) -> Optional[float]:
+    for container in (chart_data, sun):
+        if not isinstance(container, dict):
+            continue
+        for key in ("sun_altitude_deg", "sun_altitude", "solar_altitude_deg", "solar_altitude"):
+            value = _get_num(container.get(key))
+            if value is not None:
+                return value
+
+    horizontal = chart_data.get("sun_horizontal")
+    if isinstance(horizontal, dict):
+        for key in ("altitude_deg", "altitude"):
+            value = _get_num(horizontal.get(key))
+            if value is not None:
+                return value
+
+    positions = chart_data.get("horizontal_positions")
+    if isinstance(positions, dict):
+        sun_horizontal = positions.get("Sun") or positions.get("sun")
+        if isinstance(sun_horizontal, dict):
+            for key in ("altitude_deg", "altitude"):
+                value = _get_num(sun_horizontal.get(key))
+                if value is not None:
+                    return value
+
+    return None
+
+
+def _computed_sun_altitude(chart_data: Dict[str, Any], sun: Dict[str, Any]) -> Optional[float]:
+    lat, lon = _chart_coords(chart_data)
+    dt_utc = _parse_utc_datetime(chart_data)
+    sun_lon = _get_num(sun.get("longitude"))
+    sun_lat = _get_num(sun.get("latitude"), 0.0)
+    if lat is None or lon is None or dt_utc is None or sun_lon is None:
+        return None
+
+    try:
+        import swisseph as swe  # type: ignore
+
+        hour = (
+            dt_utc.hour
+            + dt_utc.minute / 60.0
+            + dt_utc.second / 3600.0
+            + dt_utc.microsecond / 3600000000.0
+        )
+        jd_ut = swe.julday(dt_utc.year, dt_utc.month, dt_utc.day, hour)
+        _azimuth, true_altitude, _apparent_altitude = swe.azalt(
+            jd_ut,
+            swe.ECL2HOR,
+            [float(lon), float(lat), 0.0],
+            0.0,
+            0.0,
+            [float(sun_lon), float(sun_lat or 0.0), 1.0],
+        )
+        return float(true_altitude)
+    except Exception:
+        return None
+
+
+def _sun_altitude(chart_data: Dict[str, Any], planets: Dict[str, Dict[str, Any]]) -> Optional[float]:
+    sun = planets.get("Sun")
+    if not isinstance(sun, dict):
+        return None
+    direct = _direct_sun_altitude(chart_data, sun)
+    if direct is not None:
+        return direct
+    return _computed_sun_altitude(chart_data, sun)
 
 
 def _sun_house(chart_data: Dict[str, Any]) -> Optional[int]:
@@ -155,14 +279,40 @@ def _mercury_phase(planets: Dict[str, Dict[str, Any]]) -> Optional[str]:
     return "morning" if delta < 0 else "evening"
 
 
+def _chart_sect_from_horizon(chart_data: Dict[str, Any], planets: Dict[str, Dict[str, Any]]) -> Tuple[Optional[str], Optional[float]]:
+    altitude = _sun_altitude(chart_data, planets)
+    if altitude is not None:
+        return ("diurnal" if altitude >= 0.0 else "nocturnal"), altitude
+
+    s_house = _sun_house(chart_data)
+    if s_house is None:
+        return None, None
+    return ("diurnal" if 7 <= int(s_house) <= 12 else "nocturnal"), None
+
+
+def _preferred_polarity(assigned_sect: Optional[str]) -> Optional[str]:
+    if assigned_sect == "diurnal":
+        return "masculine"
+    if assigned_sect == "nocturnal":
+        return "feminine"
+    return None
+
+
+def _preferred_hemisphere(assigned_sect: Optional[str], chart_sect: Optional[str]) -> Optional[str]:
+    if assigned_sect not in ("diurnal", "nocturnal") or chart_sect not in ("diurnal", "nocturnal"):
+        return None
+    return "above" if assigned_sect == chart_sect else "below"
+
+
 def compute_sect_info(chart_data: Dict[str, Any]) -> Dict[str, Any]:
     """Compute chart sect summary and per-planet comfort (in-sect, hayz).
 
     Returns a dict with keys:
-      - chart_sect: 'diurnal'|'nocturnal'
-      - sect_light: 'Sun'|'Moon'
-      - malefic_of_sect: 'Saturn'|'Mars'
-      - benefic_of_sect: 'Jupiter'|'Venus'
+      - chart_sect: 'diurnal'|'nocturnal'|None
+      - sect_light: 'Sun'|'Moon'|None
+      - malefic_of_sect: 'Saturn'|'Mars'|None
+      - benefic_of_sect: 'Jupiter'|'Venus'|None
+      - sun_altitude_deg: float|None
       - mercury_phase: 'morning'|'evening'|None
       - mercury_assigned_sect: 'diurnal'|'nocturnal'|None
       - planets: [ { planet, inherent_sect, assigned_sect, in_sect,
@@ -175,17 +325,12 @@ def compute_sect_info(chart_data: Dict[str, Any]) -> Dict[str, Any]:
     planets_map = _planet_map(chart_data)
     cusps = chart_data.get("houses") or chart_data.get("house_cusps") or []
 
-    # Determine chart sect by Sun above/below horizon
-    s_house = _sun_house(chart_data)
-    if s_house is None:
-        # Default to day if unknown
-        chart_sect = "diurnal"
-    else:
-        chart_sect = "diurnal" if 7 <= int(s_house) <= 12 else "nocturnal"
+    # Determine chart sect by Sun above/below the astronomical horizon.
+    chart_sect, sun_altitude_deg = _chart_sect_from_horizon(chart_data, planets_map)
 
-    sect_light = "Sun" if chart_sect == "diurnal" else "Moon"
-    malefic_of_sect = "Saturn" if chart_sect == "diurnal" else "Mars"
-    benefic_of_sect = "Jupiter" if chart_sect == "diurnal" else "Venus"
+    sect_light = "Sun" if chart_sect == "diurnal" else "Moon" if chart_sect == "nocturnal" else None
+    malefic_of_sect = "Saturn" if chart_sect == "diurnal" else "Mars" if chart_sect == "nocturnal" else None
+    benefic_of_sect = "Jupiter" if chart_sect == "diurnal" else "Venus" if chart_sect == "nocturnal" else None
 
     # Mercury assignment by phase
     phase = _mercury_phase(planets_map)
@@ -236,16 +381,19 @@ def compute_sect_info(chart_data: Dict[str, Any]) -> Dict[str, Any]:
             hemisphere = "above" if 7 <= h <= 12 else "below"
 
         a_sect = assigned_sect(name)
-        in_sect = (a_sect == chart_sect) if a_sect in ("diurnal", "nocturnal") else None
+        in_sect = (
+            (a_sect == chart_sect)
+            if a_sect in ("diurnal", "nocturnal") and chart_sect in ("diurnal", "nocturnal")
+            else None
+        )
 
-        # Preferred polarity and hemisphere by chart sect
-        pref_pol = "masculine" if chart_sect == "diurnal" else "feminine"
-        pol_match = (pol == pref_pol) if pol in ("masculine", "feminine") else None
+        pref_pol = _preferred_polarity(a_sect)
+        pol_match = (pol == pref_pol) if pol in ("masculine", "feminine") and pref_pol else None
 
-        pref_hem = "above" if chart_sect == "diurnal" else "below"
-        hem_match = (hemisphere == pref_hem) if hemisphere in ("above", "below") else None
+        pref_hem = _preferred_hemisphere(a_sect, chart_sect)
+        hem_match = (hemisphere == pref_hem) if hemisphere in ("above", "below") and pref_hem else None
 
-        hayz = bool(in_sect and pol_match and hem_match)
+        hayz = bool(in_sect is True and pol_match is True and hem_match is True)
 
         if in_sect is True:
             in_sect_names.append(name)
@@ -261,9 +409,11 @@ def compute_sect_info(chart_data: Dict[str, Any]) -> Dict[str, Any]:
             "in_sect": in_sect,
             "sign": sign,
             "sign_polarity": pol,
+            "preferred_sign_polarity": pref_pol,
             "sign_polarity_match": pol_match,
             "house": h,
             "hemisphere": hemisphere,
+            "preferred_hemisphere": pref_hem,
             "hemisphere_match": hem_match,
             "hayz": hayz,
         })
@@ -273,6 +423,7 @@ def compute_sect_info(chart_data: Dict[str, Any]) -> Dict[str, Any]:
         "sect_light": sect_light,
         "malefic_of_sect": malefic_of_sect,
         "benefic_of_sect": benefic_of_sect,
+        "sun_altitude_deg": sun_altitude_deg,
         "mercury_phase": phase,
         "mercury_assigned_sect": mercury_assigned_sect,
         "planets": rows,
@@ -280,4 +431,3 @@ def compute_sect_info(chart_data: Dict[str, Any]) -> Dict[str, Any]:
         "out_of_sect_planets": out_sect_names,
         "hayz_planets": hayz_names,
     }
-

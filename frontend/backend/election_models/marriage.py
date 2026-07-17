@@ -249,6 +249,12 @@ def score_marriage_election(
     elif asc_sign in CARDINAL_SIGNS:
         score -= 1.5
         tags.append(f"Mobile Asc ({asc_sign}) for lasting matter")
+    if dsc_sign == "Taurus":
+        score += 2.0
+        tags.append("Preferred fixed 7th (Taurus)")
+    elif dsc_sign == "Leo":
+        score += 1.0
+        tags.append("Fixed 7th (Leo)")
 
     sun_house = _planet_house(planets, "Sun", cusps)
     is_day = isinstance(sun_house, int) and 7 <= sun_house <= 12

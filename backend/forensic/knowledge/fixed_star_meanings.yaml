@@ -1,3 +1,52 @@
+Hyades:
+  sign: Gemini
+  degree: 6
+  title: Hyades
+  meaning: "Stormy collective pressure, scandal, violence, disgrace, imprisonment."
+  forensic: "McIntosh-style marker for scandal, violence, imprisonment, or public disgrace when on a relevant cusp or significator."
+
+Praesaepe:
+  sign: Leo
+  degree: 7
+  title: Praesaepe
+  meaning: "Reclusive force, fire, tragedy, blindness, murder."
+  forensic: "McIntosh-style violent-event fixed star; treat only as descriptive corroboration unless on a relevant role point."
+
+North Asellus:
+  sign: Leo
+  degree: 7
+  title: North Asellus
+  meaning: "Patience, courage, defiance, military tone."
+  forensic: "Descriptive courage/defiance marker near violent Leo fixed-star territory."
+
+South Asellus:
+  sign: Leo
+  degree: 9
+  title: South Asellus
+  meaning: "Self-willed pressure, horrors, mass murder, shipwreck, eye trouble."
+  forensic: "McIntosh-style severe harm marker; descriptive unless tightly conjunct a victim/perpetrator point or cusp."
+
+Phecda:
+  sign: Virgo
+  degree: 0
+  title: Phecda
+  meaning: "Civilizing influence with shadow themes of bloodshed, riots, assassinations, sexual perversion."
+  forensic: "Potential sexual-violence or assassination corroboration when role-gated."
+
+Unukalhai:
+  sign: Scorpio
+  degree: 22
+  title: Alpha Serpentis / Unukalhai
+  meaning: "Success followed by fall; accidents, insanity, suicide, loss, shipwreck."
+  forensic: "Serpent-star danger marker; use as descriptive evidence when tied to the Moon, victim/perpetrator ruler, or angles."
+
+Scheat:
+  sign: Pisces
+  degree: 29
+  title: Scheat
+  meaning: "Extreme misfortune, imprisonment, murder, suicide, drowning."
+  forensic: "McIntosh-style severe water/death marker; descriptive unless role-gated on the Moon, victim ruler, perpetrator ruler, or cusp."
+
 # Fixed Stars in Forensic Astrology (reference dictionary)
 
 Algol:

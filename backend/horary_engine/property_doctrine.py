@@ -164,8 +164,8 @@ def analyze_property_question_text(question: str, question_intent: str) -> Dict[
         quesited_house = 4
     elif any(token in q for token in advisability_words) or question_intent == "QUALITY":
         family = "advisability_profit"
-        relevant_houses = [1, 4, 7, 10]
-        doctrine = "Property advisability weighs the house in the 4th, the counterparty in the 7th, and profit or outcome in the 10th."
+        relevant_houses = [1, 4, 10]
+        doctrine = "Property advisability primarily weighs the house in the 4th and profit or outcome in the 10th; any counterparty remains secondary."
         property_house = 4
         seller_house = 7
         counterparty_house = 7

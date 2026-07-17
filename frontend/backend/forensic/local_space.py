@@ -10,6 +10,7 @@ Altitude: degrees above the horizon (negative if below).
 """
 from __future__ import annotations
 
+import threading
 from typing import Dict, Any, Iterable
 from math import sin, cos, asin, atan2, radians, degrees
 
@@ -17,6 +18,9 @@ try:
     import swisseph as swe  # type: ignore
 except Exception:  # pragma: no cover - runtime safety
     swe = None  # type: ignore
+
+
+_SWE_TOPO_LOCK = threading.RLock()
 
 
 # Map simple names to Swiss Ephemeris IDs
@@ -93,7 +97,7 @@ def _az_alt_from_ra_dec(ra_hours: float, dec_deg: float, lat_deg: float, lst_hou
     alt = asin(max(-1.0, min(1.0, sin_alt)))
 
     # Azimuth (0=N, increasing towards E) — use atan2(y, x)
-    y = cos(dec) * sin(ha)
+    y = -cos(dec) * sin(ha)
     x = cos(lat) * sin(dec) - sin(lat) * cos(dec) * cos(ha)
     az = atan2(y, x)
     az_deg = (degrees(az) + 360.0) % 360.0
@@ -107,33 +111,34 @@ def compute_local_space(timestamp_iso: str, lat: float, lon: float, planets: Ite
     """
     if swe is None:
         raise RuntimeError("pyswisseph not available")
-    try:
-        swe.set_topo(lon, lat, 0.0)
-    except Exception:
-        pass
-    jd_ut = _jd_ut_from_iso(timestamp_iso)
-    lst_h = _lst_hours(jd_ut, lon)
     out: Dict[str, Dict[str, float]] = {}
-    # Swiss Ephemeris flags (canonical names with fallback)
-    FLAGS = (
-        getattr(swe, 'SEFLG_SWIEPH', getattr(swe, 'FLG_SWIEPH', 2))
-        | getattr(swe, 'SEFLG_EQUATORIAL', getattr(swe, 'FLG_EQUATORIAL', 2048))
-        | getattr(swe, 'SEFLG_TOPOCTR', getattr(swe, 'FLG_TOPOCTR', 32))
-    )
-    for name in planets:
-        pid = PLANET_IDS.get(name)
-        if pid is None:
-            continue
+    with _SWE_TOPO_LOCK:
         try:
-            pos, _ = swe.calc_ut(jd_ut, pid, FLAGS)
-            # For equatorial, Swiss Ephemeris returns RA & Dec in DEGREES.
-            # Convert RA to sidereal hours for hour-angle math.
-            ra_deg = float(pos[0])
-            ra_hours = ra_deg / 15.0
-            dec_deg = float(pos[1])
-            out[name] = _az_alt_from_ra_dec(ra_hours, dec_deg, float(lat), lst_h)
+            swe.set_topo(lon, lat, 0.0)
         except Exception:
-            continue
+            pass
+        jd_ut = _jd_ut_from_iso(timestamp_iso)
+        lst_h = _lst_hours(jd_ut, lon)
+        # Swiss Ephemeris flags (canonical names with fallback)
+        FLAGS = (
+            getattr(swe, 'SEFLG_SWIEPH', getattr(swe, 'FLG_SWIEPH', 2))
+            | getattr(swe, 'SEFLG_EQUATORIAL', getattr(swe, 'FLG_EQUATORIAL', 2048))
+            | getattr(swe, 'SEFLG_TOPOCTR', getattr(swe, 'FLG_TOPOCTR', 32))
+        )
+        for name in planets:
+            pid = PLANET_IDS.get(name)
+            if pid is None:
+                continue
+            try:
+                pos, _ = swe.calc_ut(jd_ut, pid, FLAGS)
+                # For equatorial, Swiss Ephemeris returns RA & Dec in DEGREES.
+                # Convert RA to sidereal hours for hour-angle math.
+                ra_deg = float(pos[0])
+                ra_hours = ra_deg / 15.0
+                dec_deg = float(pos[1])
+                out[name] = _az_alt_from_ra_dec(ra_hours, dec_deg, float(lat), lst_h)
+            except Exception:
+                continue
     return out
 
 
@@ -163,41 +168,42 @@ def compute_local_space_diag(timestamp_iso: str, lat: float, lon: float, planets
     """
     if swe is None:
         raise RuntimeError("pyswisseph not available")
-    try:
-        swe.set_topo(lon, lat, 0.0)
-    except Exception:
-        pass
-    jd_ut = _jd_ut_from_iso(timestamp_iso)
-    lst_h = _lst_hours(jd_ut, lon)
     out: Dict[str, Dict[str, float]] = {}
-    FLAGS = (
-        getattr(swe, 'SEFLG_SWIEPH', getattr(swe, 'FLG_SWIEPH', 2))
-        | getattr(swe, 'SEFLG_EQUATORIAL', getattr(swe, 'FLG_EQUATORIAL', 2048))
-        | getattr(swe, 'SEFLG_TOPOCTR', getattr(swe, 'FLG_TOPOCTR', 32))
-    )
-    for name in planets:
-        pid = PLANET_IDS.get(name)
-        if pid is None:
-            continue
+    with _SWE_TOPO_LOCK:
         try:
-            pos, _ = swe.calc_ut(jd_ut, pid, FLAGS)
-            ra_deg = float(pos[0])
-            ra_hours = ra_deg / 15.0
-            dec_deg = float(pos[1])
-            # Hour angle and alt/az
-            ha_deg = (lst_h - ra_hours) * 15.0
-            if ha_deg > 180.0: ha_deg -= 360.0
-            if ha_deg < -180.0: ha_deg += 360.0
-            altaz = _az_alt_from_ra_dec(ra_hours, dec_deg, float(lat), lst_h)
-            out[name] = {
-                'ra_deg': ra_deg,
-                'ra_hours': ra_hours,
-                'dec_deg': dec_deg,
-                'lst_hours': lst_h,
-                'ha_deg': ha_deg,
-                'azimuth_deg': altaz['azimuth_deg'],
-                'altitude_deg': altaz['altitude_deg'],
-            }
+            swe.set_topo(lon, lat, 0.0)
         except Exception:
-            continue
+            pass
+        jd_ut = _jd_ut_from_iso(timestamp_iso)
+        lst_h = _lst_hours(jd_ut, lon)
+        FLAGS = (
+            getattr(swe, 'SEFLG_SWIEPH', getattr(swe, 'FLG_SWIEPH', 2))
+            | getattr(swe, 'SEFLG_EQUATORIAL', getattr(swe, 'FLG_EQUATORIAL', 2048))
+            | getattr(swe, 'SEFLG_TOPOCTR', getattr(swe, 'FLG_TOPOCTR', 32))
+        )
+        for name in planets:
+            pid = PLANET_IDS.get(name)
+            if pid is None:
+                continue
+            try:
+                pos, _ = swe.calc_ut(jd_ut, pid, FLAGS)
+                ra_deg = float(pos[0])
+                ra_hours = ra_deg / 15.0
+                dec_deg = float(pos[1])
+                # Hour angle and alt/az
+                ha_deg = (lst_h - ra_hours) * 15.0
+                if ha_deg > 180.0: ha_deg -= 360.0
+                if ha_deg < -180.0: ha_deg += 360.0
+                altaz = _az_alt_from_ra_dec(ra_hours, dec_deg, float(lat), lst_h)
+                out[name] = {
+                    'ra_deg': ra_deg,
+                    'ra_hours': ra_hours,
+                    'dec_deg': dec_deg,
+                    'lst_hours': lst_h,
+                    'ha_deg': ha_deg,
+                    'azimuth_deg': altaz['azimuth_deg'],
+                    'altitude_deg': altaz['altitude_deg'],
+                }
+            except Exception:
+                continue
     return out

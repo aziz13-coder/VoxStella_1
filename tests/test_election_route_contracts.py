@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import sys
 import types
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from flask import Flask
@@ -170,6 +170,252 @@ def test_validate_and_stream_reject_oversized_windows_consistently(monkeypatch):
     assert stream_resp.status_code == 400
     assert "Requested range exceeds max window" in validate_resp.get_json()["error"]
     assert validate_resp.get_json()["error"] == stream_resp.get_json()["error"]
+
+
+def test_lunar_fertility_requires_natal_source(monkeypatch):
+    monkeypatch.setattr(astro_clock_api, "_ensure_coords_for_location", lambda location: (31.778, 35.235))
+
+    app = _make_app()
+    client = app.test_client()
+    query = _base_query(matter="lunar_fertility", consider_mode="phase_and_antiphase")
+
+    validate_resp = client.get(f"/api/astro-clock/election/validate?{query}")
+    stream_resp = client.get(f"/api/astro-clock/election/suggest/stream?{query}")
+
+    assert validate_resp.status_code == 400
+    assert stream_resp.status_code == 400
+    assert "requires" in validate_resp.get_json()["error"].lower()
+    assert validate_resp.get_json()["error"] == stream_resp.get_json()["error"]
+
+
+def test_lunar_fertility_stream_returns_period_payload(monkeypatch):
+    monkeypatch.setattr(astro_clock_api, "_ensure_coords_for_location", lambda location: (31.778, 35.235))
+    monkeypatch.setattr(astro_clock_api, "_ph_instance", lambda lat, lon: None)
+    monkeypatch.setattr(astro_clock_api, "_engine_instance", lambda: object())
+    monkeypatch.setattr(
+        astro_clock_api,
+        "_bundle_from_snap_id",
+        lambda snap_id, *, house_system_code=None, missing_error="Snap not found": {
+            "chart_data": _business_chart(),
+            "meta": {"timestamp": "1990-01-01T00:00:00Z", "house_system_code": house_system_code},
+        },
+    )
+    monkeypatch.setattr(astro_clock_api, "_lunar_fertility_ephemeris_adapter", lambda: object())
+    monkeypatch.setattr(
+        astro_clock_api,
+        "scan_lunar_fertility_windows",
+        lambda natal_cd, start_dt, end_dt, **kwargs: {
+            "matter": "lunar_fertility",
+            "consider_mode": kwargs.get("consider_mode"),
+            "level_percent": kwargs.get("level_percent"),
+            "top": [
+                {
+                    "timestamp": "2026-03-08T00:00:00+00:00",
+                    "timestamp_local": "2026-03-08T00:00:00+00:00",
+                    "score": 98.0,
+                    "tags": ["Lunar fertility window", "Phase"],
+                    "phase_kind": "phase",
+                    "sex_label": "female",
+                }
+            ],
+            "series": [
+                {
+                    "timestamp": "2026-03-08T00:00:00+00:00",
+                    "timestamp_local": "2026-03-08T00:00:00+00:00",
+                    "score": 98.0,
+                    "tags": ["Lunar fertility window", "Phase"],
+                    "phase_kind": "phase",
+                    "sex_label": "female",
+                }
+            ],
+            "periods": [
+                {
+                    "id": "lfp-1",
+                    "start": "2026-03-08T00:00:00+00:00",
+                    "end": "2026-03-08T00:59:59+00:00",
+                    "best_timestamp": "2026-03-08T00:00:00+00:00",
+                    "best_score": 98.0,
+                    "phase_kind": "phase",
+                    "sex_label": "female",
+                }
+            ],
+            "anchors": [{"timestamp": "2026-03-08T00:00:00+00:00", "phase_kind": "phase"}],
+            "signature": {"target_elongation": 30.0},
+            "stats": {"attempted": 1, "favorable_total": 1, "passing_total": 1, "period_count": 1},
+        },
+    )
+
+    app = _make_app()
+    client = app.test_client()
+    query = _base_query(
+        matter="lunar_fertility",
+        natal_snap_id="snap-natal",
+        consider_mode="phase_and_antiphase",
+        level_percent="33",
+        limit="1",
+    )
+
+    response = client.get(f"/api/astro-clock/election/suggest/stream?{query}")
+
+    assert response.status_code == 200
+    payload = _extract_done_payload(response.get_data(as_text=True))
+    assert payload["matter"] == "lunar_fertility"
+    assert payload["consider_mode"] == "phase_and_antiphase"
+    assert payload["periods"][0]["id"] == "lfp-1"
+    assert payload["top"][0]["score"] == 98.0
+    assert payload["stats"]["series_retained"] == 1
+
+
+def test_lunar_fertility_stream_applies_day_hour_filters(monkeypatch):
+    monkeypatch.setattr(astro_clock_api, "_ensure_coords_for_location", lambda location: (31.778, 35.235))
+    monkeypatch.setattr(astro_clock_api, "_ph_instance", lambda lat, lon: None)
+    monkeypatch.setattr(astro_clock_api, "_engine_instance", lambda: object())
+    monkeypatch.setattr(
+        astro_clock_api,
+        "_bundle_from_snap_id",
+        lambda snap_id, *, house_system_code=None, missing_error="Snap not found": {
+            "chart_data": _business_chart(),
+            "meta": {"timestamp": "1990-01-01T00:00:00Z", "house_system_code": house_system_code},
+        },
+    )
+    monkeypatch.setattr(astro_clock_api, "_lunar_fertility_ephemeris_adapter", lambda: object())
+    monkeypatch.setattr(
+        astro_clock_api,
+        "scan_lunar_fertility_windows",
+        lambda natal_cd, start_dt, end_dt, **kwargs: {
+            "matter": "lunar_fertility",
+            "consider_mode": kwargs.get("consider_mode"),
+            "level_percent": kwargs.get("level_percent"),
+            "top": [
+                {
+                    "timestamp": "2026-03-08T08:00:00+00:00",
+                    "timestamp_local": "2026-03-08T08:00:00+00:00",
+                    "score": 99.0,
+                    "passes_level": True,
+                    "phase_kind": "phase",
+                    "sex_label": "female",
+                },
+                {
+                    "timestamp": "2026-03-08T10:00:00+00:00",
+                    "timestamp_local": "2026-03-08T10:00:00+00:00",
+                    "score": 88.0,
+                    "passes_level": True,
+                    "phase_kind": "phase",
+                    "sex_label": "female",
+                },
+            ],
+            "series": [
+                {
+                    "timestamp": "2026-03-08T08:00:00+00:00",
+                    "timestamp_local": "2026-03-08T08:00:00+00:00",
+                    "score": 99.0,
+                    "passes_level": True,
+                    "phase_kind": "phase",
+                    "sex_label": "female",
+                },
+                {
+                    "timestamp": "2026-03-08T10:00:00+00:00",
+                    "timestamp_local": "2026-03-08T10:00:00+00:00",
+                    "score": 88.0,
+                    "passes_level": True,
+                    "phase_kind": "phase",
+                    "sex_label": "female",
+                },
+            ],
+            "periods": [],
+            "anchors": [],
+            "signature": {},
+            "stats": {"attempted": 2, "favorable_total": 2, "passing_total": 2, "period_count": 1},
+        },
+    )
+
+    app = _make_app()
+    client = app.test_client()
+    query = _base_query(
+        matter="lunar_fertility",
+        start="2026-03-08T00:00:00Z",
+        end="2026-03-08T12:00:00Z",
+        natal_snap_id="snap-natal",
+        consider_mode="phase_and_antiphase",
+        level_percent="33",
+        hour_start="09:00",
+        hour_end="11:00",
+        limit="5",
+    )
+
+    response = client.get(f"/api/astro-clock/election/suggest/stream?{query}")
+
+    assert response.status_code == 200
+    payload = _extract_done_payload(response.get_data(as_text=True))
+    assert [row["timestamp"] for row in payload["top"]] == ["2026-03-08T10:00:00+00:00"]
+    assert [row["timestamp"] for row in payload["series"]] == ["2026-03-08T10:00:00+00:00"]
+    assert payload["periods"][0]["start"] == "2026-03-08T10:00:00+00:00"
+    assert payload["stats"]["kept_total"] == 1
+    assert payload["stats"]["unfiltered_favorable_total"] == 2
+
+
+def test_lunar_fertility_stream_keeps_full_hourly_series_by_default(monkeypatch):
+    monkeypatch.setattr(astro_clock_api, "_STREAM_MAX_WINDOW_HOURS", 1000.0)
+    monkeypatch.setattr(astro_clock_api, "_ensure_coords_for_location", lambda location: (31.778, 35.235))
+    monkeypatch.setattr(astro_clock_api, "_ph_instance", lambda lat, lon: None)
+    monkeypatch.setattr(astro_clock_api, "_engine_instance", lambda: object())
+    monkeypatch.setattr(
+        astro_clock_api,
+        "_bundle_from_snap_id",
+        lambda snap_id, *, house_system_code=None, missing_error="Snap not found": {
+            "chart_data": _business_chart(),
+            "meta": {"timestamp": "1990-01-01T00:00:00Z", "house_system_code": house_system_code},
+        },
+    )
+    monkeypatch.setattr(astro_clock_api, "_lunar_fertility_ephemeris_adapter", lambda: object())
+
+    base_dt = datetime(2026, 3, 8, tzinfo=timezone.utc)
+    rows = [
+        {
+            "timestamp": (base_dt + timedelta(hours=idx)).isoformat(),
+            "timestamp_local": (base_dt + timedelta(hours=idx)).isoformat(),
+            "score": 50.0 + (idx % 50),
+            "passes_level": True,
+            "phase_kind": "phase",
+            "sex_label": "female",
+        }
+        for idx in range(800)
+    ]
+    monkeypatch.setattr(
+        astro_clock_api,
+        "scan_lunar_fertility_windows",
+        lambda natal_cd, start_dt, end_dt, **kwargs: {
+            "matter": "lunar_fertility",
+            "consider_mode": kwargs.get("consider_mode"),
+            "level_percent": kwargs.get("level_percent"),
+            "top": rows[:5],
+            "series": rows,
+            "periods": [],
+            "anchors": [],
+            "signature": {},
+            "stats": {"attempted": len(rows), "favorable_total": len(rows), "passing_total": len(rows), "period_count": 1},
+        },
+    )
+
+    app = _make_app()
+    client = app.test_client()
+    query = _base_query(
+        matter="lunar_fertility",
+        start="2026-03-08T00:00:00Z",
+        end="2026-04-10T00:00:00Z",
+        natal_snap_id="snap-natal",
+        consider_mode="phase_and_antiphase",
+        level_percent="33",
+        limit="5",
+    )
+
+    response = client.get(f"/api/astro-clock/election/suggest/stream?{query}")
+
+    assert response.status_code == 200
+    payload = _extract_done_payload(response.get_data(as_text=True))
+    assert payload["stats"]["series_retained"] == 800
+    assert payload["stats"]["series_dropped"] == 0
+    assert len(payload["series"]) == 800
 
 
 def test_stream_business_route_applies_natal_transit_hits(monkeypatch):

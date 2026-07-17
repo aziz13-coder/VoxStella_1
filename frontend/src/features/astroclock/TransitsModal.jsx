@@ -24,6 +24,11 @@ const aspectSymbol = (name) => ({
   'Antiscia': 'A', 'Contra-antiscia': 'CA'
 })[name] || '~';
 
+function finiteNumberOrUndefined(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : undefined;
+}
+
 const CanonicalLabels = {
   accident_risk: 'accident risk',
   authority_earned: 'authority earned',
@@ -258,22 +263,26 @@ function crisisFamilyAreaSupport(family, lifeArea) {
   return allowed.has(area) ? 1 : 0;
 }
 
+function normalizeEventToken(raw) {
+  if (!raw) return null;
+  const lower = String(raw).trim().toLowerCase();
+  if (!lower) return null;
+  if (CanonicalLabels[lower]) return lower;
+  if (LABEL_TO_EVENT_TOKEN[lower]) return LABEL_TO_EVENT_TOKEN[lower];
+  if (lower.includes(' ')) {
+    const underscored = lower.replace(/\s+/g, '_');
+    if (CanonicalLabels[underscored]) return underscored;
+    if (LABEL_TO_EVENT_TOKEN[underscored]) return LABEL_TO_EVENT_TOKEN[underscored];
+  }
+  return null;
+}
+
 function collectHitEventTokens(hit) {
   const orderedTokens = [];
   const tokenSet = new Set();
   const explicitTokens = new Set();
   const pushToken = (raw, explicit = false) => {
-    if (!raw) return;
-    const lower = String(raw).trim().toLowerCase();
-    if (!lower) return;
-    let token = null;
-    if (CanonicalLabels[lower]) token = lower;
-    else if (LABEL_TO_EVENT_TOKEN[lower]) token = LABEL_TO_EVENT_TOKEN[lower];
-    else if (lower.includes(' ')) {
-      const underscored = lower.replace(/\s+/g, '_');
-      if (CanonicalLabels[underscored]) token = underscored;
-      else if (LABEL_TO_EVENT_TOKEN[underscored]) token = LABEL_TO_EVENT_TOKEN[underscored];
-    }
+    const token = normalizeEventToken(raw);
     if (token && !tokenSet.has(token)) {
       tokenSet.add(token);
       orderedTokens.push(token);
@@ -287,6 +296,27 @@ function collectHitEventTokens(hit) {
   (Array.isArray(hit?.enriched_keywords) ? hit.enriched_keywords : []).forEach((raw) => pushToken(raw, true));
   (Array.isArray(hit?.keywords) ? hit.keywords : []).forEach((raw) => pushToken(raw, false));
   (Array.isArray(hit?.prediction_tags) ? hit.prediction_tags : []).forEach((raw) => pushToken(raw, true));
+
+  return { orderedTokens, tokenSet, explicitTokens };
+}
+
+function collectPredictionEventTokens(prediction) {
+  const orderedTokens = [];
+  const tokenSet = new Set();
+  const explicitTokens = new Set();
+  const pushToken = (raw, explicit = false) => {
+    const token = normalizeEventToken(raw);
+    if (token && !tokenSet.has(token)) {
+      tokenSet.add(token);
+      orderedTokens.push(token);
+    }
+    if (token && explicit) {
+      explicitTokens.add(token);
+    }
+  };
+
+  pushToken(prediction?.event_type || prediction?.eventType, true);
+  (Array.isArray(prediction?.tags) ? prediction.tags : []).forEach((raw) => pushToken(raw, true));
 
   return { orderedTokens, tokenSet, explicitTokens };
 }
@@ -328,19 +358,71 @@ function classifyCriticalHit(hit) {
   };
 }
 
+function classifyCriticalPrediction(prediction) {
+  const { orderedTokens, tokenSet, explicitTokens } = collectPredictionEventTokens(prediction);
+  const matched = CRISIS_SIGNAL_PRIORITY.filter((token) => tokenSet.has(token));
+  if (!matched.length) return null;
+
+  const score = Number(prediction?.score ?? prediction?.significance ?? prediction?.probability ?? 0) || 0;
+  const tags = Array.isArray(prediction?.tags) ? prediction.tags.map((tag) => String(tag).toLowerCase()) : [];
+  const tone = tags.includes('positive')
+    ? 'positive'
+    : tags.includes('negative')
+      ? 'negative'
+      : tags.includes('mixed') || tags.includes('mixed_outcome')
+        ? 'mixed'
+        : String(prediction?.tone || '').toLowerCase() || 'mixed';
+  const lifeArea = prediction?.life_area || prediction?.lifeArea || null;
+  const explicitEventType = String(prediction?.event_type || prediction?.eventType || '').trim().toLowerCase();
+  const primaryToken = pickPrimaryEventToken(explicitEventType, lifeArea, tokenSet, orderedTokens, explicitTokens);
+  const crisisToken = CRISIS_SIGNAL_SET.has(primaryToken) ? primaryToken : matched[0];
+  if (!crisisToken) return null;
+
+  const minScore = HIGH_BAR_CRISIS_SIGNAL_SET.has(crisisToken)
+    ? 45
+    : BROAD_CRISIS_SIGNAL_SET.has(crisisToken)
+      ? 28
+      : 18;
+  if (score < minScore) return null;
+  if (tone === 'positive' && score < 40) return null;
+  if (HIGH_BAR_CRISIS_SIGNAL_SET.has(crisisToken) && tone === 'positive') return null;
+
+  return {
+    token: crisisToken,
+    family: crisisSignalFamily(crisisToken),
+    score,
+    tone,
+    lifeArea,
+    explicitEventType,
+    description: String(prediction?.description || prediction?.label || formatTokenLabel(crisisToken)),
+    significance: Number(prediction?.significance ?? prediction?.score ?? score ?? 0) || 0,
+    priority: CRISIS_SIGNAL_PRIORITY.indexOf(crisisToken),
+  };
+}
+
 function rowHasCriticalSignals(row) {
   const hits = Array.isArray(row?.top) ? row.top : [];
-  return hits.some((hit) => Boolean(classifyCriticalHit(hit)));
+  if (hits.some((hit) => Boolean(classifyCriticalHit(hit)))) return true;
+  const predictions = Array.isArray(row?.predictions) ? row.predictions : [];
+  return predictions.some((prediction) => Boolean(classifyCriticalPrediction(prediction)));
 }
 
 function collectCriticalSignalSummary(row, maxItems = 4) {
   const hits = Array.isArray(row?.top) ? row.top : [];
-  const criticalHits = [];
+  const hitCriticals = [];
   hits.forEach((hit) => {
     const critical = classifyCriticalHit(hit);
     if (!critical) return;
-    criticalHits.push(critical);
+    hitCriticals.push(critical);
   });
+  const rowPredictions = Array.isArray(row?.predictions) ? row.predictions : [];
+  const predictionCriticals = [];
+  rowPredictions.forEach((prediction) => {
+    const critical = classifyCriticalPrediction(prediction);
+    if (!critical) return;
+    predictionCriticals.push(critical);
+  });
+  const criticalHits = hitCriticals.length ? hitCriticals : predictionCriticals;
 
   const familyWeights = new Map();
   const pushFamilyCandidate = (family, lifeArea, score, explicit = false, fromPrediction = false) => {
@@ -361,7 +443,6 @@ function collectCriticalSignalSummary(row, maxItems = 4) {
     familyWeights.set(family, existing);
   };
 
-  const rowPredictions = Array.isArray(row?.predictions) ? row.predictions : [];
   rowPredictions.forEach((pred) => {
     const token = String(pred?.event_type || pred?.eventType || '').trim().toLowerCase();
     const family = crisisSignalFamily(token);
@@ -390,9 +471,12 @@ function collectCriticalSignalSummary(row, maxItems = 4) {
       return b.maxScore - a.maxScore;
     })[0]?.family || null;
 
-  const summaryHits = dominantFamily
+  let summaryHits = dominantFamily
     ? criticalHits.filter((critical) => critical.family === dominantFamily)
     : criticalHits;
+  if (!summaryHits.length && criticalHits.length) {
+    summaryHits = criticalHits;
+  }
 
   const tokenWeights = new Map();
   summaryHits.forEach((critical) => {
@@ -698,6 +782,181 @@ function morinHitTone(hit) {
   return 'mixed';
 }
 
+const MORIN_ORIENTATION_TAGS = new Set(['positive', 'negative', 'mixed']);
+const MORIN_STATUS_TAGS = new Set(['multiple_transit', 'successive']);
+const MORIN_MIXED_OUTCOME_TAGS = new Set(['mixed_outcome']);
+const MORIN_NEGATIVE_DOMAIN_TAGS = new Set([
+  'conflict',
+  'danger',
+  'death',
+  'health',
+  'hidden_enemies',
+  'illness',
+  'prison',
+  'secrets',
+  'service',
+  'shared_resources',
+  'violence',
+]);
+const MORIN_POSITIVE_DOMAIN_TAGS = new Set([
+  'belief',
+  'career',
+  'children',
+  'friends',
+  'home',
+  'honor',
+  'honors',
+  'hopes',
+  'life',
+  'marriage',
+  'money',
+  'parents',
+  'relationships',
+  'relatives',
+  'siblings',
+  'wealth',
+]);
+const MORIN_NEGATIVE_EVENT_TAGS = new Set([
+  ...CRISIS_SIGNAL_SET,
+  'accident_risk',
+  'authority_problems',
+  'bankruptcy',
+  'betrayal',
+  'business_failure',
+  'contract_problems',
+  'delay_obstruction',
+  'demotion',
+  'divorce',
+  'domestic_disruption',
+  'excess_problems',
+  'exam_failure',
+  'fall_from_power',
+  'family_conflict',
+  'family_problems',
+  'financial_loss',
+  'hospitalization',
+  'illness_acute',
+  'illness_chronic',
+  'injury_risk',
+  'job_loss',
+  'legal_defeat',
+  'loss_deprivation',
+  'loss_of_possessions',
+  'miscommunication',
+  'partnership_strained',
+  'reputation_damage',
+  'risk',
+  'separation',
+  'shared_resource_loss',
+  'surgery',
+  'theft_fraud',
+  'vitality_loss',
+]);
+const MORIN_POSITIVE_EVENT_TAGS = new Set([
+  'artistic_success',
+  'authority_earned',
+  'business_deal',
+  'business_success',
+  'communication_breakthrough',
+  'comfort_security',
+  'contract_signing',
+  'degree_completion',
+  'discipline_rewarded',
+  'domestic_happiness',
+  'engagement',
+  'exam_success',
+  'family_celebration',
+  'family_joy',
+  'financial_gain',
+  'financial_windfall',
+  'honor_award',
+  'inheritance',
+  'inheritance_windfall',
+  'investment_success',
+  'legal_resolution',
+  'legal_victory',
+  'new_job',
+  'opportunity_received',
+  'parties_celebrations',
+  'partnership_strengthened',
+  'promotion',
+  'protection_granted',
+  'public_approval',
+  'public_recognition',
+  'recognition',
+  'reconciliation',
+  'recovery_health',
+  'romance',
+  'romantic_connection',
+  'salary_increase',
+  'settlement',
+  'structure_established',
+]);
+
+function normalizeMorinTagKey(value) {
+  return String(value || '').trim().toLowerCase().replace(/\s+/g, '_');
+}
+
+function morinTagToneRank(orientation) {
+  if (orientation === 'negative') return 0;
+  if (orientation === 'mixed') return 1;
+  if (orientation === 'positive') return 2;
+  return 3;
+}
+
+function mergeMorinTagOrientation(current, next) {
+  if (!current) return next || null;
+  if (!next) return current;
+  return morinTagToneRank(next) < morinTagToneRank(current) ? next : current;
+}
+
+function inferMorinDisplayTagOrientation(key, hitOrientation, hitHasCriticalSignal) {
+  if (MORIN_NEGATIVE_EVENT_TAGS.has(key) || MORIN_NEGATIVE_DOMAIN_TAGS.has(key)) {
+    return 'negative';
+  }
+  if (MORIN_MIXED_OUTCOME_TAGS.has(key)) {
+    return hitHasCriticalSignal ? 'negative' : 'mixed';
+  }
+  if (MORIN_POSITIVE_EVENT_TAGS.has(key)) {
+    return hitOrientation === 'negative' ? null : 'positive';
+  }
+  if (MORIN_POSITIVE_DOMAIN_TAGS.has(key)) {
+    return hitOrientation === 'positive' && !hitHasCriticalSignal ? 'positive' : null;
+  }
+  if (hitOrientation === 'negative') return 'negative';
+  if (hitOrientation === 'positive' && !hitHasCriticalSignal) return 'positive';
+  return null;
+}
+
+function classifyMorinDisplayTag(rawTag, hit, showTechTags) {
+  const key = normalizeMorinTagKey(rawTag);
+  if (!key || MORIN_ORIENTATION_TAGS.has(key)) {
+    return null;
+  }
+
+  const isStatus = MORIN_STATUS_TAGS.has(key);
+  if (isStatus && !showTechTags) {
+    return null;
+  }
+
+  const fmt = formatMorinTagLabel(key);
+  if (!fmt) return null;
+
+  if (isStatus) {
+    return { ...fmt, orientation: null, role: 'status', priority: 4 };
+  }
+
+  const hitOrientation = morinHitTone(hit);
+  const hitHasCriticalSignal = Boolean(classifyCriticalHit(hit));
+  const orientation = inferMorinDisplayTagOrientation(key, hitOrientation, hitHasCriticalSignal);
+  return {
+    ...fmt,
+    orientation,
+    role: MORIN_MIXED_OUTCOME_TAGS.has(key) ? 'outcome' : 'semantic',
+    priority: morinTagToneRank(orientation),
+  };
+}
+
 function morinStepScore(row) {
   if (!row) return 0;
   const hits = Array.isArray(row?.top) ? row.top : [];
@@ -708,9 +967,30 @@ function morinStepScore(row) {
 }
 
 function timelineStepScore(row) {
-  const backend = Number(row?.step_score ?? NaN);
-  if (Number.isFinite(backend) && backend > 0) return backend;
+  if (row?.step_score !== undefined && row?.step_score !== null && row?.step_score !== '') {
+    const backend = Number(row.step_score);
+    if (Number.isFinite(backend)) return backend;
+  }
   return morinStepScore(row);
+}
+
+function isPlanetTarget(hit) {
+  const targetType = String(hit?.target_type || '').trim().toLowerCase();
+  if (targetType) return targetType === 'planet';
+  const target = String(hit?.target_label || hit?.natal || '').trim();
+  return Boolean(target && Object.prototype.hasOwnProperty.call(PlanetSymbols, target));
+}
+
+function scanStyleSelectedHits(hits, topN = 3) {
+  const rows = Array.isArray(hits) ? hits : [];
+  const topPlanets = rows.filter((hit) => isPlanetTarget(hit)).slice(0, topN);
+  const topPoints = rows.filter((hit) => !isPlanetTarget(hit)).slice(0, topN);
+  return { topPlanets, topPoints, selected: [...topPlanets, ...topPoints] };
+}
+
+function scanStyleStepScore(hits) {
+  const { selected } = scanStyleSelectedHits(hits);
+  return selected.reduce((sum, hit) => sum + morinHitScore(hit), 0);
 }
 
 function morinStepTone(row) {
@@ -833,19 +1113,18 @@ function collectMorinTags(row, showTechTags) {
   const acc = new Map();
   hits.forEach((hit) => {
     const score = morinHitScore(hit);
-    const orientation = morinHitTone(hit);
     const tags = Array.isArray(hit?.prediction_tags) ? hit.prediction_tags : [];
     tags.forEach((tag) => {
-      const fmt = formatMorinTagLabel(tag);
-      if (!fmt) return;
-      const orient = ['positive', 'negative'].includes(fmt.key) ? fmt.key : (orientation !== 'mixed' ? orientation : null);
+      const displayTag = classifyMorinDisplayTag(tag, hit, showTechTags);
+      if (!displayTag) return;
       const weight = score > 0 ? score : Number(hit?.significance ?? 0) || 0;
-      const existing = acc.get(fmt.key);
+      const existing = acc.get(displayTag.key);
       if (existing) {
         existing.weight = Math.max(existing.weight, weight);
-        if (!existing.orientation && orient) existing.orientation = orient;
+        existing.orientation = mergeMorinTagOrientation(existing.orientation, displayTag.orientation);
+        existing.priority = Math.min(existing.priority, displayTag.priority);
       } else {
-        acc.set(fmt.key, { ...fmt, orientation: orient, weight });
+        acc.set(displayTag.key, { ...displayTag, weight });
       }
     });
     if (showTechTags) {
@@ -865,7 +1144,12 @@ function collectMorinTags(row, showTechTags) {
   });
   const maxItems = showTechTags ? 8 : 5;
   return Array.from(acc.values())
-    .sort((a, b) => (Number(b.weight || 0) - Number(a.weight || 0)) || a.label.localeCompare(b.label))
+    .sort((a, b) => (
+      Number(a.priority ?? 3) - Number(b.priority ?? 3)
+      || morinTagToneRank(a.orientation) - morinTagToneRank(b.orientation)
+      || Number(b.weight || 0) - Number(a.weight || 0)
+      || a.label.localeCompare(b.label)
+    ))
     .slice(0, maxItems);
 }
 
@@ -968,6 +1252,52 @@ function formatTs(iso, tz) {
   } catch {
     return String(iso || '');
   }
+}
+
+function normalizeTimezoneHint(hint) {
+  if (!hint) return null;
+  const text = String(hint).trim();
+  if (!text) return null;
+  const match = text.match(/^([A-Za-z_]+(?:\/[A-Za-z0-9_.+\-]+)+)/);
+  if (match && match[1]) return match[1];
+  if (text === 'UTC' || text === 'Etc/UTC' || text === 'GMT') return 'UTC';
+  return text;
+}
+
+function formatIsoForInputFields(iso, tz) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const timezone = normalizeTimezoneHint(tz) || 'UTC';
+  try {
+    const fmt = new Intl.DateTimeFormat('en-GB', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      hourCycle: 'h23',
+    });
+    const parts = fmt.formatToParts(d);
+    const get = (type) => parts.find((part) => part.type === type)?.value || '';
+    const year = get('year');
+    const month = get('month');
+    const day = get('day');
+    let hour = get('hour');
+    const minute = get('minute');
+    if (hour === '24') hour = '00';
+    if (year && month && day && hour && minute) {
+      return {
+        date: `${year}-${month}-${day}`,
+        time: `${hour}:${minute}`,
+      };
+    }
+  } catch (_) {}
+  return {
+    date: `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`,
+    time: `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`,
+  };
 }
 
 function formatTsCompact(iso, tz) {
@@ -1078,6 +1408,8 @@ export default function TransitsModal({
   const [natalTime, setNatalTime] = useState('');
   const [natalLocation, setNatalLocation] = useState('');
   const [natalTimezone, setNatalTimezone] = useState('');
+  const [natalLatitude, setNatalLatitude] = useState(undefined);
+  const [natalLongitude, setNatalLongitude] = useState(undefined);
   const houseSystem = defaultHouseSystem || HOUSE_SYSTEM_CODE;
   const [includeModern, setIncludeModern] = useState(true);
   const [includeNatalModern, setIncludeNatalModern] = useState(true);
@@ -1127,18 +1459,25 @@ export default function TransitsModal({
   const [showDebugScan, setShowDebugScan] = useState(false);
   const [debugAutoCtx, setDebugAutoCtx] = useState(null);
   const [debugScan, setDebugScan] = useState(null);
-  // SR/LR helper state removed
   const [snaps, setSnaps] = useState([]);
   const [selectedSnapId, setSelectedSnapId] = useState('');
   const [sourceMode, setSourceMode] = useState('manual'); // 'manual' | 'snap'
-  // Filters removed per request
+  const natalCoordinateContext = useMemo(() => {
+    const latitude = finiteNumberOrUndefined(natalLatitude);
+    const longitude = finiteNumberOrUndefined(natalLongitude);
+    return latitude != null && longitude != null ? { latitude, longitude } : {};
+  }, [natalLatitude, natalLongitude]);
 
   const buildStepFromResult = useCallback((data, fallbackIso) => {
     if (!data) return null;
     const hits = Array.isArray(data.transits) ? data.transits : [];
+    const { topPlanets, topPoints } = scanStyleSelectedHits(hits);
     return {
       timestamp: data.transit_timestamp || fallbackIso || null,
       top: hits,
+      top_planets: topPlanets,
+      top_cusps: topPoints,
+      step_score: scanStyleStepScore(hits),
       predictions: Array.isArray(data.predictions) ? data.predictions : [],
       count: typeof data.count === 'number' ? data.count : hits.length,
       moon_support: Boolean(data.moon_support),
@@ -1254,6 +1593,40 @@ export default function TransitsModal({
     return new Date(baseUtc).toISOString();
   };
 
+  const getTransitInputTimezone = () => (
+    windowTz
+    || result?.natal?.timezone
+    || result?.natal?.timezone_label
+    || natalTimezone
+    || 'UTC'
+  );
+
+  const setStoredContextIso = (key, boundary, iso) => {
+    const value = iso || undefined;
+    if (key === 'pd') {
+      if (boundary === 'start') window.__pdStart = value;
+      else window.__pdEnd = value;
+    } else if (key === 'prog') {
+      if (boundary === 'start') window.__progStart = value;
+      else window.__progEnd = value;
+    } else if (key === 'sa') {
+      if (boundary === 'start') window.__saStart = value;
+      else window.__saEnd = value;
+    }
+  };
+
+  const buildContextIsoFromInputs = (date, time, fallbackTime) => {
+    if (!date) return '';
+    return buildIso(date, time || fallbackTime, getTransitInputTimezone()) || '';
+  };
+
+  const writeInputDateTime = (dateId, timeId, iso) => {
+    const parts = formatIsoForInputFields(iso, getTransitInputTimezone());
+    if (!parts) return;
+    try { const el = document.getElementById(dateId); if (el) el.value = parts.date; } catch(_) { }
+    try { const el = document.getElementById(timeId); if (el) el.value = parts.time; } catch(_) { }
+  };
+
   const normalizeSnapLocationKey = useCallback((value) => {
     return String(value || '')
       .trim()
@@ -1320,6 +1693,7 @@ export default function TransitsModal({
         natalDatetime: natalIso,
         natalLocation,
         natalTimezone: natalTimezone || undefined,
+        ...natalCoordinateContext,
         houseSystem,
         transitDatetime: transitIso,
         includeModern,
@@ -1414,6 +1788,7 @@ export default function TransitsModal({
         natalDatetime: natalIso,
         natalLocation,
         natalTimezone: natalTimezone || undefined,
+        ...natalCoordinateContext,
         houseSystem,
       });
       const focusPlanetsList = focusPlanets.split(',').map(s => s.trim()).filter(Boolean);
@@ -1585,6 +1960,7 @@ export default function TransitsModal({
         natalDatetime: natalIso,
         natalLocation,
         natalTimezone: natalTimezone || undefined,
+        ...natalCoordinateContext,
       };
       const focusPlanetsList = focusPlanets.split(',').map(s => s.trim()).filter(Boolean);
       const req = {
@@ -1664,6 +2040,7 @@ export default function TransitsModal({
         natalDatetime: natalIso,
         natalLocation,
         natalTimezone: natalTimezone || undefined,
+        ...natalCoordinateContext,
         houseSystem,
         anchorStart,
         anchorEnd,
@@ -1674,9 +2051,7 @@ export default function TransitsModal({
       const preview = `/api/astro-clock/context/auto?${qp.toString()}`;
       const res = await AstroClockAPI.getAutoContext(reqOpts);
       const data = res?.data || {};
-      // SR window removed (no-op)
       // Do not overwrite user's focus selections on Auto-Fill.
-      // SR/LR summaries removed
       // Debug summary
       try {
         setDebugAutoCtx({
@@ -1685,7 +2060,6 @@ export default function TransitsModal({
           counts: { pd: (data.pd_windows||[]).length, prog: (data.progression_windows||[]).length }
         });
       } catch(_) { setDebugAutoCtx({ request: preview }); }
-      // SR/LR helpers removed
 
       // Fill PD and Progression context windows (select nearest/overlapping per backend)
       try {
@@ -1704,12 +2078,8 @@ export default function TransitsModal({
               }
             } catch(_){}
             // Always reflect chosen PD to UI fields (original window)
-            const fmtD = (x) => `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`;
-            const fmtT = (x) => `${String(x.getHours()).padStart(2,'0')}:${String(x.getMinutes()).padStart(2,'0')}`;
-            try { const el = document.getElementById('pd-start-date'); if (el) el.value = fmtD(new Date(w.start)); } catch(_){ }
-            try { const el = document.getElementById('pd-start-time'); if (el) el.value = fmtT(new Date(w.start)); } catch(_){ }
-            try { const el = document.getElementById('pd-end-date'); if (el) el.value = fmtD(new Date(w.end)); } catch(_){ }
-            try { const el = document.getElementById('pd-end-time'); if (el) el.value = fmtT(new Date(w.end)); } catch(_){ }
+            writeInputDateTime('pd-start-date', 'pd-start-time', w.start);
+            writeInputDateTime('pd-end-date', 'pd-end-time', w.end);
             // Only pass overlapped PD window to scans
             if (overlapped && s && e) {
               window.__pdStart = s.toISOString(); window.__pdEnd = e.toISOString();
@@ -1746,12 +2116,8 @@ export default function TransitsModal({
               }
             } catch(_){}
             // Always reflect selected SA window to UI fields (original window)
-            const fmtD = (x) => `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`;
-            const fmtT = (x) => `${String(x.getHours()).padStart(2,'0')}:${String(x.getMinutes()).padStart(2,'0')}`;
-            try { const el = document.getElementById('sa-start-date'); if (el) el.value = fmtD(new Date(w.start)); } catch(_){ }
-            try { const el = document.getElementById('sa-start-time'); if (el) el.value = fmtT(new Date(w.start)); } catch(_){ }
-            try { const el = document.getElementById('sa-end-date'); if (el) el.value = fmtD(new Date(w.end)); } catch(_){ }
-            try { const el = document.getElementById('sa-end-time'); if (el) el.value = fmtT(new Date(w.end)); } catch(_){ }
+            writeInputDateTime('sa-start-date', 'sa-start-time', w.start);
+            writeInputDateTime('sa-end-date', 'sa-end-time', w.end);
             // Only pass overlapped SA window to scans
             if (overlapped && s && e) {
               window.__saStart = s.toISOString(); window.__saEnd = e.toISOString();
@@ -1762,7 +2128,6 @@ export default function TransitsModal({
           }
         }
       } catch(_) {}
-      // LR window removed
       try {
         if (layersEnabled.prog) {
           const pw = data.prog_window;
@@ -1771,12 +2136,8 @@ export default function TransitsModal({
           if (startISO && endISO) {
             const s = new Date(startISO), e = new Date(endISO);
             window.__progStart = s.toISOString(); window.__progEnd = e.toISOString();
-            const fmtD = (x) => `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`;
-            const fmtT = (x) => `${String(x.getHours()).padStart(2,'0')}:${String(x.getMinutes()).padStart(2,'0')}`;
-            try { const el = document.getElementById('prog-start-date'); if (el) el.value = fmtD(s); } catch(_){ }
-            try { const el = document.getElementById('prog-start-time'); if (el) el.value = fmtT(s); } catch(_){ }
-            try { const el = document.getElementById('prog-end-date'); if (el) el.value = fmtD(e); } catch(_){ }
-            try { const el = document.getElementById('prog-end-time'); if (el) el.value = fmtT(e); } catch(_){ }
+            writeInputDateTime('prog-start-date', 'prog-start-time', startISO);
+            writeInputDateTime('prog-end-date', 'prog-end-time', endISO);
           }
         }
       } catch(_) {}
@@ -1818,11 +2179,15 @@ export default function TransitsModal({
     const nextTime = typeof initialNatalContext.time === 'string' ? initialNatalContext.time : '';
     const nextLocation = typeof initialNatalContext.location === 'string' ? initialNatalContext.location : '';
     const nextTimezone = typeof initialNatalContext.timezone === 'string' ? initialNatalContext.timezone : '';
+    const nextLatitude = finiteNumberOrUndefined(initialNatalContext.latitude);
+    const nextLongitude = finiteNumberOrUndefined(initialNatalContext.longitude);
 
     setNatalDate(nextDate);
     setNatalTime(nextTime);
     setNatalLocation(nextLocation);
     setNatalTimezone(nextTimezone);
+    setNatalLatitude(nextLatitude);
+    setNatalLongitude(nextLongitude);
     setSelectedSnapId(snapId);
     setSourceMode(snapId ? 'snap' : 'manual');
 
@@ -1840,6 +2205,8 @@ export default function TransitsModal({
     open,
     initialNatalContext?.date,
     initialNatalContext?.location,
+    initialNatalContext?.latitude,
+    initialNatalContext?.longitude,
     initialNatalContext?.snapId,
     initialNatalContext?.time,
     initialNatalContext?.timezone,
@@ -2175,14 +2542,17 @@ export default function TransitsModal({
           })
         : null;
       setActiveStep(selectedRow || null);
-      const d = new Date(ts);
-      const yyyy = d.getFullYear();
-      const mm = String(d.getMonth()+1).padStart(2,'0');
-      const dd = String(d.getDate()).padStart(2,'0');
-      const hh = String(d.getHours()).padStart(2,'0');
-      const min = String(d.getMinutes()).padStart(2,'0');
-      setTransitDate(`${yyyy}-${mm}-${dd}`);
-      setTransitTime(`${hh}:${min}`);
+      const inputTimezone =
+        windowTz
+        || result?.natal?.timezone
+        || result?.natal?.timezone_label
+        || natalTimezone
+        || 'UTC';
+      const inputParts = formatIsoForInputFields(ts, inputTimezone);
+      if (inputParts) {
+        setTransitDate(inputParts.date);
+        setTransitTime(inputParts.time);
+      }
       // Pass ISO directly to avoid relying on async state updates
       await handleCompute((selectedRow && selectedRow.timestamp) || ts);
     } catch(_) {}
@@ -2230,6 +2600,7 @@ export default function TransitsModal({
         natalDatetime: natalIso,
         natalLocation,
         natalTimezone: natalTimezone || undefined,
+        ...natalCoordinateContext,
         houseSystem,
         transitDatetime: transitIso,
         includeModern,
@@ -2262,6 +2633,7 @@ export default function TransitsModal({
         natalDatetime: buildIso(natalDate, natalTime, natalTimezone || tzFallback),
         natalLocation,
         natalTimezone: natalTimezone || undefined,
+        ...natalCoordinateContext,
       };
       const exported = await AstroClockAPI.exportTransitsWindow({
         ...base,
@@ -2350,11 +2722,12 @@ export default function TransitsModal({
   );
   // Apply intersection of PD ∩ Prog ∩ SA into the Scan Window inputs
   const handleUseIntersectionRange = () => {
+    const inputTimezone = getTransitInputTimezone();
     const getIso = (dateId, timeId, backup) => {
       try {
         const d = document.getElementById(dateId)?.value;
         const t = document.getElementById(timeId)?.value;
-        if (d && t) return `${d}T${t}`;
+        if (d && t) return buildIso(d, t, inputTimezone);
       } catch(_){ }
       return backup || null;
     };
@@ -2370,10 +2743,11 @@ export default function TransitsModal({
     const start = new Date(Math.max.apply(null, starts.map(x=> x.getTime())));
     const end = new Date(Math.min.apply(null, ends.map(x=> x.getTime())));
     if (!(end > start)) { setError('No intersection among PD/Progressions/Solar Arc. Using current scan range.'); return; }
-    const fmtD = (x) => `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`;
-    const fmtT = (x) => `${String(x.getHours()).padStart(2,'0')}:${String(x.getMinutes()).padStart(2,'0')}`;
-    setWinStartDate(fmtD(start)); setWinStartTime(fmtT(start));
-    setWinEndDate(fmtD(end)); setWinEndTime(fmtT(end));
+    const startParts = formatIsoForInputFields(start.toISOString(), inputTimezone);
+    const endParts = formatIsoForInputFields(end.toISOString(), inputTimezone);
+    if (!startParts || !endParts) { setError('Could not format context intersection in the chart timezone.'); return; }
+    setWinStartDate(startParts.date); setWinStartTime(startParts.time);
+    setWinEndDate(endParts.date); setWinEndTime(endParts.time);
   };
 
   return (
@@ -2392,8 +2766,6 @@ export default function TransitsModal({
             <h2 className="text-lg font-semibold">Transits</h2>
             <button onClick={close} className="text-zinc-600 hover:text-black">✕</button>
           </div>
-
-        {/* Context Summary removed */}
 
         {/* Source selector */}
         <div className="mb-3 flex items-center gap-4 text-sm">
@@ -2424,8 +2796,6 @@ export default function TransitsModal({
           </div>
         )}
 
-        {/* Filters removed */}
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           {/* Manual-only natal inputs */}
           {sourceMode === 'manual' && (<>
@@ -2448,7 +2818,17 @@ export default function TransitsModal({
           </div>
           <div className="md:col-span-2">
             <label className="block text-xs text-zinc-600 mb-1">Natal Location</label>
-            <input type="text" placeholder="City, Country" value={natalLocation} onChange={e=>setNatalLocation(e.target.value)} className="w-full border rounded px-2 py-1" />
+            <input
+              type="text"
+              placeholder="City, Country"
+              value={natalLocation}
+              onChange={e=> {
+                setNatalLocation(e.target.value);
+                setNatalLatitude(undefined);
+                setNatalLongitude(undefined);
+              }}
+              className="w-full border rounded px-2 py-1"
+            />
           </div>
           <div>
             <label className="block text-xs text-zinc-600 mb-1">Time Zone (IANA)</label>
@@ -2624,8 +3004,8 @@ export default function TransitsModal({
                 <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_7.5rem] gap-2 mb-1">
                   <input type="date" placeholder="Start" id={`${cfg.key}-start-date`} className="w-full min-w-[11rem] border rounded px-2 py-1" onChange={(e)=>{
                     const date = e.target.value; const time = document.getElementById(`${cfg.key}-start-time`)?.value || '00:00';
-                    const name = `${cfg.key}Start`; const iso = date? `${date}T${time}`: '';
-                    if (cfg.key==='pd') window.__pdStart=iso; else if (cfg.key==='prog') window.__progStart=iso; else if (cfg.key==='sa') window.__saStart=iso;
+                    const iso = buildContextIsoFromInputs(date, time, '00:00');
+                    setStoredContextIso(cfg.key, 'start', iso);
                   }} />
                   <input
                     type="time"
@@ -2637,15 +3017,15 @@ export default function TransitsModal({
                     className="w-full min-w-[7.5rem] border rounded px-2 py-1"
                     onChange={(e)=>{
                     const time = e.target.value; const date = document.getElementById(`${cfg.key}-start-date`)?.value || '';
-                    const name = `${cfg.key}Start`; const iso = date? `${date}T${time}`: '';
-                    if (cfg.key==='pd') window.__pdStart=iso; else if (cfg.key==='prog') window.__progStart=iso; else if (cfg.key==='sa') window.__saStart=iso;
+                    const iso = buildContextIsoFromInputs(date, time, '00:00');
+                    setStoredContextIso(cfg.key, 'start', iso);
                   }} />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_7.5rem] gap-2">
                   <input type="date" placeholder="End" id={`${cfg.key}-end-date`} className="w-full min-w-[11rem] border rounded px-2 py-1" onChange={(e)=>{
                     const date = e.target.value; const time = document.getElementById(`${cfg.key}-end-time`)?.value || '23:59';
-                    const iso = date? `${date}T${time}`: '';
-                    if (cfg.key==='pd') window.__pdEnd=iso; else if (cfg.key==='prog') window.__progEnd=iso; else if (cfg.key==='sa') window.__saEnd=iso;
+                    const iso = buildContextIsoFromInputs(date, time, '23:59');
+                    setStoredContextIso(cfg.key, 'end', iso);
                   }} />
                   <input
                     type="time"
@@ -2657,8 +3037,8 @@ export default function TransitsModal({
                     className="w-full min-w-[7.5rem] border rounded px-2 py-1"
                     onChange={(e)=>{
                     const time = e.target.value; const date = document.getElementById(`${cfg.key}-end-date`)?.value || '';
-                    const iso = date? `${date}T${time}`: '';
-                    if (cfg.key==='pd') window.__pdEnd=iso; else if (cfg.key==='prog') window.__progEnd=iso; else if (cfg.key==='sa') window.__saEnd=iso;
+                    const iso = buildContextIsoFromInputs(date, time, '23:59');
+                    setStoredContextIso(cfg.key, 'end', iso);
                   }} />
                 </div>
               </div>
@@ -2752,7 +3132,7 @@ export default function TransitsModal({
               disabled={computeLoading}
               className="px-2 py-1 rounded border text-[13px] hover:bg-zinc-100 disabled:opacity-50"
             >
-              {computeLoading ? 'ComputingвЂ¦' : 'Compute Exact Time'}
+              {computeLoading ? 'Computing…' : 'Compute Exact Time'}
             </button>
             <button
               type="button"
@@ -3166,7 +3546,7 @@ export default function TransitsModal({
                   </div>
                 ) : (
                   <div className="text-[11px] text-zinc-600">
-                    No critical signals found at the current scan step. Try a smaller step or compute the exact source timestamp.
+                    No critical signals found in the scanned rows. Try a smaller step or compute the exact source timestamp.
                   </div>
                 )}
               </div>
@@ -3374,7 +3754,7 @@ export default function TransitsModal({
                 {(computeStepTone !== 'positive' && computeStepTone !== 'negative') && (
                   <span className="px-1.5 py-0.5 rounded border border-zinc-300 bg-zinc-50 text-zinc-700">Mixed</span>
                 )}
-                <span>Score {computeStepScore.toFixed(1)}</span>
+                <span title="Scan-style selected top-hit score">Score {computeStepScore.toFixed(1)}</span>
                 <span>Hits {computeCount}</span>
                 {computeStep?.moon_support ? <span title="Moon support">☾</span> : null}
               </div>

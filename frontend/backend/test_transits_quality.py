@@ -138,6 +138,240 @@ def test_unmatched_determination_does_not_carry_strength(monkeypatch):
     assert law1["applies"] is False
 
 
+def test_benefic_radically_determined_to_harm_can_manifest_malefically(monkeypatch):
+    det_ctx = {
+        "by_planet": {
+            "Jupiter": {
+                "determinationScores": {"by_area": {"death": -0.85, "danger": -0.7}},
+                "nature": {"conditionScore": 0.2},
+            },
+            "Asc": {"housePosition": {"house": 1}},
+        }
+    }
+    hits = [
+        {
+            "transiting": "Jupiter",
+            "target_label": "Asc",
+            "target_type": "cusp",
+            "aspect": "Conjunction",
+            "orb": 0.1,
+            "max_orb": 5.0,
+            "score": 8.0,
+            "enriched_keywords": ["life"],
+        }
+    ]
+
+    row = _run_enrich(monkeypatch, det_ctx, hits)[0]
+
+    assert row["determination_strength"] < -0.6
+    assert row["quality_score"] < 0
+    assert row["quality_label"] in {"malefic", "very_malefic"}
+
+
+def test_malefic_radically_determined_to_life_can_manifest_benefically(monkeypatch):
+    det_ctx = {
+        "by_planet": {
+            "Saturn": {
+                "determinationScores": {"by_area": {"life": 0.9, "health": 0.75}},
+                "nature": {"conditionScore": 0.0},
+            },
+            "Asc": {"housePosition": {"house": 1}},
+        }
+    }
+    hits = [
+        {
+            "transiting": "Saturn",
+            "target_label": "Asc",
+            "target_type": "cusp",
+            "aspect": "Conjunction",
+            "orb": 0.1,
+            "max_orb": 5.0,
+            "score": 8.0,
+            "enriched_keywords": ["life"],
+        }
+    ]
+
+    row = _run_enrich(monkeypatch, det_ctx, hits)[0]
+
+    assert row["determination_strength"] > 0.7
+    assert row["quality_score"] > 0
+    assert row["quality_label"] in {"benefic", "moderately_benefic", "very_benefic"}
+
+
+def test_hard_adverse_event_from_benefic_is_not_marked_positive(monkeypatch):
+    det_ctx = {
+        "by_planet": {
+            "Jupiter": {
+                "determinationScores": {"by_area": {"home": 0.85, "honors": 0.55}},
+                "nature": {"conditionScore": 0.2},
+            },
+            "Saturn": {
+                "housePosition": {"house": 4},
+                "determinationScores": {"by_area": {"home": 0.8, "parents": 0.7}},
+                "nature": {"conditionScore": -0.2},
+            },
+        }
+    }
+    hits = [
+        {
+            "transiting": "Jupiter",
+            "target_label": "Saturn",
+            "natal": "Saturn",
+            "target_type": "planet",
+            "aspect": "Opposition",
+            "orb": 2.52,
+            "max_orb": 5.0,
+            "score": 8.0,
+            "phase": "separating",
+            "direction": "sinister",
+            "keywords": ["Home"],
+            "enriched_keywords": ["home", "delay_obstruction"],
+        }
+    ]
+
+    row = _run_enrich(monkeypatch, det_ctx, hits)[0]
+    tags = {str(tag).lower() for tag in row.get("prediction_tags", [])}
+
+    assert row["prediction"]["eventType"] == "delay_obstruction"
+    assert row["tone"] == "mixed"
+    assert row["quality_score"] == 0.0
+    assert row["quality_label"] == "neutral"
+    assert "positive" not in tags
+    assert "mixed" in tags
+    assert "mixed_outcome" in tags
+    assert row["prediction"]["tags"] == row["prediction_tags"]
+
+
+def test_hard_malefic_family_problem_is_marked_negative(monkeypatch):
+    det_ctx = {
+        "by_planet": {
+            "Mars": {
+                "determinationScores": {"by_area": {"home": 0.65, "siblings": -0.35}},
+                "nature": {"conditionScore": -0.25},
+            },
+            "Saturn": {
+                "housePosition": {"house": 4},
+                "determinationScores": {"by_area": {"home": 0.8, "parents": 0.7}},
+                "nature": {"conditionScore": -0.2},
+            },
+        }
+    }
+    hits = [
+        {
+            "transiting": "Mars",
+            "target_label": "Saturn",
+            "natal": "Saturn",
+            "target_type": "planet",
+            "aspect": "Square",
+            "orb": 2.38,
+            "max_orb": 5.0,
+            "score": 8.0,
+            "phase": "separating",
+            "direction": "sinister",
+            "keywords": ["Home"],
+            "enriched_keywords": [
+                "home",
+                "family_conflict",
+                "family_problems",
+                "delay_obstruction",
+            ],
+        }
+    ]
+
+    row = _run_enrich(monkeypatch, det_ctx, hits)[0]
+    tags = {str(tag).lower() for tag in row.get("prediction_tags", [])}
+
+    assert row["prediction"]["eventType"] == "family_problems"
+    assert row["tone"] == "negative"
+    assert row["quality_score"] <= -1.0
+    assert row["quality_label"] in {"malefic", "very_malefic"}
+    assert "positive" not in tags
+    assert "negative" in tags
+
+
+def test_empty_space_hit_is_downweighted_below_weaker_radical_place():
+    empty_score, empty_breakdown = tm._score_hit(
+        {
+            "transiting": "Jupiter",
+            "target_label": "Aries 15",
+            "target_type": "empty_space",
+            "aspect": "Conjunction",
+            "orb": 0.0,
+            "max_orb": 5.0,
+            "partile": True,
+            "complete_platic": True,
+        },
+        natal_house_of={},
+        house_rulers={},
+    )
+    radical_score, radical_breakdown = tm._score_hit(
+        {
+            "transiting": "Moon",
+            "target_label": "Asc",
+            "target_type": "cusp",
+            "natal_house": 1,
+            "aspect": "Conjunction",
+            "orb": 1.5,
+            "max_orb": 3.0,
+            "partile": False,
+            "complete_platic": True,
+        },
+        natal_house_of={"Asc": 1},
+        house_rulers={},
+    )
+
+    assert empty_breakdown["empty_space"] < 0
+    assert radical_breakdown["asc_target"] > 0
+    assert radical_score > empty_score
+
+
+def test_contrary_context_tempers_without_erasing_transit_claim(monkeypatch):
+    det_ctx = {
+        "by_planet": {
+            "Jupiter": {
+                "determinationScores": {"by_area": {"honors": 0.9}},
+                "nature": {"conditionScore": 0.2},
+            },
+            "MC": {"housePosition": {"house": 10}},
+        }
+    }
+    hits = [
+        {
+            "transiting": "Jupiter",
+            "target_label": "MC",
+            "target_type": "cusp",
+            "aspect": "Trine",
+            "orb": 0.2,
+            "max_orb": 5.0,
+            "score": 8.2,
+            "phase": "applying",
+            "enriched_keywords": ["honors", "promotion"],
+        }
+    ]
+    pd_windows = [
+        {
+            "start": "2024-05-08T00:00:00+00:00",
+            "end": "2024-05-10T00:00:00+00:00",
+            "timestamp": "2024-05-09T12:00:00+00:00",
+            "label": "Contrary danger direction",
+            "item": {"type": "danger", "strength": 1.0, "quality": "malefic"},
+        }
+    ]
+    monkeypatch.setattr(tm, "compute_determinations", lambda *_: copy.deepcopy(det_ctx))
+
+    row = tm.enrich_hits_with_concordance(
+        {"houses": [0.0] * 12},
+        copy.deepcopy(hits),
+        "2024-05-09T12:00:00+00:00",
+        pd_windows=pd_windows,
+    )[0]
+
+    assert row["prediction"]["lifeArea"] == "honors"
+    assert row["prediction_score"] > 0
+    assert row["prediction_score"] <= 40.0
+    assert row["concordance"]["direction_matches"]
+
+
 def test_prediction_object_persists_and_uses_event_tokens(monkeypatch):
     det_ctx = {
         "by_planet": {

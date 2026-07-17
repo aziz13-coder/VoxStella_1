@@ -24,7 +24,7 @@ def test_property_doctrine_splits_acquisition_vs_advisability_vs_condition():
     eviction = analyze_property_question_text("Will I get evicted/loose my home?", "OCCURRENCE")
 
     assert advise["family"] == "advisability_profit"
-    assert advise["relevant_houses"] == [1, 4, 7, 10]
+    assert advise["relevant_houses"] == [1, 4, 10]
     assert acquire["family"] == "acquisition"
     assert acquire["relevant_houses"] == [1, 4, 7]
     assert sale["family"] == "sale"

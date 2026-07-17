@@ -5,14 +5,16 @@
   "description": "Graceful handling of others via comparison and adjustment with Libra/Venus and Mercury clarity; conciliatory style.",
   "confidence": "high",
   "polarity": "positive",
-  "sources": ["Carter: Libra calm, impartial comparison; Venus mediative; Air reasoning"],
+  "sources": ["Carter: Libra calm, impartial comparison; Venus mediative; Air reasoning", "Morin: H7/H11 social domains and H3 speech/messages become concrete through Venus/Mercury determination"],
   "logic": { "base": 0,
     "boosts": [
       { "kind": "sign_emphasis", "sign": "Libra", "min": 1.5, "weight": 8 },
       { "kind": "planet_status", "planet": "Venus", "strong": true, "weight": 8 },
       { "kind": "planet_status", "planet": "Mercury", "strong": true, "weight": 6 },
       { "kind": "element", "element": "Air", "min_share": 0.35, "weight": 4 },
-      { "kind": "house_emphasis", "houses": [7,11], "min_total": 1, "weight": 4 }
+      { "kind": "house_emphasis", "houses": [7,11], "min_total": 1, "weight": 4 },
+      { "kind": "planet_area", "planet": "Venus", "areas": ["relationships", "friends"], "mode": "max", "min": 0.45, "weight": 5 },
+      { "kind": "planet_area", "planet": "Mercury", "areas": ["short_travel"], "min": 0.45, "weight": 3 }
     ],
     "dampeners": [
       { "kind": "sign_emphasis", "sign": "Aries", "min": 1.5, "weight": -6 },
@@ -21,4 +23,3 @@
     ],
     "escalators": [] }
 }
-

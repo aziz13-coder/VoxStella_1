@@ -12,7 +12,7 @@
       { "kind": "sign_emphasis", "sign": "Aquarius", "min": 1.5, "weight": 6 },
       { "kind": "angle_aspect", "planet": "Uranus", "type": "soft", "angle": "ASC", "max_orb": 6, "weight": 4 },
       { "kind": "angle_aspect", "planet": "Uranus", "type": "soft", "angle": "MC", "max_orb": 6, "weight": 4 },
-      { "kind": "house_emphasis", "houses": [11], "min_total": 1, "weight": 4 }
+      { "kind": "house_emphasis", "houses": [11], "min_total": 1, "weight": 6 }
     ],
     "dampeners": [
       { "kind": "planet_status", "planet": "Saturn", "strong": true, "weight": -6 },
@@ -20,4 +20,3 @@
     ],
     "escalators": [] }
 }
-

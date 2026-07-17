@@ -71,6 +71,13 @@ from licensing import (
     verify_license_token,
 )
 from build_metadata import load_build_metadata
+from backend_instance import (
+    INSTANCE_CHALLENGE_HEADER,
+    INSTANCE_PROOF_HEADER,
+    build_backend_instance_proof,
+    is_valid_instance_challenge,
+    load_backend_instance_secret,
+)
 
 
 
@@ -138,16 +145,16 @@ if _runtime_import_paths:
 
 # Suppress noisy third-party logging
 logging.getLogger('urllib3.connectionpool').setLevel(logging.ERROR)
-logging.getLogger('geopy.geocoders').setLevel(logging.ERROR)
 
 
 
 logger = logging.getLogger(__name__)
-APP_VERSION = os.getenv("VOX_STELLA_APP_VERSION", "2.1.4")
+APP_VERSION = os.getenv("VOX_STELLA_APP_VERSION", "2.9.0")
 API_VERSION = os.getenv("VOX_STELLA_API_VERSION", "2.0.0")
 ENGINE_VERSION = os.getenv("VOX_STELLA_ENGINE_VERSION", "Enhanced Traditional Horary 2.0")
-RELEASE_DATE = os.getenv("VOX_STELLA_RELEASE_DATE", "2026-04-16")
+RELEASE_DATE = os.getenv("VOX_STELLA_RELEASE_DATE", "2026-05-13")
 BACKEND_BUILD_METADATA = load_build_metadata(os.getenv("HORARY_BACKEND_DIR"))
+_BACKEND_INSTANCE_SECRET = load_backend_instance_secret()
 
 
 def _chart_request_log_summary(
@@ -194,6 +201,19 @@ def make_reason(rule: str, stage: str = "error", weight: float = 0) -> dict:
 
 app = Flask(__name__)
 
+
+@app.after_request
+def attach_backend_instance_proof(response):
+    challenge = request.headers.get(INSTANCE_CHALLENGE_HEADER)
+    if _BACKEND_INSTANCE_SECRET is not None and is_valid_instance_challenge(challenge):
+        response.headers[INSTANCE_PROOF_HEADER] = build_backend_instance_proof(
+            _BACKEND_INSTANCE_SECRET,
+            challenge,
+            request.path,
+        )
+    return response
+
+
 def _cors_origins():
     raw = (os.getenv("HORARY_CORS_ORIGINS") or "").strip()
     if raw:
@@ -226,18 +246,18 @@ LICENSE_EXEMPT_PATHS = {
     "/api/get-timezone",
     "/api/current-time",
 }
-ASTRO_CLOCK_PUBLIC_PREFIXES = (
+ASTRO_CLOCK_PUBLIC_PATHS = {
     "/api/astro-clock/current",
     "/api/astro-clock/dashboard",
     "/api/astro-clock/planetary-hours",
     "/api/astro-clock/receptions",
     "/api/astro-clock/compass",
-)
-STREAM_TICKET_ALLOWED_PREFIXES = (
+}
+STREAM_TICKET_ALLOWED_PATHS = frozenset({
     "/api/astro-clock/stream",
     "/api/astro-clock/transits/window/stream",
     "/api/astro-clock/election/suggest/stream",
-)
+})
 _STREAM_TICKET_TTL_SECONDS = max(15, int(os.getenv("STREAM_TICKET_TTL_SECONDS", "90")))
 _STREAM_TICKET_MAX_ACTIVE = max(32, int(os.getenv("STREAM_TICKET_MAX_ACTIVE", "2048")))
 _stream_ticket_cache = OrderedDict()
@@ -271,7 +291,7 @@ def _build_stream_target(path: str, items, *, validate_path: bool) -> str:
     if validate_path:
         if not path_text.startswith("/api/astro-clock/"):
             raise ValueError("invalid stream path")
-        if not any(path_text.startswith(prefix) for prefix in STREAM_TICKET_ALLOWED_PREFIXES):
+        if path_text not in STREAM_TICKET_ALLOWED_PATHS:
             raise ValueError("unsupported stream path")
     canonical_items = _canonicalize_stream_query_items(items)
     query = urlencode(canonical_items, doseq=True)
@@ -314,15 +334,35 @@ def _prune_stream_tickets(now_ts: float) -> None:
         _stream_ticket_cache.pop(tk, None)
 
 
+def _stream_ticket_expiry_for_claims(claims: dict, now_ts: float) -> float:
+    """Cap a ticket to both its own TTL and the originating entitlement."""
+    ticket_expiry = now_ts + _STREAM_TICKET_TTL_SECONDS
+    claim_exp = claims.get("exp")
+    if claim_exp is None:
+        return ticket_expiry
+    if isinstance(claim_exp, bool):
+        return now_ts
+    try:
+        claim_expiry = float(claim_exp)
+    except (TypeError, ValueError):
+        return now_ts
+    if not math.isfinite(claim_expiry) or claim_expiry <= 0:
+        return now_ts
+    return min(ticket_expiry, claim_expiry)
+
+
 def _mint_stream_ticket(claims: dict, stream_target: str) -> str:
     now_ts = time.time()
+    ticket_expiry = _stream_ticket_expiry_for_claims(claims, now_ts)
+    if ticket_expiry <= now_ts:
+        raise ValueError("license session expired")
     ticket = secrets.token_urlsafe(32)
     with _stream_ticket_lock:
         _prune_stream_tickets(now_ts)
         _stream_ticket_cache[ticket] = {
             "claims": claims,
             "target": stream_target,
-            "exp": now_ts + _STREAM_TICKET_TTL_SECONDS,
+            "exp": ticket_expiry,
         }
         _stream_ticket_cache.move_to_end(ticket)
         while len(_stream_ticket_cache) > _STREAM_TICKET_MAX_ACTIVE:
@@ -344,6 +384,8 @@ def _consume_stream_ticket(ticket: str, stream_target: str) -> dict | None:
     claims = entry.get("claims")
     if not isinstance(claims, dict):
         return None
+    if _stream_ticket_expiry_for_claims(claims, now_ts) <= now_ts:
+        return None
     return claims
 
 
@@ -361,7 +403,7 @@ def enforce_license_guard():
     path = request.path or ""
     if path in LICENSE_EXEMPT_PATHS:
         return None
-    if any(path.startswith(prefix) for prefix in ASTRO_CLOCK_PUBLIC_PREFIXES):
+    if path in ASTRO_CLOCK_PUBLIC_PATHS:
         return None
 
     needs_license = any(path.startswith(prefix) for prefix in PROTECTED_ENDPOINT_PREFIXES)
@@ -431,7 +473,10 @@ def issue_stream_ticket():
         canonical_target = _normalize_stream_target(raw_path)
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
-    ticket = _mint_stream_ticket(claims, canonical_target)
+    try:
+        ticket = _mint_stream_ticket(claims, canonical_target)
+    except ValueError as exc:
+        return jsonify({"error": "license_invalid", "detail": str(exc)}), 403
     return jsonify({"ticket": ticket, "expires_in": _STREAM_TICKET_TTL_SECONDS})
 
 
@@ -660,11 +705,9 @@ def health_check():
 
     try:
 
-        from timezonefinder import TimezoneFinder
+        from horary_engine.services.geolocation import TimezoneManager
 
-        tf = TimezoneFinder()
-
-        test_tz = tf.timezone_at(lat=51.5074, lng=-0.1278)  # London
+        test_tz = TimezoneManager().get_timezone_for_location(51.5074, -0.1278)  # London
 
         health_status['services']['timezone_finder'] = {
 
@@ -716,7 +759,7 @@ def health_check():
 
     
 
-    # Test geocoding with enhanced error handling and faster timeout
+    # Test geocoding through the same shared horary-engine path used by charts.
 
     if skip_network:
 
@@ -732,19 +775,17 @@ def health_check():
 
         try:
 
-            from geopy.geocoders import Nominatim
+            from horary_engine.services.geolocation import safe_geocode
 
-            geolocator = Nominatim(user_agent="enhanced_health_check")
-
-            # Use shorter timeout and catch specific timeout errors
-
-            location = geolocator.geocode("London, UK", timeout=1)
+            lat, lon, resolved_location = safe_geocode("Greenwich, UK", timeout=1)
 
             health_status['services']['geocoding'] = {
 
-                'status': 'healthy' if location else 'degraded',
+                'status': 'healthy',
 
-                'test_result': location.address if location else None
+                'test_result': resolved_location,
+
+                'coordinates': {'latitude': lat, 'longitude': lon}
 
             }
 
@@ -2222,4 +2263,4 @@ if __name__ == '__main__':
         )
     
     # Note: For high-traffic production deployments, consider using:
-    # gunicorn -w 4 -b 127.0.0.1:5000 app:app
+# gunicorn -w 4 -b 127.0.0.1:52525 app:app

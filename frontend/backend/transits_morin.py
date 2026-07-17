@@ -713,10 +713,38 @@ _PRISON_DOMAIN_HINTS: Set[str] = {
     'imprisonment_risk',
     'prison',
 }
+_DOMESTIC_ADVERSE_EVENT_HINTS: Set[str] = {
+    'argument',
+    'disagreement',
+    'domestic_discord',
+    'domestic_disruption',
+    'estrangement',
+    'family_conflict',
+    'family_dispute',
+    'family_fight',
+    'family_problems',
+    'family_strife',
+    'family_tension',
+    'feud',
+    'household_conflict',
+    'household_strife',
+    'rift',
+}
+_RELATIONSHIP_ADVERSE_EVENT_HINTS: Set[str] = {
+    'betrayal',
+    'divorce',
+    'divorce_or_separation',
+    'friendship_loss',
+    'partnership_strained',
+    'relationship_crisis',
+    'separation',
+}
 _ADVERSE_STEP_HINTS: Set[str] = (
     _CONFLICT_DOMAIN_HINTS
     | _DANGER_DOMAIN_HINTS
+    | _DOMESTIC_ADVERSE_EVENT_HINTS
     | _PRISON_DOMAIN_HINTS
+    | _RELATIONSHIP_ADVERSE_EVENT_HINTS
     | {
         'bankruptcy',
         'danger',
@@ -746,6 +774,7 @@ _STRONG_ADVERSE_STEP_HINTS: Set[str] = (
         'shared_resource_loss',
     }
 )
+_ORIENTATION_TAGS: Set[str] = {'positive', 'negative', 'mixed'}
 
 
 def _house_candidate_domains(house_num: Optional[int]) -> List[str]:
@@ -786,6 +815,27 @@ def _row_context_tokens(row: Optional[Dict[str, Any]]) -> Set[str]:
         _push(pred.get('lifeArea'))
     _push(row.get('event_domain'))
     return tokens
+
+
+def _sync_prediction_orientation_tags(row: Optional[Dict[str, Any]]) -> None:
+    if not isinstance(row, dict):
+        return
+    tone = str(row.get('tone') or '').strip().lower()
+    if tone not in _ORIENTATION_TAGS:
+        return
+
+    tags: List[str] = []
+    for raw in (row.get('prediction_tags') or []):
+        tag = str(raw).strip()
+        if not tag or tag.lower() in _ORIENTATION_TAGS:
+            continue
+        tags.append(tag)
+    tags.append(tone)
+    row['prediction_tags'] = list(dict.fromkeys(tags))
+
+    pred = row.get('prediction')
+    if isinstance(pred, dict):
+        pred['tags'] = row['prediction_tags']
 
 
 def _step_tone_from_hits(hits_list: List[Dict[str, Any]]) -> str:
@@ -1293,6 +1343,10 @@ def _score_hit(
     if B in fp or A in fp:
         score += 0.5
         bd['focus'] += 0.5
+
+    if target_type in {'empty', 'empty_space', 'zodiac_space'}:
+        score *= 0.25
+        bd['empty_space'] = -0.75
 
     # (Removed) Natal significance additive contributions to score
     return float(round(score, 3)), bd
@@ -4012,16 +4066,8 @@ def enrich_hits_with_concordance(
             row['laws_applied'] = laws_applied
             if final_score <= 0.0:
                 row['prediction_score'] = 0.0
-            # Ensure prediction_tags orientation aligns with finalized tone
             try:
-                t = str(row.get('tone') or '').lower()
-                if t in {'positive','negative','mixed'}:
-                    tags = list(row.get('prediction_tags') or [])
-                    # Drop any stale orientation tags
-                    tags = [x for x in tags if str(x).lower() not in {'positive','negative','mixed'}]
-                    tags.append(t)
-                    # Deduplicate while preserving order
-                    row['prediction_tags'] = list(dict.fromkeys(tags))
+                _sync_prediction_orientation_tags(row)
             except Exception:
                 pass
                 row['significance'] = 0.0
@@ -5940,6 +5986,23 @@ def enrich_hits_with_concordance(
                     + (0.10 * domain_term)
                 ) * 10.0 * aspect_factor * orb_factor
                 quality_score_local = max(-10.0, min(10.0, raw_quality))
+                pred_for_tone = row.get('prediction') or {}
+                selected_event_token = ''
+                if isinstance(pred_for_tone, dict):
+                    selected_event_token = str(pred_for_tone.get('eventType') or '').strip().lower()
+                    selected_event_token = _DOMAIN_SYNONYMS.get(selected_event_token, selected_event_token)
+                adverse_tokens = _row_context_tokens(row) & _ADVERSE_STEP_HINTS
+                strong_adverse_tokens = adverse_tokens & _STRONG_ADVERSE_STEP_HINTS
+                hard_selected_adverse = (
+                    _aspect_hard_soft(aspect_label) == 'hard'
+                    and bool(selected_event_token)
+                    and selected_event_token in _ADVERSE_STEP_HINTS
+                )
+                if hard_selected_adverse:
+                    if strong_adverse_tokens or malefic or domain_sign < 0:
+                        quality_score_local = min(quality_score_local, -1.0)
+                    elif quality_score_local > 0.0:
+                        quality_score_local = 0.0
 
                 if quality_score_local >= 7.0:
                     quality_label_local = 'very_benefic'
@@ -5969,7 +6032,13 @@ def enrich_hits_with_concordance(
                     row['tone'] = 'negative'
                 else:
                     row['tone'] = 'mixed'
+                if hard_selected_adverse and row.get('tone') == 'mixed':
+                    tags_local = list(row.get('prediction_tags') or [])
+                    if 'mixed_outcome' not in {str(t).strip().lower() for t in tags_local}:
+                        tags_local.append('mixed_outcome')
+                    row['prediction_tags'] = tags_local
                 row['tone_score'] = round(max(-1.0, min(1.0, quality_score_local / 10.0)), 3)
+                _sync_prediction_orientation_tags(row)
             except Exception:
                 row.setdefault('tone', 'mixed')
                 row.setdefault('tone_score', 0.0)
