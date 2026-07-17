@@ -12,6 +12,25 @@ ANGULAR_HOUSE_TO_ANGLE = {
     7: "DSC",
     10: "MC",
 }
+ANGLE_TO_HOUSE = {angle: house for house, angle in ANGULAR_HOUSE_TO_ANGLE.items()}
+RELOCATION_ANGULAR_ORB_DEG = 5.0
+DISTANCE_SENSITIVITY_PROFILES = {
+    "conservative": 0.8,
+    "standard": 1.0,
+    "wide": 5.0 / 3.0,
+}
+DIMINISHING_RETURN_FACTORS = (1.0, 0.8, 0.65, 0.5)
+DEFAULT_EVIDENCE_POLICY = {
+    "min_independent_signals": 1,
+    "weak_magnitude": 2.5,
+    "strong_magnitude": 8.0,
+    "block_caps": {
+        "natal_lines": 12.0,
+        "crossing_interactions": 6.0,
+        "relocation": 8.0,
+        "transit_overlay": 4.0,
+    },
+}
 
 BENEFICS = {"Venus", "Jupiter", "Sun", "Moon"}
 MALEFICS = {"Mars", "Saturn", "Neptune", "Pluto"}
@@ -325,6 +344,168 @@ def _planet_longitude(planets: Dict[str, Dict[str, Any]], planet_name: str) -> O
 
 def _angular_separation(a: float, b: float) -> float:
     return abs(((float(a) - float(b) + 180.0) % 360.0) - 180.0)
+
+
+def _finite_longitude(value: Any) -> Optional[float]:
+    try:
+        longitude = float(value)
+    except Exception:
+        return None
+    if longitude != longitude or longitude in {float("inf"), float("-inf")}:
+        return None
+    return longitude % 360.0
+
+
+def _chart_angle_longitudes(chart_data: Dict[str, Any], house_cusps: Sequence[float]) -> Dict[str, float]:
+    asc = _finite_longitude(chart_data.get("ascendant_exact"))
+    if asc is None:
+        asc = _finite_longitude(chart_data.get("ascendant"))
+    if asc is None and len(house_cusps) >= 1:
+        asc = _finite_longitude(house_cusps[0])
+
+    mc = _finite_longitude(chart_data.get("midheaven_exact"))
+    if mc is None:
+        mc = _finite_longitude(chart_data.get("midheaven"))
+    if mc is None and len(house_cusps) >= 10:
+        mc = _finite_longitude(house_cusps[9])
+
+    angles: Dict[str, float] = {}
+    if asc is not None:
+        angles["ASC"] = asc
+        angles["DSC"] = (asc + 180.0) % 360.0
+    if mc is not None:
+        angles["MC"] = mc
+        angles["IC"] = (mc + 180.0) % 360.0
+    return angles
+
+
+def _planet_angle_proximity(
+    planets: Dict[str, Dict[str, Any]],
+    angle_longitudes: Dict[str, float],
+    *,
+    max_orb: float = RELOCATION_ANGULAR_ORB_DEG,
+) -> Tuple[Dict[str, str], Dict[str, Dict[str, Any]]]:
+    planet_angles: Dict[str, str] = {}
+    proximity: Dict[str, Dict[str, Any]] = {}
+    for planet_name, payload in planets.items():
+        longitude = _finite_longitude(payload.get("longitude"))
+        if longitude is None or not angle_longitudes:
+            continue
+        candidates = sorted(
+            (
+                (_angular_separation(longitude, angle_longitude), angle)
+                for angle, angle_longitude in angle_longitudes.items()
+            ),
+            key=lambda item: (float(item[0]), str(item[1])),
+        )
+        if not candidates:
+            continue
+        orb, angle = candidates[0]
+        proximity[planet_name] = {
+            "nearest_angle": angle,
+            "orb_deg": round(float(orb), 4),
+            "within_orb": bool(float(orb) <= float(max_orb)),
+            "max_orb_deg": float(max_orb),
+        }
+        if float(orb) <= float(max_orb):
+            planet_angles[planet_name] = angle
+    return planet_angles, proximity
+
+
+def _planet_condition_profiles(
+    planets: Dict[str, Dict[str, Any]],
+    aspects: Sequence[Dict[str, Any]],
+) -> Dict[str, Dict[str, Any]]:
+    profiles: Dict[str, Dict[str, Any]] = {}
+    aspect_balance: Dict[str, float] = {name: 0.0 for name in planets}
+    for row in aspects or []:
+        left = _resolve_planet_name(row.get("planet1") or row.get("from"), planets)
+        right = _resolve_planet_name(row.get("planet2") or row.get("to"), planets)
+        if left not in planets or right not in planets:
+            continue
+        aspect_name = _normalize_aspect_name(row.get("aspect") or row.get("aspect_name"))
+        if aspect_name in {"trine", "sextile"}:
+            adjustment = 0.04
+        elif aspect_name == "conjunction":
+            adjustment = 0.0
+        elif aspect_name in HARD_ASPECTS:
+            adjustment = -0.05
+        else:
+            continue
+        exactness = _aspect_exactness(row, aspect_name) if aspect_name in PATTERN_EXACTNESS_MAX_ORBS else 0.55
+        aspect_balance[left] = aspect_balance.get(left, 0.0) + (adjustment * exactness)
+        aspect_balance[right] = aspect_balance.get(right, 0.0) + (adjustment * exactness)
+
+    for planet_name, payload in planets.items():
+        quality = 0.0
+        inputs: List[str] = []
+        dignity = payload.get("dignity_score")
+        try:
+            dignity_value = max(-8.0, min(8.0, float(dignity)))
+            quality += (dignity_value / 8.0) * 0.2
+            inputs.append("dignity")
+        except Exception:
+            for key, scale in (("essential_dignity", 5.0), ("accidental_dignity", 8.0)):
+                try:
+                    dignity_value = max(-scale, min(scale, float(payload.get(key))))
+                except Exception:
+                    continue
+                quality += (dignity_value / scale) * 0.14
+                inputs.append(key)
+                break
+
+        solar_condition = str(payload.get("solar_condition") or "").strip().lower()
+        if "cazimi" in solar_condition:
+            quality += 0.12
+            inputs.append("cazimi")
+        elif "combust" in solar_condition:
+            quality -= 0.18
+            inputs.append("combust")
+        elif "beam" in solar_condition:
+            quality -= 0.08
+            inputs.append("under_beams")
+
+        if bool(payload.get("retrograde")):
+            quality -= 0.08
+            inputs.append("retrograde")
+
+        aspect_adjustment = max(-0.15, min(0.15, aspect_balance.get(planet_name, 0.0)))
+        if abs(aspect_adjustment) > 1e-9:
+            quality += aspect_adjustment
+            inputs.append("natal_aspects")
+
+        quality = max(-0.35, min(0.35, quality))
+        profiles[planet_name] = {
+            "quality": round(quality, 4),
+            "support_factor": round(1.0 + quality, 4),
+            "caution_factor": round(1.0 - quality, 4),
+            "inputs": inputs,
+            "available": bool(inputs),
+        }
+    return profiles
+
+
+def _condition_factor(
+    condition_profiles: Dict[str, Dict[str, Any]],
+    planets: Sequence[str],
+    *,
+    weight: float,
+) -> Tuple[float, Dict[str, Any]]:
+    available = [
+        condition_profiles.get(str(planet)) or {}
+        for planet in planets
+        if (condition_profiles.get(str(planet)) or {}).get("available")
+    ]
+    if not available:
+        return 1.0, {"available": False, "factor": 1.0, "planets": list(planets)}
+    factor_key = "support_factor" if float(weight) >= 0.0 else "caution_factor"
+    factor = sum(float(item.get(factor_key) or 1.0) for item in available) / float(len(available))
+    return max(0.65, min(1.35, factor)), {
+        "available": True,
+        "factor": round(max(0.65, min(1.35, factor)), 4),
+        "planets": list(planets),
+        "basis": factor_key,
+    }
 
 
 def _best_longitude_aspect(
@@ -671,13 +852,64 @@ def _compute_chart_pattern_geometry(
     }
 
 
+def _birth_time_confidence(chart_data: Dict[str, Any]) -> Dict[str, Any]:
+    explicit = chart_data.get("birth_time_confidence")
+    try:
+        confidence = _clamp01(float(explicit))
+        return {
+            "value": round(confidence, 4),
+            "source": "explicit",
+            "unknown_time": bool(confidence <= 0.25),
+        }
+    except Exception:
+        pass
+
+    unknown_time = bool(chart_data.get("unknown_time") or chart_data.get("birth_time_unknown"))
+    if unknown_time:
+        return {"value": 0.2, "source": "unknown_time", "unknown_time": True}
+
+    uncertainty_minutes = chart_data.get("birth_time_uncertainty_minutes")
+    try:
+        minutes = max(0.0, float(uncertainty_minutes))
+        confidence = max(0.2, 1.0 - min(1.0, minutes / 120.0) * 0.8)
+        return {
+            "value": round(confidence, 4),
+            "source": "uncertainty_minutes",
+            "uncertainty_minutes": round(minutes, 2),
+            "unknown_time": bool(minutes >= 90.0),
+        }
+    except Exception:
+        pass
+
+    accuracy = str(chart_data.get("birth_time_accuracy") or chart_data.get("time_accuracy") or "").strip().lower()
+    if accuracy:
+        mapped = {
+            "exact": 1.0,
+            "recorded": 0.95,
+            "verified": 0.95,
+            "approximate": 0.65,
+            "estimated": 0.55,
+            "unknown": 0.2,
+        }
+        for token, confidence in mapped.items():
+            if token in accuracy:
+                return {
+                    "value": confidence,
+                    "source": "accuracy_label",
+                    "label": accuracy,
+                    "unknown_time": bool(confidence <= 0.25),
+                }
+    return {"value": 1.0, "source": "not_provided", "unknown_time": False}
+
+
 def extract_relocation_features(chart_data: Dict[str, Any]) -> Dict[str, Any]:
-    planets = _normalize_planet_map(chart_data if isinstance(chart_data, dict) else {})
-    house_rulers = _normalize_house_rulers(chart_data if isinstance(chart_data, dict) else {}, planets)
-    house_cusps = _normalize_house_cusps(chart_data if isinstance(chart_data, dict) else {})
-    aspects = _get_chart_aspects(chart_data if isinstance(chart_data, dict) else {})
+    normalized_chart = chart_data if isinstance(chart_data, dict) else {}
+    planets = _normalize_planet_map(normalized_chart)
+    house_rulers = _normalize_house_rulers(normalized_chart, planets)
+    house_cusps = _normalize_house_cusps(normalized_chart)
+    aspects = _get_chart_aspects(normalized_chart)
     planet_houses: Dict[str, int] = {}
-    planet_angles: Dict[str, str] = {}
+    angular_house_occupancy: Dict[str, str] = {}
     house_occupancy: Dict[int, List[str]] = {house: [] for house in range(1, 13)}
 
     for name, payload in planets.items():
@@ -691,7 +923,11 @@ def extract_relocation_features(chart_data: Dict[str, Any]) -> Dict[str, Any]:
         house_occupancy.setdefault(house, []).append(name)
         angle = ANGULAR_HOUSE_TO_ANGLE.get(house)
         if angle:
-            planet_angles[name] = angle
+            angular_house_occupancy[name] = angle
+    angle_longitudes = _chart_angle_longitudes(normalized_chart, house_cusps)
+    planet_angles, planet_angle_proximity = _planet_angle_proximity(planets, angle_longitudes)
+    planet_conditions = _planet_condition_profiles(planets, aspects)
+    time_confidence = _birth_time_confidence(normalized_chart)
     intercepted_signs = _derive_intercepted_signs(house_cusps)
     asc_intercepted_signs = list(dict.fromkeys((intercepted_signs.get(1) or []) + (intercepted_signs.get(7) or [])))
     asc_interception = _clamp01(len(asc_intercepted_signs) / 2.0)
@@ -702,27 +938,69 @@ def extract_relocation_features(chart_data: Dict[str, Any]) -> Dict[str, Any]:
             return 0.0
         return max(0.0, min(1.0, matches / float(scale)))
 
-    visibility_hits = sum(1 for planet, house in planet_houses.items() if planet in {"Sun", "Jupiter", "Mercury", "Venus"} and house in {1, 10})
-    partnership_hits = sum(1 for planet, house in planet_houses.items() if planet in {"Venus", "Moon", "Jupiter"} and house in {5, 7})
-    domesticity_hits = sum(1 for planet, house in planet_houses.items() if planet in {"Moon", "Venus"} and house in {4, 5})
-    mobility_hits = sum(1 for planet, house in planet_houses.items() if planet in {"Mercury", "Jupiter", "Uranus"} and house in {3, 9})
-    uncertainty_hits = sum(1 for planet, house in planet_houses.items() if planet in {"Neptune", "Uranus"} and house in {1, 7, 9, 10, 12})
-    stability_hits = sum(1 for planet, house in planet_houses.items() if planet in {"Saturn", "Jupiter"} and house in {1, 4, 10})
-    benefic_hits = sum(1 for planet, house in planet_houses.items() if planet in BENEFICS and house in {1, 4, 5, 7, 10, 11})
-    malefic_hits = sum(1 for planet, house in planet_houses.items() if planet in MALEFICS and house in {1, 6, 7, 8, 10, 12})
-    community_hits = sum(1 for planet, house in planet_houses.items() if planet in {"Venus", "Jupiter", "Mercury", "Moon", "Sun"} and house in {3, 11})
-    belief_hits = sum(1 for planet, house in planet_houses.items() if planet in {"Jupiter", "Neptune", "Sun", "Mercury", "Moon"} and house in {9, 12})
-    chemistry_hits = sum(1 for planet, house in planet_houses.items() if planet in {"Venus", "Mars", "Pluto", "Moon"} and house in {1, 5, 7, 8})
-    career_hits = sum(1 for planet, house in planet_houses.items() if planet in {"Sun", "Jupiter", "Saturn", "Mercury"} and house in {1, 10, 11})
-    home_hits = sum(1 for planet, house in planet_houses.items() if planet in {"Moon", "Venus", "Jupiter"} and house in {2, 4})
-    personal_growth_hits = sum(1 for planet, house in planet_houses.items() if planet in {"Sun", "Jupiter", "Uranus", "Pluto", "North Node"} and house in {1, 8, 9, 10, 11})
-    communication_hits = sum(1 for planet, house in planet_houses.items() if planet in {"Mercury", "Venus", "Moon", "Jupiter", "Sun", "Uranus"} and house in {3, 7, 9, 11})
-    conflict_hits = sum(1 for planet, house in planet_houses.items() if planet in {"Mars", "Saturn", "Pluto", "Uranus"} and house in {1, 7, 8, 12})
-    body_presence_hits = sum(1 for planet, house in planet_houses.items() if planet in {"Sun", "Venus", "Moon", "Mars", "Jupiter"} and house in {1, 2, 5, 10})
-    travel_joy_hits = sum(1 for planet, house in planet_houses.items() if planet in {"Venus", "Jupiter", "Sun", "Mercury", "Moon"} and house in {3, 5, 9, 11})
-    restoration_hits = sum(1 for planet, house in planet_houses.items() if planet in {"Moon", "Venus", "Jupiter", "Neptune", "Sun"} and house in {4, 9, 12})
+    def placement_hits(allowed_planets: set[str], allowed_houses: set[int]) -> List[str]:
+        return [
+            f"relocation:{planet}:house:{house}"
+            for planet, house in planet_houses.items()
+            if planet in allowed_planets and house in allowed_houses
+        ]
+
+    metric_evidence: Dict[str, List[str]] = {
+        "visibility": placement_hits({"Sun", "Jupiter", "Mercury", "Venus"}, {1, 10}),
+        "partnership": placement_hits({"Venus", "Moon", "Jupiter"}, {5, 7}),
+        "domesticity": placement_hits({"Moon", "Venus"}, {4, 5}),
+        "mobility": placement_hits({"Mercury", "Jupiter", "Uranus"}, {3, 9}),
+        "uncertainty": placement_hits({"Neptune", "Uranus"}, {1, 7, 9, 10, 12}),
+        "stability_support": placement_hits({"Saturn", "Jupiter"}, {1, 4, 10}),
+        "benefic_balance": placement_hits(BENEFICS, {1, 4, 5, 7, 10, 11}),
+        "malefic_pressure": placement_hits(MALEFICS, {1, 6, 7, 8, 10, 12}),
+        "community": placement_hits({"Venus", "Jupiter", "Mercury", "Moon", "Sun"}, {3, 11}),
+        "beliefs": placement_hits({"Jupiter", "Neptune", "Sun", "Mercury", "Moon"}, {9, 12}),
+        "chemistry": placement_hits({"Venus", "Mars", "Pluto", "Moon"}, {1, 5, 7, 8}),
+        "career_status": placement_hits({"Sun", "Jupiter", "Saturn", "Mercury"}, {1, 10, 11}),
+        "home_base": placement_hits({"Moon", "Venus", "Jupiter"}, {2, 4}),
+        "personal_growth": placement_hits({"Sun", "Jupiter", "Uranus", "Pluto", "North Node"}, {1, 8, 9, 10, 11}),
+        "communication": placement_hits({"Mercury", "Venus", "Moon", "Jupiter", "Sun", "Uranus"}, {3, 7, 9, 11}),
+        "conflict_pressure": placement_hits({"Mars", "Saturn", "Pluto", "Uranus"}, {1, 7, 8, 12}),
+        "body_presence": placement_hits({"Sun", "Venus", "Moon", "Mars", "Jupiter"}, {1, 2, 5, 10}),
+        "travel_joy": placement_hits({"Venus", "Jupiter", "Sun", "Mercury", "Moon"}, {3, 5, 9, 11}),
+        "restoration": placement_hits({"Moon", "Venus", "Jupiter", "Neptune", "Sun"}, {4, 9, 12}),
+        "health_risk": placement_hits({"Mars", "Saturn", "Neptune", "Pluto", "Uranus"}, {1, 6, 8, 12}),
+    }
+    visibility_hits = len(metric_evidence["visibility"])
+    partnership_hits = len(metric_evidence["partnership"])
+    domesticity_hits = len(metric_evidence["domesticity"])
+    mobility_hits = len(metric_evidence["mobility"])
+    uncertainty_hits = len(metric_evidence["uncertainty"])
+    stability_hits = len(metric_evidence["stability_support"])
+    benefic_hits = len(metric_evidence["benefic_balance"])
+    malefic_hits = len(metric_evidence["malefic_pressure"])
+    community_hits = len(metric_evidence["community"])
+    belief_hits = len(metric_evidence["beliefs"])
+    chemistry_hits = len(metric_evidence["chemistry"])
+    career_hits = len(metric_evidence["career_status"])
+    home_hits = len(metric_evidence["home_base"])
+    personal_growth_hits = len(metric_evidence["personal_growth"])
+    communication_hits = len(metric_evidence["communication"])
+    conflict_hits = len(metric_evidence["conflict_pressure"])
+    body_presence_hits = len(metric_evidence["body_presence"])
+    travel_joy_hits = len(metric_evidence["travel_joy"])
+    restoration_hits = len(metric_evidence["restoration"])
+    metric_evidence["stability"] = list(
+        dict.fromkeys(metric_evidence["stability_support"] + metric_evidence["uncertainty"])
+    )
     speculation_value, speculation_drag_value = _speculation_profile(planet_houses)
-    health_risk_hits = sum(1 for planet, house in planet_houses.items() if planet in {"Mars", "Saturn", "Neptune", "Pluto", "Uranus", "Chiron"} and house in {1, 6, 8, 12})
+    metric_evidence["speculation"] = [
+        f"relocation:{planet}:house:{house}"
+        for planet, house in planet_houses.items()
+        if SPECULATION_SUPPORT_WEIGHTS.get((planet, house), 0.0) > 0.0
+    ]
+    metric_evidence["speculation_drag"] = [
+        f"relocation:{planet}:house:{house}"
+        for planet, house in planet_houses.items()
+        if SPECULATION_DRAG_WEIGHTS.get((planet, house), 0.0) > 0.0
+    ]
+    health_risk_hits = len(metric_evidence["health_risk"])
     gambling_signature = 0.0
     gambling_activation = 0.0
     for planet, house in planet_houses.items():
@@ -927,8 +1205,16 @@ def extract_relocation_features(chart_data: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "planet_houses": planet_houses,
         "planet_angles": planet_angles,
+        "planet_angle_proximity": planet_angle_proximity,
+        "angular_house_occupancy": angular_house_occupancy,
+        "angle_longitudes": angle_longitudes,
         "house_occupancy": house_occupancy,
         "house_rulers": house_rulers,
+        "planet_conditions": planet_conditions,
+        "metric_evidence": metric_evidence,
+        "confidence": {
+            "birth_time": time_confidence,
+        },
         "details": {
             "asc_ruler": asc_ruler,
             "gambling_ruler": gambling_ruler,
@@ -943,6 +1229,8 @@ def extract_relocation_features(chart_data: Dict[str, Any]) -> Dict[str, Any]:
             "intercepted_signs": intercepted_signs,
             "asc_intercepted_signs": asc_intercepted_signs,
             "patterns": pattern_geometry.get("items") or {},
+            "angular_house_occupancy": angular_house_occupancy,
+            "planet_angle_proximity": planet_angle_proximity,
         },
         "metrics": metrics,
     }
@@ -1657,19 +1945,34 @@ def evaluate_gambling_natal_curated_heuristic(
 
 def _normalize_goal_score(model: Dict[str, Any], raw_total: float) -> int:
     normalization = model.get("normalization") or {}
-    min_score = float(normalization.get("min_score") or -10.0)
-    max_score = float(normalization.get("max_score") or 20.0)
+    min_score = float(normalization["min_score"]) if normalization.get("min_score") is not None else -10.0
+    max_score = float(normalization["max_score"]) if normalization.get("max_score") is not None else 20.0
     if max_score <= min_score:
         return int(round(max(0.0, min(100.0, raw_total))))
-    ratio = (raw_total - min_score) / (max_score - min_score)
-    return int(round(max(0.0, min(100.0, ratio * 100.0))))
+    neutral_score = float(normalization["neutral_score"]) if normalization.get("neutral_score") is not None else 50.0
+    neutral_score = max(0.0, min(100.0, neutral_score))
+    if raw_total >= 0.0:
+        denominator = max(1e-9, max_score)
+        score = neutral_score + ((raw_total / denominator) * (100.0 - neutral_score))
+    else:
+        denominator = max(1e-9, abs(min_score))
+        score = neutral_score + ((raw_total / denominator) * neutral_score)
+    return int(round(max(0.0, min(100.0, score))))
 
 
-def _score_line_component(component: Dict[str, Any], rows: Sequence[Dict[str, Any]], context: str, multiplier: float = 1.0) -> Optional[Dict[str, Any]]:
+def _score_line_component(
+    component: Dict[str, Any],
+    rows: Sequence[Dict[str, Any]],
+    context: str,
+    *,
+    relocation: Optional[Dict[str, Any]] = None,
+    multiplier: float = 1.0,
+    distance_scale: float = 1.0,
+) -> Optional[Dict[str, Any]]:
     planet = str(component.get("planet") or "")
     allowed_angles = {str(angle).upper() for angle in component.get("angles") or []}
     distance = component.get("distance") or {}
-    max_km = float(distance.get("max_km") or 500.0)
+    max_km = float(distance.get("max_km") or 500.0) * max(0.1, float(distance_scale))
     falloff = str(distance.get("falloff") or "linear")
     candidates = [
         row for row in rows
@@ -1681,7 +1984,16 @@ def _score_line_component(component: Dict[str, Any], rows: Sequence[Dict[str, An
     factor = _score_distance(float(best.get("distance_km") or 0.0), max_km=max_km, falloff=falloff)
     if factor <= 0.0:
         return None
-    raw_score = float(component.get("weight") or 0.0) * factor * float(multiplier)
+    weight = float(component.get("weight") or 0.0)
+    condition_factor, condition_meta = _condition_factor(
+        (relocation or {}).get("planet_conditions") or {},
+        [planet],
+        weight=weight,
+    )
+    birth_time_value = ((((relocation or {}).get("confidence") or {}).get("birth_time") or {}).get("value"))
+    birth_time_factor = float(birth_time_value) if birth_time_value is not None else 1.0
+    raw_score = weight * factor * float(multiplier) * condition_factor * birth_time_factor
+    row_id = str(best.get("id") or f"{planet}:{str(best.get('angle') or '').upper()}")
     return {
         "kind": "line",
         "context": context,
@@ -1690,31 +2002,93 @@ def _score_line_component(component: Dict[str, Any], rows: Sequence[Dict[str, An
         "matched": best,
         "label": best.get("label"),
         "distance_km": best.get("distance_km"),
+        "evidence_keys": [f"{context}:line:{row_id}"],
+        "evidence_block": "transit_overlay" if context == "transit" else "natal_lines",
+        "natal_condition": condition_meta,
+        "birth_time_factor": round(birth_time_factor, 4),
         "rationale": component.get("rationale"),
     }
 
 
-def _score_crossing_component(component: Dict[str, Any], crossings: Sequence[Dict[str, Any]], context: str, multiplier: float = 1.0) -> Optional[Dict[str, Any]]:
+def _canonical_crossing_key(row: Dict[str, Any]) -> str:
+    explicit = str(row.get("canonical_id") or row.get("crossing_id") or row.get("paran_id") or "").strip()
+    if explicit:
+        return explicit
+    lines = [str(item).strip() for item in (row.get("lines") or []) if str(item).strip()]
+    if not lines:
+        row_id = str(row.get("id") or "").strip()
+        if "|" in row_id:
+            lines = [item.strip() for item in row_id.split("|") if item.strip()]
+        elif row_id:
+            return row_id
+    if lines:
+        return "|".join(sorted(lines))
+    planets = sorted(str(item).strip() for item in (row.get("planets") or []) if str(item).strip())
+    point = row.get("point")
+    point_token = ""
+    if isinstance(point, (list, tuple)) and len(point) >= 2:
+        try:
+            point_token = f":{round(float(point[0]), 3)}:{round(float(point[1]), 3)}"
+        except Exception:
+            point_token = ""
+    kind = str(row.get("kind") or "crossing").strip().lower()
+    return f"{kind}:{'|'.join(planets)}{point_token}"
+
+
+def _score_crossing_component(
+    component: Dict[str, Any],
+    crossings: Sequence[Dict[str, Any]],
+    context: str,
+    *,
+    relocation: Optional[Dict[str, Any]] = None,
+    multiplier: float = 1.0,
+    distance_scale: float = 1.0,
+) -> Optional[Dict[str, Any]]:
     target_pair = tuple(sorted(str(name) for name in component.get("pair") or []))
     if len(target_pair) != 2:
         return None
     distance = component.get("distance") or {}
-    max_km = float(distance.get("max_km") or 500.0)
+    max_km = float(distance.get("max_km") or 500.0) * max(0.1, float(distance_scale))
     falloff = str(distance.get("falloff") or "linear")
-    candidates = []
+    candidates_by_key: Dict[str, Dict[str, Any]] = {}
     for item in crossings:
         if not _is_exact_crossing(item):
             continue
         pair = tuple(sorted(str(name) for name in item.get("planets") or []))
         if pair == target_pair:
-            candidates.append(item)
+            canonical_key = _canonical_crossing_key(item)
+            current = candidates_by_key.get(canonical_key)
+            if current is None or float(item.get("distance_km") or 999999.0) < float(current.get("distance_km") or 999999.0):
+                candidates_by_key[canonical_key] = item
+    candidates = list(candidates_by_key.values())
     if not candidates:
         return None
     best = min(candidates, key=lambda row: float(row.get("distance_km") or 999999.0))
     factor = _score_distance(float(best.get("distance_km") or 0.0), max_km=max_km, falloff=falloff)
     if factor <= 0.0:
         return None
-    raw_score = float(component.get("weight") or 0.0) * factor * float(multiplier)
+    weight = float(component.get("weight") or 0.0)
+    condition_factor, condition_meta = _condition_factor(
+        (relocation or {}).get("planet_conditions") or {},
+        target_pair,
+        weight=weight,
+    )
+    birth_time_value = ((((relocation or {}).get("confidence") or {}).get("birth_time") or {}).get("value"))
+    birth_time_factor = float(birth_time_value) if birth_time_value is not None else 1.0
+    interaction_scale_value = component.get("interaction_scale")
+    interaction_scale = max(
+        0.0,
+        min(1.0, float(interaction_scale_value) if interaction_scale_value is not None else 0.5),
+    )
+    raw_score = (
+        weight
+        * factor
+        * float(multiplier)
+        * condition_factor
+        * birth_time_factor
+        * interaction_scale
+    )
+    canonical_key = _canonical_crossing_key(best)
     return {
         "kind": "crossing",
         "context": context,
@@ -1723,6 +2097,13 @@ def _score_crossing_component(component: Dict[str, Any], crossings: Sequence[Dic
         "matched": best,
         "label": best.get("label"),
         "distance_km": best.get("distance_km"),
+        "canonical_crossing_id": canonical_key,
+        "evidence_keys": [f"{context}:crossing:{canonical_key}"],
+        "evidence_block": "transit_overlay" if context == "transit" else "crossing_interactions",
+        "interaction_residual": True,
+        "interaction_scale": interaction_scale,
+        "natal_condition": condition_meta,
+        "birth_time_factor": round(birth_time_factor, 4),
         "rationale": component.get("rationale"),
     }
 
@@ -1737,10 +2118,24 @@ def _score_relocation_component(component: Dict[str, Any], relocation: Dict[str,
 
     if component.get("kind") == "modifier":
         metric_name = str(component.get("metric") or "")
-        factor = float(metrics.get(metric_name) or 0.0)
+        try:
+            factor = float(metrics.get(metric_name) or 0.0)
+        except Exception:
+            return None
+        # Relocation metrics are normalized evidence magnitudes. Negative values
+        # must never invert a caution weight into accidental support.
         if factor <= 0.0:
             return None
-        raw_score = float(component.get("weight") or 0.0) * factor
+        weight = float(component.get("weight") or 0.0)
+        evidence_role = str(component.get("evidence_role") or "local").strip().lower()
+        evidence_keys = [
+            str(item)
+            for item in ((relocation.get("metric_evidence") or {}).get(metric_name) or [])
+            if str(item)
+        ]
+        if not evidence_keys:
+            evidence_keys = [f"metric:{metric_name}"]
+        raw_score = 0.0 if evidence_role == "global_prior" else weight * factor
         return {
             "kind": "modifier",
             "context": "relocation",
@@ -1748,6 +2143,10 @@ def _score_relocation_component(component: Dict[str, Any], relocation: Dict[str,
             "score": round(raw_score, 3),
             "metric": metric_name,
             "metric_value": round(factor, 3),
+            "evidence_keys": evidence_keys,
+            "evidence_block": "global_prior" if evidence_role == "global_prior" else "relocation",
+            "evidence_role": evidence_role,
+            "prior_weight": round(weight * factor, 3) if evidence_role == "global_prior" else None,
             "rationale": component.get("rationale"),
         }
 
@@ -1755,26 +2154,41 @@ def _score_relocation_component(component: Dict[str, Any], relocation: Dict[str,
         return None
 
     hits: List[str] = []
+    evidence_keys: List[str] = []
     for planet in planets:
         house = planet_houses.get(planet)
         angle = planet_angles.get(planet)
         matched = False
         if houses and house in houses:
             matched = True
+            evidence_keys.append(f"relocation:{planet}:house:{house}")
         if angles and angle in angles:
             matched = True
+            evidence_keys.append(f"relocation:{planet}:angle:{angle}")
         if matched:
             hits.append(planet)
     if not hits:
         return None
     factor = len(hits) / max(1, len(planets))
-    raw_score = float(component.get("weight") or 0.0) * factor
+    weight = float(component.get("weight") or 0.0)
+    condition_factor, condition_meta = _condition_factor(
+        relocation.get("planet_conditions") or {},
+        hits,
+        weight=weight,
+    )
+    birth_time_value = (((relocation.get("confidence") or {}).get("birth_time") or {}).get("value"))
+    birth_time_factor = float(birth_time_value) if birth_time_value is not None else 1.0
+    raw_score = weight * factor * condition_factor * birth_time_factor
     return {
         "kind": "relocation",
         "context": "relocation",
         "component": component,
         "score": round(raw_score, 3),
         "matched_planets": hits,
+        "evidence_keys": list(dict.fromkeys(evidence_keys)),
+        "evidence_block": "relocation",
+        "natal_condition": condition_meta,
+        "birth_time_factor": round(birth_time_factor, 4),
         "rationale": component.get("rationale"),
     }
 
@@ -1813,7 +2227,14 @@ def _score_constraint_component(component: Dict[str, Any], relocation: Dict[str,
     multiplier = component.get("multiplier")
     if multiplier is not None:
         multiplier = float(multiplier)
-        score += float(current_total) * (multiplier - 1.0)
+        polarity = str(component.get("polarity") or "neutral").strip().lower()
+        if polarity == "support":
+            signed_base = max(0.0, float(current_total))
+        elif polarity == "caution":
+            signed_base = min(0.0, float(current_total))
+        else:
+            signed_base = float(current_total)
+        score += signed_base * (multiplier - 1.0)
 
     if abs(score) < 1e-9:
         return None
@@ -1825,7 +2246,262 @@ def _score_constraint_component(component: Dict[str, Any], relocation: Dict[str,
         "score": round(score, 3),
         "metric": metric_name,
         "metric_value": round(metric_value, 3),
+        "evidence_keys": [],
+        "evidence_block": "constraints",
         "rationale": component.get("rationale"),
+    }
+
+
+def _model_scoring_scopes(model: Dict[str, Any]) -> List[Tuple[Dict[str, Any], str, float]]:
+    composition = model.get("composition") or {}
+    if str(composition.get("mode") or "standalone").strip().lower() != "specialist_residual":
+        return [(model, "model", 1.0)]
+
+    parent_id = str(composition.get("parent_id") or "").strip().lower()
+    if not parent_id:
+        raise ValueError(f"Specialist goal model {model.get('id')} is missing composition.parent_id")
+    parent = get_goal_model(parent_id)
+    parent_composition = parent.get("composition") or {}
+    if str(parent_composition.get("mode") or "standalone").strip().lower() != "standalone":
+        raise ValueError(f"Specialist goal model {model.get('id')} cannot inherit another specialist model")
+    parent_weight = float(composition.get("parent_weight") if composition.get("parent_weight") is not None else 1.0)
+    return [(parent, "parent", parent_weight), (model, "specialist_residual", 1.0)]
+
+
+def _claim_atomic_evidence(
+    contribution: Dict[str, Any],
+    claimed: set[str],
+) -> Optional[Dict[str, Any]]:
+    evidence_role = str(contribution.get("evidence_role") or "local").strip().lower()
+    if evidence_role == "global_prior":
+        contribution["atomic_factor"] = 0.0
+        contribution["deduplicated_evidence"] = []
+        return contribution
+    keys = list(dict.fromkeys(str(item) for item in (contribution.get("evidence_keys") or []) if str(item)))
+    if not keys:
+        component = contribution.get("component") or {}
+        component_id = str(component.get("component_id") or "").strip()
+        if component_id:
+            keys = [f"component:{component_id}"]
+        else:
+            keys = [
+                "component:"
+                + ":".join(
+                    [
+                        str(contribution.get("context") or ""),
+                        str(contribution.get("kind") or ""),
+                        str(contribution.get("metric") or contribution.get("label") or ""),
+                    ]
+                )
+            ]
+    unique_keys = [key for key in keys if key not in claimed]
+    if not unique_keys:
+        return None
+    atomic_factor = len(unique_keys) / float(len(keys))
+    contribution["score"] = round(float(contribution.get("score") or 0.0) * atomic_factor, 4)
+    contribution["atomic_factor"] = round(atomic_factor, 4)
+    contribution["evidence_keys"] = unique_keys
+    contribution["deduplicated_evidence"] = [key for key in keys if key not in unique_keys]
+    claimed.update(unique_keys)
+    if abs(float(contribution.get("score") or 0.0)) < 1e-9:
+        return None
+    return contribution
+
+
+def _diminish_and_cap_contributions(
+    contributions: List[Dict[str, Any]],
+    evidence_policy: Dict[str, Any],
+) -> None:
+    block_caps = dict(DEFAULT_EVIDENCE_POLICY["block_caps"])
+    block_caps.update(evidence_policy.get("block_caps") or {})
+    block_names = {
+        str(item.get("evidence_block") or "")
+        for item in contributions
+        if str(item.get("evidence_block") or "") not in {"", "constraints", "global_prior"}
+    }
+    for block in sorted(block_names):
+        rows = [
+            item
+            for item in contributions
+            if str(item.get("evidence_block") or "") == block
+            and abs(float(item.get("score") or 0.0)) > 1e-9
+        ]
+        rows.sort(key=lambda item: abs(float(item.get("score") or 0.0)), reverse=True)
+        for rank, item in enumerate(rows):
+            factor = DIMINISHING_RETURN_FACTORS[min(rank, len(DIMINISHING_RETURN_FACTORS) - 1)]
+            item["pre_diminishing_score"] = round(float(item.get("score") or 0.0), 4)
+            item["diminishing_factor"] = factor
+            item["score"] = round(float(item.get("score") or 0.0) * factor, 4)
+
+        cap = float(block_caps.get(block) or 0.0)
+        magnitude = sum(abs(float(item.get("score") or 0.0)) for item in rows)
+        if cap <= 0.0 or magnitude <= cap:
+            continue
+        cap_factor = cap / magnitude
+        for item in rows:
+            item["block_cap_factor"] = round(cap_factor, 4)
+            item["score"] = round(float(item.get("score") or 0.0) * cap_factor, 4)
+
+
+def _cap_specialist_residual(contributions: List[Dict[str, Any]], model: Dict[str, Any]) -> None:
+    composition = model.get("composition") or {}
+    if str(composition.get("mode") or "").strip().lower() != "specialist_residual":
+        return
+    max_abs_residual = float(
+        composition.get("max_abs_residual")
+        if composition.get("max_abs_residual") is not None
+        else 6.0
+    )
+    residual_rows = [
+        item
+        for item in contributions
+        if item.get("model_scope") == "specialist_residual"
+        and item.get("evidence_block") != "global_prior"
+    ]
+    residual_total = sum(float(item.get("score") or 0.0) for item in residual_rows)
+    if max_abs_residual <= 0.0 or abs(residual_total) <= max_abs_residual:
+        return
+    cap_factor = max_abs_residual / abs(residual_total)
+    for item in residual_rows:
+        item["residual_cap_factor"] = round(cap_factor, 4)
+        item["score"] = round(float(item.get("score") or 0.0) * cap_factor, 4)
+
+
+def _evidence_policy_for(model: Dict[str, Any]) -> Dict[str, Any]:
+    policy = dict(DEFAULT_EVIDENCE_POLICY)
+    policy["block_caps"] = dict(DEFAULT_EVIDENCE_POLICY["block_caps"])
+    configured = model.get("evidence_policy") or {}
+    for key, value in configured.items():
+        if key == "block_caps":
+            policy["block_caps"].update(value or {})
+        else:
+            policy[key] = value
+    return policy
+
+
+def _evidence_summary(
+    model: Dict[str, Any],
+    contributions: Sequence[Dict[str, Any]],
+    relocation: Dict[str, Any],
+) -> Dict[str, Any]:
+    policy = _evidence_policy_for(model)
+    scored_rows = [
+        item
+        for item in contributions
+        if item.get("evidence_block") not in {"constraints", "global_prior"}
+        and abs(float(item.get("score") or 0.0)) > 1e-9
+    ]
+    unique_keys = {
+        str(key)
+        for item in scored_rows
+        for key in (item.get("evidence_keys") or [])
+        if str(key)
+    }
+    magnitude = sum(abs(float(item.get("score") or 0.0)) for item in scored_rows)
+    positive = sum(max(0.0, float(item.get("score") or 0.0)) for item in scored_rows)
+    negative = sum(abs(min(0.0, float(item.get("score") or 0.0))) for item in scored_rows)
+    count = len(unique_keys)
+    minimum = max(1, int(policy.get("min_independent_signals") or 1))
+    if count == 0:
+        strength = "insufficient"
+        status = "no_activation"
+    elif count < minimum:
+        strength = "insufficient"
+        status = "below_evidence_floor"
+    elif magnitude < float(policy.get("weak_magnitude") or 2.5) or count == 1:
+        strength = "weak"
+        status = "sufficient"
+    elif magnitude >= float(policy.get("strong_magnitude") or 8.0) and count >= 3:
+        strength = "strong"
+        status = "sufficient"
+    else:
+        strength = "moderate"
+        status = "sufficient"
+
+    if count == 0:
+        direction = "no_activation"
+    elif magnitude <= 1e-9 or abs(positive - negative) <= magnitude * 0.12:
+        direction = "neutral"
+    elif positive > 0.0 and negative > 0.0 and min(positive, negative) >= max(positive, negative) * 0.45:
+        direction = "mixed"
+    elif positive > negative:
+        direction = "supportive"
+    else:
+        direction = "cautionary"
+
+    birth_time = ((relocation.get("confidence") or {}).get("birth_time") or {})
+    birth_time_confidence = float(birth_time.get("value")) if birth_time.get("value") is not None else 1.0
+    status_name = str(model.get("status") or "").strip().lower()
+    ranking_eligible = (
+        status == "sufficient"
+        and status_name == "active"
+        and birth_time_confidence >= float(policy.get("min_birth_time_confidence") or 0.5)
+    )
+    ineligible_reasons: List[str] = []
+    if status != "sufficient":
+        ineligible_reasons.append(status)
+    if status_name != "active":
+        ineligible_reasons.append(f"model_status_{status_name or 'unknown'}")
+    if birth_time_confidence < float(policy.get("min_birth_time_confidence") or 0.5):
+        ineligible_reasons.append("birth_time_uncertainty")
+    return {
+        "status": status,
+        "strength": strength,
+        "direction": direction,
+        "independent_signal_count": count,
+        "minimum_independent_signals": minimum,
+        "magnitude": round(magnitude, 4),
+        "support_magnitude": round(positive, 4),
+        "caution_magnitude": round(negative, 4),
+        "ranking_eligible": ranking_eligible,
+        "ranking_ineligible_reasons": ineligible_reasons,
+    }
+
+
+def _distance_sensitivity(
+    model: Dict[str, Any],
+    contributions: Sequence[Dict[str, Any]],
+    base_raw_total: float,
+) -> Dict[str, Any]:
+    raw_by_profile: Dict[str, float] = {}
+    score_by_profile: Dict[str, int] = {}
+    for profile, scale in DISTANCE_SENSITIVITY_PROFILES.items():
+        adjusted_total = 0.0
+        for item in contributions:
+            score = float(item.get("score") or 0.0)
+            if item.get("kind") not in {"line", "crossing"} or item.get("distance_km") is None:
+                adjusted_total += score
+                continue
+            component = item.get("component") or {}
+            distance = component.get("distance") or {}
+            base_max_km = float(distance.get("max_km") or 500.0)
+            falloff = str(distance.get("falloff") or "linear")
+            standard_factor = _score_distance(
+                float(item.get("distance_km") or 0.0),
+                max_km=base_max_km,
+                falloff=falloff,
+            )
+            profile_factor = _score_distance(
+                float(item.get("distance_km") or 0.0),
+                max_km=base_max_km * float(scale),
+                falloff=falloff,
+            )
+            adjusted_total += score * (profile_factor / standard_factor) if standard_factor > 1e-9 else 0.0
+        raw_by_profile[profile] = round(adjusted_total, 4)
+        score_by_profile[profile] = _normalize_goal_score(model, adjusted_total)
+    scores = list(score_by_profile.values())
+    spread = (max(scores) - min(scores)) if scores else 0
+    return {
+        "profiles": {
+            profile: {
+                "raw_score": raw_by_profile[profile],
+                "score": score_by_profile[profile],
+            }
+            for profile in DISTANCE_SENSITIVITY_PROFILES
+        },
+        "score_spread": spread,
+        "sensitivity_stability": "high" if spread <= 6 else ("moderate" if spread <= 14 else "low"),
+        "standard_raw_score": round(base_raw_total, 4),
     }
 
 
@@ -1849,121 +2525,181 @@ def evaluate_goal_model(
         effective_transit_rows = None
         effective_transit_crossings = None
         effective_transit_multiplier = 0.0
-    evaluation_strategy = str(model.get("evaluation_strategy") or "").strip().lower()
-    if evaluation_strategy == "benefic_minus_malefic":
-        return _attach_goal_score_polarity(
-            evaluate_benefic_minus_malefic_heuristic(
-                result_id=str(model.get("id") or goal_id),
-                result_label=str(model.get("label") or goal_id),
-                result_summary=str(model.get("summary") or ""),
-                natal_rows=natal_rows,
-                natal_crossings=natal_crossings,
-                transit_rows=effective_transit_rows,
-                transit_crossings=effective_transit_crossings,
-                transit_multiplier=effective_transit_multiplier,
-            ),
-            score_polarity,
-        )
-    if evaluation_strategy == "malefic_minus_benefic":
-        return _attach_goal_score_polarity(
-            evaluate_malefic_minus_benefic_heuristic(
-                result_id=str(model.get("id") or goal_id),
-                result_label=str(model.get("label") or goal_id),
-                result_summary=str(model.get("summary") or ""),
-                natal_rows=natal_rows,
-                natal_crossings=natal_crossings,
-                transit_rows=effective_transit_rows,
-                transit_crossings=effective_transit_crossings,
-                transit_multiplier=effective_transit_multiplier,
-            ),
-            score_polarity,
-        )
-    if evaluation_strategy == "accident_pressure":
-        return _attach_goal_score_polarity(
-            evaluate_accident_pressure_heuristic(
-                result_id=str(model.get("id") or goal_id),
-                result_label=str(model.get("label") or goal_id),
-                result_summary=str(model.get("summary") or ""),
-                natal_rows=natal_rows,
-                natal_crossings=natal_crossings,
-                relocation=relocation,
-                transit_rows=effective_transit_rows,
-                transit_crossings=effective_transit_crossings,
-                transit_multiplier=effective_transit_multiplier,
-            ),
-            score_polarity,
-        )
-    if evaluation_strategy == "gambling_natal_curated":
-        return _attach_goal_score_polarity(
-            evaluate_gambling_natal_curated_heuristic(
-                result_id=str(model.get("id") or goal_id),
-                result_label=str(model.get("label") or goal_id),
-                result_summary=str(model.get("summary") or ""),
-                natal_rows=natal_rows,
-                natal_crossings=natal_crossings,
-                relocation=relocation,
-                transit_rows=effective_transit_rows,
-                transit_crossings=effective_transit_crossings,
-                transit_multiplier=effective_transit_multiplier,
-            ),
-            score_polarity,
-        )
+
     contributions: List[Dict[str, Any]] = []
-    for component in model.get("score_components") or []:
-        kind = str(component.get("kind") or "")
-        contribution = None
-        if kind == "line":
-            contribution = _score_line_component(component, natal_rows, context="natal")
-            if contribution:
-                contributions.append(contribution)
-            if effective_transit_rows:
-                transit_contribution = _score_line_component(component, effective_transit_rows, context="transit", multiplier=effective_transit_multiplier)
-                if transit_contribution:
-                    contributions.append(transit_contribution)
-        elif kind == "crossing":
-            contribution = _score_crossing_component(component, natal_crossings, context="natal")
-            if contribution:
-                contributions.append(contribution)
-            if effective_transit_crossings:
-                transit_contribution = _score_crossing_component(component, effective_transit_crossings, context="transit", multiplier=effective_transit_multiplier)
-                if transit_contribution:
-                    contributions.append(transit_contribution)
-        elif kind in {"relocation", "modifier"}:
-            contribution = _score_relocation_component(component, relocation)
-            if contribution:
-                contributions.append(contribution)
-        elif kind == "constraint":
-            contribution = _score_constraint_component(
-                component,
-                relocation,
-                current_total=sum(float(item.get("score") or 0.0) for item in contributions),
-            )
-            if contribution:
-                contributions.append(contribution)
+    pending_constraints: List[Tuple[Dict[str, Any], str, str, float]] = []
+    claimed_evidence: set[str] = set()
+    for scoped_model, model_scope, scope_weight in _model_scoring_scopes(model):
+        source_model_id = str(scoped_model.get("id") or "")
+        for component in scoped_model.get("score_components") or []:
+            kind = str(component.get("kind") or "")
+            if kind == "constraint":
+                pending_constraints.append((component, model_scope, source_model_id, scope_weight))
+                continue
+
+            scoped_contributions: List[Dict[str, Any]] = []
+            if kind == "line":
+                contribution = _score_line_component(
+                    component,
+                    natal_rows,
+                    context="natal",
+                    relocation=relocation,
+                    multiplier=scope_weight,
+                )
+                if contribution:
+                    scoped_contributions.append(contribution)
+                if effective_transit_rows:
+                    transit_contribution = _score_line_component(
+                        component,
+                        effective_transit_rows,
+                        context="transit",
+                        relocation=relocation,
+                        multiplier=effective_transit_multiplier * scope_weight,
+                    )
+                    if transit_contribution:
+                        scoped_contributions.append(transit_contribution)
+            elif kind == "crossing":
+                contribution = _score_crossing_component(
+                    component,
+                    natal_crossings,
+                    context="natal",
+                    relocation=relocation,
+                    multiplier=scope_weight,
+                )
+                if contribution:
+                    scoped_contributions.append(contribution)
+                if effective_transit_crossings:
+                    transit_contribution = _score_crossing_component(
+                        component,
+                        effective_transit_crossings,
+                        context="transit",
+                        relocation=relocation,
+                        multiplier=effective_transit_multiplier * scope_weight,
+                    )
+                    if transit_contribution:
+                        scoped_contributions.append(transit_contribution)
+            elif kind in {"relocation", "modifier"}:
+                contribution = _score_relocation_component(component, relocation)
+                if contribution:
+                    contribution["score"] = round(float(contribution.get("score") or 0.0) * scope_weight, 4)
+                    scoped_contributions.append(contribution)
+
+            for contribution in scoped_contributions:
+                contribution["model_scope"] = model_scope
+                contribution["source_model_id"] = source_model_id
+                accepted = _claim_atomic_evidence(contribution, claimed_evidence)
+                if accepted:
+                    contributions.append(accepted)
+
+    evidence_policy = _evidence_policy_for(model)
+    _diminish_and_cap_contributions(contributions, evidence_policy)
+
+    for component, model_scope, source_model_id, scope_weight in pending_constraints:
+        scoped_total = sum(
+            float(item.get("score") or 0.0)
+            for item in contributions
+            if item.get("model_scope") == model_scope
+        )
+        constraint = _score_constraint_component(
+            component,
+            relocation,
+            current_total=scoped_total,
+        )
+        if not constraint:
+            continue
+        constraint["score"] = round(float(constraint.get("score") or 0.0) * scope_weight, 4)
+        constraint["model_scope"] = model_scope
+        constraint["source_model_id"] = source_model_id
+        contributions.append(constraint)
+
+    _cap_specialist_residual(contributions, model)
 
     raw_total = sum(float(item.get("score") or 0.0) for item in contributions)
-    score = _normalize_goal_score(model, raw_total)
-    visible_contributions = [item for item in contributions if item.get("kind") != "constraint"]
-    positives = sorted([item for item in visible_contributions if float(item.get("score") or 0.0) > 0], key=lambda item: float(item.get("score") or 0.0), reverse=True)
-    cautions = sorted([item for item in visible_contributions if float(item.get("score") or 0.0) < 0], key=lambda item: float(item.get("score") or 0.0))
+    evidence = _evidence_summary(model, contributions, relocation)
+    normalized_score = _normalize_goal_score(model, raw_total)
+    score: Optional[int] = normalized_score if evidence["status"] == "sufficient" else None
+    visible_contributions = [
+        item
+        for item in contributions
+        if item.get("kind") != "constraint"
+        and item.get("evidence_block") != "global_prior"
+    ]
+    positive_rows = sorted(
+        [item for item in visible_contributions if float(item.get("score") or 0.0) > 0],
+        key=lambda item: float(item.get("score") or 0.0),
+        reverse=True,
+    )
+    negative_rows = sorted(
+        [item for item in visible_contributions if float(item.get("score") or 0.0) < 0],
+        key=lambda item: float(item.get("score") or 0.0),
+    )
+    if score_polarity == "higher_is_worse":
+        positives = list(reversed(negative_rows))
+        cautions = positive_rows
+    else:
+        positives = positive_rows
+        cautions = negative_rows
     breakdown = {
         "natal": round(sum(float(item.get("score") or 0.0) for item in contributions if item.get("context") == "natal"), 3),
         "transit": round(sum(float(item.get("score") or 0.0) for item in contributions if item.get("context") == "transit"), 3),
         "relocation": round(sum(float(item.get("score") or 0.0) for item in contributions if item.get("context") == "relocation"), 3),
         "constraints": round(sum(float(item.get("score") or 0.0) for item in contributions if item.get("context") == "constraints"), 3),
+        "parent": round(sum(float(item.get("score") or 0.0) for item in contributions if item.get("model_scope") == "parent"), 3),
+        "specialist_residual": round(sum(float(item.get("score") or 0.0) for item in contributions if item.get("model_scope") == "specialist_residual"), 3),
+    }
+    distance_sensitivity = _distance_sensitivity(model, contributions, raw_total)
+    profile_scores = [
+        int((item or {}).get("score") or 0)
+        for item in (distance_sensitivity.get("profiles") or {}).values()
+    ]
+    birth_time = ((relocation.get("confidence") or {}).get("birth_time") or {})
+    birth_time_confidence = float(birth_time.get("value")) if birth_time.get("value") is not None else 1.0
+    uncertainty_margin = int(round((1.0 - max(0.0, min(1.0, birth_time_confidence))) * 20.0))
+    score_interval: Dict[str, Optional[int]]
+    if score is None:
+        score_interval = {"low": None, "high": None}
+    else:
+        low_profile = min(profile_scores) if profile_scores else score
+        high_profile = max(profile_scores) if profile_scores else score
+        score_interval = {
+            "low": max(0, low_profile - uncertainty_margin),
+            "high": min(100, high_profile + uncertainty_margin),
+        }
+    rank_stability = {
+        "status": "not_evaluated",
+        "reason": "Rank stability requires comparison across multiple locations.",
+        "sensitivity_proxy": distance_sensitivity.get("sensitivity_stability"),
     }
     return {
         "goal": {
             "id": model.get("id"),
             "label": model.get("label"),
             "summary": model.get("summary"),
+            "status": model.get("status"),
+            "scoring_engine": model.get("scoring_engine") or "declarative_components_v2",
+            "composition": model.get("composition") or {"mode": "standalone"},
             "score_polarity": score_polarity,
         },
         "raw_score": round(raw_total, 3),
         "score": score,
+        "score_available": score is not None,
+        "score_interval": score_interval,
+        "evidence_strength": evidence["strength"],
+        "ranking_eligible": evidence["ranking_eligible"],
+        "interpretation_status": evidence["status"],
+        "evidence": evidence,
+        "uncertainty": {
+            "birth_time": birth_time,
+            "distance_sensitivity": distance_sensitivity,
+            "score_interval": score_interval,
+        },
+        "rank_stability": rank_stability,
         "breakdown": breakdown,
         "top_supports": positives[:3],
         "top_cautions": cautions[:3],
+        "global_priors": [
+            item for item in contributions if item.get("evidence_block") == "global_prior"
+        ],
         "contributions": contributions,
     }
 

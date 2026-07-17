@@ -7,6 +7,7 @@ from typing import Any, Dict, List
 
 
 ROOT = Path(__file__).resolve().parents[1]
+SOURCE_PATH = ROOT / "backend" / "knowledge" / "astrocartography" / "place_goal_models.source.json"
 OUTPUT_PATH = ROOT / "backend" / "knowledge" / "astrocartography" / "place_goal_models.runtime.json"
 FRONTEND_OUTPUT_PATH = ROOT / "frontend" / "backend" / "knowledge" / "astrocartography" / "place_goal_models.runtime.json"
 OUTPUT_PATHS = (OUTPUT_PATH, FRONTEND_OUTPUT_PATH)
@@ -37,12 +38,56 @@ REQUIRED_MODEL_IDS = {
     "travel_fun",
     "travel_relax",
 }
-PRESERVE_EXISTING_MODEL_IDS = {
-    # The live gambling model is a curated relocation scorer. The older
-    # generator template is retained only as historical source text and must
-    # not overwrite the runtime model when rebuilding.
+SCHEMA_VERSION = 2
+EXPERIMENTAL_MODEL_IDS = {
+    "accident_prone",
     "gambling_luck",
+    "health_risk",
+    "travel_fun",
+    "travel_relax",
 }
+HIGHER_IS_WORSE_MODEL_IDS = {
+    "accident_prone",
+    "conflict",
+    "health_risk",
+    "risk_pressure",
+}
+SPECIALIST_COMPOSITION = {
+    "love_commitment": ("love", 5.0),
+    "money_stable_income": ("money", 5.0),
+    "career_public_profile": ("career", 5.0),
+    "home_retreat": ("home", 5.0),
+    "gambling_luck": ("money", 4.0),
+    "health_risk": ("risk_pressure", 5.0),
+    "accident_prone": ("risk_pressure", 5.0),
+    "travel_fun": ("friends", 4.0),
+    "travel_relax": ("home", 4.0),
+}
+CANONICAL_ACG_BODIES = {
+    "Sun",
+    "Moon",
+    "Mercury",
+    "Venus",
+    "Mars",
+    "Jupiter",
+    "Saturn",
+    "Uranus",
+    "Neptune",
+    "Pluto",
+}
+DEFAULT_EVIDENCE_POLICY = {
+    "min_independent_signals": 1,
+    "weak_magnitude": 2.5,
+    "strong_magnitude": 8.0,
+    "min_birth_time_confidence": 0.5,
+    "block_caps": {
+        "natal_lines": 12.0,
+        "crossing_interactions": 6.0,
+        "relocation": 8.0,
+        "transit_overlay": 4.0,
+    },
+}
+SPECIALIST_PARENT_WEIGHT = 0.95
 
 
 def _distance(max_km: float = 300.0, falloff: str = "linear") -> Dict[str, Any]:
@@ -58,6 +103,8 @@ def line_component(
     max_km: float = 300.0,
     falloff: str = "linear",
     polarity: str = "support",
+    source_status: str = "synthesis",
+    evidence_role: str = "local",
 ) -> Dict[str, Any]:
     return {
         "kind": "line",
@@ -66,6 +113,8 @@ def line_component(
         "distance": _distance(max_km=max_km, falloff=falloff),
         "weight": weight,
         "polarity": polarity,
+        "source_status": source_status,
+        "evidence_role": evidence_role,
         "rationale": rationale,
     }
 
@@ -78,13 +127,19 @@ def crossing_component(
     max_km: float = 300.0,
     falloff: str = "linear",
     polarity: str = "support",
+    source_status: str = "synthesis",
+    evidence_role: str = "local",
+    interaction_scale: float = 0.5,
 ) -> Dict[str, Any]:
     return {
         "kind": "crossing",
         "pair": pair,
         "distance": _distance(max_km=max_km, falloff=falloff),
         "weight": weight,
+        "interaction_scale": interaction_scale,
         "polarity": polarity,
+        "source_status": source_status,
+        "evidence_role": evidence_role,
         "rationale": rationale,
     }
 
@@ -96,6 +151,8 @@ def relocation_component(
     rationale: str,
     *,
     angles: List[str] | None = None,
+    source_status: str = "synthesis",
+    evidence_role: str = "local",
 ) -> Dict[str, Any]:
     return {
         "kind": "relocation",
@@ -103,15 +160,26 @@ def relocation_component(
         "houses": houses,
         "angles": list(angles or []),
         "weight": weight,
+        "source_status": source_status,
+        "evidence_role": evidence_role,
         "rationale": rationale,
     }
 
 
-def modifier_component(metric: str, weight: float, rationale: str) -> Dict[str, Any]:
+def modifier_component(
+    metric: str,
+    weight: float,
+    rationale: str,
+    *,
+    source_status: str = "synthesis",
+    evidence_role: str = "local",
+) -> Dict[str, Any]:
     return {
         "kind": "modifier",
         "metric": metric,
         "weight": weight,
+        "source_status": source_status,
+        "evidence_role": evidence_role,
         "rationale": rationale,
     }
 
@@ -126,6 +194,7 @@ def constraint_component(
     add: float | None = None,
     cap_score: float | None = None,
     polarity: str = "neutral",
+    source_status: str = "synthesis",
 ) -> Dict[str, Any]:
     component: Dict[str, Any] = {
         "kind": "constraint",
@@ -133,6 +202,8 @@ def constraint_component(
         "operator": operator,
         "threshold": threshold,
         "polarity": polarity,
+        "source_status": source_status,
+        "evidence_role": "local",
         "rationale": rationale,
     }
     if multiplier is not None:
@@ -181,15 +252,15 @@ def _merge_legacy_refs(*groups: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return merged
 
 
-def _load_existing_payload() -> Dict[str, Any]:
-    if not OUTPUT_PATH.exists():
-        return {"generated_on": str(date.today()), "generator": "scripts/build_astrocartography_goal_models.py", "models": []}
-    payload = json.loads(OUTPUT_PATH.read_text(encoding="utf-8"))
+def _load_source_payload() -> Dict[str, Any]:
+    if not SOURCE_PATH.exists():
+        raise FileNotFoundError(f"Astrocartography goal model authoring source is missing: {SOURCE_PATH}")
+    payload = json.loads(SOURCE_PATH.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
-        raise ValueError("Existing astrocartography goal model payload must be a JSON object")
+        raise ValueError("Astrocartography goal model authoring source must be a JSON object")
     models = payload.get("models") or []
     if not isinstance(models, list):
-        raise ValueError("Existing astrocartography goal model payload must contain a models list")
+        raise ValueError("Astrocartography goal model authoring source must contain a models list")
     return payload
 
 
@@ -942,8 +1013,216 @@ def _patched_core_models(existing: Dict[str, Dict[str, Any]]) -> List[Dict[str, 
     ]
 
 
+def _standalone_overhaul_components() -> Dict[str, List[Dict[str, Any]]]:
+    return {
+        "protective_places": [
+            line_component("Jupiter", ["ASC", "MC", "IC"], 3.4, "Jupiter can broaden practical support when its natal condition is constructive."),
+            line_component("Venus", ["ASC", "DSC", "IC"], 3.0, "Venus can support relational ease and livability when its natal condition is constructive."),
+            line_component("Sun", ["ASC"], 2.0, "Sun ASC can support vitality and coherent self-direction."),
+            line_component("Moon", ["IC"], 1.8, "Moon IC can support emotional grounding and familiarity."),
+            line_component("Mars", ["DSC", "IC"], -2.6, "Mars on relationship or home axes can add abrasion that reduces livability.", polarity="caution"),
+            line_component("Saturn", ["ASC", "IC"], -2.4, "Saturn on body or home axes can add burden that reduces ease.", polarity="caution"),
+            crossing_component(["Jupiter", "Venus"], 2.4, "Jupiter/Venus is retained as a modest interaction theme, not a safety guarantee."),
+            modifier_component("stability", 1.6, "Relocated stability can corroborate a more sustainable environment."),
+            modifier_component("uncertainty", -1.8, "Relocated uncertainty lowers practical support.",),
+            constraint_component("malefic_pressure", "gte", 0.55, "Heavy relocated pressure caps a protective interpretation.", cap_score=8.0, polarity="caution"),
+        ],
+        "risk_pressure": [
+            line_component("Mars", ["ASC", "DSC"], 3.8, "Mars on body and relationship axes can describe sharper conflict or haste themes."),
+            line_component("Saturn", ["ASC", "DSC"], 3.4, "Saturn on body and relationship axes can describe heavier obstruction themes."),
+            line_component("Uranus", ["ASC", "DSC"], 3.2, "Uranus on personal axes can describe abrupt instability."),
+            line_component("Pluto", ["ASC", "DSC"], 3.0, "Pluto on personal axes can describe intensified pressure and power struggle."),
+            line_component("Neptune", ["ASC", "MC"], 2.4, "Neptune on body or public axes can describe reduced clarity."),
+            crossing_component(["Mars", "Saturn"], 2.6, "Mars/Saturn is retained as a bounded hard-pressure interaction."),
+            crossing_component(["Saturn", "Neptune"], 2.0, "Saturn/Neptune is retained as a bounded depletion-and-ambiguity interaction."),
+            modifier_component("uncertainty", 1.4, "Relocated instability can corroborate a caution-heavy interpretation."),
+            constraint_component("malefic_pressure", "gte", 0.55, "Multiple pressure placements warrant a modest additional caution.", add=1.5, polarity="support"),
+        ],
+    }
+
+
+def _specialist_residual_components() -> Dict[str, List[Dict[str, Any]]]:
+    experimental = {"source_status": "experimental"}
+    return {
+        "love_commitment": [
+            modifier_component("stability", 2.0, "Commitment adds durable structure only beyond the parent love signal."),
+            modifier_component("uncertainty", -2.8, "Instability is a specialist caution for long-horizon partnership."),
+            crossing_component(["Venus", "Saturn"], 1.0, "Venus/Saturn is a modest conditional structure theme, not universally positive."),
+            constraint_component("partnership", "lt", 0.15, "Without partnership corroboration, the commitment residual is capped.", cap_score=2.0, polarity="caution"),
+        ],
+        "money_stable_income": [
+            relocation_component(["Mercury", "Saturn"], [2, 6, 10], 2.4, "Stable income emphasizes earned-resource, work, and vocation houses rather than shared 8th-house resources."),
+            modifier_component("stability", 2.2, "Stability is the principal residual over the broader money parent."),
+            modifier_component("uncertainty", -3.0, "Uncertainty weakens dependable income even when opportunity exists."),
+            constraint_component("stability", "lt", 0.15, "Low stability caps the stable-income residual.", cap_score=2.0, polarity="caution"),
+        ],
+        "career_public_profile": [
+            relocation_component(["Mercury", "Sun"], [10], 1.8, "Public-profile specialization requires direct 10th-house corroboration."),
+            line_component(
+                "North Node",
+                ["MC"],
+                3.0,
+                "North Node MC is retained as an experimental public-direction theme that distinguishes the specialist from general career support.",
+                source_status="experimental",
+            ),
+            modifier_component("visibility", 2.6, "Visibility is the specialist residual beyond the broader career parent."),
+            modifier_component("uncertainty", -2.2, "Role ambiguity weakens public-profile reliability."),
+            constraint_component("visibility", "lt", 0.2, "Low visibility caps the public-profile residual.", cap_score=2.0, polarity="caution"),
+        ],
+        "home_retreat": [
+            relocation_component(["Moon", "Venus"], [4, 12], 2.0, "Retreat specialization emphasizes shelter and withdrawal without equating all home signatures with retreat."),
+            modifier_component("restoration", 2.2, "Restoration is the bounded residual beyond the general home parent."),
+            line_component("Neptune", ["IC"], -2.0, "Neptune IC remains a caution for unreliable foundations rather than an automatic retreat benefit.", polarity="caution"),
+            modifier_component("uncertainty", -2.6, "Instability weakens a sanctuary interpretation."),
+        ],
+        "travel_fun": [
+            relocation_component(["Mercury", "Jupiter"], [3, 9], 1.6, "Pleasure travel needs journey-specific corroboration beyond the social parent."),
+            modifier_component("travel_joy", 2.2, "Travel joy is the experimental specialist residual."),
+            modifier_component("mobility", 1.6, "Mobility distinguishes travel from ordinary friendship support."),
+            modifier_component("uncertainty", -2.0, "High instability reduces practical trip quality."),
+        ],
+        "travel_relax": [
+            relocation_component(["Moon", "Venus"], [9, 12], 1.8, "Restorative travel requires journey or retreat-house corroboration beyond the home parent."),
+            modifier_component("restoration", 2.4, "Restoration is the experimental travel residual."),
+            line_component("Neptune", ["IC"], -2.0, "Neptune IC is treated as uncertain foundations, not an automatic restorative benefit.", polarity="caution"),
+            modifier_component("uncertainty", -2.4, "Instability works against decompression."),
+        ],
+        "gambling_luck": [
+            relocation_component(["Jupiter", "Venus", "Mercury", "Moon"], [5], 2.4, "The experimental residual is limited to local 5th-house speculation symbolism.", **experimental),
+            modifier_component("speculation", 2.0, "Local speculation placements may corroborate the money parent without implying outcomes.", **experimental),
+            modifier_component("speculation_drag", -2.4, "Local speculation cautions reduce the experimental residual.", **experimental),
+            modifier_component("pattern_support", 1.0, "Natal pattern geometry is recorded only as a global prior and cannot differentiate cities.", evidence_role="global_prior", **experimental),
+            modifier_component("pattern_pressure", -1.0, "Natal pattern pressure is recorded only as a global prior and cannot differentiate cities.", evidence_role="global_prior", **experimental),
+        ],
+        "health_risk": [
+            relocation_component(["Mars", "Saturn", "Uranus", "Neptune", "Pluto"], [6, 8, 12], 2.4, "The experimental health residual requires local illness, crisis, or burden-house corroboration.", **experimental),
+            modifier_component("health_risk", 2.0, "Health-risk metrics are interpretive caution themes, not medical prediction.", **experimental),
+            constraint_component("health_risk", "gte", 0.5, "Several local caution placements warrant a modest research-only lift.", add=1.2, polarity="support", **experimental),
+        ],
+        "accident_prone": [
+            crossing_component(["Mars", "Uranus"], 3.0, "Mars/Uranus is retained as an experimental acute-disruption interaction, not an accident probability.", **experimental),
+            crossing_component(["Mars", "Pluto"], 2.2, "Mars/Pluto is retained as an experimental force-pressure interaction.", **experimental),
+            modifier_component("health_risk", 1.4, "Local bodily-pressure themes provide limited corroboration only.", **experimental),
+            constraint_component("conflict_pressure", "gte", 0.5, "Multiple local pressure themes warrant a modest research-only lift.", add=1.0, polarity="support", **experimental),
+        ],
+    }
+
+
+def _model_bodies(model: Dict[str, Any]) -> set[str]:
+    bodies: set[str] = set()
+    for component in model.get("score_components") or []:
+        planet = str(component.get("planet") or "").strip()
+        if planet:
+            bodies.add(planet)
+        bodies.update(str(item).strip() for item in (component.get("pair") or []) if str(item).strip())
+        bodies.update(str(item).strip() for item in (component.get("planets") or []) if str(item).strip())
+    return bodies
+
+
+def _apply_model_overhaul(models_by_id: Dict[str, Dict[str, Any]]) -> None:
+    standalone_components = _standalone_overhaul_components()
+    specialist_components = _specialist_residual_components()
+    for model_id, components in standalone_components.items():
+        models_by_id[model_id]["score_components"] = components
+    for model_id, components in specialist_components.items():
+        models_by_id[model_id]["score_components"] = components
+
+    money = models_by_id.get("money") or {}
+    money["score_components"] = [
+        component
+        for component in (money.get("score_components") or [])
+        if not (
+            component.get("kind") == "modifier"
+            and component.get("metric") == "benefic_balance"
+        )
+    ]
+
+    for model_id, model in models_by_id.items():
+        model.pop("evaluation_strategy", None)
+        model["version"] = "2.0.0"
+        model["scoring_engine"] = "declarative_components_v2"
+        model["score_polarity"] = "higher_is_worse" if model_id in HIGHER_IS_WORSE_MODEL_IDS else "higher_is_better"
+        model["status"] = "experimental" if model_id in EXPERIMENTAL_MODEL_IDS else str(model.get("status") or "active")
+        if model_id == "risk_pressure":
+            model["status"] = "deprecated"
+        model["source_status"] = "experimental" if model["status"] == "experimental" else "synthesis"
+        if model_id in SPECIALIST_COMPOSITION:
+            parent_id, max_abs_residual = SPECIALIST_COMPOSITION[model_id]
+            model["composition"] = {
+                "mode": "specialist_residual",
+                "parent_id": parent_id,
+                "parent_weight": SPECIALIST_PARENT_WEIGHT,
+                "max_abs_residual": max_abs_residual,
+            }
+        else:
+            model["composition"] = {"mode": "standalone"}
+
+        evidence_policy = json.loads(json.dumps(DEFAULT_EVIDENCE_POLICY))
+        if model_id in {"risk_pressure", "health_risk", "accident_prone"}:
+            evidence_policy["min_independent_signals"] = 2
+        model["evidence_policy"] = evidence_policy
+        model["distance_policy"] = {
+            "primary_profile": "standard",
+            "sensitivity_profiles": ["conservative", "standard", "wide"],
+            "note": "Scores expose conservative, standard, and wide distance sensitivity; the standard profile is not a probability claim.",
+        }
+        normalization = dict(model.get("normalization") or {})
+        normalization["method"] = "bounded_linear"
+        normalization["neutral_score"] = 50
+        model["normalization"] = normalization
+
+        seen_component_ids: set[str] = set()
+        for index, component in enumerate(model.get("score_components") or [], start=1):
+            component_id = f"{model_id}.{str(component.get('kind') or 'component')}.{index:02d}"
+            if component_id in seen_component_ids:
+                raise RuntimeError(f"Duplicate generated component id: {component_id}")
+            seen_component_ids.add(component_id)
+            component["component_id"] = component_id
+            component["source_status"] = (
+                "experimental"
+                if model["status"] == "experimental"
+                else str(component.get("source_status") or "synthesis")
+            )
+            component["evidence_role"] = str(component.get("evidence_role") or "local")
+            component.setdefault("evidence_refs", [])
+            if component.get("kind") == "crossing":
+                component.setdefault("interaction_scale", 0.5)
+
+        extended_bodies = sorted(_model_bodies(model) - CANONICAL_ACG_BODIES)
+        model["body_scope"] = "extended" if extended_bodies else "canonical_ten"
+        if extended_bodies:
+            not_scored = ["South Node"] if "North Node" in extended_bodies and "South Node" not in extended_bodies else []
+            model["extended_body_policy"] = {
+                "status": "experimental",
+                "supported": extended_bodies,
+                "not_scored": not_scored,
+                "note": "The ten classical planetary lines are canonical. Nodes and Chiron are explicitly experimental extensions; an unlisted counterpart is not silently inferred.",
+            }
+        else:
+            model.pop("extended_body_policy", None)
+
+    for specialist_id, (parent_id, _max_abs_residual) in SPECIALIST_COMPOSITION.items():
+        models_by_id[specialist_id]["normalization"] = json.loads(
+            json.dumps(models_by_id[parent_id]["normalization"])
+        )
+
+    speculation = models_by_id.get("gambling_luck") or {}
+    speculation["label"] = "Speculation Themes"
+    speculation["summary"] = "Research-only interpretation of speculative-place themes; it does not predict wins, payouts, or financial outcomes."
+    speculation["description"] = "Experimental residual over the broader money model. Only local 5th-house symbolism differentiates places; natal pattern geometry is exposed as a non-ranking global prior."
+
+    for model_id, label, summary in (
+        ("health_risk", "Health Caution Themes", "Research-only interpretive bodily-pressure themes; not medical advice or prediction."),
+        ("accident_prone", "Acute Disruption Themes", "Research-only acute-disruption themes; not a safety forecast or accident probability."),
+        ("travel_fun", "Travel Enjoyment Themes", "Experimental pleasure-travel interpretation pending independent destination validation."),
+        ("travel_relax", "Restorative Travel Themes", "Experimental restorative-travel interpretation pending independent destination validation."),
+    ):
+        models_by_id[model_id]["label"] = label
+        models_by_id[model_id]["summary"] = summary
+
+
 def build_payload() -> Dict[str, Any]:
-    payload = _load_existing_payload()
+    payload = _load_source_payload()
     models_by_id = {
         str(model.get("id") or "").strip().lower(): model
         for model in payload.get("models") or []
@@ -953,9 +1232,9 @@ def build_payload() -> Dict[str, Any]:
         models_by_id[str(model["id"]).strip().lower()] = model
     for model in _new_models():
         model_id = str(model["id"]).strip().lower()
-        if model_id in PRESERVE_EXISTING_MODEL_IDS and model_id in models_by_id:
-            continue
         models_by_id[model_id] = model
+    _apply_model_overhaul(models_by_id)
+    payload["schema_version"] = SCHEMA_VERSION
     payload["generated_on"] = str(date.today())
     payload["generator"] = "scripts/build_astrocartography_goal_models.py"
     payload["models"] = list(models_by_id.values())
@@ -972,15 +1251,28 @@ def _validate_payload(payload: Dict[str, Any]) -> None:
     missing = sorted(REQUIRED_MODEL_IDS - set(models))
     if missing:
         raise RuntimeError(f"Refusing to write incomplete astrocartography goal payload; missing models: {', '.join(missing)}")
+    unexpected = sorted(set(models) - REQUIRED_MODEL_IDS)
+    if unexpected:
+        raise RuntimeError(f"Refusing to write unknown astrocartography goal models: {', '.join(unexpected)}")
 
-    gambling = models.get("gambling_luck") or {}
-    if str(gambling.get("evaluation_strategy") or "").strip().lower() != "gambling_natal_curated":
-        raise RuntimeError("Refusing to overwrite the curated Gambling Luck runtime model with a stale template")
-
-    for model_id in ("health_risk", "accident_prone"):
+    for model_id in HIGHER_IS_WORSE_MODEL_IDS:
         model = models.get(model_id) or {}
         if str(model.get("score_polarity") or "").strip().lower() != "higher_is_worse":
             raise RuntimeError(f"Refusing to write {model_id} without higher_is_worse score polarity")
+
+    import sys
+
+    backend_path = str(ROOT / "backend")
+    if backend_path not in sys.path:
+        sys.path.insert(0, backend_path)
+    from astrocartography_goal_models import validate_goal_model_payload
+
+    schema = json.loads(
+        (ROOT / "backend" / "knowledge" / "astrocartography" / "place_goal_model.schema.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    validate_goal_model_payload(payload, schema=schema)
 
 
 def main() -> None:

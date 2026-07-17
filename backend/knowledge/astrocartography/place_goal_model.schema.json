@@ -11,7 +11,14 @@
     "version",
     "status",
     "summary",
-    "score_components"
+    "source_status",
+    "scoring_engine",
+    "score_polarity",
+    "composition",
+    "evidence_policy",
+    "body_scope",
+    "score_components",
+    "normalization"
   ],
   "properties": {
     "id": {
@@ -30,6 +37,7 @@
       "type": "string",
       "enum": [
         "draft",
+        "experimental",
         "active",
         "deprecated"
       ]
@@ -41,14 +49,30 @@
     "description": {
       "type": "string"
     },
-    "evaluation_strategy": {
+    "source_status": {
+      "$ref": "#/$defs/sourceStatus"
+    },
+    "scoring_engine": {
+      "const": "declarative_components_v2"
+    },
+    "composition": {
+      "$ref": "#/$defs/composition"
+    },
+    "evidence_policy": {
+      "$ref": "#/$defs/evidencePolicy"
+    },
+    "body_scope": {
       "type": "string",
       "enum": [
-        "accident_pressure",
-        "benefic_minus_malefic",
-        "gambling_natal_curated",
-        "malefic_minus_benefic"
+        "canonical_ten",
+        "extended"
       ]
+    },
+    "extended_body_policy": {
+      "$ref": "#/$defs/extendedBodyPolicy"
+    },
+    "distance_policy": {
+      "$ref": "#/$defs/distancePolicy"
     },
     "transit_strategy": {
       "type": "string",
@@ -143,6 +167,176 @@
     }
   },
   "$defs": {
+    "sourceStatus": {
+      "type": "string",
+      "enum": [
+        "direct",
+        "synthesis",
+        "legacy_parity",
+        "experimental"
+      ]
+    },
+    "composition": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode"
+          ],
+          "properties": {
+            "mode": {
+              "const": "standalone"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "parent_id",
+            "max_abs_residual"
+          ],
+          "properties": {
+            "mode": {
+              "const": "specialist_residual"
+            },
+            "parent_id": {
+              "type": "string",
+              "pattern": "^[a-z0-9_]+$"
+            },
+            "parent_weight": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "max_abs_residual": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          }
+        }
+      ]
+    },
+    "evidencePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "min_independent_signals",
+        "weak_magnitude",
+        "strong_magnitude",
+        "min_birth_time_confidence",
+        "block_caps"
+      ],
+      "properties": {
+        "min_independent_signals": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "weak_magnitude": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "strong_magnitude": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "min_birth_time_confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "block_caps": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "natal_lines",
+            "crossing_interactions",
+            "relocation",
+            "transit_overlay"
+          ],
+          "properties": {
+            "natal_lines": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "crossing_interactions": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "relocation": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "transit_overlay": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          }
+        }
+      }
+    },
+    "extendedBodyPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "supported",
+        "not_scored"
+      ],
+      "properties": {
+        "status": {
+          "const": "experimental"
+        },
+        "supported": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/planet"
+          }
+        },
+        "not_scored": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/planet"
+          }
+        },
+        "note": {
+          "type": "string"
+        }
+      }
+    },
+    "distancePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primary_profile",
+        "sensitivity_profiles"
+      ],
+      "properties": {
+        "primary_profile": {
+          "const": "standard"
+        },
+        "sensitivity_profiles": {
+          "type": "array",
+          "minItems": 3,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "conservative",
+              "standard",
+              "wide"
+            ]
+          }
+        },
+        "note": {
+          "type": "string"
+        }
+      }
+    },
     "legacyRef": {
       "type": "object",
       "additionalProperties": false,
@@ -203,6 +397,7 @@
         "Neptune",
         "Pluto",
         "North Node",
+        "South Node",
         "Chiron"
       ]
     },
@@ -262,12 +457,34 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
+        "component_id",
+        "source_status",
         "kind",
         "planet",
         "angles",
         "weight"
       ],
       "properties": {
+        "component_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9_.-]+$"
+        },
+        "source_status": {
+          "$ref": "#/$defs/sourceStatus"
+        },
+        "evidence_role": {
+          "type": "string",
+          "enum": [
+            "local",
+            "global_prior"
+          ]
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "kind": {
           "const": "line"
         },
@@ -311,11 +528,33 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
+        "component_id",
+        "source_status",
         "kind",
         "pair",
         "weight"
       ],
       "properties": {
+        "component_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9_.-]+$"
+        },
+        "source_status": {
+          "$ref": "#/$defs/sourceStatus"
+        },
+        "evidence_role": {
+          "type": "string",
+          "enum": [
+            "local",
+            "global_prior"
+          ]
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "kind": {
           "const": "crossing"
         },
@@ -332,6 +571,11 @@
         },
         "weight": {
           "type": "number"
+        },
+        "interaction_scale": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
         },
         "polarity": {
           "type": "string",
@@ -350,10 +594,32 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
+        "component_id",
+        "source_status",
         "kind",
         "weight"
       ],
       "properties": {
+        "component_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9_.-]+$"
+        },
+        "source_status": {
+          "$ref": "#/$defs/sourceStatus"
+        },
+        "evidence_role": {
+          "type": "string",
+          "enum": [
+            "local",
+            "global_prior"
+          ]
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "kind": {
           "const": "relocation"
         },
@@ -392,11 +658,33 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
+        "component_id",
+        "source_status",
         "kind",
         "metric",
         "weight"
       ],
       "properties": {
+        "component_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9_.-]+$"
+        },
+        "source_status": {
+          "$ref": "#/$defs/sourceStatus"
+        },
+        "evidence_role": {
+          "type": "string",
+          "enum": [
+            "local",
+            "global_prior"
+          ]
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "kind": {
           "const": "modifier"
         },
@@ -433,6 +721,18 @@
             "speculation",
             "speculation_drag",
             "health_risk",
+            "gambling_signature",
+            "gambling_activation",
+            "asc_ruler_asc_support",
+            "gambling_ruler_asc_support",
+            "moon_asc_support",
+            "south_node_obstruction",
+            "asc_interception",
+            "grand_trine_support",
+            "kite_support",
+            "t_square_pressure",
+            "pattern_support",
+            "pattern_pressure",
             "custom"
           ]
         },
@@ -448,6 +748,8 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
+        "component_id",
+        "source_status",
         "kind",
         "metric",
         "operator",
@@ -455,6 +757,26 @@
         "rationale"
       ],
       "properties": {
+        "component_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9_.-]+$"
+        },
+        "source_status": {
+          "$ref": "#/$defs/sourceStatus"
+        },
+        "evidence_role": {
+          "type": "string",
+          "enum": [
+            "local",
+            "global_prior"
+          ]
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "kind": {
           "const": "constraint"
         },
@@ -515,6 +837,11 @@
         },
         "max_score": {
           "type": "number"
+        },
+        "neutral_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
         }
       }
     },
