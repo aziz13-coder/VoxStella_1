@@ -41,6 +41,38 @@ def _make_app() -> Flask:
     return app
 
 
+def _confirmed_saved_snap(**overrides):
+    snap = {
+        "schema_version": 2,
+        "id": "confirmed-snap",
+        "effective_datetime": "2001-06-15T08:15:00+00:00",
+        "local_datetime": "2001-06-15T09:15:00+01:00",
+        "location": "Lisbon, Portugal",
+        "timezone": "Europe/Lisbon",
+        "latitude": 38.7223,
+        "longitude": -9.1393,
+        "coordinate_provenance": {
+            "source": "user_confirmed_context_override",
+            "persisted_with_chart": True,
+            "review_required": False,
+        },
+        "calculation_context": {
+            "instant_utc": "2001-06-15T08:15:00+00:00",
+            "local_datetime": "2001-06-15T09:15:00+01:00",
+            "timezone": "Europe/Lisbon",
+            "location": "Lisbon, Portugal",
+            "latitude": 38.7223,
+            "longitude": -9.1393,
+            "house_system_code": "R",
+            "review_required": False,
+            "time_provenance": {"ambiguous": False},
+        },
+        "dashboard": {},
+    }
+    snap.update(overrides)
+    return snap
+
+
 def test_receptions_fallback_prefers_internal_raw_chart(monkeypatch):
     sentinel = _SentinelChart()
 
@@ -322,6 +354,137 @@ def test_receptions_route_honors_manual_request_context(monkeypatch):
     assert settings.longitude == 35.235
 
 
+def test_receptions_route_uses_confirmed_saved_snap_context(monkeypatch):
+    saved_snap = _confirmed_saved_snap()
+    captured = {}
+
+    class _StubStore:
+        def get(self, snap_id):
+            return saved_snap if snap_id == "confirmed-snap" else None
+
+    class _StubEngine:
+        settings = _stub_clock_settings()
+
+        def get_current_data(self, settings=None):
+            raise AssertionError("live engine context must not replace the saved chart")
+
+    def _fake_compute(
+        dt_iso,
+        location,
+        timezone_name,
+        house_system_code=None,
+        **kwargs,
+    ):
+        captured.update(
+            {
+                "dt_iso": dt_iso,
+                "location": location,
+                "timezone": timezone_name,
+                "house_system_code": house_system_code,
+                "latitude": kwargs.get("latitude"),
+                "longitude": kwargs.get("longitude"),
+            }
+        )
+        return {
+            "chart_data": {"source": "confirmed-saved-snap"},
+            "meta": {
+                "timestamp": "2001-06-15T09:15:00+01:00",
+                "location": location,
+                "timezone": timezone_name,
+                "latitude": kwargs.get("latitude"),
+                "longitude": kwargs.get("longitude"),
+            },
+        }
+
+    def _fake_extract(chart):
+        assert chart == {"chart_data": {"source": "confirmed-saved-snap"}}
+        return {
+            "traditional_reception": {
+                "type": "none",
+                "display_text": "Saved chart reception",
+            },
+            "mutual": [],
+            "top_unilateral": [],
+        }
+
+    monkeypatch.setattr(astro_clock_api, "_snaps", lambda: _StubStore())
+    monkeypatch.setattr(astro_clock_api, "_engine_instance", lambda: _StubEngine())
+    monkeypatch.setattr(astro_clock_api, "_compute_chart_bundle_for", _fake_compute)
+    monkeypatch.setattr(astro_clock_api, "_extract_receptions_payload", _fake_extract)
+
+    response = _make_app().test_client().get(
+        "/api/astro-clock/receptions"
+        "?snap_id=confirmed-snap"
+        "&house_system_code=R"
+    )
+
+    assert response.status_code == 200
+    assert response.get_json()["data"]["traditional_reception"]["display_text"] == (
+        "Saved chart reception"
+    )
+    assert captured == {
+        "dt_iso": "2001-06-15T08:15:00+00:00",
+        "location": "Lisbon, Portugal",
+        "timezone": "Europe/Lisbon",
+        "house_system_code": "R",
+        "latitude": 38.7223,
+        "longitude": -9.1393,
+    }
+
+
+@pytest.mark.parametrize(
+    ("snap", "error_fragment"),
+    (
+        (
+            _confirmed_saved_snap(
+                coordinate_provenance={
+                    **_confirmed_saved_snap()["coordinate_provenance"],
+                    "review_required": True,
+                },
+                calculation_context={
+                    **_confirmed_saved_snap()["calculation_context"],
+                    "coordinate_provenance": {
+                        "source": "legacy_migration",
+                        "persisted_with_chart": True,
+                        "review_required": True,
+                    },
+                    "review_required": True,
+                },
+            ),
+            "requires review",
+        ),
+        (
+            _confirmed_saved_snap(superseded_by="corrected-snap"),
+            "superseded by a corrected copy",
+        ),
+    ),
+)
+def test_receptions_route_rejects_unsafe_saved_snap_context(
+    monkeypatch,
+    snap,
+    error_fragment,
+):
+    class _StubStore:
+        def get(self, snap_id):
+            return snap if snap_id == "confirmed-snap" else None
+
+    monkeypatch.setattr(astro_clock_api, "_snaps", lambda: _StubStore())
+    monkeypatch.setattr(
+        astro_clock_api,
+        "_compute_chart_bundle_for",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("unsafe saved chart must be rejected before calculation")
+        ),
+    )
+
+    response = _make_app().test_client().get(
+        "/api/astro-clock/receptions?snap_id=confirmed-snap"
+    )
+
+    assert response.status_code == 400
+    assert error_fragment in response.get_json()["error"]
+
+
 def test_current_route_honors_manual_request_context(monkeypatch):
     captured = {}
 
@@ -588,11 +751,11 @@ def test_directional_3d_derives_equatorial_speed_from_ecliptic_rates():
 def test_directional_3d_computes_horizon_rates_for_planets_but_not_cusps():
     settings = AstroClockSettings(
         mode=ClockMode.MANUAL,
-        location="Jerusalem, Israel",
-        timezone="Asia/Jerusalem",
-        custom_time=datetime(1990, 1, 13, 19, 33, tzinfo=timezone.utc),
-        latitude=31.777779,
-        longitude=35.235001,
+        location="Paris, France",
+        timezone="Europe/Paris",
+        custom_time=datetime(2000, 2, 29, 11, 34, tzinfo=timezone.utc),
+        latitude=48.85341,
+        longitude=2.3488,
         paused_at=None,
         house_system_code="T",
     )
@@ -611,7 +774,7 @@ def test_directional_3d_computes_horizon_rates_for_planets_but_not_cusps():
             "house_cusps": [357.632],
             "house_system_code": "T",
         },
-        datetime(1990, 1, 13, 19, 33, tzinfo=timezone.utc),
+        datetime(2000, 2, 29, 11, 34, tzinfo=timezone.utc),
         settings,
     )
 
@@ -639,9 +802,9 @@ def test_directional_3d_uses_swiss_equatorial_speed_before_fallback(monkeypatch)
         mode=ClockMode.MANUAL,
         location="Fixture",
         timezone="UTC",
-        custom_time=datetime(1990, 1, 13, 19, 33, tzinfo=timezone.utc),
-        latitude=31.777779,
-        longitude=35.235001,
+        custom_time=datetime(2000, 2, 29, 11, 34, tzinfo=timezone.utc),
+        latitude=48.85341,
+        longitude=2.3488,
         paused_at=None,
         house_system_code="T",
     )
@@ -660,7 +823,7 @@ def test_directional_3d_uses_swiss_equatorial_speed_before_fallback(monkeypatch)
             "house_cusps": [],
             "house_system_code": "T",
         },
-        datetime(1990, 1, 13, 19, 33, tzinfo=timezone.utc),
+        datetime(2000, 2, 29, 11, 34, tzinfo=timezone.utc),
         settings,
     )
 
@@ -691,9 +854,9 @@ def test_directional_3d_uses_swiss_speed_when_chart_equatorial_speed_is_missing(
         mode=ClockMode.MANUAL,
         location="Fixture",
         timezone="UTC",
-        custom_time=datetime(1990, 1, 13, 19, 33, tzinfo=timezone.utc),
-        latitude=31.777779,
-        longitude=35.235001,
+        custom_time=datetime(2000, 2, 29, 11, 34, tzinfo=timezone.utc),
+        latitude=48.85341,
+        longitude=2.3488,
         paused_at=None,
         house_system_code="T",
     )
@@ -714,7 +877,7 @@ def test_directional_3d_uses_swiss_speed_when_chart_equatorial_speed_is_missing(
             "house_cusps": [],
             "house_system_code": "T",
         },
-        datetime(1990, 1, 13, 19, 33, tzinfo=timezone.utc),
+        datetime(2000, 2, 29, 11, 34, tzinfo=timezone.utc),
         settings,
     )
 
@@ -751,7 +914,7 @@ def test_directional_3d_re_resolves_stale_zero_saved_snap_coordinates(monkeypatc
         def get_current_data(self, settings=None):
             active = settings or self.settings
             return types.SimpleNamespace(
-                timestamp=datetime(1990, 1, 13, 19, 33, tzinfo=timezone.utc),
+                timestamp=datetime(2000, 2, 29, 11, 34, tzinfo=timezone.utc),
                 settings=active,
                 chart_result={
                     "chart_data": {
@@ -768,8 +931,8 @@ def test_directional_3d_re_resolves_stale_zero_saved_snap_coordinates(monkeypatc
     monkeypatch.setattr(
         astro_clock_api,
         "_ensure_coords_for_location",
-        lambda location, *args, **kwargs: (31.777779, 35.235001)
-        if str(location).startswith("Jerusalem")
+        lambda location, *args, **kwargs: (48.85341, 2.3488)
+        if str(location).startswith("Paris")
         else None,
     )
 
@@ -779,9 +942,9 @@ def test_directional_3d_re_resolves_stale_zero_saved_snap_coordinates(monkeypatc
     response = client.get(
         "/api/astro-clock/directional-3d"
         "?mode=manual"
-        "&datetime=1990-01-13T19%3A33%3A00%2B00%3A00"
-        "&location=Jerusalem%2C%20Israel"
-        "&timezone=Asia%2FJerusalem"
+        "&datetime=2000-02-29T11%3A34%3A00%2B00%3A00"
+        "&location=Paris%2C%20France"
+        "&timezone=Europe%2FParis"
         "&latitude=0"
         "&longitude=0"
         "&house_system_code=T"
@@ -789,50 +952,60 @@ def test_directional_3d_re_resolves_stale_zero_saved_snap_coordinates(monkeypatc
 
     assert response.status_code == 200
     data = response.get_json()["data"]
-    assert data["chart_info"]["latitude"] == 31.777779
-    assert data["chart_info"]["longitude"] == 35.235001
+    assert data["chart_info"]["latitude"] == 48.85341
+    assert data["chart_info"]["longitude"] == 2.3488
     assert data["objects"][0]["HOR"]["longitude"] != 0.0
 
 
-def test_directional_3d_aziz_fixture_matches_documented_geometry():
+def test_directional_3d_synthetic_fixture_matches_documented_geometry():
     settings = AstroClockSettings(
         mode=ClockMode.MANUAL,
-        location="Jerusalem, Israel",
-        timezone="Asia/Jerusalem",
-        custom_time=datetime(1990, 1, 13, 19, 33, tzinfo=timezone.utc),
-        latitude=31.777779,
-        longitude=35.235001,
+        location="Paris, France",
+        timezone="Europe/Paris",
+        custom_time=datetime(2000, 2, 29, 11, 34, tzinfo=timezone.utc),
+        latitude=48.85341,
+        longitude=2.3488,
         paused_at=None,
-        house_system_code="T",
+        house_system_code="R",
     )
     payload = astro_clock_api._build_directional_3d_payload(
         {
             "planets": {
-                "Sun": {"longitude": 293.889, "latitude": -0.002, "speed": 1.007},
-                "Moon": {"longitude": 152.203, "latitude": -2.224, "speed": 15.042},
+                "Sun": {
+                    "longitude": 340.1876997214984,
+                    "latitude": 0.000034793745936609156,
+                    "speed": 1.0041225057414884,
+                    "latitude_speed": -0.0000342535809478038,
+                },
+                "Moon": {
+                    "longitude": 275.3227074412695,
+                    "latitude": 2.4413693232988773,
+                    "speed": 11.820046434245233,
+                    "latitude_speed": -0.9510301141631097,
+                },
             },
-            "house_cusps": [357.632],
-            "house_system_code": "T",
+            "house_cusps": [93.76528231103039],
+            "house_system_code": "R",
         },
-        datetime(1990, 1, 13, 19, 33, tzinfo=timezone.utc),
+        datetime(2000, 2, 29, 11, 34, tzinfo=timezone.utc),
         settings,
     )
 
     sun = next(row for row in payload["objects"] if row["name"] == "Sun")
-    assert sun["EQU"]["latitude"] == pytest.approx(-21.332, abs=0.02)
-    assert sun["EQU"]["longitude"] == pytest.approx(295.770, abs=0.02)
-    assert sun["HOR"]["latitude"] == pytest.approx(-57.777, abs=0.02)
-    assert sun["HOR"]["longitude"] == pytest.approx(100.388, abs=0.02)
+    assert sun["EQU"]["latitude"] == pytest.approx(-7.748, abs=0.02)
+    assert sun["EQU"]["longitude"] == pytest.approx(341.709, abs=0.02)
+    assert sun["HOR"]["latitude"] == pytest.approx(33.040, abs=0.02)
+    assert sun["HOR"]["longitude"] == pytest.approx(351.400, abs=0.02)
 
     moon = next(row for row in payload["objects"] if row["name"] == "Moon")
-    assert moon["HOR"]["latitude"] == pytest.approx(19.893, abs=0.02)
-    assert moon["HOR"]["longitude"] == pytest.approx(272.109, abs=0.02)
+    assert moon["HOR"]["latitude"] == pytest.approx(2.889, abs=0.02)
+    assert moon["HOR"]["longitude"] == pytest.approx(53.102, abs=0.02)
 
     cusp = next(row for row in payload["objects"] if row["name"] == "House 1")
     assert cusp["bfull"] is False
-    assert cusp["EQU"] == {"longitude": 357.632, "latitude": 0.0, "speed": 0.0, "latitude_speed": 0.0}
-    assert cusp["HOR"]["latitude"] == pytest.approx(4.875, abs=0.02)
-    assert cusp["HOR"]["longitude"] == pytest.approx(85.857, abs=0.02)
+    assert cusp["EQU"] == {"longitude": 93.765, "latitude": 0.0, "speed": 0.0, "latitude_speed": 0.0}
+    assert cusp["HOR"]["latitude"] == pytest.approx(0.0, abs=0.02)
+    assert cusp["HOR"]["longitude"] == pytest.approx(232.901, abs=0.02)
 
 
 def test_dashboard_respects_manual_request_context(monkeypatch):

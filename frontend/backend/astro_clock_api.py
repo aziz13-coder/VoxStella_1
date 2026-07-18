@@ -3158,10 +3158,25 @@ def _solar_conditions_from_chart(planets: List[Dict[str, Any]], cd: Dict[str, An
 
 
 def _timezone_label_from_parts(tz_name: Any, local_iso: Any, utc_iso: Any = None) -> Optional[str]:
-    if not (tz_name and local_iso):
+    if not tz_name:
         return None
     try:
+        if utc_iso:
+            utc_dt = datetime.fromisoformat(str(utc_iso).replace('Z', '+00:00'))
+            if utc_dt.tzinfo is not None:
+                loc_dt = utc_dt.astimezone(ZoneInfo(str(tz_name)))
+                delta = loc_dt.utcoffset()
+                if delta is not None:
+                    delta_min = int(round(delta.total_seconds() / 60.0))
+                    sign = '+' if delta_min >= 0 else '-'
+                    hh = abs(delta_min) // 60
+                    mm = abs(delta_min) % 60
+                    return f"{tz_name} (UTC{sign}{hh:02d}:{mm:02d})"
+        if not local_iso:
+            return str(tz_name)
         loc_dt = datetime.fromisoformat(str(local_iso).replace('Z', '+00:00'))
+        if loc_dt.tzinfo is not None:
+            loc_dt = loc_dt.astimezone(ZoneInfo(str(tz_name)))
         delta = loc_dt.utcoffset()
         if delta is None and utc_iso:
             utc_dt = datetime.fromisoformat(str(utc_iso).replace('Z', '+00:00'))
@@ -4465,7 +4480,10 @@ def create_snap():
 def list_snaps():
     store = _snaps()
     items = []
-    for snap in store.list():
+    for raw_snap in store.list():
+        snap = _hydrate_snap_payload(raw_snap, infer_coordinates=False)
+        if not snap:
+            continue
         dashboard = snap.get('dashboard') if isinstance(snap, dict) else {}
         timezone_value = snap.get('timezone') or (dashboard or {}).get('timezone')
         timezone_label = snap.get('timezone_label') or (dashboard or {}).get('timezone_label')
@@ -4500,7 +4518,11 @@ def list_snaps():
     return _j({'success': True, 'items': items})
 
 
-def _hydrate_snap_payload(snap: Any) -> Optional[Dict[str, Any]]:
+def _hydrate_snap_payload(
+    snap: Any,
+    *,
+    infer_coordinates: bool = True,
+) -> Optional[Dict[str, Any]]:
     if not isinstance(snap, dict):
         return None
     hydrated = dict(snap)
@@ -4509,16 +4531,40 @@ def _hydrate_snap_payload(snap: Any) -> Optional[Dict[str, Any]]:
 
     timestamp_value = hydrated.get('effective_datetime') or dashboard.get('timestamp')
     location_value = hydrated.get('location') or dashboard.get('location')
-    coords = _coords_from_request_args(hydrated) or _coords_from_request_args(dashboard)
-    if coords is None and location_value:
+    coords = _snap_coordinate_pair(hydrated, dashboard)
+    coordinate_provenance = dict(hydrated.get('coordinate_provenance') or {})
+    saved_coords = coords is not None and bool(
+        coordinate_provenance.get('persisted_with_chart', True)
+    )
+    if not coordinate_provenance:
+        coordinate_provenance = {
+            'source': 'saved_record' if saved_coords else 'missing',
+            'persisted_with_chart': bool(saved_coords),
+            'inferred_at_read_time': False,
+            'review_required': not saved_coords,
+        }
+    if coords is None and location_value and infer_coordinates:
         coords = _legacy_snap_coords_from_location(location_value)
+        if coords is not None:
+            coordinate_provenance = {
+                'source': 'inferred_from_saved_location',
+                'persisted_with_chart': False,
+                'inferred_at_read_time': True,
+                'review_required': True,
+            }
 
     timezone_value = hydrated.get('timezone') or dashboard.get('timezone')
-    timezone_label = hydrated.get('timezone_label') or dashboard.get('timezone_label')
-    if not timezone_value:
+    if not timezone_value and infer_coordinates:
         timezone_value = _resolve_timezone_for_context(None, location_value, coords=coords)
-    if not timezone_label and timezone_value:
-        timezone_label = timezone_value
+    timezone_label = (
+        _timezone_label_from_parts(
+            timezone_value,
+            timestamp_value,
+            timestamp_value,
+        )
+        if timezone_value and timestamp_value
+        else None
+    ) or hydrated.get('timezone_label') or dashboard.get('timezone_label') or timezone_value
     certification_payload = _normalize_snap_certification_payload(
         hydrated.get('certification') or dashboard.get('certification')
     )
@@ -4529,12 +4575,25 @@ def _hydrate_snap_payload(snap: Any) -> Optional[Dict[str, Any]]:
     hydrated['timezone_label'] = timezone_label
     hydrated['latitude'] = float(coords[0]) if coords else None
     hydrated['longitude'] = float(coords[1]) if coords else None
+    hydrated['coordinate_provenance'] = coordinate_provenance
+    resolved_context = dict(hydrated.get('resolved_context') or {})
+    resolved_context.update({
+        'latitude': float(coords[0]) if coords else None,
+        'longitude': float(coords[1]) if coords else None,
+        'timezone': timezone_value,
+        'timezone_label': timezone_label,
+        'coordinate_provenance': copy.deepcopy(coordinate_provenance),
+        'chart_native': bool(saved_coords),
+    })
+    hydrated['resolved_context'] = resolved_context
     dashboard['timestamp'] = dashboard.get('timestamp') or timestamp_value
     dashboard['location'] = dashboard.get('location') or location_value
     dashboard['timezone'] = timezone_value
     dashboard['timezone_label'] = timezone_label
-    dashboard['latitude'] = float(coords[0]) if coords else None
-    dashboard['longitude'] = float(coords[1]) if coords else None
+    if saved_coords:
+        dashboard['latitude'] = float(coords[0])
+        dashboard['longitude'] = float(coords[1])
+        dashboard['coordinate_provenance'] = copy.deepcopy(coordinate_provenance)
     if certification_payload:
         hydrated['certification'] = certification_payload
         dashboard['certification'] = certification_payload
@@ -4549,7 +4608,7 @@ def _hydrate_snap_payload(snap: Any) -> Optional[Dict[str, Any]]:
 @_error_handler
 def get_snap(snap_id: str):
     store = _snaps()
-    snap = _hydrate_snap_payload(store.get(snap_id))
+    snap = _hydrate_snap_payload(store.get(snap_id), infer_coordinates=False)
     if not snap:
         return jsonify({'success': False, 'error': 'Not found'}), 404
     return jsonify({'success': True, 'snap': snap})

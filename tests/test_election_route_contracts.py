@@ -188,6 +188,124 @@ def test_lunar_fertility_requires_natal_source(monkeypatch):
     assert validate_resp.get_json()["error"] == stream_resp.get_json()["error"]
 
 
+def test_election_stream_returns_400_when_requested_natal_snap_is_unsafe(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        astro_clock_api,
+        "_ensure_coords_for_location",
+        lambda _location: (31.778, 35.235),
+    )
+    monkeypatch.setattr(
+        astro_clock_api,
+        "_natal_from_query",
+        lambda _args: (_ for _ in ()).throw(
+            ValueError("Confirm/correct the saved context first")
+        ),
+    )
+
+    app = _make_app()
+    client = app.test_client()
+    queries = (
+        _base_query(natal_snap_id="legacy-review-required"),
+        _base_query(
+            natal_datetime="2001-02-03T12:15:00Z",
+            natal_location="Jerusalem",
+        ),
+    )
+    for query in queries:
+        response = client.get(
+            f"/api/astro-clock/election/suggest/stream?{query}"
+        )
+
+        assert response.status_code == 400
+    assert response.get_json() == {
+        "success": False,
+        "error": "Confirm/correct the saved context first",
+    }
+
+
+def test_election_stream_returns_400_when_requested_direct_natal_context_fails(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        astro_clock_api,
+        "_ensure_coords_for_location",
+        lambda _location: (31.778, 35.235),
+    )
+    monkeypatch.setattr(
+        astro_clock_api,
+        "_natal_from_query",
+        lambda _args: (_ for _ in ()).throw(
+            ValueError("Direct natal context could not be constructed")
+        ),
+    )
+
+    app = _make_app()
+    response = app.test_client().get(
+        f"/api/astro-clock/election/suggest/stream?"
+        f"{_base_query(
+            natal_datetime='not-an-iso-datetime',
+            natal_location='Jerusalem',
+            natal_timezone='Asia/Jerusalem',
+            latitude='31.778',
+            longitude='35.235',
+        )}"
+    )
+
+    assert response.status_code == 400
+    assert response.get_json() == {
+        "success": False,
+        "error": "Direct natal context could not be constructed",
+    }
+
+
+def test_election_stream_rejects_incomplete_explicit_direct_natal_context(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        astro_clock_api,
+        "_ensure_coords_for_location",
+        lambda _location: (31.778, 35.235),
+    )
+
+    app = _make_app()
+    response = app.test_client().get(
+        f"/api/astro-clock/election/suggest/stream?"
+        f"{_base_query(natal_datetime='1990-01-01T00:00:00Z')}"
+    )
+
+    assert response.status_code == 400
+    assert response.get_json() == {
+        "success": False,
+        "error": "natal_datetime and natal_location required",
+    }
+
+
+def test_election_precision_requires_saved_birth_time_quality():
+    unknown = astro_clock_api._election_precision_from_saved_bundle(
+        {"chart_data": {}, "meta": {}}
+    )
+    certified = astro_clock_api._election_precision_from_saved_bundle({
+        "birth_time": {
+            "status": "certified",
+            "ranking_eligible": True,
+            "ranking_eligibility": "confirmed",
+        },
+    })
+
+    assert unknown == {
+        "precision_class": "unknown",
+        "precision_safe": False,
+        "precision_source": "saved_birth_time_quality:unclassified",
+    }
+    assert certified == {
+        "precision_class": "certified",
+        "precision_safe": True,
+        "precision_source": "saved_birth_time_quality:confirmed",
+    }
+
+
 def test_lunar_fertility_stream_returns_period_payload(monkeypatch):
     monkeypatch.setattr(astro_clock_api, "_ensure_coords_for_location", lambda location: (31.778, 35.235))
     monkeypatch.setattr(astro_clock_api, "_ph_instance", lambda lat, lon: None)

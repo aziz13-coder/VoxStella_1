@@ -223,7 +223,7 @@ def test_compute_asteroid_positions_can_include_point_dependency_bodies(monkeypa
 
     result = asteroids_module.compute_asteroid_positions(
         {"houses": _houses()},
-        "1990-01-13T19:33:00+00:00",
+        "2001-02-03T12:15:00+00:00",
         include_point_dependencies=True,
     )
 
@@ -272,7 +272,7 @@ def test_points_chart_extension_upserts_point_dependency_bodies(monkeypatch):
 
     result = astro_clock_api._extend_chart_data_for_points(
         {"houses": _houses(), "planets": [{"planet": "Sun", "longitude": 1.0}]},
-        "1990-01-13T19:33:00+00:00",
+        "2001-02-03T12:15:00+00:00",
     )
 
     planets = {row["planet"]: row for row in result["planets"]}
@@ -355,7 +355,7 @@ def test_compute_asteroid_positions_falls_back_when_existing_bundle_cannot_be_re
         "2026-05-01T09:00:00+00:00",
     )
 
-    assert fake_swe.paths == [str(bad_bundle), str(good_bundle)]
+    assert fake_swe.paths == [str(bad_bundle), "", str(good_bundle), ""]
     assert result["status"] == "ok"
     assert result["ephemeris_available"] is True
     assert result["missing"] == []
@@ -959,7 +959,7 @@ def test_create_snap_and_list_snaps_preserve_saved_context(monkeypatch):
     assert listing["success"] is True
     assert listing["items"][0]["dashboard"] == {
         "timezone": "Asia/Jerusalem",
-        "timezone_label": "Asia/Jerusalem",
+        "timezone_label": "Asia/Jerusalem (UTC+03:00)",
         "latitude": 31.778,
         "longitude": 35.235,
     }
@@ -1012,7 +1012,7 @@ def test_create_snap_uses_applied_dashboard_without_recomputing(monkeypatch):
     )
 
     dashboard = {
-        "timestamp": "1990-01-13T10:00:00+00:00",
+        "timestamp": "2001-02-03T10:00:00+00:00",
         "location": "Jerusalem, Israel",
         "timezone": "Asia/Jerusalem",
         "timezone_label": "Asia/Jerusalem",
@@ -1029,7 +1029,7 @@ def test_create_snap_uses_applied_dashboard_without_recomputing(monkeypatch):
         json={
             "label": "Applied manual chart",
             "mode": "manual",
-            "datetime": "1990-01-13T12:00:00",
+            "datetime": "2001-02-03T12:00:00",
             "location": "Jerusalem, Israel",
             "timezone": "Asia/Jerusalem",
             "latitude": 31.778,
@@ -1043,7 +1043,7 @@ def test_create_snap_uses_applied_dashboard_without_recomputing(monkeypatch):
     assert response.status_code == 200
     assert payload["success"] is True
     assert store.items[0]["label"] == "Applied manual chart"
-    assert store.items[0]["effective_datetime"] == "1990-01-13T10:00:00+00:00"
+    assert store.items[0]["effective_datetime"] == "2001-02-03T10:00:00+00:00"
     assert store.items[0]["location"] == "Jerusalem, Israel"
     assert store.items[0]["timezone"] == "Asia/Jerusalem"
     assert store.items[0]["latitude"] == 31.778
@@ -1052,7 +1052,7 @@ def test_create_snap_uses_applied_dashboard_without_recomputing(monkeypatch):
     assert store.items[0]["chart_snapshot"]["planets"] == dashboard["planets"]
 
 
-def test_get_snap_hydrates_legacy_context_for_old_records(monkeypatch):
+def test_get_snap_does_not_infer_missing_legacy_coordinates_during_read(monkeypatch):
     client = app_module.app.test_client()
 
     class DummyStore:
@@ -1061,8 +1061,8 @@ def test_get_snap_hydrates_legacy_context_for_old_records(monkeypatch):
                 return None
             return {
                 "id": snap_id,
-                "label": "Snap 1990-01-13 19:33:00+00:00 - israel",
-                "effective_datetime": "1990-01-13T19:33:00+00:00",
+                "label": "Synthetic legacy chart without coordinates",
+                "effective_datetime": "2001-02-03T12:15:00+00:00",
                 "location": "israel",
                 "timezone": None,
                 "latitude": None,
@@ -1071,7 +1071,13 @@ def test_get_snap_hydrates_legacy_context_for_old_records(monkeypatch):
             }
 
     monkeypatch.setattr(astro_clock_api, "_snaps", lambda: DummyStore())
-    monkeypatch.setattr(astro_clock_api, "_ensure_coords_for_location", lambda *_args, **_kwargs: (30.8124, 34.8595))
+    monkeypatch.setattr(
+        astro_clock_api,
+        "_ensure_coords_for_location",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("saved-chart reads must not geocode")
+        ),
+    )
     monkeypatch.setattr(
         astro_clock_api,
         "_resolve_timezone_for_context",
@@ -1083,22 +1089,24 @@ def test_get_snap_hydrates_legacy_context_for_old_records(monkeypatch):
 
     assert response.status_code == 200
     assert payload["success"] is True
-    assert payload["snap"]["timezone"] == "Asia/Jerusalem"
-    assert payload["snap"]["latitude"] == 30.8124
-    assert payload["snap"]["longitude"] == 34.8595
-    assert payload["snap"]["dashboard"]["timezone"] == "Asia/Jerusalem"
-    assert payload["snap"]["dashboard"]["latitude"] == 30.8124
-    assert payload["snap"]["dashboard"]["longitude"] == 34.8595
+    assert payload["snap"]["timezone"] is None
+    assert payload["snap"]["latitude"] is None
+    assert payload["snap"]["longitude"] is None
+    assert payload["snap"]["dashboard"]["timezone"] is None
+    assert "latitude" not in payload["snap"]["dashboard"]
+    assert "longitude" not in payload["snap"]["dashboard"]
+    assert payload["snap"]["coordinate_provenance"]["source"] == "missing"
+    assert payload["snap"]["resolved_context"]["chart_native"] is False
 
 
-def test_generic_snap_bundle_reuses_hydrated_snap_coordinates(monkeypatch):
+def test_specific_snap_bundle_reuses_hydrated_snap_coordinates(monkeypatch):
     class DummyStore:
         def get(self, snap_id):
             assert snap_id == "manual-snap"
             return {
                 "id": snap_id,
                 "effective_datetime": "2026-05-06T16:23:00+00:00",
-                "location": "utah",
+                "location": "Salt Lake City, Utah",
                 "timezone": "America/Denver",
                 "latitude": 39.321,
                 "longitude": -111.0937,
@@ -1127,7 +1135,7 @@ def test_generic_snap_bundle_reuses_hydrated_snap_coordinates(monkeypatch):
 
     assert captured == {
         "dt_iso": "2026-05-06T16:23:00+00:00",
-        "location": "utah",
+        "location": "Salt Lake City, Utah",
         "timezone": "America/Denver",
         "house_system_code": "R",
         "latitude": 39.321,
@@ -1222,7 +1230,7 @@ def test_manual_mode_prefers_explicit_coords_from_payload(monkeypatch):
     monkeypatch.setattr(
         astro_clock_api,
         "_normalize_manual_datetime",
-        lambda *_args, **_kwargs: (datetime(1990, 1, 13, 12, 0, tzinfo=timezone.utc), "Asia/Jerusalem"),
+        lambda *_args, **_kwargs: (datetime(2001, 2, 3, 12, 0, tzinfo=timezone.utc), "Asia/Jerusalem"),
     )
 
     def _unexpected_geocode(*_args, **_kwargs):
@@ -1234,7 +1242,7 @@ def test_manual_mode_prefers_explicit_coords_from_payload(monkeypatch):
         "/api/astro-clock/mode",
         json={
             "mode": "manual",
-            "datetime": "1990-01-13T12:00:00Z",
+            "datetime": "2001-02-03T12:00:00Z",
             "location": "Jerusalem, Israel",
             "timezone": "Asia/Jerusalem",
             "latitude": 31.778,
@@ -1366,14 +1374,14 @@ def test_dashboard_manual_context_uses_coords_timezone_for_datetime(monkeypatch)
             "location": location,
         }
         assert timezone_name == "Asia/Jerusalem"
-        return datetime(1990, 1, 13, 10, 0, tzinfo=timezone.utc), timezone_name
+        return datetime(2001, 2, 3, 10, 0, tzinfo=timezone.utc), timezone_name
 
     monkeypatch.setattr(astro_clock_api, "_normalize_manual_datetime", _normalize_manual_datetime)
 
     response = client.get(
         "/api/astro-clock/dashboard"
         "?mode=manual"
-        "&datetime=1990-01-13T12:00:00"
+        "&datetime=2001-02-03T12:00:00"
         "&location=Jerusalem%2C%20Israel"
         "&latitude=31.778"
         "&longitude=35.235"

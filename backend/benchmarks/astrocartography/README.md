@@ -274,6 +274,41 @@ python -m pytest backend/test_astrocartography_source_alignment.py -q
 - it feeds `evaluate_goal_model(...)` directly with curated natal rows, crossings, and relocation features
 - it is designed to catch model drift against Jim Lewis and normalized reference claims before any map or atlas behavior is involved
 
+## Audited Geometry And Policy Regression
+
+`audit_regression_fixtures.json` freezes the code-level audit for a deliberately
+synthetic, non-person leap-day chart:
+
+- 29 February 2000 at 12:34 `Europe/Paris`
+- unambiguous conversion to 11:34 UTC
+- public Paris coordinates used by the bundled city catalog
+- Regiomontanus as the explicit relocation default, with house-system
+  dependence disclosed
+- 11:33, 11:34, and 11:35 UTC perturbation samples
+- Mars-IC home-and-roots wording
+- the 300 km primary and 500 km extended display boundaries plus scoring
+  sensitivity metadata
+- separate identities for angular-line crossings, local paran points, global
+  paran corridors, and Local Space azimuth rays
+- the 2 degree local paran residual limit, 1 degree global residual limit, and
+  1,200 km local search radius, all labeled as product policies
+- the mean North Node and Chiron labeled as experimental extensions rather
+  than part of the canonical Sun-through-Pluto body set
+
+The fixture also contains numeric constants captured for the same synthetic
+chart by calling Almaatla's bundled 32-bit Swiss Ephemeris DLL through code.
+Tests never load that DLL.
+They compare the current kernel with the frozen numbers at the same Julian
+instant, so the proprietary/third-party application is not a CI dependency.
+This is geometry parity only: Almaatla's Education, Love, and Work weights are
+not treated as independent doctrine or outcome validation.
+
+Run the dedicated regression with:
+
+```powershell
+python -m pytest backend/test_astrocartography_audit_regression_fixtures.py -q
+```
+
 ## Current Dataset Status
 
 Current repo state:

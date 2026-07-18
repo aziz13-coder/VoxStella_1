@@ -77,7 +77,11 @@ def test_traits_profile_does_not_depend_on_dashboard_builder(monkeypatch):
     )
 
     monkeypatch.setattr(astro_clock_api, "_engine_instance", lambda: SimpleNamespace(settings=settings))
-    monkeypatch.setattr(astro_clock_api, "_data_for_request_clock_context", lambda eng: (data, settings))
+    monkeypatch.setattr(
+        astro_clock_api,
+        "_data_for_request_clock_context",
+        lambda eng, **_kwargs: (data, settings),
+    )
     monkeypatch.setattr(
         astro_clock_api,
         "_build_dashboard_payload",
@@ -135,15 +139,15 @@ def test_points_degree_hits_forces_placidus_house_context(monkeypatch):
 
     settings = SimpleNamespace(
         mode=SimpleNamespace(value="manual"),
-        location="Israel",
+        location="Paris, France",
         custom_time=None,
-        timezone="Asia/Jerusalem",
-        latitude=31.76904,
-        longitude=35.21633,
+        timezone="Europe/Paris",
+        latitude=48.85341,
+        longitude=2.3488,
         house_system_code="R",
     )
     data = SimpleNamespace(
-        timestamp=datetime(1990, 1, 13, 19, 33, tzinfo=timezone.utc),
+        timestamp=datetime(2000, 2, 29, 11, 34, tzinfo=timezone.utc),
         settings=settings,
         chart_result={
             "_raw_chart": SimpleNamespace(
@@ -189,7 +193,7 @@ def test_points_degree_hits_forces_placidus_house_context(monkeypatch):
         astro_clock_api,
         "_serialize_real_time",
         lambda _data: {
-            "timestamp": "1990-01-13T19:33:00+00:00",
+            "timestamp": "2000-02-29T11:34:00+00:00",
             "chart_data": {
                 "house_system_code": "R",
                 "planets": [],
@@ -266,7 +270,11 @@ def test_traits_profile_perf_logging_is_opt_in_and_non_disruptive(monkeypatch):
     monkeypatch.setenv("VOX_STELLA_ASTRO_PERF", "1")
     monkeypatch.setattr(astro_clock_api.logger, "info", capture_info)
     monkeypatch.setattr(astro_clock_api, "_engine_instance", lambda: SimpleNamespace(settings=settings))
-    monkeypatch.setattr(astro_clock_api, "_data_for_request_clock_context", lambda eng: (data, settings))
+    monkeypatch.setattr(
+        astro_clock_api,
+        "_data_for_request_clock_context",
+        lambda eng, **_kwargs: (data, settings),
+    )
     monkeypatch.setattr(
         astro_clock_api,
         "compute_metrics",

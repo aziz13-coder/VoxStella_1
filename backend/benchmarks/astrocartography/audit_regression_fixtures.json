@@ -1,0 +1,272 @@
+{
+  "schema_version": 2,
+  "fixture_id": "synthetic-paris-leap-day-2000-1234-audit-v1",
+  "label": "Synthetic Paris leap-day chart, technique separation, and Almaatla kernel parity",
+  "synthetic_fixture": true,
+  "privacy_note": "This memorable leap-day chart is synthetic and does not represent a user or another person.",
+  "validation_scope": {
+    "geometry": "Numeric astronomy and geometry regression.",
+    "interpretation": "Curated doctrine wording regression; not scientific outcome validation.",
+    "goal_scores": "Sensitivity and disclosure regression; not predictive calibration.",
+    "external_runtime_dependency": false
+  },
+  "birth": {
+    "fixture_status": "synthetic_non_person",
+    "local_civil_datetime": "2000-02-29T12:34:00",
+    "timezone": "Europe/Paris",
+    "utc_offset": "+01:00",
+    "utc_datetime": "2000-02-29T11:34:00Z",
+    "conversion_status": "unambiguous_standard_time",
+    "place": {
+      "label": "Paris, France",
+      "latitude": 48.85341,
+      "longitude": 2.3488,
+      "coordinate_source": "bundled_geonames_city"
+    }
+  },
+  "policies": {
+    "house_system": {
+      "code": "R",
+      "name": "Regiomontanus",
+      "status": "product_default",
+      "claim_id": "acg-claim-relocation-house-system-policy",
+      "note": "Relocated houses and house-based goal features depend on this choice and are not interchangeable with Placidus or another system."
+    },
+    "body_scope": {
+      "canonical": [
+        "Sun",
+        "Moon",
+        "Mercury",
+        "Venus",
+        "Mars",
+        "Jupiter",
+        "Saturn",
+        "Uranus",
+        "Neptune",
+        "Pluto"
+      ],
+      "extensions": {
+        "North Node": {
+          "status": "experimental",
+          "calculation": "mean_lunar_node",
+          "not_true_node": true,
+          "south_node_inferred": false
+        },
+        "Chiron": {
+          "status": "experimental",
+          "calculation": "separately_provenanced_asteroid_or_explicit_low_precision_fallback"
+        }
+      },
+      "claim_id": "acg-claim-extended-body-policy"
+    },
+    "distance": {
+      "status": "experimental_product_policy",
+      "display_primary_radius_km": 300.0,
+      "display_extended_radius_km": 500.0,
+      "profile_multipliers": {
+        "conservative": 0.6,
+        "standard": 1.0,
+        "wide": 1.4
+      },
+      "profile_effective_cutoffs_km": {
+        "conservative": 300.0,
+        "standard": 500.0,
+        "wide": 700.0
+      },
+      "claim_id": "acg-claim-product-radius-policy",
+      "boundary_expectations": [
+        {
+          "distance_km": 300.0,
+          "display_zone": "primary"
+        },
+        {
+          "distance_km": 300.1,
+          "display_zone": "extended"
+        },
+        {
+          "distance_km": 500.0,
+          "display_zone": "extended"
+        },
+        {
+          "distance_km": 500.1,
+          "display_zone": "background"
+        }
+      ]
+    },
+    "parans": {
+      "status": "experimental_product_policy",
+      "local_residual_limit_deg": 2.0,
+      "global_residual_limit_deg": 1.0,
+      "local_search_radius_km": 1200.0,
+      "claim_id": "acg-claim-paran-orb-radius-product-policy",
+      "note": "These limits filter exact angular roots; they are not universal astrological orbs."
+    },
+    "local_space": {
+      "status": "experimental_product_policy",
+      "claim_id": "acg-claim-local-space-product-policy",
+      "origin_modes": [
+        "natal_birthplace",
+        "relocated_target"
+      ],
+      "separate_from_astrocartography_lines": true,
+      "note": "Azimuth rays keep their own origin and technique identity and are not treated as ASC, DSC, MC, or IC lines."
+    }
+  },
+  "voxstella_expected": {
+    "timestamp_frame": "UTC converted to UT1 by Swiss Ephemeris for sidereal geometry",
+    "line_count_with_extensions": 48,
+    "gst_deg": 332.093787,
+    "line_longitudes_at_equator": {
+      "Sun:MC": 9.615438986852268,
+      "Sun:IC": -170.38456101314773,
+      "Sun:ASC": -80.38456101314773,
+      "Sun:DSC": 99.61543898685227,
+      "Mars:IC": -139.82275687678225,
+      "Jupiter:MC": 58.63595805921972
+    },
+    "synthetic_paris_reading": {
+      "nearest": [
+        {
+          "id": "Moon:DSC",
+          "distance_km": 321.1,
+          "zone": "extended"
+        },
+        {
+          "id": "Pluto:DSC",
+          "distance_km": 346.3,
+          "zone": "extended"
+        },
+        {
+          "id": "Sun:MC",
+          "distance_km": 530.9,
+          "zone": "background"
+        },
+        {
+          "id": "Mercury:MC",
+          "distance_km": 586.2,
+          "zone": "background"
+        }
+      ],
+      "zone_counts_all_48_lines": {
+        "primary": 0,
+        "extended": 2,
+        "background": 46
+      }
+    },
+    "synthetic_distance_probe": {
+      "id": "Mars:IC",
+      "distance_km": 357.0,
+      "zone": "extended",
+      "conservative_profile_active": false,
+      "standard_profile_active": true,
+      "wide_profile_active": true,
+      "note": "A synthetic line row isolates the 300/500/700 scoring policy from any real person's geography."
+    },
+    "local_space_canonical_ten": {
+      "origin": {
+        "latitude": 48.85341,
+        "longitude": 2.3488
+      },
+      "lead_body": "Mercury",
+      "lead_direction": "S",
+      "lead_azimuth_deg": 169.91,
+      "lead_altitude_deg": 37.25
+    }
+  },
+  "time_perturbation": {
+    "method": "same synthetic place and Regiomontanus house system; UTC converted to UT1",
+    "samples": [
+      {
+        "utc_datetime": "2000-02-29T11:33:00Z",
+        "ascendant_deg": 93.54502054131774,
+        "midheaven_deg": 332.20707683626574,
+        "mars_ic_equator_longitude_deg": -139.57255186753576
+      },
+      {
+        "utc_datetime": "2000-02-29T11:34:00Z",
+        "ascendant_deg": 93.76641527593992,
+        "midheaven_deg": 332.47098877145106,
+        "mars_ic_equator_longitude_deg": -139.82275687678225
+      },
+      {
+        "utc_datetime": "2000-02-29T11:35:00Z",
+        "ascendant_deg": 93.98732324444238,
+        "midheaven_deg": 332.7350639743986,
+        "mars_ic_equator_longitude_deg": -140.07296188599696
+      }
+    ],
+    "rank_stability_requirement": "A ranked multi-location result must compare perturbed-time rankings; a single-location result must not claim evaluated rank stability."
+  },
+  "mars_ic_wording": {
+    "required_terms": [
+      "home",
+      "roots",
+      "foundations",
+      "restlessness",
+      "abrasion"
+    ],
+    "forbidden_primary_framing": [
+      "athletic drive",
+      "career ambition"
+    ],
+    "source_status": "synthesis",
+    "calibration_status": "unverified"
+  },
+  "technique_identity": {
+    "angular_line_crossing_event_kind": "angular-line-crossing",
+    "local_paran_event_kind": "paran-crossing-point",
+    "global_paran_event_kind": "paran-latitude-corridor",
+    "local_space_id_suffix": ":local-space",
+    "shared_geometry_does_not_merge_techniques": true
+  },
+  "almaatla_kernel_parity": {
+    "audit_method": "Read-only code call to the bundled 32-bit SWEDLL32.DLL for the synthetic leap-day chart; no UI automation, injection, or application modification.",
+    "captured_on": "2026-07-18",
+    "binary_needed_at_test_time": false,
+    "kernel_input": {
+      "fixture_status": "synthetic_non_person",
+      "julian_day_ut": 2451603.9819444446,
+      "requested_ephemeris_flag": "SWIEPH",
+      "returned_planetary_engine": "Moshier for Sun through Pluto; mean-node result returned the requested Swiss flag",
+      "house_system": "R",
+      "latitude": 48.85341,
+      "longitude": 2.3488
+    },
+    "maximum_longitude_delta_arcsec": 1.25,
+    "planetary_longitudes_deg": {
+      "Sun": 340.1877269570382,
+      "Moon": 275.32302446730125,
+      "Mercury": 342.5246403469721,
+      "Venus": 313.9342917206422,
+      "Mars": 13.208017119749231,
+      "Jupiter": 32.57364263787268,
+      "Saturn": 42.364312593744735,
+      "Uranus": 318.1220040538059,
+      "Neptune": 305.34961609991296,
+      "Pluto": 252.83770725359742,
+      "North Node": 121.91736589468061
+    },
+    "houses": {
+      "ascendant_deg": 93.76529496319044,
+      "midheaven_deg": 332.4696315451087,
+      "cusps_deg": [
+        93.76529496319044,
+        115.01718409308545,
+        132.1505734061668,
+        152.46963154510877,
+        186.429942338776,
+        237.34644207637516,
+        273.76529496319046,
+        295.01718409308546,
+        312.1505734061668,
+        332.4696315451087,
+        6.429942338776,
+        57.346442076375155
+      ]
+    },
+    "unsupported_in_legacy_kernel": [
+      "Chiron: missing seas_18.se1 in the audited Almaatla installation"
+    ],
+    "interpretation_limit": "Numeric parity makes Almaatla a geometry regression reference only; its Education, Love, and Work weights are not independent doctrinal authority."
+  }
+}

@@ -570,9 +570,9 @@ describe('CompassTile', () => {
         data: {
           systems: ['EQL', 'EQU', 'HOR'],
           chart_info: {
-            utc_datetime: '1990-01-13T19:33:00+00:00',
-            latitude: 31.777779,
-            longitude: 35.235001,
+            utc_datetime: '2001-06-15T08:15:00+00:00',
+            latitude: 51.5,
+            longitude: -0.1,
             rotation: 9,
             tilt: 19,
             house_system: 'T',
@@ -663,17 +663,17 @@ describe('CompassTile', () => {
         houseCusps={[194, 220, 246, 278, 310, 340, 14, 40, 66, 98, 130, 160]}
         snaps={[
           {
-            id: 'snap-aziz',
-            label: 'Aziz natal snap',
-            effective_datetime: '1990-01-13T19:33:00+00:00',
-            location: 'Jerusalem, Israel',
-            timezone: 'Asia/Jerusalem',
-            latitude: 31.777779,
-            longitude: 35.235001,
+            id: 'snap-synthetic',
+            label: 'Synthetic saved chart',
+            effective_datetime: '2001-06-15T08:15:00+00:00',
+            location: 'Synthetic City',
+            timezone: 'Europe/London',
+            latitude: 51.5,
+            longitude: -0.1,
             dashboard: { house_system_code: 'T' },
           },
         ]}
-        activeSnapId="snap-aziz"
+        activeSnapId="snap-synthetic"
         loadingSnaps={false}
         snapsLoaded
         onRefreshSnaps={vi.fn()}
@@ -685,14 +685,14 @@ describe('CompassTile', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Saved Snap' }));
     fireEvent.change(screen.getByLabelText('Directional saved snap'), {
-      target: { value: 'snap-aziz' },
+      target: { value: 'snap-synthetic' },
     });
     await waitFor(() => {
-      expect(astroClockApiMock.getDirectional3d).toHaveBeenLastCalledWith(expect.objectContaining({
-        mode: 'manual',
-        datetime: '1990-01-13T19:33:00+00:00',
-        location: 'Jerusalem, Israel',
-      }));
+      expect(astroClockApiMock.getDirectional3d).toHaveBeenLastCalledWith({
+        includeModern: false,
+        snapId: 'snap-synthetic',
+        houseSystem: 'T',
+      });
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Current Auto' }));
@@ -761,9 +761,9 @@ describe('CompassTile', () => {
         data: {
           systems: ['EQL', 'EQU', 'HOR'],
           chart_info: {
-            utc_datetime: '1990-01-13T19:33:00+00:00',
-            latitude: 31.777779,
-            longitude: 35.235001,
+            utc_datetime: '2001-06-15T08:15:00+00:00',
+            latitude: 51.5,
+            longitude: -0.1,
             rotation: 9,
             tilt: 19,
             house_system: 'T',
@@ -802,18 +802,18 @@ describe('CompassTile', () => {
         houseCusps={[18, 44, 71, 99, 130, 159, 198, 224, 251, 279, 310, 339]}
         snaps={[
           {
-            id: 'snap-aziz',
-            label: 'Aziz natal snap',
-            effective_datetime: '1990-01-13T19:33:00+00:00',
-            location: 'Jerusalem, Israel',
-            timezone: 'Asia/Jerusalem',
+            id: 'snap-synthetic',
+            label: 'Synthetic saved chart',
+            effective_datetime: '2001-06-15T08:15:00+00:00',
+            location: 'Synthetic City',
+            timezone: 'Europe/London',
             latitude: 0,
             longitude: 0,
             chart_snapshot: {
               timezone_info: {
                 coordinates: {
-                  latitude: 31.777779,
-                  longitude: 35.235001,
+                  latitude: 51.5,
+                  longitude: -0.1,
                 },
               },
             },
@@ -824,7 +824,7 @@ describe('CompassTile', () => {
             },
           },
         ]}
-        activeSnapId="snap-aziz"
+        activeSnapId="snap-synthetic"
         loadingSnaps={false}
         snapsLoaded
         onRefreshSnaps={vi.fn()}
@@ -837,23 +837,18 @@ describe('CompassTile', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Saved Snap' }));
     fireEvent.change(screen.getByLabelText('Directional saved snap'), {
-      target: { value: 'snap-aziz' },
+      target: { value: 'snap-synthetic' },
     });
 
     await waitFor(() => {
       expect(astroClockApiMock.getDirectional3d).toHaveBeenLastCalledWith({
         includeModern: false,
-        mode: 'manual',
-        datetime: '1990-01-13T19:33:00+00:00',
-        location: 'Jerusalem, Israel',
-        timezone: 'Asia/Jerusalem',
-        latitude: 31.777779,
-        longitude: 35.235001,
+        snapId: 'snap-synthetic',
         houseSystem: 'T',
       });
     });
     expect((await screen.findAllByText('Moon')).length).toBeGreaterThan(0);
-    expect(screen.getByText('Aziz natal snap')).toBeInTheDocument();
+    expect(screen.getByText('Synthetic saved chart')).toBeInTheDocument();
   });
 
   it('opens Directional 3D from a saved snap when the current chart is unavailable', async () => {
@@ -862,9 +857,9 @@ describe('CompassTile', () => {
       data: {
         systems: ['EQL', 'EQU', 'HOR'],
         chart_info: {
-          utc_datetime: '1990-01-13T19:33:00+00:00',
-          latitude: 31.777779,
-          longitude: 35.235001,
+          utc_datetime: '2001-06-15T08:15:00+00:00',
+          latitude: 51.5,
+          longitude: -0.1,
           rotation: 9,
           tilt: 19,
           house_system: 'T',
@@ -892,11 +887,11 @@ describe('CompassTile', () => {
           {
             id: 'snap-only',
             label: 'Only saved snap',
-            effective_datetime: '1990-01-13T19:33:00+00:00',
-            location: 'Jerusalem, Israel',
-            timezone: 'Asia/Jerusalem',
-            latitude: 31.777779,
-            longitude: 35.235001,
+            effective_datetime: '2001-06-15T08:15:00+00:00',
+            location: 'Synthetic City',
+            timezone: 'Europe/London',
+            latitude: 51.5,
+            longitude: -0.1,
             dashboard: { house_system_code: 'T' },
           },
         ]}
@@ -908,12 +903,7 @@ describe('CompassTile', () => {
     await waitFor(() => {
       expect(astroClockApiMock.getDirectional3d).toHaveBeenCalledWith({
         includeModern: false,
-        mode: 'manual',
-        datetime: '1990-01-13T19:33:00+00:00',
-        location: 'Jerusalem, Israel',
-        timezone: 'Asia/Jerusalem',
-        latitude: 31.777779,
-        longitude: 35.235001,
+        snapId: 'snap-only',
         houseSystem: 'T',
       });
     });
@@ -986,16 +976,73 @@ describe('CompassTile', () => {
     await waitFor(() => {
       expect(astroClockApiMock.getDirectional3d).toHaveBeenCalledWith({
         includeModern: false,
-        mode: 'manual',
-        datetime: '2025-09-10T12:23:00',
-        location: 'utah',
-        timezone: 'America/Denver',
-        latitude: 39.4225192,
-        longitude: -111.714358,
+        snapId: 'snap-utah',
         houseSystem: 'R',
       });
     });
     expect((await screen.findAllByText('Moon')).length).toBeGreaterThan(0);
     expect(screen.getByText('Snap 2025-09-10 12:23:00 — utah')).toBeInTheDocument();
+  });
+
+  it('keeps review-required and superseded charts out of Compass and Directional 3D', async () => {
+    astroClockApiMock.getDirectional3d.mockResolvedValueOnce({
+      success: true,
+      data: {
+        systems: ['EQL', 'EQU', 'HOR'],
+        chart_info: {
+          utc_datetime: '2002-04-05T09:20:00+00:00',
+          latitude: 1,
+          longitude: 2,
+          house_system: 'R',
+        },
+        objects: [],
+      },
+    });
+
+    render(
+      <CompassTile
+        includeModern={false}
+        houseSystem="R"
+        activeSnapId="snap-review"
+        snaps={[
+          {
+            id: 'snap-review',
+            label: 'Review chart',
+            calculation_context: { review_required: true },
+          },
+          {
+            id: 'snap-old',
+            label: 'Old chart',
+            superseded_by: 'snap-safe',
+          },
+          {
+            id: 'snap-safe',
+            label: 'Safe chart',
+            effective_datetime: '2002-04-05T09:20:00+00:00',
+            location: 'Synthetic place',
+            timezone: 'Etc/UTC',
+            latitude: 1,
+            longitude: 2,
+          },
+        ]}
+        snapsLoaded
+      />,
+    );
+
+    expect(astroClockApiMock.getCompass).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: '3D' }));
+
+    await waitFor(() => {
+      expect(astroClockApiMock.getDirectional3d).toHaveBeenCalledWith({
+        includeModern: false,
+        snapId: 'snap-safe',
+        houseSystem: 'R',
+      });
+    });
+
+    const select = screen.getByLabelText('Directional saved snap');
+    expect(within(select).getByRole('option', { name: /Review chart.*needs context review/i })).toBeDisabled();
+    expect(within(select).getByRole('option', { name: /Old chart.*superseded.*corrected copy/i })).toBeDisabled();
+    expect(screen.getByText(/Review-required and superseded saved charts are disabled/i)).toBeInTheDocument();
   });
 });

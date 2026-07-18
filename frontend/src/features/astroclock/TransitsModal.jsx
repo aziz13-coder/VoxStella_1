@@ -1,5 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AstroClockAPI } from './api.mjs';
+import {
+  formatSavedSnapDateTime,
+  getSavedSnapIneligibilityLabel,
+  getSavedSnapTimezoneLabel,
+  isSavedSnapCalculationEligible,
+} from './savedSnapViewModel.mjs';
 
 // House system fixed to Regiomontanus for this model
 const HOUSE_SYSTEM_CODE = 'R';
@@ -1462,6 +1468,10 @@ export default function TransitsModal({
   const [snaps, setSnaps] = useState([]);
   const [selectedSnapId, setSelectedSnapId] = useState('');
   const [sourceMode, setSourceMode] = useState('manual'); // 'manual' | 'snap'
+  const eligibleSnaps = useMemo(
+    () => snaps.filter((snap) => isSavedSnapCalculationEligible(snap)),
+    [snaps],
+  );
   const natalCoordinateContext = useMemo(() => {
     const latitude = finiteNumberOrUndefined(natalLatitude);
     const longitude = finiteNumberOrUndefined(natalLongitude);
@@ -2173,6 +2183,17 @@ export default function TransitsModal({
   useEffect(()=>{ if (open) loadSnaps(); }, [open]);
 
   useEffect(() => {
+    if (!selectedSnapId) return;
+    const selected = snaps.find(
+      (snap) => String(snap?.id || '') === String(selectedSnapId),
+    );
+    if (!selected || isSavedSnapCalculationEligible(selected)) return;
+    setSelectedSnapId('');
+    setSourceMode('manual');
+    setError('This saved chart needs context review. Correct it in Astro Clock and use the corrected copy.');
+  }, [selectedSnapId, snaps]);
+
+  useEffect(() => {
     if (!open || !initialNatalContext || typeof initialNatalContext !== 'object') return;
     const snapId = initialNatalContext.snapId ? String(initialNatalContext.snapId) : '';
     const nextDate = typeof initialNatalContext.date === 'string' ? initialNatalContext.date : '';
@@ -2215,7 +2236,7 @@ export default function TransitsModal({
   useEffect(() => {
     if (!open || !initialNatalContext || typeof initialNatalContext !== 'object') return;
     if (selectedSnapId || !snaps.length) return;
-    const inferredSnapId = findMatchingSnapId(snaps, initialNatalContext);
+    const inferredSnapId = findMatchingSnapId(eligibleSnaps, initialNatalContext);
     if (!inferredSnapId) return;
     setSelectedSnapId(inferredSnapId);
     setSourceMode('snap');
@@ -2224,7 +2245,7 @@ export default function TransitsModal({
     initialNatalContext,
     open,
     selectedSnapId,
-    snaps,
+    eligibleSnaps,
   ]);
 
   // When a layer is disabled, clear its stored window and UI inputs to avoid accidental use
@@ -2774,7 +2795,14 @@ export default function TransitsModal({
             <label htmlFor="src-manual">Manual Natal</label>
           </div>
           <div className="flex items-center gap-2">
-            <input id="src-snap" type="radio" name="src" checked={sourceMode==='snap'} onChange={()=> setSourceMode('snap')} />
+            <input
+              id="src-snap"
+              type="radio"
+              name="src"
+              checked={sourceMode==='snap'}
+              disabled={!eligibleSnaps.length}
+              onChange={()=> setSourceMode('snap')}
+            />
             <label htmlFor="src-snap">Saved Snap</label>
           </div>
         </div>
@@ -2785,7 +2813,16 @@ export default function TransitsModal({
             <select className="border rounded px-2 py-1" value={selectedSnapId} onChange={e=> setSelectedSnapId(e.target.value)}>
               <option value="">Select a snap…</option>
               {snaps.map(s => (
-                <option key={s.id} value={s.id}>{s.label || s.id} · {s.effective_datetime}</option>
+                <option
+                  key={s.id}
+                  value={s.id}
+                  disabled={!isSavedSnapCalculationEligible(s)}
+                >
+                  {s.label || s.id} · {formatSavedSnapDateTime(s)} · {getSavedSnapTimezoneLabel(s)}
+                  {getSavedSnapIneligibilityLabel(s)
+                    ? ` — ${getSavedSnapIneligibilityLabel(s)}`
+                    : ''}
+                </option>
               ))}
             </select>
             <button type="button" onClick={loadSnaps} className="text-xs px-2 py-1 border rounded">Refresh</button>
@@ -2793,6 +2830,11 @@ export default function TransitsModal({
               <button type="button" onClick={()=> setSelectedSnapId('')} className="text-xs px-2 py-1 border rounded">Clear</button>
             ) : null}
             <span className="text-xs text-zinc-600">Manual fields are ignored when a snap is selected.</span>
+            {snaps.some((snap) => !isSavedSnapCalculationEligible(snap)) ? (
+              <span className="font-serif text-xs italic leading-5 text-zinc-500">
+                Review-required and superseded saved charts are disabled. Use a corrected copy from Astro Clock.
+              </span>
+            ) : null}
           </div>
         )}
 

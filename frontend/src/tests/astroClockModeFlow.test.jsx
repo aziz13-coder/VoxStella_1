@@ -11,6 +11,8 @@ const astroClockApiMock = vi.hoisted(() => ({
   listSnaps: vi.fn(),
   getSnap: vi.fn(),
   createSnap: vi.fn(),
+  confirmSnapContext: vi.fn(),
+  resolveTimezone: vi.fn(),
   deleteSnap: vi.fn(),
 }));
 
@@ -50,6 +52,10 @@ const degreeHitsTileMock = vi.hoisted(() => ({
   props: [],
 }));
 
+const receptionsTileMock = vi.hoisted(() => ({
+  props: [],
+}));
+
 vi.mock('leaflet', () => {
   const Default = { mergeOptions: vi.fn() };
   return {
@@ -77,7 +83,10 @@ vi.mock('../components/wheel/SketchWheel', () => ({
 }));
 
 vi.mock('../features/astroclock/ReceptionsTile.jsx', () => ({
-  default: () => <div data-testid="receptions-tile" />,
+  default: (props) => {
+    receptionsTileMock.props.push(props);
+    return <div data-testid="receptions-tile" />;
+  },
 }));
 
 vi.mock('../features/astroclock/MetricsTile.jsx', () => ({
@@ -418,6 +427,7 @@ describe('AstroClock mode flow', () => {
     birthCertificationModalMock.props = [];
     compassTileMock.props = [];
     degreeHitsTileMock.props = [];
+    receptionsTileMock.props = [];
     Object.defineProperty(window.navigator, 'clipboard', {
       configurable: true,
       value: { writeText: vi.fn().mockResolvedValue(undefined) },
@@ -434,6 +444,11 @@ describe('AstroClock mode flow', () => {
         openExternal: vi.fn(),
       },
     });
+    Object.defineProperty(window, 'confirm', {
+      configurable: true,
+      writable: true,
+      value: vi.fn().mockReturnValue(true),
+    });
     global.localStorage = {
       getItem: vi.fn(),
       setItem: vi.fn(),
@@ -447,6 +462,14 @@ describe('AstroClock mode flow', () => {
     astroClockApiMock.listSnaps.mockResolvedValue({ success: true, items: [] });
     astroClockApiMock.getSnap.mockResolvedValue({ success: false });
     astroClockApiMock.createSnap.mockResolvedValue({ success: true });
+    astroClockApiMock.confirmSnapContext.mockResolvedValue({ success: false });
+    astroClockApiMock.resolveTimezone.mockResolvedValue({
+      success: true,
+      location: 'Jerusalem, Israel',
+      latitude: 31.76904,
+      longitude: 35.21633,
+      timezone: 'Asia/Jerusalem',
+    });
     astroClockApiMock.deleteSnap.mockResolvedValue({ success: true });
   });
 
@@ -728,6 +751,672 @@ describe('AstroClock mode flow', () => {
         houseSystem: 'R',
       }));
     });
+  });
+
+  it('coalesces rapid Snap clicks and allows a later save with a fresh idempotency key', async () => {
+    let resolveFirstSave;
+    const firstSave = new Promise((resolve) => {
+      resolveFirstSave = resolve;
+    });
+    astroClockApiMock.createSnap
+      .mockReturnValueOnce(firstSave)
+      .mockResolvedValueOnce({ success: true, data: { id: 'snap-second' } });
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />
+    );
+
+    await findAnyText('Jerusalem, Israel');
+    const snapButton = screen.getByRole('button', { name: 'Snap' });
+    fireEvent.click(snapButton);
+    fireEvent.click(snapButton);
+
+    await waitFor(() => {
+      expect(astroClockApiMock.createSnap).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole('button', { name: 'Saving…' })).toBeDisabled();
+    });
+    const firstKey = astroClockApiMock.createSnap.mock.calls[0]?.[0]?.idempotencyKey;
+    expect(firstKey).toMatch(/^astro-clock-snap-/);
+
+    await act(async () => {
+      resolveFirstSave({ success: true, data: { id: 'snap-first' } });
+      await firstSave;
+    });
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Snap' })).toBeEnabled();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Snap' }));
+    await waitFor(() => {
+      expect(astroClockApiMock.createSnap).toHaveBeenCalledTimes(2);
+    });
+    const secondKey = astroClockApiMock.createSnap.mock.calls[1]?.[0]?.idempotencyKey;
+    expect(secondKey).toMatch(/^astro-clock-snap-/);
+    expect(secondKey).not.toBe(firstKey);
+  });
+
+  it('renders each saved chart in its own timezone and surfaces migration review notices', async () => {
+    astroClockApiMock.listSnaps.mockResolvedValue({
+      success: true,
+      migration_report: {
+        migrated_records: 2,
+        backup_path: 'preserved-backup.json',
+        semantic_duplicate_groups: [{ semantic_key: 'group-1' }],
+      },
+      items: [
+        {
+          id: 'snap-jerusalem',
+          label: 'Jerusalem birth',
+          effective_datetime: '2001-06-15T08:15:00+00:00',
+          local_datetime: '2001-06-15T11:15:00+03:00',
+          timezone: 'Asia/Jerusalem',
+          timezone_label: 'Asia/Jerusalem (UTC+03:00)',
+          location: 'Jerusalem, Israel',
+          summary: {},
+          calculation_context: { review_required: false },
+        },
+        {
+          id: 'snap-new-york',
+          label: 'New York comparison',
+          effective_datetime: '2001-06-15T08:15:00+00:00',
+          local_datetime: '2001-06-15T04:15:00-04:00',
+          timezone: 'America/New_York',
+          timezone_label: 'America/New_York (UTC-04:00)',
+          location: 'New York, USA',
+          summary: {},
+          calculation_context: {
+            review_required: true,
+            time_provenance: { ambiguous: true },
+          },
+          duplicate_group: {
+            semantic_key: 'group-1',
+            canonical_id: 'snap-new-york',
+            records_preserved: true,
+          },
+        },
+      ],
+    });
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />
+    );
+
+    expect(await screen.findByText('Jerusalem birth')).toBeInTheDocument();
+    expect(screen.getByText(
+      '15 Jun 2001, 11:15 · Asia/Jerusalem (UTC+03:00) · Jerusalem, Israel',
+    )).toBeInTheDocument();
+    expect(screen.getByText(
+      '15 Jun 2001, 04:15 · America/New_York (UTC-04:00) · New York, USA',
+    )).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(
+      '2 saved charts were upgraded. 1 chart needs context review. 1 possible duplicate group was preserved. A safety backup was preserved.',
+    );
+    expect(screen.getByText('Review saved context')).toBeInTheDocument();
+    expect(screen.getByText('Possible duplicate')).toBeInTheDocument();
+    expect(screen.getByText(/Saved time interpretation needs review/)).toBeInTheDocument();
+    expect(screen.getByText(/no saved chart was deleted/)).toBeInTheDocument();
+  });
+
+  it('disables review-required loads in both saved-list and search modes', async () => {
+    const reviewSnap = {
+      id: 'snap-review-only',
+      label: 'Unsafe migrated chart',
+      effective_datetime: null,
+      local_datetime: '2026-11-01T01:30:00-04:00',
+      timezone: 'America/New_York',
+      location: 'New York, USA',
+      summary: {},
+      calculation_context: {
+        review_required: true,
+        time_provenance: { ambiguous: true },
+      },
+    };
+    astroClockApiMock.listSnaps.mockResolvedValue({
+      success: true,
+      items: [reviewSnap],
+    });
+    astroClockApiMock.getSnap.mockResolvedValue({
+      success: true,
+      snap: reviewSnap,
+    });
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />,
+    );
+
+    const listTitle = await screen.findByText('Unsafe migrated chart');
+    const listCard = listTitle.closest('.rounded-2xl');
+    expect(listCard).not.toBeNull();
+    expect(within(listCard).getByRole('button', { name: 'Load' })).toBeDisabled();
+    expect(within(listCard).getByRole('button', { name: 'Correct context' })).toBeEnabled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+    await waitFor(() => {
+      expect(astroClockApiMock.getSnap).toHaveBeenCalledWith('snap-review-only');
+    });
+    const searchTitle = await screen.findByText('Unsafe migrated chart');
+    const searchCard = searchTitle.closest('.rounded-2xl');
+    expect(searchCard).not.toBeNull();
+    expect(within(searchCard).getByRole('button', { name: 'Load' })).toBeDisabled();
+    expect(within(searchCard).getByRole('button', { name: 'Correct context' })).toBeEnabled();
+  });
+
+  it('rejects a snap when hydrated details newly require review without changing the active chart', async () => {
+    const summary = {
+      id: 'snap-stale-summary',
+      label: 'Stale safe summary',
+      effective_datetime: '2004-05-06T07:30:00+00:00',
+      timezone: 'Europe/London',
+      location: 'London, UK',
+      latitude: 51.5072,
+      longitude: -0.1276,
+      calculation_context: { review_required: false },
+      summary: {},
+    };
+    astroClockApiMock.listSnaps.mockResolvedValue({
+      success: true,
+      items: [summary],
+    });
+    astroClockApiMock.getSnap.mockResolvedValue({
+      success: true,
+      snap: {
+        ...summary,
+        effective_datetime: null,
+        calculation_context: {
+          review_required: true,
+          time_provenance: { ambiguous: true },
+        },
+      },
+    });
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />,
+    );
+
+    const card = (await screen.findByText('Stale safe summary')).closest('.rounded-2xl');
+    expect(card).not.toBeNull();
+    astroClockApiMock.setMode.mockClear();
+    fireEvent.click(within(card).getByRole('button', { name: 'Load' }));
+
+    expect(await screen.findByText(/needs context review.*correct it/i)).toBeInTheDocument();
+    expect(astroClockApiMock.setMode).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Transits' }));
+    await waitFor(() => expect(screen.getByTestId('transits-modal')).toBeInTheDocument());
+    expect(transitsModalMock.props.at(-1)?.initialNatalContext?.snapId).toBe('');
+  });
+
+  it('fails closed when saved-snap detail verification fails', async () => {
+    const summary = {
+      id: 'snap-unverified',
+      label: 'Unverified summary',
+      effective_datetime: '2004-05-06T07:30:00+00:00',
+      timezone: 'Europe/London',
+      location: 'London, UK',
+      calculation_context: { review_required: false },
+      summary: {},
+    };
+    astroClockApiMock.listSnaps.mockResolvedValue({
+      success: true,
+      items: [summary],
+    });
+    astroClockApiMock.getSnap.mockRejectedValue(new Error('detail endpoint unavailable'));
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />,
+    );
+
+    const card = (await screen.findByText('Unverified summary')).closest('.rounded-2xl');
+    astroClockApiMock.setMode.mockClear();
+    fireEvent.click(within(card).getByRole('button', { name: 'Load' }));
+
+    expect(await screen.findByText(/could not be verified and was not loaded/i)).toBeInTheDocument();
+    expect(astroClockApiMock.setMode).not.toHaveBeenCalled();
+  });
+
+  it('previews a confirmed context before saving a corrected copy and preserves the original', async () => {
+    const legacySnap = {
+      id: 'snap-legacy',
+      label: 'Legacy Jerusalem birth',
+      effective_datetime: '2001-06-15T08:15:00+00:00',
+      local_datetime: '2001-06-15T11:15:00+03:00',
+      timezone: 'Asia/Jerusalem',
+      timezone_label: 'Asia/Jerusalem (UTC+03:00)',
+      location: 'Israel',
+      summary: {},
+      coordinate_provenance: {
+        persisted_with_chart: false,
+        review_required: true,
+      },
+      calculation_context: { review_required: true },
+    };
+    const correctedSnap = {
+      id: 'snap-confirmed',
+      label: 'Legacy Jerusalem birth (confirmed context)',
+      effective_datetime: '2001-06-15T08:15:00+00:00',
+      local_datetime: '2001-06-15T11:15:00+03:00',
+      timezone: 'Asia/Jerusalem',
+      timezone_label: 'Asia/Jerusalem (UTC+03:00)',
+      location: 'Jerusalem, Israel',
+      latitude: 31.76904,
+      longitude: 35.21633,
+      calculation_context: { review_required: false },
+    };
+    let correctionPersisted = false;
+    astroClockApiMock.listSnaps.mockImplementation(async () => ({
+      success: true,
+      items: correctionPersisted
+        ? [{ ...legacySnap, superseded_by: 'snap-confirmed' }, correctedSnap]
+        : [legacySnap],
+      migration_report: { migrated_records: 1 },
+    }));
+    astroClockApiMock.confirmSnapContext
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          persisted: false,
+          original_preserved: true,
+          replacement: correctedSnap,
+        },
+      })
+      .mockImplementationOnce(async () => {
+        correctionPersisted = true;
+        return {
+        success: true,
+        data: {
+          persisted: true,
+          original_preserved: true,
+          replacement: correctedSnap,
+        },
+        };
+      });
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Correct context' }));
+    expect(screen.getByRole('region', { name: 'Correct saved chart context' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Confirmed local date and time')).toHaveValue('2001-06-15T11:15');
+    expect(screen.getByLabelText('Confirmed IANA timezone')).toHaveValue('Asia/Jerusalem');
+    expect(screen.getByLabelText('Confirmed latitude')).toHaveValue(null);
+    expect(screen.getByLabelText('Confirmed longitude')).toHaveValue(null);
+
+    fireEvent.change(screen.getByLabelText('Confirmed specific location'), {
+      target: { value: 'Jerusalem, Israel' },
+    });
+    fireEvent.change(screen.getByLabelText('Confirmed house system'), {
+      target: { value: 'P' },
+    });
+    expect(screen.getByText(/does not change astrocartography world-map line geometry/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Preview corrected chart' }));
+
+    await waitFor(() => {
+      expect(astroClockApiMock.resolveTimezone).toHaveBeenCalledWith(
+        'Jerusalem, Israel',
+        expect.objectContaining({
+          requireSpecific: true,
+          signal: expect.any(AbortSignal),
+        }),
+      );
+    });
+    expect(screen.getByLabelText('Confirmed latitude')).toHaveValue(31.76904);
+    expect(screen.getByLabelText('Confirmed longitude')).toHaveValue(35.21633);
+    expect(screen.getByLabelText('Confirmed IANA timezone')).toHaveValue('Asia/Jerusalem');
+    expect(await screen.findByText(/Resolved automatically: Jerusalem, Israel/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(astroClockApiMock.confirmSnapContext).toHaveBeenNthCalledWith(
+        1,
+        'snap-legacy',
+        expect.objectContaining({
+          localDatetime: '2001-06-15T11:15',
+          timezone: 'Asia/Jerusalem',
+          location: 'Jerusalem, Israel',
+          latitude: 31.76904,
+          longitude: 35.21633,
+          houseSystem: 'P',
+          persist: false,
+        }),
+      );
+    });
+    expect(await screen.findByText('Corrected chart preview ready')).toBeInTheDocument();
+    expect(screen.getByText(/Planets, houses, and angles were recalculated together/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save corrected copy' }));
+    await waitFor(() => {
+      expect(astroClockApiMock.confirmSnapContext).toHaveBeenNthCalledWith(
+        2,
+        'snap-legacy',
+        expect.objectContaining({ persist: true }),
+      );
+    });
+    expect(await screen.findByText(
+      'Corrected copy saved. The original saved chart was preserved.',
+    )).toBeInTheDocument();
+    expect(screen.getByText('Superseded—use corrected copy')).toBeInTheDocument();
+    const originalCard = screen.getByText('Legacy Jerusalem birth').closest('.rounded-2xl');
+    expect(originalCard).not.toBeNull();
+    expect(within(originalCard).getByRole('button', { name: 'Load' })).toBeDisabled();
+    fireEvent.click(within(originalCard).getByRole('button', { name: 'Load corrected copy' }));
+    await waitFor(() => {
+      expect(astroClockApiMock.getSnap).toHaveBeenCalledWith(
+        'snap-confirmed',
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
+    });
+  });
+
+  it('does not guess a capital when a saved correction only names a country', async () => {
+    // Deliberately synthetic non-person fixture that preserves a +02:00 UTC conversion.
+    const countryOnlySnap = {
+      id: 'snap-country-only',
+      label: 'Synthetic country-only birthplace',
+      effective_datetime: '2001-02-03T12:15:00+00:00',
+      local_datetime: '2001-02-03T14:15:00+02:00',
+      timezone: 'Asia/Jerusalem',
+      location: 'Israel',
+      summary: {},
+      coordinate_provenance: {
+        persisted_with_chart: false,
+        review_required: true,
+      },
+      calculation_context: { review_required: true },
+    };
+    astroClockApiMock.listSnaps.mockResolvedValue({
+      success: true,
+      items: [countryOnlySnap],
+    });
+    astroClockApiMock.resolveTimezone.mockRejectedValueOnce(
+      new Error(
+        'Enter a specific city or place. A country or broad region cannot confirm birth coordinates.',
+      ),
+    );
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Correct context' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Preview corrected chart' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /enter a specific city or place/i,
+    );
+    expect(astroClockApiMock.resolveTimezone).toHaveBeenCalledWith(
+      'Israel',
+      expect.objectContaining({ requireSpecific: true }),
+    );
+    expect(screen.getByLabelText('Confirmed latitude')).toHaveValue(null);
+    expect(screen.getByLabelText('Confirmed longitude')).toHaveValue(null);
+    expect(astroClockApiMock.confirmSnapContext).not.toHaveBeenCalled();
+  });
+
+  it('validates full correction time and retries an ambiguous fold with the selected offset', async () => {
+    const ambiguousSnap = {
+      id: 'snap-fold',
+      label: 'Repeated-hour saved chart',
+      effective_datetime: null,
+      local_datetime: '2026-11-01T01:30:00-04:00',
+      timezone: 'America/New_York',
+      timezone_label: 'America/New_York',
+      location: 'New York, USA',
+      latitude: 40.7128,
+      longitude: -74.006,
+      coordinate_provenance: {
+        persisted_with_chart: true,
+        review_required: false,
+      },
+      calculation_context: {
+        review_required: true,
+        time_provenance: {
+          ambiguous: true,
+          wall_time_status: 'ambiguous_fold',
+        },
+      },
+      summary: {},
+    };
+    const ambiguityError = Object.assign(
+      new Error('Local time occurs twice in America/New_York.'),
+      {
+        payload: {
+          success: false,
+          error_code: 'ambiguous_local_time',
+          time_resolution: {
+            code: 'ambiguous_local_time',
+            wall_time_status: 'ambiguous_fold',
+            candidates: [
+              {
+                fold: 0,
+                local_datetime: '2026-11-01T01:30:00-04:00',
+                utc_offset: '-04:00',
+                instant_utc: '2026-11-01T05:30:00+00:00',
+                valid: true,
+              },
+              {
+                fold: 1,
+                local_datetime: '2026-11-01T01:30:00-05:00',
+                utc_offset: '-05:00',
+                instant_utc: '2026-11-01T06:30:00+00:00',
+                valid: true,
+              },
+            ],
+          },
+        },
+      },
+    );
+    astroClockApiMock.listSnaps.mockResolvedValue({
+      success: true,
+      items: [ambiguousSnap],
+    });
+    astroClockApiMock.confirmSnapContext
+      .mockRejectedValueOnce(ambiguityError)
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          persisted: false,
+          original_preserved: true,
+          replacement: {
+            ...ambiguousSnap,
+            id: 'snap-fold-preview',
+            effective_datetime: '2026-11-01T06:30:00+00:00',
+            local_datetime: '2026-11-01T01:30:00-05:00',
+            calculation_context: { review_required: false },
+          },
+        },
+      });
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Correct context' }));
+    const localInput = screen.getByLabelText('Confirmed local date and time');
+    fireEvent.change(localInput, { target: { value: '2026-11-01' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Preview corrected chart' }));
+    expect(await screen.findByText(/complete, valid local date and time/i)).toBeInTheDocument();
+    expect(astroClockApiMock.confirmSnapContext).not.toHaveBeenCalled();
+
+    fireEvent.change(localInput, { target: { value: '2026-11-01T01:30' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Preview corrected chart' }));
+    expect(await screen.findByLabelText(/Second occurrence/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/First occurrence/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText(/Second occurrence/i));
+    fireEvent.click(screen.getByRole('button', { name: 'Preview corrected chart' }));
+    await waitFor(() => {
+      expect(astroClockApiMock.confirmSnapContext).toHaveBeenNthCalledWith(
+        2,
+        'snap-fold',
+        expect.objectContaining({
+          localDatetime: '2026-11-01T01:30:00-05:00',
+          timezone: 'America/New_York',
+          persist: false,
+        }),
+      );
+    });
+    expect(await screen.findByText('Corrected chart preview ready')).toBeInTheDocument();
+  });
+
+  it('confirms ordinary deletion and clears the active saved-chart link after success', async () => {
+    const savedSnap = {
+      id: 'snap-delete-active',
+      label: 'Delete confirmation chart',
+      effective_datetime: '2004-05-06T07:30:00+00:00',
+      timezone: 'Europe/London',
+      location: 'London, UK',
+      latitude: 51.5072,
+      longitude: -0.1276,
+      calculation_context: { review_required: false },
+      summary: {},
+    };
+    let deleted = false;
+    astroClockApiMock.listSnaps.mockImplementation(async () => ({
+      success: true,
+      items: deleted ? [] : [savedSnap],
+    }));
+    astroClockApiMock.getSnap.mockResolvedValue({
+      success: true,
+      snap: savedSnap,
+    });
+    astroClockApiMock.deleteSnap.mockImplementation(async () => {
+      deleted = true;
+      return { success: true };
+    });
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />,
+    );
+
+    const card = (await screen.findByText('Delete confirmation chart')).closest('.rounded-2xl');
+    fireEvent.click(within(card).getByRole('button', { name: 'Load' }));
+    await waitFor(() => {
+      expect(astroClockApiMock.setMode).toHaveBeenCalledWith(expect.objectContaining({
+        mode: 'manual',
+        datetime: savedSnap.effective_datetime,
+      }));
+    });
+
+    window.confirm.mockReturnValueOnce(false);
+    fireEvent.click(within(card).getByRole('button', { name: 'Delete' }));
+    expect(window.confirm).toHaveBeenLastCalledWith(expect.stringMatching(
+      /Delete “Delete confirmation chart”.*corrected-copy relationship.*recovery backup is retained/i,
+    ));
+    expect(astroClockApiMock.deleteSnap).not.toHaveBeenCalled();
+
+    window.confirm.mockReturnValueOnce(true);
+    fireEvent.click(within(card).getByRole('button', { name: 'Delete' }));
+    await waitFor(() => {
+      expect(astroClockApiMock.deleteSnap).toHaveBeenCalledWith('snap-delete-active');
+      expect(screen.queryByText('Delete confirmation chart')).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Transits' }));
+    await waitFor(() => expect(screen.getByTestId('transits-modal')).toBeInTheDocument());
+    expect(transitsModalMock.props.at(-1)?.initialNatalContext?.snapId).toBe('');
+  });
+
+  it('refreshes corrected-copy relationships after deleting the replacement', async () => {
+    const original = {
+      id: 'snap-original-linked',
+      label: 'Original linked chart',
+      effective_datetime: null,
+      local_datetime: '2026-11-01T01:30:00-04:00',
+      timezone: 'America/New_York',
+      location: 'New York, USA',
+      calculation_context: { review_required: true },
+      superseded_by: 'snap-replacement-linked',
+      summary: {},
+    };
+    const replacement = {
+      id: 'snap-replacement-linked',
+      label: 'Corrected replacement chart',
+      effective_datetime: '2026-11-01T06:30:00+00:00',
+      local_datetime: '2026-11-01T01:30:00-05:00',
+      timezone: 'America/New_York',
+      location: 'New York, USA',
+      latitude: 40.7128,
+      longitude: -74.006,
+      calculation_context: { review_required: false },
+      summary: {},
+    };
+    let replacementDeleted = false;
+    astroClockApiMock.listSnaps.mockImplementation(async () => ({
+      success: true,
+      items: replacementDeleted
+        ? [{ ...original, superseded_by: undefined }]
+        : [original, replacement],
+    }));
+    astroClockApiMock.deleteSnap.mockImplementation(async (id) => {
+      if (id === replacement.id) replacementDeleted = true;
+      return { success: true };
+    });
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />,
+    );
+
+    const replacementCard = (
+      await screen.findByText('Corrected replacement chart')
+    ).closest('.rounded-2xl');
+    fireEvent.click(within(replacementCard).getByRole('button', { name: 'Delete' }));
+    await waitFor(() => {
+      expect(astroClockApiMock.deleteSnap).toHaveBeenCalledWith('snap-replacement-linked');
+      expect(screen.queryByText('Corrected replacement chart')).not.toBeInTheDocument();
+    });
+
+    const originalCard = screen.getByText('Original linked chart').closest('.rounded-2xl');
+    expect(within(originalCard).getByRole('button', { name: 'Correct context' })).toBeEnabled();
+    expect(within(originalCard).queryByRole('button', { name: 'Load corrected copy' })).not.toBeInTheDocument();
+    expect(within(originalCard).getByRole('button', { name: 'Load' })).toBeDisabled();
   });
 
   it('refreshes saved snaps before building the search index when the local list is empty', async () => {
@@ -1478,7 +2167,118 @@ describe('AstroClock mode flow', () => {
       expect(dashboardPayload?.longitude).toBeUndefined();
       expect(hoursPayload?.latitude).toBeUndefined();
       expect(hoursPayload?.longitude).toBeUndefined();
+      expect(dashboardPayload?.snapId).toBeUndefined();
+      expect(hoursPayload?.snapId).toBeUndefined();
     });
+  });
+
+  it('requires an explicit UTC-offset choice for repeated manual times and blocks DST gaps', async () => {
+    astroClockApiMock.getDashboard.mockResolvedValue(
+      makeDashboard({ location: 'New York, USA', timezone: 'America/New_York' }),
+    );
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />,
+    );
+
+    await findAnyText('New York, USA');
+    fireEvent.click(screen.getByRole('button', { name: 'Manual' }));
+    await waitFor(() => {
+      expect(astroClockApiMock.setMode).toHaveBeenCalledWith(expect.objectContaining({
+        mode: 'manual',
+      }));
+    });
+
+    const ambiguousError = Object.assign(
+      new Error('Local time occurs twice in America/New_York.'),
+      {
+        payload: {
+          success: false,
+          error_code: 'ambiguous_local_time',
+          time_resolution: {
+            code: 'ambiguous_local_time',
+            wall_time_status: 'ambiguous_fold',
+            candidates: [
+              {
+                fold: 0,
+                local_datetime: '2026-11-01T01:30:00-04:00',
+                utc_offset: '-04:00',
+                instant_utc: '2026-11-01T05:30:00+00:00',
+                valid: true,
+              },
+              {
+                fold: 1,
+                local_datetime: '2026-11-01T01:30:00-05:00',
+                utc_offset: '-05:00',
+                instant_utc: '2026-11-01T06:30:00+00:00',
+                valid: true,
+              },
+            ],
+          },
+        },
+      },
+    );
+    const gapError = Object.assign(
+      new Error('Local time does not exist in America/New_York.'),
+      {
+        payload: {
+          success: false,
+          error_code: 'nonexistent_local_time',
+          time_resolution: {
+            code: 'nonexistent_local_time',
+            wall_time_status: 'nonexistent_gap',
+            candidates: [],
+          },
+        },
+      },
+    );
+    astroClockApiMock.setMode.mockImplementation((payload) => {
+      if (payload?.datetime === '2026-11-01T01:30:00') return Promise.reject(ambiguousError);
+      if (payload?.datetime === '2026-03-08T02:30:00') return Promise.reject(gapError);
+      return Promise.resolve({ success: true });
+    });
+
+    fireEvent.change(document.querySelector('#astroclock-manual-date'), {
+      target: { value: '2026-11-01' },
+    });
+    fireEvent.change(document.querySelector('#astroclock-manual-time'), {
+      target: { value: '01:30' },
+    });
+    fireEvent.change(document.querySelector('#astroclock-manual-location'), {
+      target: { value: 'New York, USA' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+
+    expect(await screen.findByLabelText(/Second occurrence/i)).toBeInTheDocument();
+    expect(screen.getByText(/UTC-04:00.*05:30 UTC/i)).toBeInTheDocument();
+    expect(screen.getByText(/UTC-05:00.*06:30 UTC/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText(/Second occurrence/i));
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+
+    await waitFor(() => {
+      expect(astroClockApiMock.setMode).toHaveBeenCalledWith(expect.objectContaining({
+        mode: 'manual',
+        datetime: '2026-11-01T01:30:00-05:00',
+        location: 'New York, USA',
+      }));
+    });
+
+    fireEvent.change(document.querySelector('#astroclock-manual-date'), {
+      target: { value: '2026-03-08' },
+    });
+    fireEvent.change(document.querySelector('#astroclock-manual-time'), {
+      target: { value: '02:30' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+
+    expect(await screen.findByText(/does not exist in the selected timezone/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/First occurrence/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Second occurrence/i)).not.toBeInTheDocument();
   });
 
   it('does not reuse stale dashboard coordinates for an unsnapped manual forensic chart', async () => {
@@ -1566,7 +2366,7 @@ describe('AstroClock mode flow', () => {
     astroClockApiMock.getDashboard.mockImplementation(async (payload = {}) => {
       if (payload?.mode === 'manual' && payload?.location === 'Israel') {
         return makeDashboard({
-          timestamp: '1990-01-13T10:00:00Z',
+          timestamp: '2004-09-21T10:00:00Z',
           location: 'Israel',
           timezone: 'Asia/Jerusalem',
           latitude: 30.8124,
@@ -1605,7 +2405,7 @@ describe('AstroClock mode flow', () => {
     const timeInput = document.querySelector('input[type="time"]');
     const locationInput = document.querySelector('input[type="text"][placeholder="e.g., London, UK"]');
 
-    fireEvent.change(dateInput, { target: { value: '1990-01-13' } });
+    fireEvent.change(dateInput, { target: { value: '2004-09-21' } });
     fireEvent.change(timeInput, { target: { value: '12:00' } });
     fireEvent.change(locationInput, { target: { value: 'Israel' } });
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
@@ -1613,7 +2413,7 @@ describe('AstroClock mode flow', () => {
     await waitFor(() => {
       expect(astroClockApiMock.getDashboard).toHaveBeenCalledWith(expect.objectContaining({
         mode: 'manual',
-        datetime: '1990-01-13T12:00:00',
+        datetime: '2004-09-21T12:00:00',
         location: 'Israel',
       }));
     });
@@ -1626,7 +2426,7 @@ describe('AstroClock mode flow', () => {
       const snapPayload = astroClockApiMock.createSnap.mock.calls.at(-1)?.[0];
       expect(snapPayload).toMatchObject({
         mode: 'manual',
-        datetime: '1990-01-13T12:00:00',
+        datetime: '2004-09-21T12:00:00',
         location: 'Israel',
         timezone: 'Asia/Jerusalem',
         latitude: 30.8124,
@@ -1634,7 +2434,7 @@ describe('AstroClock mode flow', () => {
       });
       expect(snapPayload?.location).not.toBe('Berlin, Germany');
       expect(snapPayload?.dashboard).toMatchObject({
-        timestamp: '1990-01-13T10:00:00Z',
+        timestamp: '2004-09-21T10:00:00Z',
         location: 'Israel',
         timezone: 'Asia/Jerusalem',
         latitude: 30.8124,
@@ -1645,7 +2445,7 @@ describe('AstroClock mode flow', () => {
 
   it('keeps the applied manual snap context across feature branches', async () => {
     const appliedDashboard = makeDashboard({
-      timestamp: '1990-01-13T10:00:00Z',
+      timestamp: '2004-09-21T10:00:00Z',
       location: 'Israel',
       timezone: 'Asia/Jerusalem',
       latitude: 30.8124,
@@ -1654,7 +2454,7 @@ describe('AstroClock mode flow', () => {
     const savedSnap = {
       id: 'snap-manual',
       label: 'Manual Israel snap',
-      effective_datetime: '1990-01-13T10:00:00+00:00',
+      effective_datetime: '2004-09-21T10:00:00+00:00',
       location: 'Israel',
       timezone: 'Asia/Jerusalem',
       timezone_label: 'Asia/Jerusalem',
@@ -1710,7 +2510,7 @@ describe('AstroClock mode flow', () => {
     const timeInput = document.querySelector('input[type="time"]');
     const locationInput = document.querySelector('input[type="text"][placeholder="e.g., London, UK"]');
 
-    fireEvent.change(dateInput, { target: { value: '1990-01-13' } });
+    fireEvent.change(dateInput, { target: { value: '2004-09-21' } });
     fireEvent.change(timeInput, { target: { value: '12:00' } });
     fireEvent.change(locationInput, { target: { value: 'Israel' } });
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
@@ -1718,7 +2518,7 @@ describe('AstroClock mode flow', () => {
     await waitFor(() => {
       expect(astroClockApiMock.getDashboard).toHaveBeenCalledWith(expect.objectContaining({
         mode: 'manual',
-        datetime: '1990-01-13T12:00:00',
+        datetime: '2004-09-21T12:00:00',
         location: 'Israel',
       }));
     });
@@ -1730,7 +2530,7 @@ describe('AstroClock mode flow', () => {
       const snapPayload = astroClockApiMock.createSnap.mock.calls.at(-1)?.[0];
       expect(snapPayload).toMatchObject({
         mode: 'manual',
-        datetime: '1990-01-13T12:00:00',
+        datetime: '2004-09-21T12:00:00',
         location: 'Israel',
         timezone: 'Asia/Jerusalem',
         latitude: 30.8124,
@@ -1738,7 +2538,7 @@ describe('AstroClock mode flow', () => {
       });
       expect(snapPayload?.location).not.toBe('Berlin, Germany');
       expect(snapPayload?.dashboard).toMatchObject({
-        timestamp: '1990-01-13T10:00:00Z',
+        timestamp: '2004-09-21T10:00:00Z',
         location: 'Israel',
         timezone: 'Asia/Jerusalem',
         latitude: 30.8124,
@@ -1761,7 +2561,7 @@ describe('AstroClock mode flow', () => {
     await waitFor(() => expect(screen.getByTestId('trait-profile-modal')).toBeInTheDocument());
     expect(traitProfileModalMock.props.at(-1)).toMatchObject({
       activeSnapId: 'snap-manual',
-      manualIso: '1990-01-13T12:00:00',
+      manualIso: '2004-09-21T12:00:00',
       manualLocation: 'Israel',
       timezone: 'Asia/Jerusalem',
     });
@@ -1770,7 +2570,7 @@ describe('AstroClock mode flow', () => {
     await waitFor(() => expect(screen.getByTestId('transits-modal')).toBeInTheDocument());
     expect(transitsModalMock.props.at(-1)?.initialNatalContext).toMatchObject({
       snapId: 'snap-manual',
-      date: '1990-01-13',
+      date: '2004-09-21',
       time: '12:00',
       location: 'Israel',
       timezone: 'Asia/Jerusalem',
@@ -1802,7 +2602,7 @@ describe('AstroClock mode flow', () => {
     await waitFor(() => {
       expect(astroClockApiMock.getForensic).toHaveBeenCalledWith(expect.objectContaining({
         mode: 'manual',
-        datetime: '1990-01-13T12:00:00',
+        datetime: '2004-09-21T12:00:00',
         location: 'Israel',
         timezone: 'Asia/Jerusalem',
         latitude: 30.8124,
@@ -1818,7 +2618,7 @@ describe('AstroClock mode flow', () => {
 
     await waitFor(() => expect(window.navigator.clipboard.writeText).toHaveBeenCalled());
     const copied = String(window.navigator.clipboard.writeText.mock.calls.at(-1)?.[0] || '');
-    expect(copied).toContain('"timestamp": "1990-01-13T10:00:00Z"');
+    expect(copied).toContain('"timestamp": "2004-09-21T10:00:00Z"');
     expect(copied).toContain('"location": "Israel"');
     expect(copied).not.toContain('Berlin, Germany');
   });
@@ -1855,6 +2655,17 @@ describe('AstroClock mode flow', () => {
           special_degrees: [],
         },
       ],
+    });
+    astroClockApiMock.getSnap.mockResolvedValue({
+      success: true,
+      snap: {
+        id: 'snap-nyc',
+        label: 'Snap 1946-06-13 14:14:00+00:00 - New York',
+        effective_datetime: '1946-06-13T14:14:00Z',
+        location: 'New York',
+        dashboard: { timezone: 'America/New_York', timezone_label: 'America/New_York' },
+        special_degrees: [],
+      },
     });
 
     render(
@@ -2112,6 +2923,7 @@ describe('AstroClock mode flow', () => {
       houseSystem: 'R',
     });
     expect(heartbeatPayload?.timezone).toBeUndefined();
+    expect(heartbeatPayload?.snapId).toBeUndefined();
 
     astroClockApiMock.setMode.mockClear();
     astroClockApiMock.getDashboard.mockClear();
@@ -2130,6 +2942,8 @@ describe('AstroClock mode flow', () => {
         location: 'New York',
         houseSystem: 'R',
       });
+      expect(astroClockApiMock.getDashboard.mock.calls.at(-1)?.[0]?.snapId).toBeUndefined();
+      expect(astroClockApiMock.getPlanetaryHours.mock.calls.at(-1)?.[0]?.snapId).toBeUndefined();
     });
   });
 
@@ -2600,23 +3414,26 @@ describe('AstroClock mode flow', () => {
   });
 
   it('passes the active loaded snap context into the transit modal', async () => {
+    const loadedSnap = {
+      id: 'snap-israel',
+      label: 'Snap 1948-05-14 14:00:00+00:00 - israel',
+      effective_datetime: '1948-05-14T14:00:00Z',
+      location: 'israel',
+      dashboard: {
+        timezone: 'Asia/Jerusalem',
+        timezone_label: 'Asia/Jerusalem',
+        latitude: 31.778,
+        longitude: 35.235,
+      },
+      special_degrees: [],
+    };
     astroClockApiMock.listSnaps.mockResolvedValue({
       success: true,
-      items: [
-        {
-          id: 'snap-israel',
-          label: 'Snap 1948-05-14 14:00:00+00:00 - israel',
-          effective_datetime: '1948-05-14T14:00:00Z',
-          location: 'israel',
-          dashboard: {
-            timezone: 'Asia/Jerusalem',
-            timezone_label: 'Asia/Jerusalem',
-            latitude: 31.778,
-            longitude: 35.235,
-          },
-          special_degrees: [],
-        },
-      ],
+      items: [loadedSnap],
+    });
+    astroClockApiMock.getSnap.mockResolvedValue({
+      success: true,
+      snap: loadedSnap,
     });
 
     render(
@@ -2642,6 +3459,31 @@ describe('AstroClock mode flow', () => {
       }));
     });
 
+    await waitFor(() => {
+      expect(receptionsTileMock.props.at(-1)?.clockContext).toMatchObject({
+        snapId: 'snap-israel',
+        houseSystem: 'R',
+      });
+      expect(degreeHitsTileMock.props.at(-1)?.pointsContext).toMatchObject({
+        snapId: 'snap-israel',
+        houseSystem: 'R',
+      });
+    });
+    await waitFor(() => {
+      expect(astroClockApiMock.getDashboard).toHaveBeenCalledWith(
+        expect.objectContaining({
+          snapId: 'snap-israel',
+          houseSystem: 'R',
+        }),
+      );
+      expect(astroClockApiMock.getPlanetaryHours).toHaveBeenCalledWith(
+        expect.objectContaining({
+          snapId: 'snap-israel',
+          houseSystem: 'R',
+        }),
+      );
+    });
+
     fireEvent.click(screen.getByRole('button', { name: 'Transits' }));
 
     await waitFor(() => {
@@ -2659,6 +3501,37 @@ describe('AstroClock mode flow', () => {
       longitude: 35.235,
       houseSystem: 'R',
     });
+
+    astroClockApiMock.getForensic.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Forensic' }));
+    await waitFor(() => {
+      expect(astroClockApiMock.getForensic).toHaveBeenCalledWith(
+        expect.objectContaining({
+          snapId: 'snap-israel',
+          houseSystem: 'R',
+        }),
+      );
+    });
+
+    astroClockApiMock.getDashboard.mockClear();
+    astroClockApiMock.getPlanetaryHours.mockClear();
+    fireEvent.change(screen.getByTitle('House system'), {
+      target: { value: 'P' },
+    });
+    await waitFor(() => {
+      expect(astroClockApiMock.getDashboard).toHaveBeenCalledWith(
+        expect.objectContaining({
+          snapId: 'snap-israel',
+          houseSystem: 'P',
+        }),
+      );
+      expect(astroClockApiMock.getPlanetaryHours).toHaveBeenCalledWith(
+        expect.objectContaining({
+          snapId: 'snap-israel',
+          houseSystem: 'P',
+        }),
+      );
+    });
   });
 
   it('hydrates legacy snap details before applying manual context', async () => {
@@ -2667,8 +3540,8 @@ describe('AstroClock mode flow', () => {
       items: [
         {
           id: 'snap-legacy',
-          label: 'Snap 1990-01-13 19:33:00+00:00 - israel',
-          effective_datetime: '1990-01-13T19:33:00+00:00',
+          label: 'Snap 2003-02-10 08:45:00+00:00 - israel',
+          effective_datetime: '2003-02-10T08:45:00+00:00',
           location: 'israel',
           dashboard: {
             timezone: null,
@@ -2684,8 +3557,8 @@ describe('AstroClock mode flow', () => {
       success: true,
       snap: {
         id: 'snap-legacy',
-        label: 'Snap 1990-01-13 19:33:00+00:00 - israel',
-        effective_datetime: '1990-01-13T19:33:00+00:00',
+        label: 'Snap 2003-02-10 08:45:00+00:00 - israel',
+        effective_datetime: '2003-02-10T08:45:00+00:00',
         location: 'israel',
         timezone: 'Asia/Jerusalem',
         timezone_label: 'Asia/Jerusalem',
@@ -2710,7 +3583,7 @@ describe('AstroClock mode flow', () => {
       />
     );
 
-    expect(await screen.findByText('Snap 1990-01-13 19:33:00+00:00 - israel')).toBeInTheDocument();
+    expect(await screen.findByText('Snap 2003-02-10 08:45:00+00:00 - israel')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Load' }));
 
     await waitFor(() => {
@@ -2720,7 +3593,7 @@ describe('AstroClock mode flow', () => {
       );
       expect(astroClockApiMock.setMode).toHaveBeenCalledWith(expect.objectContaining({
         mode: 'manual',
-        datetime: '1990-01-13T19:33:00+00:00',
+        datetime: '2003-02-10T08:45:00+00:00',
         location: 'israel',
         timezone: 'Asia/Jerusalem',
         latitude: 30.8124,
@@ -2906,12 +3779,7 @@ describe('AstroClock mode flow', () => {
     await waitFor(() => {
       expect(screen.getByLabelText('Forensic saved snap')).toHaveValue('snap-vegas');
       expect(astroClockApiMock.getForensic).toHaveBeenCalledWith(expect.objectContaining({
-        mode: 'manual',
-        datetime: '1996-09-07T11:15:00Z',
-        location: 'Las Vegas, Nevada',
-        timezone: 'America/Los_Angeles',
-        latitude: 36.1699,
-        longitude: -115.1398,
+        snapId: 'snap-vegas',
         houseSystem: 'R',
         caseType: 'general',
       }));

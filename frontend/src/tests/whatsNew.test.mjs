@@ -54,10 +54,8 @@ describe('whats new release gating', () => {
     expect(release.isFallback).toBe(false);
   });
 
-  it('keeps the current 3.1.2 release copy product-facing', () => {
-    expect(packageJson.version).toBe('3.1.2');
-
-    const release = getWhatsNewRelease(packageJson.version);
+  it('keeps the 3.1.3 release copy product-facing', () => {
+    const release = getWhatsNewRelease('3.1.3');
     const copy = [
       release.headline,
       release.summary,
@@ -67,12 +65,20 @@ describe('whats new release gating', () => {
       .filter(Boolean)
       .join(' ');
 
-    expect(release.headline).toBe('Deeper Astrocartography guidance');
-    expect(copy).toContain('Better-matched destinations');
-    expect(copy).toContain('Clearer learning and communication guidance');
-    expect(copy).toContain('More dependable city matching');
-    expect(copy).toContain('More honest confidence');
+    expect(release.headline).toBe('Safer saved chart corrections');
+    expect(copy).toContain('Automatic place details');
+    expect(copy).toContain('Safer local-time choices');
+    expect(copy).toContain('Corrected copies stay connected');
+    expect(copy).toContain('Calmer review guidance');
     expect(copy).not.toMatch(/\b(activation|access keys|licens\w*|backend|benchmark|module|filtered catalog|API|algorithm|calibration)\b/i);
+  });
+
+  it('preserves the 3.1.2 release copy', () => {
+    const release = getWhatsNewRelease('3.1.2');
+
+    expect(release.version).toBe('3.1.2');
+    expect(release.headline).toBe('Deeper Astrocartography guidance');
+    expect(release.summary).toContain('location fits');
   });
 
   it('preserves the 3.1.1 release copy', () => {
@@ -106,7 +112,7 @@ describe('whats new release gating', () => {
 
   it('falls back to the latest known release when a future version is newer than the registry', () => {
     const latest = getLatestWhatsNewRelease();
-    const futureVersion = bumpPatchVersion(packageJson.version);
+    const futureVersion = bumpPatchVersion(latest.version);
     const release = getWhatsNewRelease(futureVersion);
 
     expect(latest).toBeTruthy();

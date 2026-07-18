@@ -759,6 +759,42 @@ describe('ChineseAstrologyPage', () => {
     expect(screen.getByText(/Set Primary Calculation Sex in the controls/)).toBeInTheDocument();
   });
 
+  it('excludes review-required and superseded saved charts from Chinese Astrology calculations', async () => {
+    const reviewSnap = {
+      id: 'snap-review',
+      label: 'Review chart',
+      calculation_context: { review_required: true },
+    };
+    const supersededSnap = {
+      id: 'snap-old',
+      label: 'Old chart',
+      superseded_by: 'snap-a',
+    };
+
+    render(
+      <ChineseAstrologyPage
+        snaps={[reviewSnap, supersededSnap, snapA, snapB]}
+        snapsLoaded
+        activeSnapId="snap-review"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(AstroClockAPI.getChineseAstrologyBazi).toHaveBeenCalledWith(expect.objectContaining({
+        snapId: 'snap-a',
+      }));
+    });
+
+    const primarySelect = screen.getByLabelText('Primary saved snap');
+    expect(within(primarySelect).getByRole('option', { name: /Review chart.*needs context review/i })).toBeDisabled();
+    expect(within(primarySelect).getByRole('option', { name: /Old chart.*superseded.*corrected copy/i })).toBeDisabled();
+
+    const relationshipSelect = screen.getByLabelText('Relationship snap');
+    expect(within(relationshipSelect).getByRole('option', { name: /Review chart.*needs context review/i })).toBeDisabled();
+    expect(within(relationshipSelect).getByRole('option', { name: /Old chart.*superseded.*corrected copy/i })).toBeDisabled();
+    expect(screen.getByText(/Review-required and superseded saved charts are disabled/i)).toBeInTheDocument();
+  });
+
   it('renders Four Pillars with Chinese characters and readable hidden stems', async () => {
     AstroClockAPI.getChineseAstrologyBazi.mockResolvedValue({
       success: true,

@@ -135,6 +135,32 @@ describe('AstroClockAPI workflow contracts', () => {
     expect(url.searchParams.get('house_system_code')).toBe('R');
   });
 
+  it('requests strict specific-place resolution for saved-chart correction', async () => {
+    fetch.mockResolvedValueOnce(makeJsonResponse(200, {
+      success: true,
+      location: 'Jerusalem, Israel',
+      latitude: 31.76904,
+      longitude: 35.21633,
+      timezone: 'Asia/Jerusalem',
+    }));
+    const controller = new AbortController();
+
+    const result = await AstroClockAPI.resolveTimezone('Jerusalem, Israel', {
+      requireSpecific: true,
+      signal: controller.signal,
+    });
+
+    expect(result.location).toBe('Jerusalem, Israel');
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch.mock.calls[0][0]).toBe('http://127.0.0.1:52525/api/get-timezone');
+    expect(fetch.mock.calls[0][1].method).toBe('POST');
+    expect(fetch.mock.calls[0][1].headers).not.toHaveProperty('Authorization');
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({
+      location: 'Jerusalem, Israel',
+      require_specific_location: true,
+    });
+  });
+
   it('posts Chinese Astrology BaZi requests with saved snap context', async () => {
     fetch.mockResolvedValueOnce(makeJsonResponse(200, { success: true, data: { source_snap_id: 'snap-bazi' } }));
 
@@ -257,6 +283,7 @@ describe('AstroClockAPI workflow contracts', () => {
     fetch.mockResolvedValueOnce(makeJsonResponse(200, { success: true, data: { certification: { status: 'insufficient_data' } } }));
 
     const body = {
+      snap_id: 'snap-confirmed',
       birth: {
         date: '1990-01-01',
         latitude: 31.778,
@@ -681,6 +708,53 @@ describe('AstroClockAPI workflow contracts', () => {
     expect(url).toContain('house_system_code=R');
   });
 
+  it('uses stored snap ids without leaking stale flattened chart context', async () => {
+    fetch.mockResolvedValue(makeJsonResponse(200, { success: true, data: {} }));
+
+    const storedContext = {
+      snapId: 'snap confirmed',
+      mode: 'manual',
+      datetime: '2001-06-15T08:15:00+00:00',
+      location: 'Stale summary location',
+      timezone: 'Etc/UTC',
+      latitude: 1,
+      longitude: 2,
+      houseSystem: 'R',
+      includeModern: true,
+    };
+
+    await AstroClockAPI.getTraitProfile({
+      ...storedContext,
+      specialDegrees: ['25 Leo'],
+    });
+    await AstroClockAPI.getForensic({
+      ...storedContext,
+      caseType: 'child',
+    });
+    await AstroClockAPI.getCompass(storedContext);
+    await AstroClockAPI.getDirectional3d(storedContext);
+    await AstroClockAPI.getReceptions(storedContext);
+
+    expect(fetch).toHaveBeenCalledTimes(5);
+    for (const [rawUrl] of fetch.mock.calls) {
+      const url = new URL(String(rawUrl));
+      expect(url.searchParams.get('snap_id')).toBe('snap confirmed');
+      expect(url.searchParams.get('house_system_code')).toBe('R');
+      expect(url.searchParams.has('mode')).toBe(false);
+      expect(url.searchParams.has('datetime')).toBe(false);
+      expect(url.searchParams.has('location')).toBe(false);
+      expect(url.searchParams.has('timezone')).toBe(false);
+      expect(url.searchParams.has('latitude')).toBe(false);
+      expect(url.searchParams.has('longitude')).toBe(false);
+    }
+
+    expect(new URL(String(fetch.mock.calls[0][0])).searchParams.get('special_degree')).toBe('25 Leo');
+    expect(new URL(String(fetch.mock.calls[1][0])).searchParams.get('case_type')).toBe('child');
+    expect(new URL(String(fetch.mock.calls[2][0])).searchParams.get('include_modern')).toBe('1');
+    expect(new URL(String(fetch.mock.calls[3][0])).searchParams.get('include_modern')).toBe('1');
+    expect(new URL(String(fetch.mock.calls[4][0])).pathname).toBe('/api/astro-clock/receptions');
+  });
+
   it('serializes receptions requests with explicit chart context', async () => {
     fetch.mockResolvedValueOnce(makeJsonResponse(200, { success: true, data: {} }));
 
@@ -1053,6 +1127,27 @@ describe('AstroClockAPI workflow contracts', () => {
     });
   });
 
+  it('preserves an explicit UTC offset that resolves a repeated manual hour', async () => {
+    fetch.mockResolvedValueOnce(makeJsonResponse(200, { success: true }));
+
+    await AstroClockAPI.setMode({
+      mode: 'manual',
+      datetime: '2026-11-01T01:30:00-05:00',
+      location: 'New York, USA',
+      timezone: 'America/New_York',
+      latitude: 40.7128,
+      longitude: -74.006,
+      houseSystem: 'R',
+    });
+
+    const [, requestInit] = fetch.mock.calls[0];
+    expect(JSON.parse(requestInit.body)).toMatchObject({
+      mode: 'manual',
+      datetime: '2026-11-01T01:30:00-05:00',
+      timezone: 'America/New_York',
+    });
+  });
+
   it('preserves chart context and core timeout in snap requests', async () => {
     const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout');
     fetch.mockResolvedValueOnce(makeJsonResponse(200, { success: true, data: { id: 'snap-1' } }));
@@ -1084,11 +1179,13 @@ describe('AstroClockAPI workflow contracts', () => {
           timezone: 'Asia/Jerusalem',
           planets: [{ planet: 'Moon', sign: 'Virgo' }],
         },
+        idempotencyKey: 'snap-request-123',
       });
 
       const [url, requestInit] = fetch.mock.calls[0];
       const body = JSON.parse(requestInit.body);
       expect(String(url)).toBe('http://127.0.0.1:52525/api/astro-clock/snap');
+      expect(requestInit.headers['Idempotency-Key']).toBe('snap-request-123');
       expect(body).toMatchObject({
         label: 'Snap',
         include_modern: true,
@@ -1116,10 +1213,59 @@ describe('AstroClockAPI workflow contracts', () => {
           timezone: 'Asia/Jerusalem',
           planets: [{ planet: 'Moon', sign: 'Virgo' }],
         },
+        idempotency_key: 'snap-request-123',
       });
       expect(setTimeoutSpy.mock.calls.some(([, timeout]) => timeout === 90000)).toBe(true);
     } finally {
       setTimeoutSpy.mockRestore();
+    }
+  });
+
+  it('previews and persists confirmed saved-snap context through the same safe recast route', async () => {
+    fetch
+      .mockResolvedValueOnce(makeJsonResponse(200, {
+        success: true,
+        data: { persisted: false, original_preserved: true, replacement: { id: 'preview' } },
+      }))
+      .mockResolvedValueOnce(makeJsonResponse(200, {
+        success: true,
+        data: { persisted: true, original_preserved: true, replacement: { id: 'snap-confirmed' } },
+      }));
+    const confirmedContext = {
+      localDatetime: '2001-06-15T11:15:00+03:00',
+      timezone: 'Asia/Jerusalem',
+      location: 'Jerusalem, Israel',
+      latitude: 48.85341,
+      longitude: 2.3488,
+      houseSystem: 'R',
+    };
+
+    await AstroClockAPI.confirmSnapContext('legacy snap', {
+      ...confirmedContext,
+      persist: false,
+    });
+    await AstroClockAPI.confirmSnapContext('legacy snap', {
+      ...confirmedContext,
+      persist: true,
+    });
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+    for (const [index, [url, requestInit]] of fetch.mock.calls.entries()) {
+      expect(String(url)).toBe(
+        'http://127.0.0.1:52525/api/astro-clock/snaps/legacy%20snap/confirm-context',
+      );
+      expect(requestInit.method).toBe('POST');
+      expect(JSON.parse(requestInit.body)).toMatchObject({
+        local_datetime: '2001-06-15T11:15:00+03:00',
+        timezone: 'Asia/Jerusalem',
+        location: 'Jerusalem, Israel',
+        latitude: 48.85341,
+        longitude: 2.3488,
+        house_system_code: 'R',
+        include_modern: true,
+        include_chiron: true,
+        persist: index === 1,
+      });
     }
   });
 
@@ -1472,7 +1618,7 @@ describe('AstroClockAPI workflow contracts', () => {
     fetch.mockResolvedValueOnce(makeJsonResponse(200, { success: true, data: { signals: [] } }));
 
     await AstroClockAPI.runResearchAnalysis({
-      charts: [{ name: 'Subject A', date: '1990-01-13', time: '21:33', location: 'Jerusalem, Israel' }],
+      charts: [{ name: 'Subject A', date: '2002-04-05', time: '09:20', location: 'Jerusalem, Israel' }],
       evaluator_families: ['positions', 'points'],
       control: { strategy: 'matched_generated', per_chart: 2 },
     });

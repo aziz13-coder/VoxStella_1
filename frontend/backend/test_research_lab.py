@@ -104,53 +104,53 @@ def test_legacy_family_selection_expands_to_default_scopes_only():
 def test_normalize_chart_row_accepts_datetime_and_date_time_forms():
     row_a = normalize_chart_row({
         "name": "A",
-        "datetime": "1990-01-13T21:33:00",
-        "location": "Jerusalem, Israel",
-        "timezone": "Asia/Jerusalem",
+        "datetime": "2000-02-29T12:34:00",
+        "location": "Paris, France",
+        "timezone": "Europe/Paris",
     })
     row_b = normalize_chart_row({
         "name": "B",
-        "date": "13/01/1990",
-        "time": "21:33",
-        "location": "Jerusalem, Israel",
+        "date": "29/02/2000",
+        "time": "12:34",
+        "location": "Paris, France",
     })
 
     assert row_a["valid"] is True
-    assert row_a["datetime"] == "1990-01-13T21:33:00"
+    assert row_a["datetime"] == "2000-02-29T12:34:00"
     assert row_b["valid"] is True
-    assert row_b["datetime"] == "1990-01-13T21:33:00"
+    assert row_b["datetime"] == "2000-02-29T12:34:00"
 
 
 def test_normalize_chart_row_accepts_bulk_import_header_aliases():
     row = normalize_chart_row({
         "Chart Name": "Subject A",
-        "Birth Date": "1990-01-13",
-        "Birth Time": "21:33",
-        "Place": "Jerusalem, Israel",
-        "TZ": "Asia/Jerusalem",
-        "Lat": "31.778",
-        "Lng": "35.235",
+        "Birth Date": "2000-02-29",
+        "Birth Time": "12:34",
+        "Place": "Paris, France",
+        "TZ": "Europe/Paris",
+        "Lat": "48.85341",
+        "Lng": "2.3488",
         "Type": "event",
     })
 
     assert row["valid"] is True
     assert row["name"] == "Subject A"
-    assert row["datetime"] == "1990-01-13T21:33:00"
-    assert row["location"] == "Jerusalem, Israel"
-    assert row["timezone"] == "Asia/Jerusalem"
-    assert row["latitude"] == 31.778
-    assert row["longitude"] == 35.235
+    assert row["datetime"] == "2000-02-29T12:34:00"
+    assert row["location"] == "Paris, France"
+    assert row["timezone"] == "Europe/Paris"
+    assert row["latitude"] == 48.85341
+    assert row["longitude"] == 2.3488
     assert row["chart_type"] == "event"
 
 
 def test_matched_controls_are_reproducible_and_preserve_context():
     rows = [{
         "name": "Target",
-        "datetime": "1990-01-13T21:33:00",
-        "location": "Jerusalem, Israel",
-        "timezone": "Asia/Jerusalem",
-        "latitude": 31.778,
-        "longitude": 35.235,
+        "datetime": "2000-02-29T12:34:00",
+        "location": "Paris, France",
+        "timezone": "Europe/Paris",
+        "latitude": 48.85341,
+        "longitude": 2.3488,
         "chart_type": "natal",
     }]
 
@@ -159,8 +159,8 @@ def test_matched_controls_are_reproducible_and_preserve_context():
 
     assert first == second
     assert len(first) == 3
-    assert {row["location"] for row in first} == {"Jerusalem, Israel"}
-    assert {row["timezone"] for row in first} == {"Asia/Jerusalem"}
+    assert {row["location"] for row in first} == {"Paris, France"}
+    assert {row["timezone"] for row in first} == {"Europe/Paris"}
     assert {row["chart_type"] for row in first} == {"natal"}
 
 

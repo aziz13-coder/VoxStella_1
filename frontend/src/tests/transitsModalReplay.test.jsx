@@ -666,8 +666,8 @@ describe('TransitsModal replay rendering', () => {
     );
 
     fillManualInputs(container, {
-      natalDate: '1990-01-13',
-      natalTime: '21:33',
+      natalDate: '2003-02-10',
+      natalTime: '08:45',
       natalLocation: 'Israel',
       natalTimezone: 'Asia/Jerusalem',
       transitDate: '2026-05-04',

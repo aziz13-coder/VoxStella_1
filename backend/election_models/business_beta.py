@@ -431,8 +431,8 @@ def _participant_precision_context(participant: Dict[str, Any]) -> Dict[str, Any
     precision_class = str(
         participant.get("precision_class")
         or meta.get("precision_class")
-        or "certified"
-    ).strip().lower() or "certified"
+        or "unknown"
+    ).strip().lower() or "unknown"
     precision_safe_raw = participant.get("precision_safe")
     if precision_safe_raw is None:
         precision_safe_raw = meta.get("precision_safe")
@@ -446,8 +446,8 @@ def _participant_precision_context(participant: Dict[str, Any]) -> Dict[str, Any
         "precision_source": str(
             participant.get("precision_source")
             or meta.get("precision_source")
-            or "business_beta_certified_override"
-        ).strip() or "business_beta_certified_override",
+            or "missing_birth_time_quality"
+        ).strip() or "missing_birth_time_quality",
     }
 
 

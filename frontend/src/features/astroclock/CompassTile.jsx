@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import { AstroClockAPI } from './api.mjs';
 import Directional3DModal from './Directional3DModal.jsx';
+import { isSavedSnapCalculationEligible } from './savedSnapViewModel.mjs';
 
 const PlanetSymbols = {
   Sun: '\u2609',
@@ -340,19 +341,34 @@ function CompassTile({
     () => seededData?.azimuths?.some((item) => Number.isFinite(Number(item?.altitude_deg))) || false,
     [seededData],
   );
-  const shouldFetchRemote = Boolean(hasRequestContext && (!seededData || !seededSupportsAltitude));
   const snapOptions = useMemo(
     () => (Array.isArray(snaps) ? snaps.filter((snap) => snap?.id) : []),
     [snaps],
   );
-  const canOpenDirectional3d = hasRequestContext || snapOptions.length > 0;
+  const eligibleSnapOptions = useMemo(
+    () => snapOptions.filter((snap) => isSavedSnapCalculationEligible(snap)),
+    [snapOptions],
+  );
+  const activeCompassSnap = useMemo(
+    () => eligibleSnapOptions.find(
+      (snap) => String(snap?.id || '') === String(activeSnapId || ''),
+    ) || null,
+    [activeSnapId, eligibleSnapOptions],
+  );
+  const shouldFetchRemote = Boolean(
+    activeCompassSnap
+    || (hasRequestContext && (!seededData || !seededSupportsAltitude)),
+  );
+  const canOpenDirectional3d = hasRequestContext || eligibleSnapOptions.length > 0;
   const selectedDirectionalSnap = useMemo(
     () => {
-      const summary = snapOptions.find((snap) => String(snap?.id || '') === String(directional3dSnapId || '')) || null;
+      const summary = eligibleSnapOptions.find(
+        (snap) => String(snap?.id || '') === String(directional3dSnapId || ''),
+      ) || null;
       if (!summary?.id) return summary;
       return mergeDirectionalSnap(summary, directional3dSnapDetailsRef.current.get(String(summary.id)));
     },
-    [directional3dSnapDetailVersion, directional3dSnapId, snapOptions],
+    [directional3dSnapDetailVersion, directional3dSnapId, eligibleSnapOptions],
   );
   const currentDirectionalContext = useMemo(() => ({
     includeModern,
@@ -380,16 +396,24 @@ function CompassTile({
       setLoading(true);
       setError(null);
       try {
-        const res = await AstroClockAPI.getCompass({
-          includeModern,
-          mode,
-          datetime: timestamp,
-          location,
-          timezone,
-          latitude,
-          longitude,
-          houseSystem,
-        });
+        const res = await AstroClockAPI.getCompass(
+          activeCompassSnap?.id
+            ? {
+              includeModern,
+              snapId: String(activeCompassSnap.id),
+              houseSystem,
+            }
+            : {
+              includeModern,
+              mode,
+              datetime: timestamp,
+              location,
+              timezone,
+              latitude,
+              longitude,
+              houseSystem,
+            },
+        );
         if (cancelled || requestId !== requestIdRef.current) return;
         if (res?.success) {
           setRemoteData(res.data || null);
@@ -417,18 +441,42 @@ function CompassTile({
     return () => {
       cancelled = true;
     };
-  }, [houseSystem, includeModern, latitude, location, longitude, mode, shouldFetchRemote, timestamp, timezone]);
+  }, [
+    activeCompassSnap,
+    houseSystem,
+    includeModern,
+    latitude,
+    location,
+    longitude,
+    mode,
+    shouldFetchRemote,
+    timestamp,
+    timezone,
+  ]);
 
   useEffect(() => {
-    if (activeSnapId) {
-      setDirectional3dSnapId(String(activeSnapId));
+    if (!activeSnapId) return;
+    const activeSnap = snapOptions.find(
+      (snap) => String(snap?.id || '') === String(activeSnapId),
+    );
+    if (!activeSnap) return;
+    if (!isSavedSnapCalculationEligible(activeSnap)) {
+      setDirectional3dSnapId('');
+      if (directional3dSource === 'snap') {
+        setDirectional3dSource('current');
+        setDirectional3dError(
+          'This saved chart needs context review. Correct it in Astro Clock and use the corrected copy.',
+        );
+      }
+      return;
     }
-  }, [activeSnapId]);
+    setDirectional3dSnapId(String(activeSnapId));
+  }, [activeSnapId, directional3dSource, snapOptions]);
 
   const resolveDirectionalContext = (source, snapId = directional3dSnapId, snapOverride = null) => {
     if (source !== 'snap') return currentDirectionalContext;
     const snap = snapOverride
-      || snapOptions.find((item) => String(item?.id || '') === String(snapId || ''))
+      || eligibleSnapOptions.find((item) => String(item?.id || '') === String(snapId || ''))
       || null;
     return snapToDirectionalContext(snap, houseSystem);
   };
@@ -437,6 +485,11 @@ function CompassTile({
     const snapKey = String(snapId || '');
     const summary = snapOptions.find((item) => String(item?.id || '') === snapKey) || null;
     if (!summary) return null;
+    if (!isSavedSnapCalculationEligible(summary)) {
+      throw new Error(
+        'This saved chart needs context review. Correct it in Astro Clock and use the corrected copy.',
+      );
+    }
     const cached = directional3dSnapDetailsRef.current.get(snapKey);
     if (cached) return mergeDirectionalSnap(summary, cached);
     if (!directionalSnapNeedsDetail(summary)) return summary;
@@ -445,6 +498,11 @@ function CompassTile({
     const detail = response?.snap || response?.data?.snap || response?.data || null;
     if (!response?.success || !detail) {
       throw new Error(response?.error || response?.detail || 'Failed to load saved snap details.');
+    }
+    if (!isSavedSnapCalculationEligible(detail)) {
+      throw new Error(
+        'This saved chart needs context review. Correct it in Astro Clock and use the corrected copy.',
+      );
     }
     directional3dSnapDetailsRef.current.set(snapKey, detail);
     setDirectional3dSnapDetailVersion((version) => version + 1);
@@ -468,10 +526,19 @@ function CompassTile({
           : 'Directional 3D needs an active chart time and location.');
         return;
       }
-      const res = await AstroClockAPI.getDirectional3d({
-        includeModern,
-        ...context,
-      });
+      const usesStoredSnap = source === 'snap' && !contextOverride && snapId;
+      const res = await AstroClockAPI.getDirectional3d(
+        usesStoredSnap
+          ? {
+            includeModern,
+            snapId: String(snapId),
+            houseSystem: context?.houseSystem || houseSystem,
+          }
+          : {
+            includeModern,
+            ...context,
+          },
+      );
       if (requestId !== directional3dRequestIdRef.current) return;
       if (res?.success) {
         setDirectional3dData(res.data || null);
@@ -555,7 +622,13 @@ function CompassTile({
       loadDirectional3d('current');
       return;
     }
-    const nextSnapId = directional3dSnapId || activeSnapId || snapOptions[0]?.id || '';
+    const activeEligibleSnap = eligibleSnapOptions.find(
+      (snap) => String(snap?.id || '') === String(activeSnapId || ''),
+    );
+    const selectedEligibleSnap = eligibleSnapOptions.find(
+      (snap) => String(snap?.id || '') === String(directional3dSnapId || ''),
+    );
+    const nextSnapId = selectedEligibleSnap?.id || activeEligibleSnap?.id || eligibleSnapOptions[0]?.id || '';
     setDirectional3dSource('snap');
     setDirectional3dSnapId(String(nextSnapId || ''));
     if (nextSnapId) {
@@ -573,7 +646,13 @@ function CompassTile({
       loadDirectional3d('current');
       return;
     }
-    const nextSnapId = directional3dSnapId || activeSnapId || snapOptions[0]?.id || '';
+    const activeEligibleSnap = eligibleSnapOptions.find(
+      (snap) => String(snap?.id || '') === String(activeSnapId || ''),
+    );
+    const selectedEligibleSnap = eligibleSnapOptions.find(
+      (snap) => String(snap?.id || '') === String(directional3dSnapId || ''),
+    );
+    const nextSnapId = selectedEligibleSnap?.id || activeEligibleSnap?.id || eligibleSnapOptions[0]?.id || '';
     if (nextSnapId) {
       setDirectional3dSnapId(String(nextSnapId));
       loadDirectional3d('snap', String(nextSnapId));
@@ -585,6 +664,13 @@ function CompassTile({
 
   const handleDirectional3dSnapChange = (snapId) => {
     const nextSnapId = String(snapId || '');
+    const nextSnap = snapOptions.find((snap) => String(snap?.id || '') === nextSnapId);
+    if (nextSnap && !isSavedSnapCalculationEligible(nextSnap)) {
+      setDirectional3dError(
+        'This saved chart needs context review. Correct it in Astro Clock and use the corrected copy.',
+      );
+      return;
+    }
     if (directional3dSource === 'snap' && nextSnapId === String(directional3dSnapId || '')) {
       return;
     }

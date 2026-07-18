@@ -16,6 +16,14 @@ import election_models.business_beta as business_beta
 from election_models.common import Score
 
 
+def test_business_beta_missing_precision_defaults_unknown_and_unsafe():
+    assert business_beta._participant_precision_context({}) == {
+        "precision_class": "unknown",
+        "precision_safe": False,
+        "precision_source": "missing_birth_time_quality",
+    }
+
+
 def _patch_validate_common(monkeypatch):
     monkeypatch.setattr(astro_clock_api, "_ensure_coords_for_location", lambda _location: (31.778, 35.235))
     monkeypatch.setattr(
@@ -106,8 +114,20 @@ def test_election_validate_accepts_unique_business_participants_for_beta(monkeyp
 
 def test_score_business_beta_election_adds_founder_layers(monkeypatch):
     event_cd = {"houses": _houses(), "planets": {"Moon": {"longitude": 90.0}}}
-    participant_a = {"chart_data": {"houses": _houses(), "planets": {"Jupiter": {"longitude": 120.0}}}, "label": "Founder A"}
-    participant_b = {"chart_data": {"houses": _houses(), "planets": {"Venus": {"longitude": 60.0}}}, "label": "Founder B"}
+    participant_a = {
+        "chart_data": {"houses": _houses(), "planets": {"Jupiter": {"longitude": 120.0}}},
+        "label": "Founder A",
+        "precision_class": "certified",
+        "precision_safe": True,
+        "precision_source": "test_certified_fixture",
+    }
+    participant_b = {
+        "chart_data": {"houses": _houses(), "planets": {"Venus": {"longitude": 60.0}}},
+        "label": "Founder B",
+        "precision_class": "certified",
+        "precision_safe": True,
+        "precision_source": "test_certified_fixture",
+    }
 
     monkeypatch.setattr(
         business_beta,
@@ -212,6 +232,11 @@ def test_business_beta_stream_payload_includes_algorithm_and_participants(monkey
         lambda snap_id, *, house_system_code=None, missing_error="Snap not found": {
             "chart_data": {"houses": _houses(), "planets": {"Jupiter": {"longitude": 120.0}}},
             "meta": {"timestamp": "2026-04-18T08:00:00+00:00", "house_system_code": house_system_code},
+            "birth_time": {
+                "status": "certified",
+                "ranking_eligible": True,
+                "ranking_eligibility": "confirmed",
+            },
         },
     )
     monkeypatch.setattr(
@@ -279,8 +304,20 @@ def test_business_beta_stream_payload_includes_algorithm_and_participants(monkey
     assert done_payload["participants"]["participant_snap_ids"] == ["snap-founder-a", "snap-founder-b"]
     assert done_payload["participants"]["certified_assumption"] is True
     assert done_payload["participants"]["items"] == [
-        {"snap_id": "snap-founder-a", "label": "Founder A"},
-        {"snap_id": "snap-founder-b", "label": "Founder B"},
+        {
+            "snap_id": "snap-founder-a",
+            "label": "Founder A",
+            "precision_class": "certified",
+            "precision_safe": True,
+            "precision_source": "saved_birth_time_quality:confirmed",
+        },
+        {
+            "snap_id": "snap-founder-b",
+            "label": "Founder B",
+            "precision_class": "certified",
+            "precision_safe": True,
+            "precision_source": "saved_birth_time_quality:confirmed",
+        },
     ]
     assert done_payload["business_beta_extraction"]["display_mode"] == "total"
     assert done_payload["business_beta_extraction"]["scope"] == "all"

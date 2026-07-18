@@ -135,8 +135,8 @@ Manual QA later exposed a separate packaged-only symptom: the installed desktop 
 The follow-up findings are:
 
 - The installed build uses a different snap store than source dev:
-  - `C:\Users\sabaa\AppData\Local\VoxStella\backend\snaps_store.json`
-- The tested packaged snap `Snap 1990-01-13 19:33:00+00:00 - israel` is valid input.
+  - `%LOCALAPPDATA%\VoxStella\backend\snaps_store.json`
+- A synthetic leap-day packaged snap is valid input.
 - Running the current source backend against that packaged snap store succeeds:
   - natal bundle resolves correctly
   - astrocartography line generation returns 44 lines

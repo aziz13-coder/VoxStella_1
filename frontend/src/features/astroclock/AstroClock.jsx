@@ -72,6 +72,15 @@ import {
   shouldApplyAstroClockRequest,
   writeAstroClockWarmState,
 } from './astroClockViewState.mjs';
+import {
+  formatSavedSnapDateTime,
+  getSavedSnapIneligibilityLabel,
+  getSavedSnapReviewMessages,
+  getSavedSnapTimezone,
+  getSavedSnapTimezoneLabel,
+  isSavedSnapCalculationEligible,
+  isSavedSnapReviewRequired,
+} from './savedSnapViewModel.mjs';
 import { shouldGatePremiumFeature } from '../../utils/premiumAccess.mjs';
 import { ClipboardCopy } from 'lucide-react';
 
@@ -254,6 +263,16 @@ const ASTRO_CLOCK_AUTO_CONTEXT_STORAGE_KEY = 'vox_stella_astro_clock_auto_contex
 const tileEyebrowCls = 'text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-400';
 const utilityPillCls = 'rounded-full border border-zinc-200 bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500 hover:bg-zinc-50';
 const subduedEmptyCls = 'rounded-2xl border border-zinc-200 bg-white px-3 py-3 text-sm text-zinc-500';
+const savedSnapNoticeCls = 'rounded-xl border border-zinc-200 bg-zinc-50/80 px-3 py-2 text-zinc-600';
+const savedSnapContextBadgeCls = 'rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-zinc-600';
+const savedSnapRemarkCls = 'mt-1 text-[11px] italic leading-4 text-zinc-500';
+const SNAP_CORRECTION_HOUSE_OPTIONS = [
+  { code: 'R', label: 'Regiomontanus' },
+  { code: 'P', label: 'Placidus' },
+  { code: 'W', label: 'Whole Sign' },
+  { code: 'K', label: 'Koch' },
+  { code: 'E', label: 'Equal' },
+];
 
 const signs = ['Aries','Taurus','Gemini','Cancer','Leo','Virgo','Libra','Scorpio','Sagittarius','Capricorn','Aquarius','Pisces'];
 function signFromLon(lon=0){ const n=((Math.floor(lon/30))%12+12)%12; return signs[n]; }
@@ -282,6 +301,272 @@ function resolveIntlTimezone(value) {
   } catch (_) {
     return undefined;
   }
+}
+function createSnapIdempotencyKey() {
+  try {
+    if (typeof globalThis.crypto?.randomUUID === 'function') {
+      return `astro-clock-snap-${globalThis.crypto.randomUUID()}`;
+    }
+  } catch (_) {}
+  return `astro-clock-snap-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+}
+function normalizeLocalDateTimeInput(value) {
+  const match = String(value || '').trim().match(
+    /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/,
+  );
+  if (!match) return '';
+  const [, yearText, monthText, dayText, hourText, minuteText, secondText = '00'] = match;
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  const second = Number(secondText);
+  if (
+    month < 1 || month > 12
+    || day < 1 || day > 31
+    || hour < 0 || hour > 23
+    || minute < 0 || minute > 59
+    || second < 0 || second > 59
+  ) {
+    return '';
+  }
+  const check = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+  if (
+    check.getUTCFullYear() !== year
+    || check.getUTCMonth() !== month - 1
+    || check.getUTCDate() !== day
+    || check.getUTCHours() !== hour
+    || check.getUTCMinutes() !== minute
+    || check.getUTCSeconds() !== second
+  ) {
+    return '';
+  }
+  return `${yearText}-${monthText}-${dayText}T${hourText}:${minuteText}`;
+}
+function hasExplicitUtcOffset(value) {
+  return /(Z|[+-]\d{2}:\d{2})$/i.test(String(value || '').trim());
+}
+function normalizeUtcOffset(value) {
+  const text = String(value ?? '').trim();
+  if (!text) return '';
+  if (/^Z$/i.test(text) || /^(?:UTC|GMT)$/i.test(text)) return '+00:00';
+  const match = text.match(/(?:UTC|GMT)?\s*([+-])(\d{1,2})(?::?(\d{2}))?$/i);
+  if (!match) return '';
+  const hours = Number(match[2]);
+  const minutes = Number(match[3] || '00');
+  if (hours > 23 || minutes > 59) return '';
+  return `${match[1]}${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+function normalizeLocalTimeCandidate(candidate, index, fallbackLocalDateTime = '') {
+  if (!candidate || typeof candidate !== 'object' || candidate.round_trip_matches === false) return null;
+  const rawLocal = firstPresent(
+    candidate.offset_aware_local_datetime,
+    candidate.local_datetime,
+    candidate.datetime,
+    candidate.value,
+  );
+  const fallbackWall = normalizeLocalDateTimeInput(fallbackLocalDateTime);
+  const candidateWall = normalizeLocalDateTimeInput(String(rawLocal || '').slice(0, 19));
+  const wall = candidateWall || fallbackWall;
+  let offsetAwareLocalDatetime = String(rawLocal || '').trim();
+  const explicitOffset = normalizeUtcOffset(
+    candidate.utc_offset
+      ?? candidate.offset
+      ?? candidate.offset_label
+      ?? candidate.gmt_offset,
+  );
+  if (!hasExplicitUtcOffset(offsetAwareLocalDatetime) && wall && explicitOffset) {
+    offsetAwareLocalDatetime = `${wall}:00${explicitOffset}`;
+  }
+  if (!hasExplicitUtcOffset(offsetAwareLocalDatetime)) return null;
+  const offsetMatch = offsetAwareLocalDatetime.match(/(Z|[+-]\d{2}:\d{2})$/i);
+  const offset = normalizeUtcOffset(offsetMatch?.[1]) || explicitOffset;
+  let instantUtc = firstPresent(
+    candidate.instant_utc,
+    candidate.utc_datetime,
+    candidate.datetime_utc,
+    candidate.instant,
+  ) || '';
+  if (!instantUtc) {
+    const parsed = new Date(offsetAwareLocalDatetime);
+    if (Number.isFinite(parsed.getTime())) instantUtc = parsed.toISOString();
+  }
+  const fold = Number.isInteger(Number(candidate.fold)) ? Number(candidate.fold) : index;
+  return {
+    key: String(candidate.key || candidate.id || `${fold}:${offsetAwareLocalDatetime}`),
+    fold,
+    offset,
+    instantUtc: String(instantUtc || ''),
+    localDatetime: offsetAwareLocalDatetime,
+  };
+}
+function collectLocalTimeCandidateRows(value, seen = new Set()) {
+  if (!value || typeof value !== 'object' || seen.has(value)) return [];
+  seen.add(value);
+  const directKeys = [
+    'candidates',
+    'wall_time_candidates',
+    'candidate_instants',
+    'valid_candidates',
+    'choices',
+    'options',
+  ];
+  for (const key of directKeys) {
+    if (Array.isArray(value[key])) return value[key];
+  }
+  for (const key of ['detail', 'data', 'error', 'context', 'time_resolution']) {
+    const nested = collectLocalTimeCandidateRows(value[key], seen);
+    if (nested.length) return nested;
+  }
+  return [];
+}
+function extractLocalTimeResolution(error, fallbackLocalDateTime = '') {
+  const payload = error?.payload && typeof error.payload === 'object' ? error.payload : {};
+  let serialized = '';
+  try {
+    serialized = JSON.stringify(payload);
+  } catch (_) {}
+  const statusText = [
+    error?.message,
+    error?.detail,
+    payload?.code,
+    payload?.error_code,
+    payload?.wall_time_status,
+    payload?.status,
+    serialized,
+  ].map((value) => String(value || '')).join(' ').toLowerCase();
+  const rows = collectLocalTimeCandidateRows(payload);
+  const candidates = rows
+    .map((candidate, index) => normalizeLocalTimeCandidate(candidate, index, fallbackLocalDateTime))
+    .filter(Boolean);
+  const uniqueCandidates = Array.from(
+    new Map(candidates.map((candidate) => [candidate.localDatetime, candidate])).values(),
+  );
+  if (
+    /nonexistent|non-existent|spring.?forward|dst.?gap|wall_time_gap|nonexistent_gap/.test(statusText)
+  ) {
+    return {
+      kind: 'nonexistent',
+      candidates: [],
+      message: 'This local time does not exist in the selected timezone because the clock moved forward. Choose another time.',
+    };
+  }
+  if (
+    uniqueCandidates.length > 1
+    || /ambiguous|repeated|fall.?back|dst.?fold|ambiguous_fold/.test(statusText)
+  ) {
+    return {
+      kind: 'ambiguous',
+      candidates: uniqueCandidates,
+      message: uniqueCandidates.length > 1
+        ? 'This local time occurs twice. Choose the intended UTC offset, then try again.'
+        : 'This local time occurs twice, but the server did not return usable offset choices.',
+    };
+  }
+  return null;
+}
+function formatLocalTimeCandidateLabel(candidate) {
+  const offsetLabel = candidate?.offset ? `UTC${candidate.offset}` : 'UTC offset';
+  let instantLabel = String(candidate?.instantUtc || '').trim();
+  const parsed = new Date(instantLabel);
+  if (Number.isFinite(parsed.getTime())) {
+    instantLabel = `${parsed.toISOString().slice(0, 16).replace('T', ' ')} UTC`;
+  }
+  return [offsetLabel, instantLabel].filter(Boolean).join(' · ');
+}
+function LocalTimeAmbiguityChoice({
+  resolution,
+  selectedKey,
+  onSelect,
+  dark = false,
+  ariaLabel = 'Choose the intended UTC offset',
+}) {
+  if (resolution?.kind !== 'ambiguous') return null;
+  return (
+    <div
+      className={`rounded-xl border px-3 py-2.5 ${
+        dark
+          ? 'border-amber-700/70 bg-amber-950/30 text-amber-100'
+          : 'border-amber-300 bg-amber-50 text-amber-950'
+      }`}
+      role="group"
+      aria-label={ariaLabel}
+    >
+      <div className="text-[11px] font-semibold">{resolution.message}</div>
+      {resolution.candidates.length > 0 ? (
+        <div className="mt-2 grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label={ariaLabel}>
+          {resolution.candidates.map((candidate) => (
+            <label
+              key={candidate.key}
+              className={`flex cursor-pointer items-start gap-2 rounded-lg border px-2.5 py-2 text-[11px] ${
+                dark ? 'border-amber-700/60 bg-zinc-950/50' : 'border-amber-200 bg-white'
+              }`}
+            >
+              <input
+                type="radio"
+                name={ariaLabel}
+                value={candidate.key}
+                checked={selectedKey === candidate.key}
+                onChange={() => onSelect(candidate.key)}
+              />
+              <span>
+                <span className="block font-semibold">
+                  {candidate.fold === 0 ? 'First occurrence' : 'Second occurrence'}
+                </span>
+                <span className={dark ? 'text-amber-200' : 'text-amber-800'}>
+                  {formatLocalTimeCandidateLabel(candidate)}
+                </span>
+              </span>
+            </label>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+function savedSnapCorrectionSeed(snap) {
+  const dashboard = snap?.dashboard && typeof snap.dashboard === 'object' ? snap.dashboard : {};
+  const context = snap?.calculation_context && typeof snap.calculation_context === 'object'
+    ? snap.calculation_context
+    : {};
+  const resolvedContext = snap?.resolved_context && typeof snap.resolved_context === 'object'
+    ? snap.resolved_context
+    : {};
+  const coordinateProvenance = snap?.coordinate_provenance && typeof snap.coordinate_provenance === 'object'
+    ? snap.coordinate_provenance
+    : (context?.coordinate_provenance || {});
+  const localDatetime = firstPresent(
+    snap?.local_datetime,
+    context?.local_datetime,
+    dashboard?.local_datetime,
+  ) || '';
+  const localMatch = String(localDatetime).match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})/);
+  const keepCoordinates = coordinateProvenance?.persisted_with_chart !== false
+    && coordinateProvenance?.review_required !== true;
+  const latitude = keepCoordinates
+    ? finiteNumberOrUndefined(
+      snap?.latitude ?? resolvedContext?.latitude ?? dashboard?.latitude,
+    )
+    : undefined;
+  const longitude = keepCoordinates
+    ? finiteNumberOrUndefined(
+      snap?.longitude ?? resolvedContext?.longitude ?? dashboard?.longitude,
+    )
+    : undefined;
+  return {
+    localDatetime: localMatch?.[1] || '',
+    timezone: getSavedSnapTimezone(snap) || '',
+    location: firstPresent(snap?.location, context?.location, dashboard?.location) || '',
+    latitude: latitude == null ? '' : String(latitude),
+    longitude: longitude == null ? '' : String(longitude),
+    houseSystem: firstPresent(
+      context?.house_system_code,
+      dashboard?.house_system_code,
+      snap?.house_system_code,
+      'R',
+    ) || 'R',
+  };
 }
 function formatForensicTimestampParts(iso, timezone) {
   if (!iso || typeof iso !== 'string') {
@@ -696,6 +981,7 @@ const AstroClock = ({
   const [manualDate, setManualDate] = useState(() => initialWarmState.manualDate || '');
   const [manualTime, setManualTime] = useState(() => initialWarmState.manualTime || '');
   const [manualLocation, setManualLocation] = useState(() => initialWarmState.manualLocation || '');
+  const [manualTimeResolution, setManualTimeResolution] = useState(null);
   const storedAutoLocationRef = useRef(readStoredAstroClockAutoLocation());
   const [autoLocation, setAutoLocation] = useState(() => (
     normalizeLocationText(storedAutoContextRef.current?.location) ||
@@ -736,6 +1022,8 @@ const AstroClock = ({
   ));
   const [loadingSnaps, setLoadingSnaps] = useState(false);
   const [snapsLoaded, setSnapsLoaded] = useState(() => Boolean(initialWarmState.snapsLoaded));
+  const [snapMigrationReport, setSnapMigrationReport] = useState(null);
+  const [snapSaving, setSnapSaving] = useState(false);
   const [showForensic, setShowForensic] = useState(false);
   const [openingForensic, setOpeningForensic] = useState(false);
   const [showTraits, setShowTraits] = useState(false);
@@ -773,6 +1061,7 @@ const AstroClock = ({
   const skipNextManualDashboardRefreshRef = useRef(false);
   const skipNextRealtimeBootstrapRef = useRef(false);
   const skipNextHoursRefreshRef = useRef(false);
+  const snapSaveInFlightRef = useRef(null);
 
   const closeRealtimeStream = useCallback(() => {
     if (streamRef.current) {
@@ -897,7 +1186,7 @@ const AstroClock = ({
     const targetId = String(snapId || '').trim();
     if (!targetId) return null;
     const item = (Array.isArray(snaps) ? snaps : []).find((snap) => String(snap?.id || '') === targetId);
-    if (!item) return null;
+    if (!isSavedSnapCalculationEligible(item)) return null;
     const dashboard = item?.dashboard && typeof item.dashboard === 'object' ? item.dashboard : {};
     const location =
       normalizeLocationText(item?.location) ||
@@ -1114,6 +1403,7 @@ const AstroClock = ({
     const targetLocation = normalizeSnapLocationKey(location);
     const findBy = (matcher) => {
       const match = (Array.isArray(items) ? items : []).find((snap) => {
+        if (!isSavedSnapCalculationEligible(snap)) return false;
         const snapMs = new Date(String(snap?.effective_datetime || '')).getTime();
         if (!Number.isFinite(snapMs) || snapMs !== targetMs) return false;
         return matcher(snap);
@@ -1250,7 +1540,7 @@ const AstroClock = ({
       snapContext?.location ||
       dashboardLocation ||
       (activeMode === 'manual' ? manualLocationRef.current : autoLocationRef.current);
-    return buildClockContext({
+    const appliedContext = buildClockContext({
       ...overrides,
       mode: activeMode,
       datetime: activeMode === 'manual'
@@ -1262,6 +1552,13 @@ const AstroClock = ({
       longitude: overrides.longitude ?? appliedLongitude,
       houseSystem: overrides.houseSystem || houseSystem,
     });
+    if (activeMode === 'manual' && snapContext && activeSnapId) {
+      return {
+        ...appliedContext,
+        snapId: String(activeSnapId),
+      };
+    }
+    return appliedContext;
   }, [
     buildClockContext,
     data?.latitude,
@@ -1275,6 +1572,8 @@ const AstroClock = ({
     mode,
     activeSnapId,
   ]);
+  const buildAppliedClockContextRef = useRef(buildAppliedClockContext);
+  buildAppliedClockContextRef.current = buildAppliedClockContext;
 
   const deriveChartDateTimeParts = useCallback((iso, timezone) => {
     if (!iso || typeof iso !== 'string') return { date: '', time: '' };
@@ -1333,6 +1632,21 @@ const AstroClock = ({
       setActiveSnapId(inferredActiveSnapId);
     }
   }, [activeSnapId, inferredActiveSnapId]);
+
+  useEffect(() => {
+    if (!activeSnapId) return;
+    const activeSnap = (Array.isArray(snaps) ? snaps : []).find(
+      (snap) => String(snap?.id || '') === String(activeSnapId),
+    );
+    if (activeSnap && !isSavedSnapCalculationEligible(activeSnap)) {
+      setActiveSnapId('');
+      setActionError(
+        String(activeSnap?.superseded_by || '').trim()
+          ? 'The previously selected saved chart was superseded. Use its corrected copy.'
+          : 'The previously selected saved chart needs context review. Correct it and use the corrected copy.',
+      );
+    }
+  }, [activeSnapId, snaps]);
 
   const activeTransitSeed = useMemo(() => {
     const timezone = resolveAstroClockTimezone(data?.timezone, data?.timezone_label) || activeSnapContext?.timezone || '';
@@ -1483,7 +1797,18 @@ const AstroClock = ({
     const requestedMorin = meta.morin ?? useMorin;
     setClockLoadError('');
     const signal = meta.signal;
-    await AstroClockAPI.setMode({ ...context, signal });
+    const modeResult = await AstroClockAPI.setMode({ ...context, signal });
+    if (modeResult?.success === false) {
+      const modeError = new Error(
+        modeResult?.error?.message
+          || modeResult?.error
+          || modeResult?.detail?.message
+          || modeResult?.detail
+          || 'Failed to change Astro Clock mode.',
+      );
+      modeError.payload = modeResult;
+      throw modeError;
+    }
     if (signal?.aborted) {
       throw new DOMException('Mode transition was aborted.', 'AbortError');
     }
@@ -1501,8 +1826,13 @@ const AstroClock = ({
 
   const refreshDashboard = useCallback(async () => {
     setClockLoadError('');
-    await requestDashboard({ includeModern, specialDegrees, morin: useMorin, ...buildClockContext() });
-  }, [buildClockContext, includeModern, requestDashboard, specialDegrees, useMorin]);
+    await requestDashboard({
+      includeModern,
+      specialDegrees,
+      morin: useMorin,
+      ...buildAppliedClockContext(),
+    });
+  }, [buildAppliedClockContext, includeModern, requestDashboard, specialDegrees, useMorin]);
 
   const refreshControlBar = useCallback(async () => {
     setLoading(true);
@@ -1514,7 +1844,7 @@ const AstroClock = ({
           mode: 'realtime',
           location: normalizeLocationText(autoLocationRef.current) || undefined,
         })
-        : buildClockContext();
+        : buildAppliedClockContext();
       if (activeContext.mode === 'realtime') {
         const { controller, viewVersion } = beginModeTransition();
         try {
@@ -1542,6 +1872,7 @@ const AstroClock = ({
     }
   }, [
     beginModeTransition,
+    buildAppliedClockContext,
     buildClockContext,
     closeRealtimeStream,
     completeModeTransition,
@@ -1603,6 +1934,11 @@ const AstroClock = ({
       const res = await AstroClockAPI.listSnaps();
       if (res?.success) {
         setSnaps(res.items || []);
+        setSnapMigrationReport(
+          res?.migration_report && typeof res.migration_report === 'object'
+            ? res.migration_report
+            : null,
+        );
         setSnapsLoaded(true);
       }
     } catch (error) {
@@ -1736,9 +2072,25 @@ const AstroClock = ({
       return;
     }
     (async () => {
-      await requestDashboard({ includeModern, specialDegrees, morin: useMorin, ...buildClockContext({ mode: 'manual' }) });
+      await requestDashboard({
+        includeModern,
+        specialDegrees,
+        morin: useMorin,
+        ...buildAppliedClockContextRef.current({ mode: 'manual' }),
+      });
     })();
-  }, [backendReady, buildClockContext, includeModern, specialDegrees, mode, manualPending, requestDashboard, useMorin]);
+  }, [
+    activeManualIso,
+    activeSnapId,
+    backendReady,
+    houseSystem,
+    includeModern,
+    manualPending,
+    mode,
+    requestDashboard,
+    specialDegrees,
+    useMorin,
+  ]);
 
   // Load planetary hours and keep in sync with stream payload when present; fallback to periodic refresh
   useEffect(() => {
@@ -1749,7 +2101,7 @@ const AstroClock = ({
     const viewVersion = viewVersionRef.current;
     const fetchHours = async () => {
       if (cancelled) return;
-      await requestHours(buildClockContext(), { viewVersion });
+      await requestHours(buildAppliedClockContextRef.current(), { viewVersion });
     };
     if (skipNextHoursRefreshRef.current) {
       skipNextHoursRefreshRef.current = false;
@@ -1758,7 +2110,7 @@ const AstroClock = ({
     }
     const id = setInterval(fetchHours, 60000);
     return () => { cancelled = true; clearInterval(id); };
-  }, [activeManualIso, backendReady, buildClockContext, manualPending, mode, requestHours]);
+  }, [activeManualIso, activeSnapId, backendReady, houseSystem, manualPending, mode, requestHours]);
 
   useEffect(() => {
     if (!activeManualIso || (manualDate && manualTime)) return;
@@ -1785,12 +2137,34 @@ const AstroClock = ({
 
   const applyManual = async () => {
     if (!manualDate || !manualTime || loadingRef.current) return;
+    const wallTime = normalizeLocalDateTimeInput(`${manualDate}T${manualTime}`);
+    if (!wallTime) {
+      setActionError('Enter a complete, valid local date and time.');
+      return;
+    }
+    const selectedResolutionCandidate = manualTimeResolution?.candidates?.find(
+      (candidate) => candidate.key === manualTimeResolution.selectedKey,
+    );
+    if (
+      manualTimeResolution?.kind === 'ambiguous'
+      && manualTimeResolution.wallTime === wallTime
+      && !selectedResolutionCandidate
+    ) {
+      setActionError('Choose which UTC offset applies to this repeated local time.');
+      return;
+    }
+    const iso = (
+      manualTimeResolution?.wallTime === wallTime && selectedResolutionCandidate?.localDatetime
+        ? selectedResolutionCandidate.localDatetime
+        : `${wallTime}:00`
+    );
+    const previousMode = modeRef.current || mode;
+    const previousManualIso = activeManualIsoRef.current;
+    const previousManualContext = activeManualContextRef.current;
     setLoading(true);
     setActionError('');
     const { controller, viewVersion } = beginModeTransition();
     try {
-      setActiveSnapId('');
-      const iso = `${manualDate}T${manualTime}:00`;
       const manualContext = buildClockContext({
         mode: 'manual',
         datetime: iso,
@@ -1805,11 +2179,32 @@ const AstroClock = ({
       setMode('manual');
       setActiveManualIso(iso);
       await syncClockModeAndRefresh(manualContext, { viewVersion, signal: controller.signal });
+      setActiveSnapId('');
+      setManualTimeResolution(null);
     } catch (error) {
+      modeRef.current = previousMode;
+      activeManualIsoRef.current = previousManualIso;
+      activeManualContextRef.current = previousManualContext;
+      setMode(previousMode);
+      setActiveManualIso(previousManualIso);
       if (isAbortError(error) || controller.signal.aborted) return;
       console.error('Failed to apply Astro Clock manual mode', error);
+      const resolution = extractLocalTimeResolution(error, wallTime);
+      if (resolution?.kind === 'ambiguous') {
+        setManualTimeResolution({
+          ...resolution,
+          wallTime,
+          selectedKey: '',
+        });
+        setActionError(resolution.message);
+        return;
+      }
+      if (resolution?.kind === 'nonexistent') {
+        setManualTimeResolution(null);
+        setActionError(resolution.message);
+        return;
+      }
       setActionError(getActionErrorMessage(error, 'Failed to switch Astro Clock into manual mode.'));
-      throw error;
     } finally {
       completeModeTransition(controller);
     }
@@ -2134,87 +2529,132 @@ const AstroClock = ({
   }, [resumeRealtimeAfterFeature]);
 
   // Snap actions
-  const doSnap = async () => {
-    // Avoid window.prompt in packaged builds; generate a friendly default label
-    const ts = data?.timestamp || new Date().toISOString();
-    const existingSnapContext = getSnapContext(activeSnapId);
-    const loc = existingSnapContext?.location || data?.location || autoLocation || manualLocation || '';
-    const defaultLabel = `Snap ${ts.replace('T',' ').replace('Z','')}${loc? ` - ${loc}`:''}`;
-    const label = defaultLabel;
-    setActionError('');
-    try {
-      const activeMode = modeRef.current || mode;
-      const appliedTimezone = resolveAstroClockTimezone(data?.timezone, data?.timezone_label);
-      const appliedLatitude = finiteNumberOrUndefined(data?.latitude);
-      const appliedLongitude = finiteNumberOrUndefined(data?.longitude);
-      const appliedLocation =
-        existingSnapContext?.location ||
-        data?.location ||
-        (activeMode === 'manual' ? manualLocation : autoLocation);
-      const snapContext = buildClockContext({
-        mode: activeMode,
-        datetime: activeMode === 'manual'
-          ? (activeManualIsoRef.current || data?.timestamp)
-          : undefined,
-        location: appliedLocation,
-        timezone: appliedTimezone,
-        latitude: appliedLatitude,
-        longitude: appliedLongitude,
-        houseSystem,
-      });
-      const res = await AstroClockAPI.createSnap({
-        label,
-        includeModern,
-        specialDegrees,
-        dashboard: data,
-        ...snapContext,
-      });
-      const nextSnapId = String(res?.data?.id || res?.id || '');
-      if (nextSnapId) setActiveSnapId(nextSnapId);
-      await refreshSnaps();
-      return {
-        success: true,
-        id: nextSnapId,
-        label: String(res?.data?.label || label),
-      };
-    } catch (error) {
-      console.error('Failed to create Astro Clock snap', error);
-      const message = getActionErrorMessage(error, 'Failed to save this chart as a snap.');
-      setActionError(message);
-      return {
-        success: false,
-        error: message,
-      };
+  const doSnap = () => {
+    if (snapSaveInFlightRef.current) {
+      return snapSaveInFlightRef.current;
     }
+
+    const idempotencyKey = createSnapIdempotencyKey();
+    setSnapSaving(true);
+    const pendingSave = (async () => {
+      // Avoid window.prompt in packaged builds; generate a friendly default label
+      const ts = data?.timestamp || new Date().toISOString();
+      const existingSnapContext = getSnapContext(activeSnapId);
+      const loc = existingSnapContext?.location || data?.location || autoLocation || manualLocation || '';
+      const defaultLabel = `Snap ${ts.replace('T',' ').replace('Z','')}${loc? ` - ${loc}`:''}`;
+      const label = defaultLabel;
+      setActionError('');
+      try {
+        const activeMode = modeRef.current || mode;
+        const appliedTimezone = resolveAstroClockTimezone(data?.timezone, data?.timezone_label);
+        const appliedLatitude = finiteNumberOrUndefined(data?.latitude);
+        const appliedLongitude = finiteNumberOrUndefined(data?.longitude);
+        const appliedLocation =
+          existingSnapContext?.location ||
+          data?.location ||
+          (activeMode === 'manual' ? manualLocation : autoLocation);
+        const snapContext = buildClockContext({
+          mode: activeMode,
+          datetime: activeMode === 'manual'
+            ? (activeManualIsoRef.current || data?.timestamp)
+            : undefined,
+          location: appliedLocation,
+          timezone: appliedTimezone,
+          latitude: appliedLatitude,
+          longitude: appliedLongitude,
+          houseSystem,
+        });
+        const res = await AstroClockAPI.createSnap({
+          label,
+          includeModern,
+          specialDegrees,
+          dashboard: data,
+          idempotencyKey,
+          ...snapContext,
+        });
+        const nextSnapId = String(res?.data?.id || res?.id || '');
+        if (nextSnapId) setActiveSnapId(nextSnapId);
+        await refreshSnaps();
+        return {
+          success: true,
+          id: nextSnapId,
+          label: String(res?.data?.label || label),
+        };
+      } catch (error) {
+        console.error('Failed to create Astro Clock snap', error);
+        const message = getActionErrorMessage(error, 'Failed to save this chart as a snap.');
+        setActionError(message);
+        return {
+          success: false,
+          error: message,
+        };
+      }
+    })();
+    const guardedSave = pendingSave.finally(() => {
+      if (snapSaveInFlightRef.current === guardedSave) {
+        snapSaveInFlightRef.current = null;
+        setSnapSaving(false);
+      }
+    });
+    snapSaveInFlightRef.current = guardedSave;
+    return guardedSave;
   };
 
   const loadSnap = async (snap) => {
     if (!snap) return;
+    if (isSavedSnapReviewRequired(snap) || String(snap?.superseded_by || '').trim()) {
+      setActionError(
+        String(snap?.superseded_by || '').trim()
+          ? 'This original saved chart was superseded. Load its corrected copy instead.'
+          : 'This saved chart needs context review. Correct it and load the corrected copy instead.',
+      );
+      return;
+    }
     setLoading(true);
     setActionError('');
     const { controller, viewVersion } = beginModeTransition();
     try {
       const snapId = String(snap.id || '');
-      setActiveSnapId(snapId);
+      if (!snapId) throw new Error('The saved chart has no stable identifier and cannot be verified.');
       let resolvedSnap = snap;
-      if (snapId) {
-        try {
-          const detail = await AstroClockAPI.getSnap(snapId, { signal: controller.signal });
-          if (controller.signal.aborted) {
-            throw new DOMException('Snap load was aborted.', 'AbortError');
-          }
-          if (detail?.success && detail?.snap) {
-            resolvedSnap = detail.snap;
-          }
-        } catch (detailError) {
-          if (isAbortError(detailError) || controller.signal.aborted) throw detailError;
-          console.warn('Failed to hydrate Astro Clock snap details before load', detailError);
+      try {
+        const detail = await AstroClockAPI.getSnap(snapId, { signal: controller.signal });
+        if (controller.signal.aborted) {
+          throw new DOMException('Snap load was aborted.', 'AbortError');
         }
+        if (!detail?.success || !detail?.snap) {
+          throw new Error(
+            detail?.error || detail?.detail || 'The saved chart details could not be verified.',
+          );
+        }
+        resolvedSnap = detail.snap;
+      } catch (detailError) {
+        if (isAbortError(detailError) || controller.signal.aborted) throw detailError;
+        throw new Error(
+          `The saved chart could not be verified and was not loaded. ${
+            getActionErrorMessage(detailError, 'Refresh Saved Snaps and try again.')
+          }`,
+        );
       }
       if (controller.signal.aborted) {
         throw new DOMException('Snap load was aborted.', 'AbortError');
       }
+      if (
+        isSavedSnapReviewRequired(resolvedSnap)
+        || String(resolvedSnap?.superseded_by || '').trim()
+      ) {
+        throw new Error(
+          String(resolvedSnap?.superseded_by || '').trim()
+            ? 'This original saved chart was superseded. Load its corrected copy instead.'
+            : 'This saved chart needs context review. Correct it and load the corrected copy instead.',
+        );
+      }
       const iso = resolvedSnap?.effective_datetime || snap.effective_datetime;
+      if (!iso || Number.isNaN(new Date(iso).getTime())) {
+        throw new Error(
+          'This saved chart has no confirmed date and time. Correct its context before loading it.',
+        );
+      }
       const location = resolvedSnap?.location || snap.location;
       const nextSpecialDegrees = Array.isArray(resolvedSnap?.special_degrees)
         ? resolvedSnap.special_degrees
@@ -2229,7 +2669,6 @@ const AstroClock = ({
       const snapLongitude = Number.isFinite(Number(resolvedSnap?.dashboard?.longitude ?? resolvedSnap?.longitude))
         ? Number(resolvedSnap?.dashboard?.longitude ?? resolvedSnap?.longitude)
         : undefined;
-      if (Array.isArray(resolvedSnap?.special_degrees)) setSpecialDegrees(resolvedSnap.special_degrees);
       const manualContext = buildClockContext({
         mode: 'manual',
         datetime: iso,
@@ -2252,6 +2691,8 @@ const AstroClock = ({
         signal: controller.signal,
         specialDegrees: nextSpecialDegrees,
       });
+      if (Array.isArray(resolvedSnap?.special_degrees)) setSpecialDegrees(resolvedSnap.special_degrees);
+      setActiveSnapId(snapId);
     } catch (error) {
       if (isAbortError(error) || controller.signal.aborted) return;
       console.error('Failed to load Astro Clock snap', error);
@@ -2266,6 +2707,15 @@ const AstroClock = ({
     setActionError('');
     try {
       await AstroClockAPI.deleteSnap(id);
+      const deletedId = String(id || '');
+      setSnaps((currentSnaps) => (
+        (Array.isArray(currentSnaps) ? currentSnaps : []).filter(
+          (snap) => String(snap?.id || '') !== deletedId,
+        )
+      ));
+      setActiveSnapId((currentId) => (
+        String(currentId || '') === deletedId ? '' : currentId
+      ));
       await refreshSnaps();
     } catch (error) {
       console.error('Failed to delete Astro Clock snap', error);
@@ -2296,7 +2746,10 @@ const AstroClock = ({
         await AstroClockAPI.setMode(buildClockContext({ mode: 'realtime', houseSystem: code }));
       }
       // Refresh dashboard and hours
-      const nextContext = buildClockContext({ houseSystem: code, mode: mode === 'manual' ? 'manual' : 'realtime' });
+      const nextContext = buildAppliedClockContext({
+        houseSystem: code,
+        mode: mode === 'manual' ? 'manual' : 'realtime',
+      });
       await Promise.allSettled([
         requestDashboard({ includeModern, specialDegrees, morin: useMorin, ...nextContext }, { viewVersion }),
         requestHours(nextContext, { viewVersion }),
@@ -2436,7 +2889,10 @@ const AstroClock = ({
           <input
             type="date"
             value={manualDate}
-            onChange={e => setManualDate(e.target.value)}
+            onChange={e => {
+              setManualDate(e.target.value);
+              setManualTimeResolution(null);
+            }}
             tabIndex={-1}
           />
           <input
@@ -2446,7 +2902,10 @@ const AstroClock = ({
             step="60"
             placeholder="HH:MM"
             value={manualTime}
-            onChange={e => setManualTime(e.target.value)}
+            onChange={e => {
+              setManualTime(e.target.value);
+              setManualTimeResolution(null);
+            }}
             tabIndex={-1}
           />
         </div>
@@ -2500,7 +2959,10 @@ const AstroClock = ({
                   id="astroclock-manual-date"
                   type="date"
                   value={manualDate}
-                  onChange={e => setManualDate(e.target.value)}
+                  onChange={e => {
+                    setManualDate(e.target.value);
+                    setManualTimeResolution(null);
+                  }}
                   className={`mt-1 w-full rounded-2xl border px-3 py-1.5 text-[13px] ${darkMode ? 'border-zinc-700 bg-zinc-900/70 text-zinc-100' : 'border-zinc-200 bg-white text-zinc-900'}`}
                 />
               ) : (
@@ -2523,7 +2985,10 @@ const AstroClock = ({
                   step="60"
                   placeholder="HH:MM"
                   value={manualTime}
-                  onChange={e => setManualTime(e.target.value)}
+                  onChange={e => {
+                    setManualTime(e.target.value);
+                    setManualTimeResolution(null);
+                  }}
                   className={`mt-1 w-full rounded-2xl border px-3 py-1.5 text-[13px] ${darkMode ? 'border-zinc-700 bg-zinc-900/70 text-zinc-100' : 'border-zinc-200 bg-white text-zinc-900'}`}
                 />
               ) : (
@@ -2554,6 +3019,7 @@ const AstroClock = ({
                     const nextLocation = e.target.value;
                     manualLocationRef.current = nextLocation;
                     setManualLocation(nextLocation);
+                    setManualTimeResolution(null);
                   }}
                   className={`mt-1 w-full rounded-2xl border px-3 py-1.5 text-[13px] ${darkMode ? 'border-zinc-700 bg-zinc-900/70 text-zinc-100' : 'border-zinc-200 bg-white text-zinc-900'}`}
                 />
@@ -2651,6 +3117,20 @@ const AstroClock = ({
             </div>
           </div>
         </div>
+        {mode === 'manual' && manualTimeResolution?.kind === 'ambiguous' ? (
+          <div className="mt-3">
+            <LocalTimeAmbiguityChoice
+              resolution={manualTimeResolution}
+              selectedKey={manualTimeResolution.selectedKey}
+              dark={darkMode}
+              ariaLabel="Choose manual chart UTC offset"
+              onSelect={(selectedKey) => {
+                setManualTimeResolution((current) => current ? { ...current, selectedKey } : current);
+                setActionError('');
+              }}
+            />
+          </div>
+        ) : null}
         {actionError && (
           <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
             {actionError}
@@ -2763,7 +3243,7 @@ const AstroClock = ({
               specialDegrees={specialDegrees}
               onApplyDegrees={(tokens)=> { setSpecialDegrees(tokens || []); }}
               onClearDegrees={()=> { setSpecialDegrees([]); }}
-              pointsContext={buildClockContext()}
+              pointsContext={buildAppliedClockContext()}
               detailsLocked={featureActionsLocked}
               onDetailsLocked={() => openPremiumOffer('Degree Hits')}
               detailsLockedTitle={featureActionTitle}
@@ -2833,7 +3313,8 @@ const AstroClock = ({
               chartLens={chartLens}
               onChartLensChange={setChartLens}
               onSnap={doSnap}
-              snapDisabled={manualPending}
+              snapDisabled={manualPending || snapSaving}
+              snapBusy={snapSaving}
               houseSystem={houseSystem}
               onHouseSystemChange={async (code) => { await (async () => handleHouseSystemChange(code))(); }}
             />
@@ -2849,6 +3330,7 @@ const AstroClock = ({
               snaps={snaps}
               loading={loadingSnaps}
               loaded={snapsLoaded}
+              migrationReport={snapMigrationReport}
               onRefresh={refreshSnaps}
               onLoad={loadSnap}
               onDelete={deleteSnap}
@@ -3340,7 +3822,7 @@ function formatForensicSnapLabel(snap) {
 }
 
 function snapToForensicClockContext(snap, houseSystem) {
-  if (!snap) return null;
+  if (!isSavedSnapCalculationEligible(snap)) return null;
   const dashboard = forensicSnapDashboard(snap);
   const datetime = firstPresent(snap?.effective_datetime, dashboard?.timestamp, snap?.datetime, snap?.timestamp);
   const location = firstPresent(snap?.location, dashboard?.location);
@@ -3392,11 +3874,15 @@ function ForensicDashboard({
   const forensicClockContextKey = JSON.stringify(clockContext || {});
   const forensicClockContext = useMemo(() => ({ ...(clockContext || {}) }), [forensicClockContextKey]);
   const snapOptions = useMemo(() => (Array.isArray(snaps) ? snaps : []).filter((snap) => snap?.id), [snaps]);
+  const eligibleSnapOptions = useMemo(
+    () => snapOptions.filter((snap) => isSavedSnapCalculationEligible(snap)),
+    [snapOptions],
+  );
   const [chartSource, setChartSource] = useState('current');
   const [selectedSnapId, setSelectedSnapId] = useState(activeSnapId || '');
   const selectedSnap = useMemo(
-    () => snapOptions.find((snap) => String(snap?.id || '') === String(selectedSnapId || '')) || null,
-    [snapOptions, selectedSnapId],
+    () => eligibleSnapOptions.find((snap) => String(snap?.id || '') === String(selectedSnapId || '')) || null,
+    [eligibleSnapOptions, selectedSnapId],
   );
   const selectedSnapContext = useMemo(() => (
     chartSource === 'snap'
@@ -3409,11 +3895,14 @@ function ForensicDashboard({
   const snapSelectionMessage = useMemo(() => {
     if (chartSource !== 'snap') return '';
     if (loadingSnaps) return 'Loading saved snaps...';
-    if (!snapOptions.length) return 'No saved snaps are available yet.';
+    if (!eligibleSnapOptions.length && snapOptions.length) {
+      return 'Saved charts needing context review are disabled. Create a corrected copy in Astro Clock.';
+    }
+    if (!eligibleSnapOptions.length) return 'No saved snaps are available yet.';
     if (!selectedSnap) return 'Choose a saved snap.';
     if (!selectedSnapContext) return 'Selected snap is missing date/time context.';
     return '';
-  }, [chartSource, loadingSnaps, selectedSnap, selectedSnapContext, snapOptions.length]);
+  }, [chartSource, eligibleSnapOptions.length, loadingSnaps, selectedSnap, selectedSnapContext, snapOptions.length]);
   const forensicContextReady = chartSource !== 'snap' || Boolean(selectedSnapContext);
   const rawFindings = useMemo(() => (
     Array.isArray(data?.findings) ? data.findings.filter((finding) => finding && typeof finding === 'object') : []
@@ -3483,16 +3972,27 @@ function ForensicDashboard({
   ), [data?.categories]);
 
   useEffect(() => {
-    if (activeSnapId) {
-      setSelectedSnapId(String(activeSnapId));
+    if (!activeSnapId) return;
+    const activeSnap = snapOptions.find(
+      (snap) => String(snap?.id || '') === String(activeSnapId),
+    );
+    if (!activeSnap) return;
+    if (!isSavedSnapCalculationEligible(activeSnap)) {
+      setSelectedSnapId('');
+      setChartSource('current');
+      return;
     }
-  }, [activeSnapId]);
+    setSelectedSnapId(String(activeSnapId));
+  }, [activeSnapId, snapOptions]);
 
   useEffect(() => {
-    if (chartSource === 'snap' && !selectedSnapId && snapOptions.length) {
-      setSelectedSnapId(String(snapOptions[0].id || ''));
+    if (chartSource === 'snap' && !selectedSnap && eligibleSnapOptions.length) {
+      setSelectedSnapId(String(eligibleSnapOptions[0].id || ''));
     }
-  }, [chartSource, selectedSnapId, snapOptions]);
+    if (chartSource === 'snap' && !selectedSnap && !eligibleSnapOptions.length) {
+      setSelectedSnapId('');
+    }
+  }, [chartSource, eligibleSnapOptions, selectedSnap]);
 
   useEffect(() => {
     if (typeof onRefreshSnaps !== 'function') return;
@@ -3518,7 +4018,15 @@ function ForensicDashboard({
     }
     try {
       setForensicError('');
-      const opts = { ...effectiveForensicClockContext, caseType };
+      const opts = chartSource === 'snap' && selectedSnap?.id
+        ? {
+          snapId: String(selectedSnap.id),
+          houseSystem:
+            effectiveForensicClockContext.houseSystem
+            || effectiveForensicClockContext.house_system_code,
+          caseType,
+        }
+        : { ...effectiveForensicClockContext, caseType };
       if (optsExtra && optsExtra.abduction) {
         opts.abduction = true;
         if (optsExtra.origin) opts.origin = optsExtra.origin;
@@ -3561,7 +4069,14 @@ function ForensicDashboard({
       }
       throw err;
     }
-  }, [caseType, effectiveForensicClockContext, forensicContextReady, snapSelectionMessage]);
+  }, [
+    caseType,
+    chartSource,
+    effectiveForensicClockContext,
+    forensicContextReady,
+    selectedSnap,
+    snapSelectionMessage,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -4625,10 +5140,12 @@ function ForensicDashboard({
   const selectedSnapParts = getForensicSnapMetaParts(selectedSnap);
   const caseScopeLabel = `${chartSourceLabel} · Traditional + Modern${caseHouseSystem ? ` · ${caseHouseSystem}` : ''}`;
   const activeCaseTypeLabel = caseTypeOptions.find((option) => option.value === caseType)?.label || caseType;
-  const hasSnapOptions = snapOptions.length > 0;
+  const hasSnapOptions = eligibleSnapOptions.length > 0;
   const switchForensicToSnap = () => {
     setChartSource('snap');
-    if (!selectedSnapId && hasSnapOptions) setSelectedSnapId(String(snapOptions[0].id || ''));
+    if (!selectedSnapId && hasSnapOptions) {
+      setSelectedSnapId(String(eligibleSnapOptions[0].id || ''));
+    }
   };
   const rawControlActive = includeRaw || forensicTab === 'raw';
   const ascRulerPlacement = (
@@ -4798,6 +5315,7 @@ function ForensicDashboard({
               aria-pressed={chartSource === 'snap'}
               className={`forensic-dossier-pill ${chartSource === 'snap' ? 'is-active' : ''}`}
               onClick={switchForensicToSnap}
+              disabled={!hasSnapOptions}
             >
               Saved Snap
             </button>
@@ -4813,7 +5331,16 @@ function ForensicDashboard({
             >
               <option value="">{loadingSnaps ? 'Loading saved snaps...' : 'Select a saved snap'}</option>
               {snapOptions.map((snap) => (
-                <option key={snap.id} value={snap.id}>{formatForensicSnapLabel(snap)}</option>
+                <option
+                  key={snap.id}
+                  value={snap.id}
+                  disabled={!isSavedSnapCalculationEligible(snap)}
+                >
+                  {formatForensicSnapLabel(snap)}
+                  {getSavedSnapIneligibilityLabel(snap)
+                    ? ` — ${getSavedSnapIneligibilityLabel(snap)}`
+                    : ''}
+                </option>
               ))}
             </select>
             {typeof onRefreshSnaps === 'function' ? (
@@ -4834,6 +5361,11 @@ function ForensicDashboard({
             ) : null}
             {chartSource === 'snap' && snapSelectionMessage && (!selectedSnap || !selectedSnapContext) ? (
               <span className="forensic-dossier-source-note is-muted">{snapSelectionMessage}</span>
+            ) : null}
+            {snapOptions.some((snap) => !isSavedSnapCalculationEligible(snap)) ? (
+              <span className="forensic-dossier-source-note is-muted font-serif italic">
+                Review-required and superseded saved charts are disabled. Use a corrected copy from Astro Clock.
+              </span>
             ) : null}
           </div>
           <div className="forensic-dossier-control-group forensic-dossier-case-type-group">
@@ -6620,7 +7152,7 @@ function SectPanel({ data }) {
 
 
 
-function ChartMock({ data, chartLens = 'traditional', onChartLensChange, onSnap, snapDisabled, houseSystem, onHouseSystemChange }){
+function ChartMock({ data, chartLens = 'traditional', onChartLensChange, onSnap, snapDisabled, snapBusy, houseSystem, onHouseSystemChange }){
   const HOUSE_OPTIONS = [
     { code: 'R', label: 'Regiomontanus (R)' },
     { code: 'P', label: 'Placidus (P)' },
@@ -6704,7 +7236,7 @@ function ChartMock({ data, chartLens = 'traditional', onChartLensChange, onSnap,
             style={monoStyle}
             onClick={onSnap}
           >
-            Snap
+            {snapBusy ? 'Saving…' : 'Snap'}
           </button>
         </div>
         <div className="flex flex-col gap-3 border-t border-zinc-200 px-4 py-3 sm:px-5 xl:flex-row xl:items-start xl:justify-between">
@@ -6994,24 +7526,402 @@ function MoonCondition({ data }){
   );
 }
 
-function SavedSnapsTile({ snaps, loading, loaded, onRefresh, onLoad, onDelete }){
+function SavedSnapsTile({ snaps, loading, loaded, migrationReport, onRefresh, onLoad, onDelete }){
   const [mode, setMode] = useState('snaps'); // 'snaps' | 'search'
   const [q, setQ] = useState('');
   const [idxLoading, setIdxLoading] = useState(false);
   const [indexDocs, setIndexDocs] = useState(null); // [{ id, snap, text, title, subtitle }]
   const [actionBusy, setActionBusy] = useState(null); // id of snap being acted on
+  const [correction, setCorrection] = useState(null);
+  const [correctionNotice, setCorrectionNotice] = useState('');
   const searchRefreshRequestedRef = useRef(false);
+  const correctionResolveSeqRef = useRef(0);
+  const correctionResolveAbortRef = useRef(null);
+  const correctionFormRevisionRef = useRef(0);
   const snapIdsKey = useMemo(
     () => (Array.isArray(snaps) ? snaps.map((snap) => String(snap?.id || '')).join('|') : ''),
     [snaps],
   );
+  const migrationNotice = useMemo(() => {
+    const safeSnaps = Array.isArray(snaps) ? snaps : [];
+    const reviewCount = safeSnaps.filter((snap) => getSavedSnapReviewMessages(snap).some(
+      (message) => !message.startsWith('A possible duplicate group'),
+    )).length;
+    const duplicateKeys = new Set(
+      safeSnaps
+        .map((snap) => firstPresent(
+          snap?.duplicate_group?.semantic_key,
+          snap?.duplicate_group?.canonical_id,
+        ))
+        .filter(Boolean),
+    );
+    const reportedDuplicateCount = Array.isArray(migrationReport?.semantic_duplicate_groups)
+      ? migrationReport.semantic_duplicate_groups.length
+      : 0;
+    const duplicateCount = Math.max(duplicateKeys.size, reportedDuplicateCount);
+    const migratedRecords = Number(migrationReport?.migrated_records);
+    const parts = [];
+    if (Number.isFinite(migratedRecords) && migratedRecords > 0) {
+      parts.push(`${migratedRecords} saved ${migratedRecords === 1 ? 'chart was' : 'charts were'} upgraded.`);
+    }
+    if (reviewCount > 0) {
+      parts.push(`${reviewCount} ${reviewCount === 1 ? 'chart needs' : 'charts need'} context review.`);
+    }
+    if (duplicateCount > 0) {
+      parts.push(`${duplicateCount} possible duplicate ${duplicateCount === 1 ? 'group was' : 'groups were'} preserved.`);
+    }
+    if (migrationReport?.backup_path) {
+      parts.push('A safety backup was preserved.');
+    }
+    return parts.join(' ');
+  }, [migrationReport, snaps]);
 
   const handleLoad = async (snap) => {
+    if (isSavedSnapReviewRequired(snap) || String(snap?.superseded_by || '').trim()) {
+      setCorrectionNotice(
+        String(snap?.superseded_by || '').trim()
+          ? 'This original saved chart was superseded. Load its corrected copy instead.'
+          : 'This saved chart must be corrected before it can be loaded.',
+      );
+      return;
+    }
     try { setActionBusy(snap.id); await onLoad(snap); } catch (e) { /* no-op */ } finally { setActionBusy(null); }
   };
-  const handleDelete = async (id) => {
-    try { setActionBusy(id); await onDelete(id); } catch (e) { /* no-op */ } finally { setActionBusy(null); }
+  const handleDelete = async (snap) => {
+    const id = String(snap?.id || '');
+    if (!id) return;
+    const label = String(snap?.label || 'Untitled Snap').trim() || 'Untitled Snap';
+    const message = `Delete “${label}”? The saved chart will be removed. Any corrected-copy relationship will be updated safely, and the migration recovery backup is retained.`;
+    const confirmed = typeof window === 'undefined' || typeof window.confirm !== 'function'
+      ? true
+      : window.confirm(message);
+    if (!confirmed) return;
+    try {
+      setActionBusy(id);
+      await onDelete(id);
+      setCorrection((current) => (
+        String(current?.snap?.id || '') === id ? null : current
+      ));
+    } catch (e) {
+      /* no-op */
+    } finally {
+      setActionBusy(null);
+    }
   };
+  const openCorrection = (snap) => {
+    correctionResolveSeqRef.current += 1;
+    correctionFormRevisionRef.current += 1;
+    correctionResolveAbortRef.current?.abort();
+    correctionResolveAbortRef.current = null;
+    setCorrectionNotice('');
+    setCorrection({
+      snap,
+      form: savedSnapCorrectionSeed(snap),
+      locationResolution: {
+        status: 'idle',
+        location: '',
+        latitude: null,
+        longitude: null,
+        timezone: '',
+      },
+      preview: null,
+      ambiguity: null,
+      busy: '',
+      error: '',
+    });
+  };
+  const updateCorrectionField = (field, value) => {
+    correctionResolveSeqRef.current += 1;
+    correctionFormRevisionRef.current += 1;
+    correctionResolveAbortRef.current?.abort();
+    correctionResolveAbortRef.current = null;
+    setCorrection((current) => {
+      if (!current) return current;
+      const form = { ...current.form, [field]: value };
+      let locationResolution = current.locationResolution;
+      if (field === 'location') {
+        form.latitude = '';
+        form.longitude = '';
+        locationResolution = {
+          status: 'idle',
+          location: '',
+          latitude: null,
+          longitude: null,
+          timezone: '',
+        };
+      } else if (field === 'latitude' || field === 'longitude' || field === 'timezone') {
+        locationResolution = {
+          ...locationResolution,
+          status: 'manual',
+        };
+      } else if (current.busy === 'resolve-location') {
+        locationResolution = {
+          ...locationResolution,
+          status: 'idle',
+        };
+      }
+      return {
+        ...current,
+        form,
+        locationResolution,
+        preview: null,
+        ambiguity: null,
+        busy: current.busy === 'resolve-location' ? '' : current.busy,
+        error: '',
+      };
+    });
+  };
+  const resolveCorrectionLocation = async (formOverride = correction?.form || {}) => {
+    const snapId = String(correction?.snap?.id || '');
+    const query = String(formOverride.location || '').trim();
+    if (!snapId || correction?.busy) return null;
+    if (!query) {
+      setCorrection((current) => current ? {
+        ...current,
+        error: 'Enter a specific city or place.',
+      } : current);
+      return null;
+    }
+
+    const requestSeq = correctionResolveSeqRef.current + 1;
+    correctionResolveSeqRef.current = requestSeq;
+    const formRevision = correctionFormRevisionRef.current;
+    correctionResolveAbortRef.current?.abort();
+    const controller = new AbortController();
+    correctionResolveAbortRef.current = controller;
+    setCorrection((current) => current ? {
+      ...current,
+      busy: 'resolve-location',
+      preview: null,
+      ambiguity: null,
+      error: '',
+      locationResolution: {
+        ...current.locationResolution,
+        status: 'loading',
+      },
+    } : current);
+
+    try {
+      const response = await AstroClockAPI.resolveTimezone(query, {
+        requireSpecific: true,
+        signal: controller.signal,
+      });
+      if (
+        controller.signal.aborted
+        || correctionResolveSeqRef.current !== requestSeq
+        || correctionFormRevisionRef.current !== formRevision
+      ) {
+        return null;
+      }
+      const result = response?.data && typeof response.data === 'object'
+        ? response.data
+        : response;
+      const latitude = Number(result?.latitude);
+      const longitude = Number(result?.longitude);
+      const timezone = resolveIntlTimezone(result?.timezone);
+      const location = String(result?.location || query).trim();
+      if (
+        !location
+        || !Number.isFinite(latitude)
+        || latitude < -90
+        || latitude > 90
+        || !Number.isFinite(longitude)
+        || longitude < -180
+        || longitude > 180
+        || !timezone
+      ) {
+        throw new Error('The place resolver did not return complete coordinates and timezone information.');
+      }
+      const resolvedForm = {
+        ...formOverride,
+        location,
+        latitude: String(latitude),
+        longitude: String(longitude),
+        timezone,
+      };
+      setCorrection((current) => {
+        if (
+          !current
+          || String(current.snap?.id || '') !== snapId
+          || String(current.form?.location || '').trim() !== query
+        ) {
+          return current;
+        }
+        return {
+          ...current,
+          form: { ...current.form, ...resolvedForm },
+          locationResolution: {
+            status: 'resolved',
+            location,
+            latitude,
+            longitude,
+            timezone,
+          },
+          preview: null,
+          ambiguity: null,
+          busy: '',
+          error: '',
+        };
+      });
+      return resolvedForm;
+    } catch (error) {
+      if (
+        controller.signal.aborted
+        || correctionResolveSeqRef.current !== requestSeq
+        || isAbortError(error)
+      ) {
+        return null;
+      }
+      setCorrection((current) => current ? {
+        ...current,
+        locationResolution: {
+          ...current.locationResolution,
+          status: 'error',
+        },
+        preview: null,
+        ambiguity: null,
+        busy: '',
+        error: getActionErrorMessage(
+          error,
+          'Could not resolve that city. Enter a more specific place or use manual coordinates.',
+        ),
+      } : current);
+      return null;
+    } finally {
+      if (correctionResolveAbortRef.current === controller) {
+        correctionResolveAbortRef.current = null;
+      }
+    }
+  };
+  const correctionRequest = (formOverride = correction?.form || {}) => {
+    const form = formOverride;
+    const latitudeText = String(form.latitude ?? '').trim();
+    const longitudeText = String(form.longitude ?? '').trim();
+    const latitude = latitudeText ? Number(latitudeText) : Number.NaN;
+    const longitude = longitudeText ? Number(longitudeText) : Number.NaN;
+    const wallTime = normalizeLocalDateTimeInput(form.localDatetime);
+    if (!wallTime) {
+      throw new Error('Enter a complete, valid local date and time.');
+    }
+    if (!resolveIntlTimezone(form.timezone)) {
+      throw new Error('Enter a valid IANA timezone, such as Asia/Jerusalem.');
+    }
+    if (!String(form.location || '').trim()) {
+      throw new Error('Enter a specific city or place.');
+    }
+    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
+      throw new Error('Enter a valid latitude from -90 to 90.');
+    }
+    if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+      throw new Error('Enter a valid longitude from -180 to 180.');
+    }
+    const selectedResolutionCandidate = correction?.ambiguity?.candidates?.find(
+      (candidate) => candidate.key === correction.ambiguity.selectedKey,
+    );
+    if (correction?.ambiguity?.kind === 'ambiguous' && !selectedResolutionCandidate) {
+      throw new Error('Choose which UTC offset applies to this repeated local time.');
+    }
+    return {
+      localDatetime: selectedResolutionCandidate?.localDatetime || wallTime,
+      timezone: String(form.timezone).trim(),
+      location: String(form.location).trim(),
+      latitude,
+      longitude,
+      houseSystem: form.houseSystem || 'R',
+      includeModern: true,
+      includeChiron: true,
+    };
+  };
+  const previewCorrection = async () => {
+    if (!correction?.snap?.id || correction.busy) return;
+    let form = correction.form || {};
+    const latitudeText = String(form.latitude ?? '').trim();
+    const longitudeText = String(form.longitude ?? '').trim();
+    const latitude = latitudeText ? Number(latitudeText) : Number.NaN;
+    const longitude = longitudeText ? Number(longitudeText) : Number.NaN;
+    const hasResolvedCoordinates = (
+      Number.isFinite(latitude)
+      && latitude >= -90
+      && latitude <= 90
+      && Number.isFinite(longitude)
+      && longitude >= -180
+      && longitude <= 180
+    );
+    const shouldResolveAutomatically = (
+      correction.locationResolution?.status !== 'manual'
+      && (!hasResolvedCoordinates || !resolveIntlTimezone(form.timezone))
+    );
+    if (shouldResolveAutomatically) {
+      form = await resolveCorrectionLocation(form);
+      if (!form) return;
+    }
+    let requestPayload;
+    try {
+      requestPayload = correctionRequest(form);
+    } catch (error) {
+      setCorrection((current) => current ? { ...current, error: error.message } : current);
+      return;
+    }
+    setCorrection((current) => current ? { ...current, busy: 'preview', error: '' } : current);
+    try {
+      const res = await AstroClockAPI.confirmSnapContext(correction.snap.id, {
+        ...requestPayload,
+        persist: false,
+      });
+      const preview = res?.data?.replacement || res?.replacement;
+      if (!preview) throw new Error('The corrected chart preview was not returned.');
+      setCorrection((current) => current ? { ...current, preview, busy: '', error: '' } : current);
+    } catch (error) {
+      const resolution = extractLocalTimeResolution(error, requestPayload.localDatetime);
+      setCorrection((current) => current ? {
+        ...current,
+        busy: '',
+        preview: null,
+        ambiguity: resolution?.kind === 'ambiguous'
+          ? { ...resolution, selectedKey: '' }
+          : null,
+        error: resolution?.message
+          || getActionErrorMessage(error, 'Failed to preview the corrected chart.'),
+      } : current);
+    }
+  };
+  const persistCorrection = async () => {
+    if (!correction?.snap?.id || !correction?.preview || correction.busy) return;
+    let requestPayload;
+    try {
+      requestPayload = correctionRequest();
+    } catch (error) {
+      setCorrection((current) => current ? { ...current, preview: null, error: error.message } : current);
+      return;
+    }
+    setCorrection((current) => current ? { ...current, busy: 'persist', error: '' } : current);
+    try {
+      const res = await AstroClockAPI.confirmSnapContext(correction.snap.id, {
+        ...requestPayload,
+        persist: true,
+      });
+      if (res?.data?.original_preserved !== true) {
+        throw new Error('The backend did not confirm that the original saved chart was preserved.');
+      }
+      await onRefresh?.({ silent: true });
+      setCorrection(null);
+      setCorrectionNotice('Corrected copy saved. The original saved chart was preserved.');
+    } catch (error) {
+      setCorrection((current) => current ? {
+        ...current,
+        busy: '',
+        error: getActionErrorMessage(error, 'Failed to save the corrected copy.'),
+      } : current);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      correctionResolveSeqRef.current += 1;
+      correctionResolveAbortRef.current?.abort();
+      correctionResolveAbortRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     if (mode !== 'search') {
@@ -7085,7 +7995,7 @@ function SavedSnapsTile({ snaps, loading, loaded, onRefresh, onLoad, onDelete })
           });
           const text = parts.join(' ').toLowerCase();
           const title = s?.label || 'Untitled Snap';
-          const subtitle = `${new Date(s.effective_datetime).toLocaleString()} · ${s.location || '-'}`;
+          const subtitle = `${formatSavedSnapDateTime(s)} · ${getSavedSnapTimezoneLabel(s)} · ${s.location || '-'}`;
           return { id: s.id, snap: s, text, title, subtitle };
         });
         setIndexDocs(docs);
@@ -7122,6 +8032,235 @@ function SavedSnapsTile({ snaps, loading, loaded, onRefresh, onLoad, onDelete })
       </div>
 
       <div className="mt-3">
+      {migrationNotice ? (
+        <div
+          className={`mb-3 ${savedSnapNoticeCls}`}
+          role="status"
+        >
+          <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-zinc-500" style={monoStyle}>
+            Saved chart migration
+          </div>
+          <div className="mt-1 text-[12px] italic leading-5 text-zinc-500" style={serifStyle}>
+            {migrationNotice}
+          </div>
+        </div>
+      ) : null}
+      {correctionNotice ? (
+        <div
+          className={`mb-3 ${savedSnapNoticeCls}`}
+          role="status"
+          style={serifStyle}
+        >
+          <span className="text-[12px] italic leading-5 text-zinc-500">{correctionNotice}</span>
+        </div>
+      ) : null}
+      {correction ? (
+        <div
+          className="mb-3 rounded-2xl border border-zinc-200 bg-zinc-50/80 p-3"
+          role="region"
+          aria-label="Correct saved chart context"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500" style={monoStyle}>
+                Correct saved context
+              </div>
+              <div className="mt-1 text-sm font-semibold text-zinc-900">
+                {correction.snap?.label || 'Saved chart'}
+              </div>
+            </div>
+            <button
+              type="button"
+              className={utilityPillCls}
+              onClick={() => {
+                correctionResolveSeqRef.current += 1;
+                correctionFormRevisionRef.current += 1;
+                correctionResolveAbortRef.current?.abort();
+                correctionResolveAbortRef.current = null;
+                setCorrection(null);
+              }}
+              disabled={Boolean(correction.busy)}
+            >
+              Cancel
+            </button>
+          </div>
+          <p className="mt-2 text-[12px] italic leading-5 text-zinc-500" style={serifStyle}>
+            Confirm the original local civil time, IANA timezone, and exact birthplace.
+            Preview recalculates the whole chart. Saving creates a corrected copy and preserves the original.
+          </p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <label className="text-[11px] font-medium text-zinc-700">
+              Local date and time
+              <input
+                type="datetime-local"
+                aria-label="Confirmed local date and time"
+                className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-2 text-sm text-zinc-900"
+                value={correction.form.localDatetime}
+                onChange={(event) => updateCorrectionField('localDatetime', event.target.value)}
+              />
+            </label>
+            <label className="text-[11px] font-medium text-zinc-700">
+              IANA timezone
+              <input
+                type="text"
+                aria-label="Confirmed IANA timezone"
+                placeholder="Asia/Jerusalem"
+                className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-2 text-sm text-zinc-900"
+                value={correction.form.timezone}
+                onChange={(event) => updateCorrectionField('timezone', event.target.value)}
+              />
+            </label>
+            <div className="text-[11px] font-medium text-zinc-700 sm:col-span-2">
+              <label>
+                Specific city or place
+                <input
+                  type="text"
+                  aria-label="Confirmed specific location"
+                  placeholder="Jerusalem, Israel"
+                  className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-2 text-sm text-zinc-900"
+                  value={correction.form.location}
+                  onChange={(event) => updateCorrectionField('location', event.target.value)}
+                />
+              </label>
+              <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
+                <span className="text-[11px] italic leading-4 text-zinc-500" style={serifStyle}>
+                  Enter a city, not only a country. Preview resolves its coordinates and timezone automatically.
+                </span>
+                <button
+                  type="button"
+                  className={utilityPillCls}
+                  onClick={() => { void resolveCorrectionLocation(); }}
+                  disabled={Boolean(correction.busy) || !String(correction.form.location || '').trim()}
+                >
+                  {correction.busy === 'resolve-location' ? 'Resolving…' : 'Resolve city automatically'}
+                </button>
+              </div>
+              {correction.locationResolution?.status === 'loading' ? (
+                <div className="mt-2 text-[10px] font-normal text-zinc-500" role="status" style={monoStyle}>
+                  Resolving city, coordinates, and timezone…
+                </div>
+              ) : null}
+              {correction.locationResolution?.status === 'resolved' ? (
+                <div className="mt-2 text-[10px] font-normal leading-4 text-zinc-600" role="status" style={monoStyle}>
+                  Resolved automatically: {correction.locationResolution.location} ·{' '}
+                  {correction.locationResolution.latitude.toFixed(5)},{' '}
+                  {correction.locationResolution.longitude.toFixed(5)} ·{' '}
+                  {correction.locationResolution.timezone}
+                </div>
+              ) : null}
+              {correction.locationResolution?.status === 'manual' ? (
+                <div className="mt-2 text-[10px] font-normal leading-4 text-zinc-500" role="status" style={monoStyle}>
+                  Location details were adjusted manually. Resolve the city again to replace them automatically.
+                </div>
+              ) : null}
+            </div>
+            <label className="text-[11px] font-medium text-zinc-700">
+              Latitude
+              <input
+                type="number"
+                step="any"
+                aria-label="Confirmed latitude"
+                className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-2 text-sm text-zinc-900"
+                value={correction.form.latitude}
+                onChange={(event) => updateCorrectionField('latitude', event.target.value)}
+              />
+            </label>
+            <label className="text-[11px] font-medium text-zinc-700">
+              Longitude
+              <input
+                type="number"
+                step="any"
+                aria-label="Confirmed longitude"
+                className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-2 text-sm text-zinc-900"
+                value={correction.form.longitude}
+                onChange={(event) => updateCorrectionField('longitude', event.target.value)}
+              />
+            </label>
+            <label className="text-[11px] font-medium text-zinc-700 sm:col-span-2">
+              House system for the corrected chart
+              <select
+                aria-label="Confirmed house system"
+                className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-2 text-sm text-zinc-900"
+                value={correction.form.houseSystem}
+                onChange={(event) => updateCorrectionField('houseSystem', event.target.value)}
+              >
+                {SNAP_CORRECTION_HOUSE_OPTIONS.map((option) => (
+                  <option key={option.code} value={option.code}>
+                    {option.label} ({option.code})
+                  </option>
+                ))}
+              </select>
+              <span className="mt-1 block text-[11px] italic leading-4 text-zinc-500" style={serifStyle}>
+                This changes recalculated houses and angles. It does not change astrocartography world-map line geometry.
+              </span>
+            </label>
+          </div>
+          {correction.ambiguity?.kind === 'ambiguous' ? (
+            <div className="mt-3">
+              <LocalTimeAmbiguityChoice
+                resolution={correction.ambiguity}
+                selectedKey={correction.ambiguity.selectedKey}
+                ariaLabel="Choose corrected chart UTC offset"
+                onSelect={(selectedKey) => {
+                  setCorrection((current) => current ? {
+                    ...current,
+                    ambiguity: { ...current.ambiguity, selectedKey },
+                    preview: null,
+                    error: '',
+                  } : current);
+                }}
+              />
+            </div>
+          ) : null}
+          {correction.error ? (
+            <p
+              className="mt-3 rounded-lg border border-red-100 bg-red-50/60 px-2.5 py-2 text-[10px] leading-5 text-red-700"
+              role="alert"
+              style={monoStyle}
+            >
+              {correction.error}
+            </p>
+          ) : null}
+          {correction.preview ? (
+            <div className="mt-3 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[10px] leading-5 text-zinc-600" style={monoStyle}>
+              <div className="font-semibold uppercase tracking-[0.12em] text-zinc-700">Corrected chart preview ready</div>
+              <div>
+                {formatSavedSnapDateTime(correction.preview)} · {getSavedSnapTimezoneLabel(correction.preview)}
+              </div>
+              <div>
+                {correction.preview.location} · {Number(correction.preview.latitude).toFixed(5)}, {Number(correction.preview.longitude).toFixed(5)}
+              </div>
+              <div className="text-zinc-500">
+                Planets, houses, and angles were recalculated together. The original remains unchanged.
+              </div>
+            </div>
+          ) : null}
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className={utilityPillCls}
+              onClick={previewCorrection}
+              disabled={Boolean(correction.busy)}
+            >
+              {correction.busy === 'resolve-location'
+                ? 'Resolving city…'
+                : correction.busy === 'preview'
+                  ? 'Previewing…'
+                  : 'Preview corrected chart'}
+            </button>
+            {correction.preview ? (
+              <button
+                type="button"
+                className="rounded-full bg-zinc-900 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white disabled:bg-zinc-300"
+                onClick={persistCorrection}
+                disabled={Boolean(correction.busy)}
+              >
+                {correction.busy === 'persist' ? 'Saving…' : 'Save corrected copy'}
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
       {mode === 'snaps' ? (
         loading ? (
           <div className="text-sm text-zinc-500">Loading…</div>
@@ -7136,6 +8275,16 @@ function SavedSnapsTile({ snaps, loading, loaded, onRefresh, onLoad, onDelete })
               const certificationLabel = certificationSummary?.status
                 ? String(certificationSummary.status).replace(/_/g, ' ')
                 : '';
+              const reviewMessages = getSavedSnapReviewMessages(s);
+              const needsContextReview = reviewMessages.some(
+                (message) => !message.startsWith('A possible duplicate group'),
+              );
+              const supersededBy = String(s?.superseded_by || '').trim();
+              const correctedReplacement = supersededBy
+                ? (Array.isArray(snaps) ? snaps : []).find(
+                  (candidate) => String(candidate?.id || '') === supersededBy,
+                )
+                : null;
               return (
               <div key={s.id} className="rounded-2xl border border-zinc-100 bg-white px-3 py-2.5 flex items-center justify-between gap-3">
                 <div className="min-w-0 text-sm">
@@ -7146,8 +8295,35 @@ function SavedSnapsTile({ snaps, loading, loaded, onRefresh, onLoad, onDelete })
                         Certification{certificationLabel ? ` · ${certificationLabel}` : ''}
                       </span>
                     ) : null}
+                    {needsContextReview ? (
+                      <span className={savedSnapContextBadgeCls} style={monoStyle}>
+                        Review saved context
+                      </span>
+                    ) : null}
+                    {s?.duplicate_group ? (
+                      <span className={savedSnapContextBadgeCls} style={monoStyle}>
+                        Possible duplicate
+                      </span>
+                    ) : null}
+                    {supersededBy ? (
+                      <span className={savedSnapContextBadgeCls} style={monoStyle}>
+                        Superseded—use corrected copy
+                      </span>
+                    ) : null}
                   </div>
-                  <div className="mt-1 text-[11px] text-zinc-600">{(new Date(s.effective_datetime)).toLocaleString()} · {s.location || '-'}</div>
+                  <div className="mt-1 text-[11px] text-zinc-600">
+                    {formatSavedSnapDateTime(s)} · {getSavedSnapTimezoneLabel(s)} · {s.location || '-'}
+                  </div>
+                  {reviewMessages.length > 0 ? (
+                    <div className={savedSnapRemarkCls} style={serifStyle}>
+                      {reviewMessages.join(' ')}
+                    </div>
+                  ) : null}
+                  {supersededBy ? (
+                    <div className={savedSnapRemarkCls} style={serifStyle}>
+                      This original is retained for history and cannot be loaded as the active chart.
+                    </div>
+                  ) : null}
                   <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-zinc-500">
                     <span>Hour: {s.summary?.hour_ruler || '-'}</span>
                     <span>Moon: {s.summary?.moon_sign || '-'}</span>
@@ -7158,8 +8334,40 @@ function SavedSnapsTile({ snaps, loading, loaded, onRefresh, onLoad, onDelete })
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button disabled={actionBusy===s.id} className={`${utilityPillCls} disabled:opacity-50`} style={monoStyle} onClick={()=> handleLoad(s)}>{actionBusy===s.id? '…':'Load'}</button>
-                  <button disabled={actionBusy===s.id} className={`${utilityPillCls} disabled:opacity-50`} style={monoStyle} onClick={()=> handleDelete(s.id)}>{actionBusy===s.id? '…':'Delete'}</button>
+                  {needsContextReview && !supersededBy ? (
+                    <button
+                      disabled={actionBusy===s.id}
+                      className={`${utilityPillCls} disabled:opacity-50`}
+                      style={monoStyle}
+                      onClick={() => openCorrection(s)}
+                    >
+                      Correct context
+                    </button>
+                  ) : null}
+                  {correctedReplacement ? (
+                    <button
+                      disabled={Boolean(actionBusy)}
+                      className={`${utilityPillCls} disabled:opacity-50`}
+                      style={monoStyle}
+                      onClick={() => handleLoad(correctedReplacement)}
+                    >
+                      Load corrected copy
+                    </button>
+                  ) : null}
+                  <button
+                    disabled={actionBusy===s.id || Boolean(supersededBy) || needsContextReview}
+                    className={`${utilityPillCls} disabled:opacity-50`}
+                    style={monoStyle}
+                    title={
+                      supersededBy
+                        ? 'Use the corrected copy instead.'
+                        : (needsContextReview ? 'Correct this saved context before loading it.' : undefined)
+                    }
+                    onClick={()=> handleLoad(s)}
+                  >
+                    {actionBusy===s.id ? '…' : 'Load'}
+                  </button>
+                  <button disabled={actionBusy===s.id} className={`${utilityPillCls} disabled:opacity-50`} style={monoStyle} onClick={()=> handleDelete(s)}>{actionBusy===s.id? '…':'Delete'}</button>
                 </div>
               </div>
             );})}
@@ -7179,18 +8387,90 @@ function SavedSnapsTile({ snaps, loading, loaded, onRefresh, onLoad, onDelete })
             <div className="text-sm text-zinc-500">No matches</div>
           ) : (
             <div className="space-y-2 max-h-64 overflow-auto pr-1">
-              {results.map(doc => (
-                <div key={doc.id} className="rounded-2xl border border-zinc-100 bg-white px-3 py-2.5 flex items-center justify-between gap-3">
-                  <div className="min-w-0 text-sm">
-                    <div className="font-medium text-zinc-900">{doc.title}</div>
-                    <div className="mt-1 text-[11px] text-zinc-600">{doc.subtitle}</div>
+              {results.map((doc) => {
+                const snap = doc.snap || {};
+                const reviewMessages = getSavedSnapReviewMessages(snap);
+                const needsContextReview = reviewMessages.some(
+                  (message) => !message.startsWith('A possible duplicate group'),
+                );
+                const supersededBy = String(snap?.superseded_by || '').trim();
+                const correctedReplacement = supersededBy
+                  ? (Array.isArray(snaps) ? snaps : []).find(
+                    (candidate) => String(candidate?.id || '') === supersededBy,
+                  )
+                  : null;
+                return (
+                  <div key={doc.id} className="rounded-2xl border border-zinc-100 bg-white px-3 py-2.5 flex items-center justify-between gap-3">
+                    <div className="min-w-0 text-sm">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium text-zinc-900">{doc.title}</span>
+                        {needsContextReview ? (
+                          <span className={savedSnapContextBadgeCls} style={monoStyle}>
+                            Review saved context
+                          </span>
+                        ) : null}
+                        {snap?.duplicate_group ? (
+                          <span className={savedSnapContextBadgeCls} style={monoStyle}>
+                            Possible duplicate
+                          </span>
+                        ) : null}
+                        {supersededBy ? (
+                          <span className={savedSnapContextBadgeCls} style={monoStyle}>
+                            Superseded—use corrected copy
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="mt-1 text-[11px] text-zinc-600">{doc.subtitle}</div>
+                      {reviewMessages.length > 0 ? (
+                        <div className={savedSnapRemarkCls} style={serifStyle}>
+                          {reviewMessages.join(' ')}
+                        </div>
+                      ) : null}
+                      {supersededBy ? (
+                        <div className={savedSnapRemarkCls} style={serifStyle}>
+                          This original is retained for history and cannot be loaded as the active chart.
+                        </div>
+                      ) : null}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {needsContextReview && !supersededBy ? (
+                        <button
+                          disabled={actionBusy===doc.id}
+                          className={`${utilityPillCls} disabled:opacity-50`}
+                          style={monoStyle}
+                          onClick={() => openCorrection(snap)}
+                        >
+                          Correct context
+                        </button>
+                      ) : null}
+                      {correctedReplacement ? (
+                        <button
+                          disabled={Boolean(actionBusy)}
+                          className={`${utilityPillCls} disabled:opacity-50`}
+                          style={monoStyle}
+                          onClick={() => handleLoad(correctedReplacement)}
+                        >
+                          Load corrected copy
+                        </button>
+                      ) : null}
+                      <button
+                        disabled={actionBusy===doc.id || Boolean(supersededBy) || needsContextReview}
+                        className={`${utilityPillCls} disabled:opacity-50`}
+                        style={monoStyle}
+                        title={
+                          supersededBy
+                            ? 'Use the corrected copy instead.'
+                            : (needsContextReview ? 'Correct this saved context before loading it.' : undefined)
+                        }
+                        onClick={()=> handleLoad(snap)}
+                      >
+                        {actionBusy===doc.id? '…':'Load'}
+                      </button>
+                      <button disabled={actionBusy===doc.id} className={`${utilityPillCls} disabled:opacity-50`} style={monoStyle} onClick={()=> handleDelete(snap)}>{actionBusy===doc.id? '…':'Delete'}</button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button disabled={actionBusy===doc.id} className={`${utilityPillCls} disabled:opacity-50`} style={monoStyle} onClick={()=> handleLoad(doc.snap)}>{actionBusy===doc.id? '…':'Load'}</button>
-                    <button disabled={actionBusy===doc.id} className={`${utilityPillCls} disabled:opacity-50`} style={monoStyle} onClick={()=> handleDelete(doc.id)}>{actionBusy===doc.id? '…':'Delete'}</button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

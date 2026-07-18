@@ -16,6 +16,14 @@ import election_models.estate as estate
 from election_models.common import Score
 
 
+def test_estate_missing_precision_defaults_unknown_and_unsafe():
+    assert estate._participant_precision_context({}) == {
+        "precision_class": "unknown",
+        "precision_safe": False,
+        "precision_source": "missing_birth_time_quality",
+    }
+
+
 def _patch_validate_common(monkeypatch):
     monkeypatch.setattr(astro_clock_api, "_ensure_coords_for_location", lambda _location: (31.778, 35.235))
     monkeypatch.setattr(
@@ -78,6 +86,9 @@ def test_score_estate_election_adds_participant_line(monkeypatch):
     participant = {
         "chart_data": {"houses": _houses(), "planets": {"Venus": {"longitude": 120.0}}},
         "label": "Buyer A",
+        "precision_class": "certified",
+        "precision_safe": True,
+        "precision_source": "test_certified_fixture",
     }
 
     monkeypatch.setattr(
@@ -136,6 +147,11 @@ def test_estate_stream_payload_uses_estate_specific_extraction_fields(monkeypatc
         lambda snap_id, *, house_system_code=None, missing_error="Snap not found": {
             "chart_data": {"houses": _houses(), "planets": {"Venus": {"longitude": 120.0}}},
             "meta": {"timestamp": "2026-04-18T08:00:00+00:00", "house_system_code": house_system_code},
+            "birth_time": {
+                "status": "certified",
+                "ranking_eligible": True,
+                "ranking_eligibility": "confirmed",
+            },
         },
     )
     monkeypatch.setattr(
@@ -217,7 +233,13 @@ def test_estate_stream_payload_uses_estate_specific_extraction_fields(monkeypatc
     assert done_payload["estate_direction"] == "buy"
     assert done_payload["participants"]["estate_participant_snap_id"] == "snap-estate"
     assert done_payload["participants"]["certified_assumption"] is True
-    assert done_payload["participants"]["items"] == [{"snap_id": "snap-estate", "label": "Buyer A"}]
+    assert done_payload["participants"]["items"] == [{
+        "snap_id": "snap-estate",
+        "label": "Buyer A",
+        "precision_class": "certified",
+        "precision_safe": True,
+        "precision_source": "saved_birth_time_quality:confirmed",
+    }]
     assert done_payload["estate_extraction"]["selected_line_ids"] == ["event", "participant:1"]
     assert done_payload["estate_extraction"]["period_count"] == 1
     assert done_payload["estate_periods"][0]["id"].startswith("estate-period:")

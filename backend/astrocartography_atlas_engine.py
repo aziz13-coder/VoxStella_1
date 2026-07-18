@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from astrocartography_city_catalog import (
@@ -28,6 +29,12 @@ from astrocartography_service import (
     build_location_reading,
     crossing_candidates_for_point,
 )
+from astrocartography_uncertainty import (
+    MAX_ATLAS_STABILITY_CANDIDATES,
+    apply_cross_location_rank_stability,
+    attach_birth_time_sample_evaluations,
+    bounded_stability_pool,
+)
 from horary_engine.services.geolocation import search_live_location_candidates
 
 
@@ -37,9 +44,46 @@ MIN_ATLAS_RAW_SCORE = 0.25
 DEFAULT_SHORTLIST_STRATEGY = "line_first"
 RELOCATION_PREPASS_SHORTLIST_STRATEGY = "relocation_prepass"
 MAX_RELOCATION_PREPASS_LIMIT = 480
+GEOGRAPHIC_DIVERSITY_RADIUS_KM = 250.0
+MAX_ATLAS_STABILITY_EVALUATIONS = 256
 RELOCATION_AWARE_EVALUATION_STRATEGIES = {
     "accident_pressure",
     "gambling_natal_curated",
+}
+
+ASTROLOGY_RANKING_BASIS = {
+    "scope": "astrological_interpretation_only",
+    "description": (
+        "Ranks the selected goal's astrological indicators only; it does not "
+        "measure whether a destination is suitable in everyday life."
+    ),
+    "goal_required": True,
+    "tie_breaker": "stable_label_then_candidate_id",
+    "population_used_for_ranking": False,
+    "display_order": "geographic_diversity_order_kept_separate_from_astrology_rank",
+}
+
+PRACTICAL_CONTEXT_POLICY = {
+    "status": "not_assessed",
+    "separate_from_astrology_ranking": True,
+    "dimensions": ["personal_safety", "healthcare", "cost_of_living", "economy", "visa_and_immigration"],
+    "guidance": (
+        "Check current safety, healthcare, cost, employment, and visa sources "
+        "separately before making a travel or relocation decision."
+    ),
+}
+
+GOAL_SELECTION_POLICY = {
+    "ranking_mode": "goal_specific",
+    "goal_required": True,
+    "neutral_overview": {
+        "available": True,
+        "ranked": False,
+        "description": (
+            "The map and single-location reading provide a neutral line overview. "
+            "City ranking requires an explicit goal because there is no universal best place."
+        ),
+    },
 }
 
 
@@ -409,21 +453,23 @@ def build_location_score_sort_key(
     label: Any = "",
     population: Any = 0,
     score_polarity: str = "higher_is_better",
-) -> tuple[float, float, int, str]:
+) -> tuple[float, float, str]:
+    # Population may bound the candidate pool, but it is intentionally not a
+    # ranking signal or tie-breaker in an astrology-only ordering.
+    _ = population
     raw_score = float(location_score.get("raw_score") or 0.0)
     score = float(location_score.get("score") or 0.0)
+    stable_label = str(label or "").casefold()
     if score_polarity == "higher_is_worse":
         return (
             raw_score,
             score,
-            -int(population or 0),
-            str(label or ""),
+            stable_label,
         )
     return (
         -raw_score,
         -score,
-        -int(population or 0),
-        str(label or ""),
+        stable_label,
     )
 
 
@@ -431,18 +477,181 @@ def _scored_candidate_sort_key(
     item: Dict[str, Any],
     *,
     score_polarity: str = "higher_is_better",
-) -> tuple[float, float, float, int, str]:
+) -> tuple[float, float, float, str, str]:
     relocation = item.get("relocation") or {}
     relocation_unavailable = 1.0 if relocation.get("relocation_unavailable") else 0.0
+    target = item.get("target") or {}
     return (
         relocation_unavailable,
         *build_location_score_sort_key(
         item.get("location_score") or {},
-        label=((item.get("target") or {}).get("label") or ""),
-        population=((item.get("atlas_city") or {}).get("population") or 0),
+        label=(target.get("label") or target.get("query") or ""),
         score_polarity=score_polarity,
         ),
+        str(target.get("candidate_id") or "").casefold(),
     )
+
+
+def _target_coordinates(item: Dict[str, Any]) -> Optional[Tuple[float, float]]:
+    target = item.get("target") or {}
+    try:
+        latitude = float(target.get("latitude"))
+        longitude = float(target.get("longitude"))
+    except (TypeError, ValueError):
+        return None
+    if not (-90.0 <= latitude <= 90.0 and -180.0 <= longitude <= 180.0):
+        return None
+    return latitude, longitude
+
+
+def _great_circle_distance_km(
+    left: Tuple[float, float],
+    right: Tuple[float, float],
+) -> float:
+    left_lat, left_lon = map(math.radians, left)
+    right_lat, right_lon = map(math.radians, right)
+    delta_lat = right_lat - left_lat
+    delta_lon = right_lon - left_lon
+    haversine = (
+        math.sin(delta_lat / 2.0) ** 2
+        + math.cos(left_lat) * math.cos(right_lat) * math.sin(delta_lon / 2.0) ** 2
+    )
+    return 6371.0088 * 2.0 * math.asin(math.sqrt(min(1.0, max(0.0, haversine))))
+
+
+def _geographic_group_id(item: Dict[str, Any]) -> str:
+    target = item.get("target") or {}
+    candidate_id = str(target.get("candidate_id") or "").strip()
+    if candidate_id:
+        return f"area:{candidate_id}"
+    coordinates = _target_coordinates(item)
+    if coordinates is not None:
+        return f"area:{coordinates[0]:.4f}:{coordinates[1]:.4f}"
+    return f"area:{str(target.get('label') or target.get('query') or 'unknown').strip().lower()}"
+
+
+def _with_geographic_group(
+    item: Dict[str, Any],
+    *,
+    representative: Dict[str, Any],
+    distance_km: float,
+    selection_pass: str,
+    astrology_rank: int,
+    display_rank: int,
+) -> Dict[str, Any]:
+    result = dict(item)
+    target = representative.get("target") or {}
+    representative_label = str(target.get("label") or target.get("query") or "Regional result").strip()
+    result["geographic_group"] = {
+        "id": _geographic_group_id(representative),
+        "label": f"{representative_label} area",
+        "representative_candidate_id": target.get("candidate_id"),
+        "representative_label": representative_label,
+        "distance_to_representative_km": round(max(0.0, float(distance_km)), 1),
+        "is_representative": item is representative,
+        "selection_pass": selection_pass,
+        "astrology_rank": int(astrology_rank),
+        "display_rank": int(display_rank),
+    }
+    result["astrology_rank"] = int(astrology_rank)
+    result["display_rank"] = int(display_rank)
+    result["selection_order"] = int(display_rank)
+    result["ranking_basis"] = dict(ASTROLOGY_RANKING_BASIS)
+    result["practical_context"] = dict(PRACTICAL_CONTEXT_POLICY)
+    result["suitability_assessed"] = False
+    return result
+
+
+def select_geographically_diverse_results(
+    rows: Sequence[Dict[str, Any]],
+    *,
+    limit: int,
+    radius_km: float = GEOGRAPHIC_DIVERSITY_RADIUS_KM,
+) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    """Prefer distinct regions while preserving deterministic score order.
+
+    A second pass fills any remaining slots, so narrow or local searches still
+    return the requested number of candidates. Every returned row carries an
+    explicit regional group and whether it was chosen in the diversity or fill
+    pass.
+    """
+
+    requested_limit = max(0, int(limit))
+    threshold_km = max(0.0, float(radius_km))
+    selected: List[Tuple[Dict[str, Any], Dict[str, Any], float, str, int]] = []
+    representatives: List[Dict[str, Any]] = []
+    deferred: List[Tuple[Dict[str, Any], Dict[str, Any], float, int]] = []
+
+    for astrology_rank, item in enumerate(rows, start=1):
+        coordinates = _target_coordinates(item)
+        nearest_representative = None
+        nearest_distance = float("inf")
+        if coordinates is not None:
+            for representative in representatives:
+                representative_coordinates = _target_coordinates(representative)
+                if representative_coordinates is None:
+                    continue
+                distance = _great_circle_distance_km(coordinates, representative_coordinates)
+                if distance < nearest_distance:
+                    nearest_representative = representative
+                    nearest_distance = distance
+
+        is_distinct = (
+            nearest_representative is None
+            or nearest_distance >= threshold_km
+        )
+        if is_distinct and len(selected) < requested_limit:
+            representatives.append(item)
+            selected.append((item, item, 0.0, "distinct_region", astrology_rank))
+        elif nearest_representative is not None:
+            deferred.append((item, nearest_representative, nearest_distance, astrology_rank))
+
+    same_region_fill_count = 0
+    if len(selected) < requested_limit:
+        for item, representative, distance, astrology_rank in deferred:
+            selected.append((item, representative, distance, "same_region_fill", astrology_rank))
+            same_region_fill_count += 1
+            if len(selected) >= requested_limit:
+                break
+
+    final_results = []
+    for display_rank, (
+        item,
+        representative,
+        distance,
+        selection_pass,
+        astrology_rank,
+    ) in enumerate(selected, start=1):
+        final_results.append(
+            _with_geographic_group(
+                item,
+                representative=representative,
+                distance_km=distance,
+                selection_pass=selection_pass,
+                astrology_rank=astrology_rank,
+                display_rank=display_rank,
+            )
+        )
+    distinct_group_count = len(
+        {
+            str((item.get("geographic_group") or {}).get("id") or "")
+            for item in final_results
+        }
+    )
+    return final_results, {
+        "enabled": True,
+        "method": "deterministic_greedy_distance_then_fill",
+        "radius_km": round(threshold_km, 1),
+        "requested_result_count": requested_limit,
+        "returned_result_count": len(final_results),
+        "distinct_region_count": distinct_group_count,
+        "same_region_fill_count": same_region_fill_count,
+        "deferred_same_region_count": len(deferred),
+        "ordering": {
+            "astrology_rank": "global score order before geographic diversity",
+            "display_rank": "geographically diversified presentation order",
+        },
+    }
 
 
 def _build_scored_candidate_ranking(rows: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -451,9 +660,14 @@ def _build_scored_candidate_ranking(rows: Sequence[Dict[str, Any]]) -> List[Dict
         target = item.get("target") or {}
         location_score = item.get("location_score") or {}
         atlas_city = item.get("atlas_city") or {}
+        astrology_rank = int(item.get("astrology_rank") or index)
+        display_rank = int(item.get("display_rank") or index)
         ranking.append(
             {
-                "rank": index,
+                "rank": astrology_rank,
+                "astrology_rank": astrology_rank,
+                "display_rank": display_rank,
+                "selection_order": display_rank,
                 "candidate_id": target.get("candidate_id"),
                 "label": target.get("label"),
                 "query": target.get("query"),
@@ -473,6 +687,10 @@ def _build_scored_candidate_ranking(rows: Sequence[Dict[str, Any]]) -> List[Dict
                 "top_supports": (location_score.get("top_supports") or [])[:2],
                 "top_cautions": (location_score.get("top_cautions") or [])[:2],
                 "relocation_available": not bool((item.get("relocation") or {}).get("relocation_unavailable")),
+                "geographic_group": item.get("geographic_group") or {},
+                "ranking_basis": item.get("ranking_basis") or dict(ASTROLOGY_RANKING_BASIS),
+                "practical_context": item.get("practical_context") or dict(PRACTICAL_CONTEXT_POLICY),
+                "suitability_assessed": False,
             }
         )
     return ranking
@@ -517,6 +735,107 @@ def _candidate_payload_from_scored_item(item: Dict[str, Any]) -> Dict[str, Any]:
     return {
         **(item.get("atlas_city") or {}),
         **(item.get("target") or {}),
+    }
+
+
+def _uncertainty_candidate_key(item: Dict[str, Any]) -> str:
+    target = item.get("target") or {}
+    candidate_id = target.get("candidate_id")
+    if candidate_id not in (None, ""):
+        return str(candidate_id)
+    try:
+        return (
+            f"coordinate:{float(target.get('latitude')):.6f}:"
+            f"{float(target.get('longitude')):.6f}"
+        )
+    except (TypeError, ValueError):
+        return str(target.get("label") or target.get("query") or "")
+
+
+def build_bounded_stability_evaluation_pool(
+    rows: Sequence[Dict[str, Any]],
+    *,
+    required_rows: Sequence[Dict[str, Any]],
+    requested_limit: int,
+    time_sample_count: int,
+    max_evaluations: int = MAX_ATLAS_STABILITY_EVALUATIONS,
+) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    """Bound full birth-time recalculations while retaining displayed results."""
+
+    sample_count = max(0, int(time_sample_count))
+    evaluation_cap = max(1, int(max_evaluations))
+    requested_count = max(1, int(requested_limit))
+    candidate_cap = int(MAX_ATLAS_STABILITY_CANDIDATES)
+    if sample_count:
+        candidate_cap = min(
+            candidate_cap,
+            max(requested_count, evaluation_cap // sample_count),
+        )
+
+    pool = list(
+        bounded_stability_pool(
+            rows,
+            requested_limit=requested_count,
+            cap=candidate_cap,
+        )
+    )
+    rows_by_key = {
+        _uncertainty_candidate_key(item): item
+        for item in rows
+    }
+    row_order = {
+        _uncertainty_candidate_key(item): index
+        for index, item in enumerate(rows)
+    }
+    required_key_order = list(dict.fromkeys(
+        _uncertainty_candidate_key(item)
+        for item in required_rows
+    ))
+    required_keys = set(required_key_order)
+    pool_keys = {
+        _uncertainty_candidate_key(item)
+        for item in pool
+    }
+
+    for required_key in required_key_order:
+        if required_key in pool_keys:
+            continue
+        original = rows_by_key.get(required_key)
+        if original is None:
+            continue
+        replace_index = next(
+            (
+                index
+                for index in range(len(pool) - 1, -1, -1)
+                if _uncertainty_candidate_key(pool[index]) not in required_keys
+            ),
+            None,
+        )
+        if replace_index is not None:
+            pool_keys.discard(_uncertainty_candidate_key(pool[replace_index]))
+            pool[replace_index] = original
+        elif len(pool) < candidate_cap:
+            pool.append(original)
+        pool_keys.add(required_key)
+
+    pool.sort(
+        key=lambda item: row_order.get(
+            _uncertainty_candidate_key(item),
+            len(row_order),
+        )
+    )
+    planned_evaluations = len(pool) * sample_count
+    return pool, {
+        "method": "bounded_candidate_by_time_sample_budget_v1",
+        "candidate_cap": candidate_cap,
+        "candidate_count": len(pool),
+        "scope_candidate_count": len(rows),
+        "time_sample_count": sample_count,
+        "planned_full_recalculations": planned_evaluations,
+        "max_full_recalculations": evaluation_cap,
+        "within_evaluation_cap": planned_evaluations <= evaluation_cap,
+        "bounded_scope": len(pool) < len(rows),
+        "required_displayed_candidates_preserved": required_keys.issubset(pool_keys),
     }
 
 
@@ -624,6 +943,8 @@ def rank_candidate_pool_for_goal(
     progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
     should_continue: Optional[Callable[[], None]] = None,
     include_debug_ranking: bool = False,
+    birth_time_sampling_plan: Optional[Dict[str, Any]] = None,
+    birth_time_samples: Optional[Sequence[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     limit = max(1, int(limit or DEFAULT_ATLAS_LIMIT))
     if limit_cap is not None:
@@ -802,14 +1123,183 @@ def rank_candidate_pool_for_goal(
         for item in final_results_source
         if _passes_signal_floor(item, score_polarity=score_polarity)
     ]
-    final_results = viable_results[:limit]
+
+    provisional_results, _ = select_geographically_diverse_results(
+        viable_results,
+        limit=limit,
+    )
+    prepared_time_samples: List[Dict[str, Any]] = []
+    for sample in birth_time_samples or []:
+        if not isinstance(sample, dict):
+            continue
+        sample_id = str(sample.get("id") or "").strip()
+        sample_lines = sample.get("natal_lines")
+        if isinstance(sample_lines, dict):
+            sample_lines = sample_lines.get("lines") or []
+        if not sample_id or not isinstance(sample_lines, (list, tuple)):
+            continue
+        prepared_time_samples.append(
+            {
+                **sample,
+                "id": sample_id,
+                "natal_lines": sample_lines,
+            }
+        )
+
+    stability_pool, stability_evaluation_policy = build_bounded_stability_evaluation_pool(
+        viable_results,
+        required_rows=provisional_results,
+        requested_limit=limit,
+        time_sample_count=len(prepared_time_samples),
+    )
+
+    sample_rows_by_candidate: Dict[str, List[Dict[str, Any]]] = {}
+    evaluated_time_samples: List[Dict[str, Any]] = []
+    planned_stability_evaluations = int(
+        stability_evaluation_policy.get("planned_full_recalculations") or 0
+    )
+    completed_stability_evaluations = 0
+    stability_progress_step = max(1, planned_stability_evaluations // 16)
+    _emit_progress(
+        progress_callback,
+        stage="stability",
+        percent=0.95,
+        message=(
+            "Recomputing bounded birth-time stability scenarios"
+            if planned_stability_evaluations
+            else "Evaluating cross-location rank stability"
+        ),
+        done=0,
+        total=planned_stability_evaluations,
+        stability_candidate_count=len(stability_pool),
+        stability_sample_count=len(prepared_time_samples),
+        max_full_recalculations=MAX_ATLAS_STABILITY_EVALUATIONS,
+    )
+    for sample in prepared_time_samples:
+        sample_id = str(sample.get("id") or "")
+        sample_lines = sample.get("natal_lines") or []
+        sample_resolver = sample.get("relocation_bundle_resolver")
+        _check_should_continue(should_continue)
+        for base_item in stability_pool:
+            _check_should_continue(should_continue)
+            city = _candidate_payload_from_scored_item(base_item)
+            relocation_features = None
+            relocation_status = None
+            if callable(sample_resolver):
+                relocation_features, relocation_status = _resolve_candidate_relocation(
+                    base_item,
+                    sample_resolver,
+                )
+            sampled = _score_candidate_with_relocation(
+                city,
+                goal_id=goal_id,
+                natal_lines=sample_lines,
+                transit_lines=transit_lines,
+                relocation_features=relocation_features,
+                relocation_status=relocation_status,
+                relocation_required=bool(
+                    shortlist_plan["strategy"] == RELOCATION_PREPASS_SHORTLIST_STRATEGY
+                    and callable(sample_resolver)
+                ),
+            )
+            candidate_id = _uncertainty_candidate_key(base_item)
+            sampled_reading = ((sampled.get("natal") or {}).get("reading") or {})
+            lead_line = sampled_reading.get("lead_line") or {}
+            sample_rows_by_candidate.setdefault(candidate_id, []).append(
+                {
+                    "id": sample_id,
+                    "position": sample.get("position"),
+                    "offset_minutes": sample.get("offset_minutes"),
+                    "timestamp": sample.get("timestamp"),
+                    "evaluation": sampled.get("location_score") or {},
+                    "lead_line": lead_line.get("label"),
+                    "lead_line_distance_km": lead_line.get("distance_km"),
+                    "relocation_available": not bool(
+                        (sampled.get("relocation") or {}).get("relocation_unavailable")
+                    ),
+                }
+            )
+            completed_stability_evaluations += 1
+            if (
+                completed_stability_evaluations == planned_stability_evaluations
+                or completed_stability_evaluations % stability_progress_step == 0
+            ):
+                progress = 0.95 + (
+                    0.025
+                    * completed_stability_evaluations
+                    / max(1, planned_stability_evaluations)
+                )
+                _emit_progress(
+                    progress_callback,
+                    stage="stability",
+                    percent=progress,
+                    message="Recomputing bounded birth-time stability scenarios",
+                    done=completed_stability_evaluations,
+                    total=planned_stability_evaluations,
+                    stability_candidate_count=len(stability_pool),
+                    stability_sample_count=len(prepared_time_samples),
+                    max_full_recalculations=MAX_ATLAS_STABILITY_EVALUATIONS,
+                )
+        evaluated_time_samples.append(
+            {
+                "id": sample_id,
+                "position": sample.get("position"),
+                "offset_minutes": sample.get("offset_minutes"),
+                "timestamp": sample.get("timestamp"),
+            }
+        )
+
+    effective_sampling_plan = dict(birth_time_sampling_plan or {})
+    if evaluated_time_samples:
+        effective_sampling_plan["status"] = (
+            "evaluated"
+            if effective_sampling_plan.get("coverage_complete", True)
+            else "evaluated_partial"
+        )
+        effective_sampling_plan["samples"] = evaluated_time_samples
+    effective_sampling_plan["stability_evaluation"] = dict(
+        stability_evaluation_policy
+    )
+    for item in stability_pool:
+        location_score = item.get("location_score")
+        if not isinstance(location_score, dict):
+            continue
+        candidate_id = _uncertainty_candidate_key(item)
+        item["location_score"] = attach_birth_time_sample_evaluations(
+            location_score,
+            sampling_plan=effective_sampling_plan,
+            sample_evaluations=sample_rows_by_candidate.get(candidate_id) or [],
+        )
+
+    stability_summary = apply_cross_location_rank_stability(
+        stability_pool,
+        score_polarity=score_polarity,
+        top_k=limit,
+        scope_candidate_count=len(viable_results),
+    )
+    stability_summary["evaluation_policy"] = dict(stability_evaluation_policy)
+    _emit_progress(
+        progress_callback,
+        stage="stability",
+        percent=0.976,
+        message="Rank stability evaluation complete",
+        done=completed_stability_evaluations,
+        total=planned_stability_evaluations,
+        stability_candidate_count=len(stability_pool),
+        stability_sample_count=len(prepared_time_samples),
+        max_full_recalculations=MAX_ATLAS_STABILITY_EVALUATIONS,
+    )
+    final_results, geographic_diversity = select_geographically_diverse_results(
+        viable_results,
+        limit=limit,
+    )
 
     _check_should_continue(should_continue)
     _emit_progress(
         progress_callback,
         stage="finalizing",
         percent=0.98,
-        message="Finalizing ranked city list",
+        message="Finalizing goal-specific astrology ranking",
         done=len(final_results),
         total=len(viable_results),
         viable_count=len(viable_results),
@@ -821,7 +1311,7 @@ def rank_candidate_pool_for_goal(
         progress_callback,
         stage="ready",
         percent=1.0,
-        message="Atlas search complete",
+        message="Atlas astrology search complete",
         done=len(final_results),
         total=len(final_results),
         viable_count=len(viable_results),
@@ -849,6 +1339,13 @@ def rank_candidate_pool_for_goal(
         ],
         "signal_floor_raw_score": MIN_ATLAS_RAW_SCORE,
         "score_polarity": score_polarity,
+        "ranking_mode": "goal_specific_astrology",
+        "ranking_basis": dict(ASTROLOGY_RANKING_BASIS),
+        "practical_context": dict(PRACTICAL_CONTEXT_POLICY),
+        "goal_selection": dict(GOAL_SELECTION_POLICY),
+        "geographic_diversity": geographic_diversity,
+        "birth_time_sampling": effective_sampling_plan,
+        "rank_stability": stability_summary,
         "results": final_results,
         "ranking": ranking,
     }
@@ -877,6 +1374,8 @@ def rank_atlas_cities_for_goal(
     relocation_bundle_resolver: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
     progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
     should_continue: Optional[Callable[[], None]] = None,
+    birth_time_sampling_plan: Optional[Dict[str, Any]] = None,
+    birth_time_samples: Optional[Sequence[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     resolution_settings = get_atlas_resolution_settings(resolution)
     resolution_id = str(resolution_settings.get("id") or DEFAULT_ATLAS_RESOLUTION)
@@ -1003,6 +1502,8 @@ def rank_atlas_cities_for_goal(
         relocation_bundle_resolver=relocation_bundle_resolver,
         progress_callback=progress_callback,
         should_continue=should_continue,
+        birth_time_sampling_plan=birth_time_sampling_plan,
+        birth_time_samples=birth_time_samples,
     )
 
     return {
@@ -1016,6 +1517,17 @@ def rank_atlas_cities_for_goal(
         "candidate_pool_policy": {
             "bounded": True,
             "candidate_limit": catalog_candidate_limit,
+            "minimum_population": int(resolution_settings.get("min_population") or 0),
+            "population_floor_applies_to": (
+                resolution_settings.get("population_floor_applies_to")
+                or "cities_other_than_capitals_and_first_level_admin_centers"
+            ),
+            "population_floor_exceptions": (
+                resolution_settings.get("population_floor_exceptions")
+                or ["PPLC", "PPLA"]
+            ),
+            "population_used_for_ranking": False,
+            "ranking_tie_breaker": "stable_label_then_candidate_id",
             "mandatory_feature_codes": ["PPLC", "PPLA"],
             "mandatory_candidates_preserved": True,
             "lower_level_fill_order": "population_descending",

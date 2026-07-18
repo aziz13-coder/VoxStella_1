@@ -43,6 +43,18 @@ def test_goal_model_schema_covers_runtime_extensions():
     assert all("evaluation_strategy" not in model for model in runtime_models)
     assert all(model.get("score_polarity") in {"higher_is_better", "higher_is_worse"} for model in runtime_models)
     assert all(model.get("composition") for model in runtime_models)
+    assert all(
+        (model.get("distance_policy") or {}).get("profile_multipliers")
+        == {"conservative": 0.6, "standard": 1.0, "wide": 1.4}
+        for model in runtime_models
+    )
+    assert all(
+        (component.get("distance") or {}).get("primary_max_km") == 300.0
+        and (component.get("distance") or {}).get("max_km") == 500.0
+        for model in runtime_models
+        for component in model["score_components"]
+        if component.get("kind") in {"line", "crossing"}
+    )
     assert all(component.get("component_id") and component.get("source_status") for model in runtime_models for component in model["score_components"])
 
     schema_top_level = set(schema["properties"])
@@ -1119,7 +1131,88 @@ def test_natal_condition_modulates_local_evidence_without_creating_evidence():
     assert any(item.get("natal_condition", {}).get("available") for item in good["contributions"])
 
 
-def test_birth_time_uncertainty_reduces_rank_eligibility_and_widens_interval():
+def test_jerusalem_extended_mars_ic_contributes_to_standard_home_score():
+    evaluation = evaluate_goal_model(
+        "home",
+        natal_rows=[
+            {
+                "id": "Mars:IC",
+                "body": "Mars",
+                "angle": "IC",
+                "label": "Mars IC",
+                "distance_km": 356.9,
+                "zone": "extended",
+            }
+        ],
+        natal_crossings=[],
+        relocation=extract_relocation_features({"planets": {}}),
+    )
+
+    sensitivity = evaluation["uncertainty"]["distance_sensitivity"]
+    assert sensitivity["policy"]["primary_profile"] == "standard"
+    assert sensitivity["policy"]["primary_boundary_km"] == 300.0
+    assert sensitivity["policy"]["standard_cutoff_km"] == 500.0
+    assert sensitivity["policy"]["profile_multipliers"] == {
+        "conservative": 0.6,
+        "standard": 1.0,
+        "wide": 1.4,
+    }
+
+    conservative = sensitivity["profiles"]["conservative"]
+    conservative_mars = next(
+        item for item in conservative["distance_evidence"]
+        if item["component_id"] == "home.line.04"
+    )
+    assert conservative["raw_score"] == 0.0
+    assert conservative_mars["effective_max_km"] == 300.0
+    assert conservative_mars["active"] is False
+    assert conservative_mars["policy_status"] == "excluded_outside_profile"
+
+    standard = sensitivity["profiles"]["standard"]
+    standard_mars = next(
+        item for item in standard["distance_evidence"]
+        if item["component_id"] == "home.line.04"
+    )
+    assert standard_mars["distance_km"] == 356.9
+    assert standard_mars["primary_max_km"] == 300.0
+    assert standard_mars["base_max_km"] == 500.0
+    assert standard_mars["standard_max_km"] == 500.0
+    assert standard_mars["effective_max_km"] == 500.0
+    assert standard_mars["active"] is True
+    assert standard_mars["policy_status"] == "included_extended"
+    assert standard_mars["profile_score"] == pytest.approx(
+        -3.4 * (1.0 - (356.9 / 500.0)),
+        abs=1e-3,
+    )
+    assert standard["raw_score"] == pytest.approx(standard_mars["profile_score"], abs=1e-4)
+    assert evaluation["raw_score"] == pytest.approx(standard_mars["profile_score"], abs=1e-3)
+    assert evaluation["score"] == 45
+    mars_contribution = next(
+        item for item in evaluation["contributions"]
+        if (item.get("component") or {}).get("component_id") == "home.line.04"
+    )
+    assert mars_contribution["distance_policy"]["status"] == "included_extended"
+    assert mars_contribution["distance_factor"] == pytest.approx(
+        1.0 - (356.9 / 500.0),
+        abs=1e-6,
+    )
+
+    wide = sensitivity["profiles"]["wide"]
+    wide_mars = next(
+        item for item in wide["distance_evidence"]
+        if item["component_id"] == "home.line.04"
+    )
+    assert wide_mars["distance_km"] == 356.9
+    assert wide_mars["display_zone"] == "extended"
+    assert wide_mars["effective_max_km"] == 700.0
+    assert wide_mars["active"] is True
+    assert wide_mars["policy_status"] == "included_extended"
+    assert wide_mars["profile_score"] == pytest.approx(-3.4 * (1.0 - (356.9 / 700.0)), abs=1e-3)
+    assert abs(wide_mars["profile_score"]) < 3.4
+    assert wide["raw_score"] < standard["raw_score"]
+
+
+def test_birth_time_uncertainty_reduces_rank_eligibility_without_synthetic_interval_padding():
     rows = [
         {"id": "Mercury:ASC", "body": "Mercury", "angle": "ASC", "distance_km": 25.0},
         {"id": "Jupiter:MC", "body": "Jupiter", "angle": "MC", "distance_km": 50.0},
@@ -1140,10 +1233,9 @@ def test_birth_time_uncertainty_reduces_rank_eligibility_and_widens_interval():
     assert exact["ranking_eligible"] is True
     assert uncertain["ranking_eligible"] is False
     assert "birth_time_uncertainty" in uncertain["evidence"]["ranking_ineligible_reasons"]
-    exact_width = exact["score_interval"]["high"] - exact["score_interval"]["low"]
-    uncertain_width = uncertain["score_interval"]["high"] - uncertain["score_interval"]["low"]
-    assert uncertain_width > exact_width
-    assert uncertain["rank_stability"]["status"] == "not_evaluated"
+    assert uncertain["uncertainty"]["birth_time_sampling"]["status"] == "not_sampled"
+    assert uncertain["uncertainty"]["score_interval_method"] == "recomputed_distance_profiles_v1"
+    assert uncertain["rank_stability"]["status"] == "not_applicable"
 
 
 def test_negative_relocation_metric_cannot_invert_a_negative_weight_into_support():

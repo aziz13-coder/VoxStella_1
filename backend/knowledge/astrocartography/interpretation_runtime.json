@@ -1,23 +1,55 @@
 {
-  "generated_on": "2026-04-04",
+  "asset_schema_version": 2,
+  "generated_on": "2026-07-18",
   "generator": "scripts/build_astrocartography_runtime_assets.py",
   "sources": [
     "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
     "horary_knowledge/astrocartography_knowledge_base/reference/03_techniques_and_ranges.md",
-    "horary_knowledge/astrocartography_knowledge_base/reference/05_feature_notes.md"
+    "horary_knowledge/astrocartography_knowledge_base/reference/05_feature_notes.md",
+    "horary_knowledge/astrocartography_sources/source_registry.json",
+    "horary_knowledge/astrocartography_sources/claim_registry.json"
   ],
+  "source_governance": {
+    "source_registry": "horary_knowledge/astrocartography_sources/source_registry.json",
+    "claim_registry": "horary_knowledge/astrocartography_sources/claim_registry.json",
+    "authority_order": [
+      "acg-src-lewis-guttman-1989",
+      "acg-src-furst-best-places-2015",
+      "acg-src-hermes-map-2023",
+      "acg-src-lee-dictionary-1968"
+    ],
+    "excluded_source_ids": [
+      "acg-src-houck-death-1994"
+    ],
+    "claim_classes": [
+      "direct",
+      "synthesis",
+      "legacy-parity",
+      "experimental"
+    ]
+  },
   "range_policy": {
     "primary_radius_km": 300,
     "extended_radius_km": 500,
     "crossing_radius_note": "Crossing radius follows the same default as lines, but exact crossings rank more strongly.",
     "source_ref": {
       "file": "horary_knowledge/astrocartography_knowledge_base/reference/03_techniques_and_ranges.md",
-      "section": "Product Default Recommendation"
+      "section": "Product Default Recommendation",
+      "claim_id": "acg-claim-product-radius-policy",
+      "claim_classification": "experimental",
+      "page_ids": [
+        "acg-src-lewis-guttman-1989.page-0012",
+        "acg-src-furst-best-places-2015.page-0022",
+        "acg-src-hermes-map-2023.page-0017"
+      ]
     }
   },
   "interpretation_policy": {
     "style": "source_backed_runtime_asset",
-    "note": "Explain each nearby line in plain language using a corpus-backed interpretation library."
+    "note": "",
+    "generic_planet_plus_angle_is_fallback_only": true,
+    "preferred_claim_id": "acg-claim-explicit-planet-angle-matrix",
+    "supported_matrix_complete": true
   },
   "bodies": {
     "Sun": {
@@ -26,16 +58,25 @@
       "common_caution": "ego inflation, pressure to perform",
       "source_ref": {
         "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
-        "section": "Planet Baselines"
+        "section": "Planet Baselines",
+        "claim_classification": "direct baseline",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013"
+        ]
       }
     },
     "Moon": {
       "core_themes": "emotion, belonging, care",
       "common_upside": "intuition, family ties, receptivity",
-      "common_caution": "volatility, moodiness, dependency",
+      "common_caution": "volatility, dependency, over-identification",
       "source_ref": {
         "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
-        "section": "Planet Baselines"
+        "section": "Planet Baselines",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
       }
     },
     "Mercury": {
@@ -44,43 +85,63 @@
       "common_caution": "nervousness, scattered focus",
       "source_ref": {
         "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
-        "section": "Planet Baselines"
+        "section": "Planet Baselines",
+        "claim_classification": "direct baseline",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013"
+        ]
       }
     },
     "Venus": {
       "core_themes": "love, beauty, harmony",
       "common_upside": "attraction, art, diplomacy, ease",
-      "common_caution": "indulgence, passivity, vanity",
+      "common_caution": "indulgence, passivity, excess",
       "source_ref": {
         "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
-        "section": "Planet Baselines"
+        "section": "Planet Baselines",
+        "claim_classification": "direct baseline",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013"
+        ]
       }
     },
     "Mars": {
       "core_themes": "action, heat, courage",
       "common_upside": "initiative, athletic drive, boldness",
-      "common_caution": "conflict, haste, irritation",
+      "common_caution": "conflict, haste, attacks or accidents",
       "source_ref": {
         "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
-        "section": "Planet Baselines"
+        "section": "Planet Baselines",
+        "claim_classification": "direct baseline",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013"
+        ]
       }
     },
     "Jupiter": {
       "core_themes": "growth, opportunity, meaning",
-      "common_upside": "expansion, generosity, teaching, luck",
-      "common_caution": "excess, overconfidence",
+      "common_upside": "prosperity, status, teaching, lucky breaks",
+      "common_caution": "excess, complacency, overconfidence",
       "source_ref": {
         "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
-        "section": "Planet Baselines"
+        "section": "Planet Baselines",
+        "claim_classification": "direct baseline",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013"
+        ]
       }
     },
     "Saturn": {
       "core_themes": "structure, duty, realism",
       "common_upside": "discipline, mastery, endurance",
-      "common_caution": "heaviness, isolation, delay",
+      "common_caution": "heaviness, solitude, delay",
       "source_ref": {
         "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
-        "section": "Planet Baselines"
+        "section": "Planet Baselines",
+        "claim_classification": "direct baseline",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013"
+        ]
       }
     },
     "Uranus": {
@@ -89,77 +150,978 @@
       "common_caution": "instability, shock, restlessness",
       "source_ref": {
         "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
-        "section": "Planet Baselines"
+        "section": "Planet Baselines",
+        "claim_classification": "direct baseline",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0014"
+        ]
       }
     },
     "Neptune": {
       "core_themes": "vision, spirituality, imagination",
       "common_upside": "inspiration, compassion, artistry",
-      "common_caution": "confusion, glamour, escapism",
+      "common_caution": "confusion, glamour, unreliable foundations",
       "source_ref": {
         "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
-        "section": "Planet Baselines"
+        "section": "Planet Baselines",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0055"
+        ]
       }
     },
     "Pluto": {
       "core_themes": "intensity, power, regeneration",
       "common_upside": "deep transformation, strategic force",
-      "common_caution": "obsession, control struggles",
+      "common_caution": "obsession, control struggles, coercion",
       "source_ref": {
         "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
-        "section": "Planet Baselines"
+        "section": "Planet Baselines",
+        "claim_classification": "direct baseline",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0014"
+        ]
       }
     },
     "North Node": {
-      "core_themes": "development, pull toward growth",
-      "common_upside": "meaningful contacts, future-facing movement",
-      "common_caution": "over-identifying with destiny language",
+      "core_themes": "group relationships and developmental pull",
+      "common_upside": "future-facing contacts and participation",
+      "common_caution": "destiny overstatement",
       "source_ref": {
         "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
-        "section": "Planet Baselines"
+        "section": "Planet Baselines",
+        "claim_classification": "secondary variant",
+        "page_ids": [
+          "acg-src-furst-best-places-2015.page-0059",
+          "acg-src-furst-best-places-2015.page-0060"
+        ]
       }
     },
     "Chiron": {
-      "core_themes": "wound, healing, teaching through pain",
+      "core_themes": "wound, unutilized gift, teaching through pain",
       "common_upside": "insight, integration, mentoring",
       "common_caution": "reopening unresolved pain",
       "source_ref": {
         "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
-        "section": "Planet Baselines"
+        "section": "Planet Baselines",
+        "claim_classification": "secondary variant",
+        "page_ids": [
+          "acg-src-furst-best-places-2015.page-0121"
+        ]
       }
     }
   },
   "angles": {
     "ASC": {
       "interprets_through": "selfhood, body, projection, personal identity",
-      "user_shorthand": "what I become here",
+      "user_shorthand": "what I express here",
       "source_ref": {
         "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
-        "section": "Angle Modifiers"
+        "section": "Angle Modifiers",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
       }
     },
     "DSC": {
-      "interprets_through": "partnership, clients, allies, opponents",
-      "user_shorthand": "who I meet here",
+      "interprets_through": "partnership, clients, allies, opponents, projection",
+      "user_shorthand": "who and what I meet here",
       "source_ref": {
         "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
-        "section": "Angle Modifiers"
+        "section": "Angle Modifiers",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
       }
     },
     "MC": {
-      "interprets_through": "career, reputation, calling, public outcomes",
-      "user_shorthand": "what I do here",
+      "interprets_through": "career, reputation, social role, public outcomes",
+      "user_shorthand": "how I am classified publicly here",
       "source_ref": {
         "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
-        "section": "Angle Modifiers"
+        "section": "Angle Modifiers",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
       }
     },
     "IC": {
-      "interprets_through": "home, roots, family, internal safety",
-      "user_shorthand": "how I live here",
+      "interprets_through": "home, roots, family, livelihood foundation",
+      "user_shorthand": "what supports or unsettles my base here",
       "source_ref": {
         "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
-        "section": "Angle Modifiers"
+        "section": "Angle Modifiers",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    }
+  },
+  "line_interpretations": {
+    "Sun:ASC": {
+      "summary": "Sun on the ASC brings identity, vitality, and purpose into direct personal expression.",
+      "supportive_expression": "Confidence, autonomy, and visible leadership can become easier to embody.",
+      "difficult_expression": "Self-focus, ego inflation, or pressure to perform can crowd out receptivity.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013",
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Sun:DSC": {
+      "summary": "Sun on the DSC brings identity and recognition into partnerships, clients, and encounters with others.",
+      "supportive_expression": "Significant alliances and visibility through collaboration can develop.",
+      "difficult_expression": "Competition, projection, or dependence on another person's validation can dominate relationships.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013",
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Sun:MC": {
+      "summary": "Sun on the MC directs purpose and vitality toward vocation, reputation, and public contribution.",
+      "supportive_expression": "Leadership, recognition, and a clearer sense of calling can grow.",
+      "difficult_expression": "Status pressure, overexposure, or public ego conflicts can become draining.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013",
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Sun:IC": {
+      "summary": "Sun on the IC anchors identity and purpose in home, roots, family, and private foundations.",
+      "supportive_expression": "A stronger sense of belonging and confident stewardship of the home base can develop.",
+      "difficult_expression": "Family ego conflicts or retreat into a private identity can limit wider participation.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013",
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Moon:ASC": {
+      "summary": "Moon on the ASC makes emotion, care, and instinct highly visible in the body and personal style.",
+      "supportive_expression": "Intuition, responsiveness, and an approachable presence can deepen.",
+      "difficult_expression": "Mood reactivity, dependency, or over-identification with immediate feelings can unsettle the self.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013",
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Moon:DSC": {
+      "summary": "Moon on the DSC brings emotional needs, care, and belonging into partnerships and public encounters.",
+      "supportive_expression": "Supportive bonds, family-like alliances, and mutual responsiveness can form.",
+      "difficult_expression": "Dependency, projection, or volatile relational patterns can become difficult to contain.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013",
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Moon:MC": {
+      "summary": "Moon on the MC places care, receptivity, and changing public needs at the center of vocation and reputation.",
+      "supportive_expression": "Public rapport, service, and work with families or communities can flourish.",
+      "difficult_expression": "Reputation may fluctuate with moods or changing audiences, and emotional labor can become excessive.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013",
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Moon:IC": {
+      "summary": "Moon on the IC concentrates belonging, memory, care, and family life in the private foundation.",
+      "supportive_expression": "Nesting, kinship, emotional restoration, and attachment to place can strengthen.",
+      "difficult_expression": "Family entanglement, dependency, or a moody home atmosphere can make separation and perspective harder.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013",
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Mercury:ASC": {
+      "summary": "Mercury on the ASC makes curiosity, language, mobility, and exchange central to personal expression.",
+      "supportive_expression": "Learning, writing, networking, and adaptable self-presentation can accelerate.",
+      "difficult_expression": "Nervousness, scattered focus, or constant motion can weaken continuity.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013",
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Mercury:DSC": {
+      "summary": "Mercury on the DSC channels communication, trade, and analysis through partners, clients, and negotiations.",
+      "supportive_expression": "Client work, contracts, dialogue, and intellectually lively alliances can thrive.",
+      "difficult_expression": "Argument, over-analysis, or unreliable agreements can keep relationships unsettled.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013",
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Mercury:MC": {
+      "summary": "Mercury on the MC directs communication, learning, trade, and analysis into career and public reputation.",
+      "supportive_expression": "Writing, teaching, sales, media, and versatile professional roles can advance.",
+      "difficult_expression": "Overextension, career restlessness, or a fragmented public message can undermine authority.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013",
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Mercury:IC": {
+      "summary": "Mercury on the IC brings mental activity, exchange, and movement into home, roots, and family life.",
+      "supportive_expression": "Home study, writing, family dialogue, and a flexible base can be productive.",
+      "difficult_expression": "Frequent moves, nervous domestic routines, or too much analysis can make the base hard to settle into.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013",
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Venus:ASC": {
+      "summary": "Venus on the ASC makes harmony, beauty, attraction, and diplomacy part of the visible personal style.",
+      "supportive_expression": "Social ease, artistic expression, and a gracious presence can draw support.",
+      "difficult_expression": "Passivity, indulgence, or dependence on appearance and approval can dilute agency.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013",
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Venus:DSC": {
+      "summary": "Venus on the DSC brings love, harmony, pleasure, and aesthetics into partnership and client relationships.",
+      "supportive_expression": "Romance, diplomacy, collaboration, and mutually enjoyable alliances can flourish.",
+      "difficult_expression": "People-pleasing, dependency, or avoidance of necessary conflict can weaken agreements.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013",
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Venus:MC": {
+      "summary": "Venus on the MC directs aesthetics, diplomacy, attraction, and social grace toward career and reputation.",
+      "supportive_expression": "Art, design, mediation, public relations, and well-received work can prosper.",
+      "difficult_expression": "Popularity seeking, complacency, or tying reputation too closely to approval can limit substance.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013",
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Venus:IC": {
+      "summary": "Venus on the IC brings affection, beauty, comfort, and harmony into home, roots, and private life.",
+      "supportive_expression": "A hospitable, restorative, and aesthetically satisfying base can develop.",
+      "difficult_expression": "Luxury costs, passivity, or smoothing over unresolved family issues can weaken the foundation.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013",
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Mars:ASC": {
+      "summary": "Mars on the ASC makes drive, heat, courage, and assertion immediate in the body and personal style.",
+      "supportive_expression": "Initiative, physical momentum, and the courage to act independently can intensify.",
+      "difficult_expression": "Irritability, haste, conflict, or accident-prone overexertion can accompany constant activation.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013",
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Mars:DSC": {
+      "summary": "Mars on the DSC brings assertion, competition, and heat through partners, clients, allies, and opponents.",
+      "supportive_expression": "Direct negotiation, energetic teamwork, and decisive partnerships can move quickly.",
+      "difficult_expression": "Disputes, rivalry, hostility, or projecting anger onto others can dominate encounters.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013",
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Mars:MC": {
+      "summary": "Mars on the MC directs ambition, action, courage, and competition toward career and public outcomes.",
+      "supportive_expression": "Entrepreneurial momentum, leadership, and decisive professional action can accelerate.",
+      "difficult_expression": "Career conflict, burnout, or an impulsive public reputation can undermine durable progress.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013",
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Mars:IC": {
+      "summary": "Mars on the IC concentrates drive and heat in home, roots, family, and private foundations, making the base active rather than restful.",
+      "supportive_expression": "Decisive changes, building, repair, and firmer household boundaries can be supported.",
+      "difficult_expression": "Restlessness, domestic abrasion, family conflict, or an inability to settle can exhaust the private base.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013",
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Jupiter:ASC": {
+      "summary": "Jupiter on the ASC makes growth, optimism, meaning, and opportunity part of personal expression.",
+      "supportive_expression": "Confidence, teaching, travel, and an expansive sense of possibility can develop.",
+      "difficult_expression": "Excess, self-righteousness, or over-promising can make personal growth unsustainable.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013",
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Jupiter:DSC": {
+      "summary": "Jupiter on the DSC brings growth, opportunity, and meaning through partners, advisers, and clients.",
+      "supportive_expression": "Benefactors, international alliances, teaching relationships, and generous collaboration can appear.",
+      "difficult_expression": "Over-trust, inflated promises, or reliance on another person's luck can obscure practical limits.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013",
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Jupiter:MC": {
+      "summary": "Jupiter on the MC directs expansion, opportunity, teaching, and meaning toward career and public status.",
+      "supportive_expression": "Professional growth, leadership, recognition, and educational or international work can prosper.",
+      "difficult_expression": "Overreach, complacency, or an inflated public standing can outpace real capacity.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013",
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Jupiter:IC": {
+      "summary": "Jupiter on the IC expands home, roots, family, and the material or emotional base.",
+      "supportive_expression": "A generous, spacious, hospitable, and supportive foundation can grow.",
+      "difficult_expression": "Property costs, family excess, or expansion that repeatedly uproots the household can become burdensome.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013",
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Saturn:ASC": {
+      "summary": "Saturn on the ASC makes duty, realism, restraint, and structure central to personal expression.",
+      "supportive_expression": "Discipline, boundaries, endurance, and mature self-command can strengthen.",
+      "difficult_expression": "Heaviness, isolation, harsh self-judgment, or excessive restraint can narrow life.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013",
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Saturn:DSC": {
+      "summary": "Saturn on the DSC brings commitment, limits, duty, and testing through partners and contracts.",
+      "supportive_expression": "Durable agreements, loyalty, accountability, and serious alliances can form.",
+      "difficult_expression": "Coldness, delay, controlling ties, or carrying another person's burdens can restrict relationship life.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013",
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Saturn:MC": {
+      "summary": "Saturn on the MC directs responsibility, structure, realism, and mastery toward career and reputation.",
+      "supportive_expression": "Authority, long-term achievement, disciplined leadership, and earned credibility can develop.",
+      "difficult_expression": "Delay, status rigidity, work pressure, or professional isolation can make success feel heavy.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013",
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Saturn:IC": {
+      "summary": "Saturn on the IC places duty, limits, and structure in home, roots, family, and private foundations.",
+      "supportive_expression": "A durable base, property stewardship, and dependable family responsibilities can be built.",
+      "difficult_expression": "Loneliness, domestic restriction, inherited burdens, or slow settlement can weigh on private life.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013",
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Uranus:ASC": {
+      "summary": "Uranus on the ASC makes freedom, disruption, originality, and reinvention central to identity.",
+      "supportive_expression": "Independence, experimentation, and a liberating new personal direction can emerge.",
+      "difficult_expression": "Nervousness, abrupt changes, or instability can make identity and routines difficult to sustain.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013",
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Uranus:DSC": {
+      "summary": "Uranus on the DSC brings freedom, surprise, and unconventional patterns through partners and clients.",
+      "supportive_expression": "Stimulating networks, non-traditional bonds, and inventive collaboration can form.",
+      "difficult_expression": "Unreliable ties, abrupt separations, or shocks through others can destabilize agreements.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013",
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Uranus:MC": {
+      "summary": "Uranus on the MC directs innovation, independence, and disruption toward career and public role.",
+      "supportive_expression": "Technology, reform, breakthrough work, and an original reputation can advance.",
+      "difficult_expression": "Abrupt career changes, authority conflict, or public volatility can erode continuity.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013",
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Uranus:IC": {
+      "summary": "Uranus on the IC brings freedom, disruption, and reinvention into home, roots, and private foundations.",
+      "supportive_expression": "Independent living, fresh domestic arrangements, and release from stale family patterns can develop.",
+      "difficult_expression": "Sudden moves, domestic unrest, or difficulty putting down roots can prevent a stable refuge.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013",
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Neptune:ASC": {
+      "summary": "Neptune on the ASC makes sensitivity, imagination, spirituality, and permeability visible in identity.",
+      "supportive_expression": "Artistry, empathy, inspiration, and contemplative self-expression can deepen.",
+      "difficult_expression": "Blurred identity, projection, confusion, or escapism can make boundaries difficult to hold.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Neptune:DSC": {
+      "summary": "Neptune on the DSC brings idealization, compassion, imagination, and uncertainty through relationships.",
+      "supportive_expression": "Creative, spiritual, or deeply empathic bonds can form.",
+      "difficult_expression": "Deception, savior-victim dynamics, projection, or weak boundaries can obscure who the other person is.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Neptune:MC": {
+      "summary": "Neptune on the MC directs vision, imagination, compassion, and ambiguity toward vocation and reputation.",
+      "supportive_expression": "Art, spiritual service, healing work, and inspired public contribution can flourish.",
+      "difficult_expression": "Unclear career direction, reputation confusion, exploitation, or impractical promises can undermine results.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Neptune:IC": {
+      "summary": "Neptune on the IC makes home, roots, family, and livelihood foundations more sensitive, imaginative, and porous.",
+      "supportive_expression": "A creative, spiritual, compassionate, or retreat-like private base can develop.",
+      "difficult_expression": "Unreliable foundations, secrecy, false hope, or weak material due diligence can make home and livelihood unstable.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018",
+          "acg-src-furst-best-places-2015.page-0055"
+        ]
+      }
+    },
+    "Pluto:ASC": {
+      "summary": "Pluto on the ASC makes intensity, power, regeneration, and self-confrontation central to identity.",
+      "supportive_expression": "Self-mastery, strategic courage, and profound personal reinvention can develop.",
+      "difficult_expression": "Obsession, control, crisis, or an intimidating impact can make ordinary self-expression difficult.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013",
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Pluto:DSC": {
+      "summary": "Pluto on the DSC brings power, intensity, and transformation through partners, clients, and adversaries.",
+      "supportive_expression": "Deep honesty, consequential alliances, and transformative collaboration can emerge.",
+      "difficult_expression": "Coercion, jealousy, manipulation, or power struggles can consume relationships.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013",
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Pluto:MC": {
+      "summary": "Pluto on the MC directs power, strategy, regeneration, and transformation toward career and reputation.",
+      "supportive_expression": "Influence, reform, crisis leadership, and strategic professional renewal can grow.",
+      "difficult_expression": "Public power struggles, compulsion, or extreme reputation shifts can overwhelm the original goal.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013",
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Pluto:IC": {
+      "summary": "Pluto on the IC concentrates ancestral, psychological, and power themes in home, roots, and private foundations.",
+      "supportive_expression": "Deep family repair, reclamation of the base, and private regeneration can occur.",
+      "difficult_expression": "Hidden conflict, control, obsession, or upheaval at home can make the foundation intense rather than restful.",
+      "doctrine_scope": "core_planet_line",
+      "model_status": "doctrine_synthesis",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-lewis-guttman-1989.page-0013",
+          "acg-src-lewis-guttman-1989.page-0014",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "North Node:ASC": {
+      "summary": "North Node on the ASC is a secondary locational variant that links group relationships and developmental pull with personal direction.",
+      "supportive_expression": "Future-facing participation, new networks, and a fresh way of presenting oneself can be explored.",
+      "difficult_expression": "Treating every identity shift as destined can overstate this non-planetary extension.",
+      "doctrine_scope": "secondary_extension",
+      "model_status": "experimental_extension",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-furst-best-places-2015.page-0059",
+          "acg-src-furst-best-places-2015.page-0060",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "North Node:DSC": {
+      "summary": "North Node on the DSC is a secondary variant that brings group relationships and developmental pull through partners and contacts.",
+      "supportive_expression": "Meaningful networks, collaboration, and introductions to new communities can develop.",
+      "difficult_expression": "Over-reading contacts as fated or depending on group approval can distort relationship judgment.",
+      "doctrine_scope": "secondary_extension",
+      "model_status": "experimental_extension",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-furst-best-places-2015.page-0059",
+          "acg-src-furst-best-places-2015.page-0060",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "North Node:MC": {
+      "summary": "North Node on the MC is a secondary variant that connects group relationships and developmental pull with public direction.",
+      "supportive_expression": "Networks, community contribution, and a future-facing public role can grow.",
+      "difficult_expression": "Claiming career destiny without natal context can give this extension more certainty than its sources support.",
+      "doctrine_scope": "secondary_extension",
+      "model_status": "experimental_extension",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-furst-best-places-2015.page-0059",
+          "acg-src-furst-best-places-2015.page-0060",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "North Node:IC": {
+      "summary": "North Node on the IC is a secondary variant that brings developmental and group themes into home, ancestry, and belonging.",
+      "supportive_expression": "A new community, chosen family, or future-facing home base can be explored.",
+      "difficult_expression": "Forced fate narratives or group expectations can displace practical family and housing realities.",
+      "doctrine_scope": "secondary_extension",
+      "model_status": "experimental_extension",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-furst-best-places-2015.page-0059",
+          "acg-src-furst-best-places-2015.page-0060",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Chiron:ASC": {
+      "summary": "Chiron on the ASC is a secondary locational variant that makes wounds, unutilized gifts, and teaching through pain visible in identity.",
+      "supportive_expression": "Self-knowledge, mentoring, and integration of a previously neglected gift can develop.",
+      "difficult_expression": "Public vulnerability, reopened pain, or identifying mainly with woundedness can narrow the self.",
+      "doctrine_scope": "secondary_extension",
+      "model_status": "experimental_extension",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-furst-best-places-2015.page-0121",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Chiron:DSC": {
+      "summary": "Chiron on the DSC is a secondary variant that brings wounding, repair, and mentoring through partnerships.",
+      "supportive_expression": "Therapeutic alliances, empathy, and mutual learning can deepen.",
+      "difficult_expression": "Rescuer-victim patterns or repeated relational hurt can reopen what the bond was meant to integrate.",
+      "doctrine_scope": "secondary_extension",
+      "model_status": "experimental_extension",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-furst-best-places-2015.page-0121",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Chiron:MC": {
+      "summary": "Chiron on the MC is a secondary variant that directs wounded knowledge, teaching, and integration toward vocation and reputation.",
+      "supportive_expression": "Mentoring, counseling, teaching, and public use of hard-earned insight can grow.",
+      "difficult_expression": "Public exposure of pain or building a role entirely around injury can become limiting.",
+      "doctrine_scope": "secondary_extension",
+      "model_status": "experimental_extension",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-furst-best-places-2015.page-0121",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
+      }
+    },
+    "Chiron:IC": {
+      "summary": "Chiron on the IC is a secondary variant that locates wounds, unutilized gifts, and repair in family, roots, and the private base.",
+      "supportive_expression": "Ancestral repair, a restorative home, and teaching from lived experience can develop.",
+      "difficult_expression": "Reopened family pain, caretaker burdens, or difficulty feeling at home can keep the foundation tender.",
+      "doctrine_scope": "secondary_extension",
+      "model_status": "experimental_extension",
+      "source_ref": {
+        "file": "horary_knowledge/astrocartography_knowledge_base/reference/02_planetary_and_angular_reference.md",
+        "section": "Explicit Planet-By-Angle Matrix",
+        "claim_id": "acg-claim-explicit-planet-angle-matrix",
+        "claim_classification": "synthesis",
+        "page_ids": [
+          "acg-src-furst-best-places-2015.page-0121",
+          "acg-src-furst-best-places-2015.page-0018"
+        ]
       }
     }
   }

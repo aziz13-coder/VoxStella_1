@@ -483,6 +483,391 @@ def write_book_guide(book: BookSpec, raw_text: str, destination: Path) -> dict[s
     }
 
 
+_PLANET_ANGLE_MATRIX_ROWS = (
+    (
+        "Sun",
+        "ASC",
+        "Sun on the ASC brings identity, vitality, and purpose into direct personal expression.",
+        "Confidence, autonomy, and visible leadership can become easier to embody.",
+        "Self-focus, ego inflation, or pressure to perform can crowd out receptivity.",
+    ),
+    (
+        "Sun",
+        "DSC",
+        "Sun on the DSC brings identity and recognition into partnerships, clients, and encounters with others.",
+        "Significant alliances and visibility through collaboration can develop.",
+        "Competition, projection, or dependence on another person's validation can dominate relationships.",
+    ),
+    (
+        "Sun",
+        "MC",
+        "Sun on the MC directs purpose and vitality toward vocation, reputation, and public contribution.",
+        "Leadership, recognition, and a clearer sense of calling can grow.",
+        "Status pressure, overexposure, or public ego conflicts can become draining.",
+    ),
+    (
+        "Sun",
+        "IC",
+        "Sun on the IC anchors identity and purpose in home, roots, family, and private foundations.",
+        "A stronger sense of belonging and confident stewardship of the home base can develop.",
+        "Family ego conflicts or retreat into a private identity can limit wider participation.",
+    ),
+    (
+        "Moon",
+        "ASC",
+        "Moon on the ASC makes emotion, care, and instinct highly visible in the body and personal style.",
+        "Intuition, responsiveness, and an approachable presence can deepen.",
+        "Mood reactivity, dependency, or over-identification with immediate feelings can unsettle the self.",
+    ),
+    (
+        "Moon",
+        "DSC",
+        "Moon on the DSC brings emotional needs, care, and belonging into partnerships and public encounters.",
+        "Supportive bonds, family-like alliances, and mutual responsiveness can form.",
+        "Dependency, projection, or volatile relational patterns can become difficult to contain.",
+    ),
+    (
+        "Moon",
+        "MC",
+        "Moon on the MC places care, receptivity, and changing public needs at the center of vocation and reputation.",
+        "Public rapport, service, and work with families or communities can flourish.",
+        "Reputation may fluctuate with moods or changing audiences, and emotional labor can become excessive.",
+    ),
+    (
+        "Moon",
+        "IC",
+        "Moon on the IC concentrates belonging, memory, care, and family life in the private foundation.",
+        "Nesting, kinship, emotional restoration, and attachment to place can strengthen.",
+        "Family entanglement, dependency, or a moody home atmosphere can make separation and perspective harder.",
+    ),
+    (
+        "Mercury",
+        "ASC",
+        "Mercury on the ASC makes curiosity, language, mobility, and exchange central to personal expression.",
+        "Learning, writing, networking, and adaptable self-presentation can accelerate.",
+        "Nervousness, scattered focus, or constant motion can weaken continuity.",
+    ),
+    (
+        "Mercury",
+        "DSC",
+        "Mercury on the DSC channels communication, trade, and analysis through partners, clients, and negotiations.",
+        "Client work, contracts, dialogue, and intellectually lively alliances can thrive.",
+        "Argument, over-analysis, or unreliable agreements can keep relationships unsettled.",
+    ),
+    (
+        "Mercury",
+        "MC",
+        "Mercury on the MC directs communication, learning, trade, and analysis into career and public reputation.",
+        "Writing, teaching, sales, media, and versatile professional roles can advance.",
+        "Overextension, career restlessness, or a fragmented public message can undermine authority.",
+    ),
+    (
+        "Mercury",
+        "IC",
+        "Mercury on the IC brings mental activity, exchange, and movement into home, roots, and family life.",
+        "Home study, writing, family dialogue, and a flexible base can be productive.",
+        "Frequent moves, nervous domestic routines, or too much analysis can make the base hard to settle into.",
+    ),
+    (
+        "Venus",
+        "ASC",
+        "Venus on the ASC makes harmony, beauty, attraction, and diplomacy part of the visible personal style.",
+        "Social ease, artistic expression, and a gracious presence can draw support.",
+        "Passivity, indulgence, or dependence on appearance and approval can dilute agency.",
+    ),
+    (
+        "Venus",
+        "DSC",
+        "Venus on the DSC brings love, harmony, pleasure, and aesthetics into partnership and client relationships.",
+        "Romance, diplomacy, collaboration, and mutually enjoyable alliances can flourish.",
+        "People-pleasing, dependency, or avoidance of necessary conflict can weaken agreements.",
+    ),
+    (
+        "Venus",
+        "MC",
+        "Venus on the MC directs aesthetics, diplomacy, attraction, and social grace toward career and reputation.",
+        "Art, design, mediation, public relations, and well-received work can prosper.",
+        "Popularity seeking, complacency, or tying reputation too closely to approval can limit substance.",
+    ),
+    (
+        "Venus",
+        "IC",
+        "Venus on the IC brings affection, beauty, comfort, and harmony into home, roots, and private life.",
+        "A hospitable, restorative, and aesthetically satisfying base can develop.",
+        "Luxury costs, passivity, or smoothing over unresolved family issues can weaken the foundation.",
+    ),
+    (
+        "Mars",
+        "ASC",
+        "Mars on the ASC makes drive, heat, courage, and assertion immediate in the body and personal style.",
+        "Initiative, physical momentum, and the courage to act independently can intensify.",
+        "Irritability, haste, conflict, or accident-prone overexertion can accompany constant activation.",
+    ),
+    (
+        "Mars",
+        "DSC",
+        "Mars on the DSC brings assertion, competition, and heat through partners, clients, allies, and opponents.",
+        "Direct negotiation, energetic teamwork, and decisive partnerships can move quickly.",
+        "Disputes, rivalry, hostility, or projecting anger onto others can dominate encounters.",
+    ),
+    (
+        "Mars",
+        "MC",
+        "Mars on the MC directs ambition, action, courage, and competition toward career and public outcomes.",
+        "Entrepreneurial momentum, leadership, and decisive professional action can accelerate.",
+        "Career conflict, burnout, or an impulsive public reputation can undermine durable progress.",
+    ),
+    (
+        "Mars",
+        "IC",
+        "Mars on the IC concentrates drive and heat in home, roots, family, and private foundations, making the base active rather than restful.",
+        "Decisive changes, building, repair, and firmer household boundaries can be supported.",
+        "Restlessness, domestic abrasion, family conflict, or an inability to settle can exhaust the private base.",
+    ),
+    (
+        "Jupiter",
+        "ASC",
+        "Jupiter on the ASC makes growth, optimism, meaning, and opportunity part of personal expression.",
+        "Confidence, teaching, travel, and an expansive sense of possibility can develop.",
+        "Excess, self-righteousness, or over-promising can make personal growth unsustainable.",
+    ),
+    (
+        "Jupiter",
+        "DSC",
+        "Jupiter on the DSC brings growth, opportunity, and meaning through partners, advisers, and clients.",
+        "Benefactors, international alliances, teaching relationships, and generous collaboration can appear.",
+        "Over-trust, inflated promises, or reliance on another person's luck can obscure practical limits.",
+    ),
+    (
+        "Jupiter",
+        "MC",
+        "Jupiter on the MC directs expansion, opportunity, teaching, and meaning toward career and public status.",
+        "Professional growth, leadership, recognition, and educational or international work can prosper.",
+        "Overreach, complacency, or an inflated public standing can outpace real capacity.",
+    ),
+    (
+        "Jupiter",
+        "IC",
+        "Jupiter on the IC expands home, roots, family, and the material or emotional base.",
+        "A generous, spacious, hospitable, and supportive foundation can grow.",
+        "Property costs, family excess, or expansion that repeatedly uproots the household can become burdensome.",
+    ),
+    (
+        "Saturn",
+        "ASC",
+        "Saturn on the ASC makes duty, realism, restraint, and structure central to personal expression.",
+        "Discipline, boundaries, endurance, and mature self-command can strengthen.",
+        "Heaviness, isolation, harsh self-judgment, or excessive restraint can narrow life.",
+    ),
+    (
+        "Saturn",
+        "DSC",
+        "Saturn on the DSC brings commitment, limits, duty, and testing through partners and contracts.",
+        "Durable agreements, loyalty, accountability, and serious alliances can form.",
+        "Coldness, delay, controlling ties, or carrying another person's burdens can restrict relationship life.",
+    ),
+    (
+        "Saturn",
+        "MC",
+        "Saturn on the MC directs responsibility, structure, realism, and mastery toward career and reputation.",
+        "Authority, long-term achievement, disciplined leadership, and earned credibility can develop.",
+        "Delay, status rigidity, work pressure, or professional isolation can make success feel heavy.",
+    ),
+    (
+        "Saturn",
+        "IC",
+        "Saturn on the IC places duty, limits, and structure in home, roots, family, and private foundations.",
+        "A durable base, property stewardship, and dependable family responsibilities can be built.",
+        "Loneliness, domestic restriction, inherited burdens, or slow settlement can weigh on private life.",
+    ),
+    (
+        "Uranus",
+        "ASC",
+        "Uranus on the ASC makes freedom, disruption, originality, and reinvention central to identity.",
+        "Independence, experimentation, and a liberating new personal direction can emerge.",
+        "Nervousness, abrupt changes, or instability can make identity and routines difficult to sustain.",
+    ),
+    (
+        "Uranus",
+        "DSC",
+        "Uranus on the DSC brings freedom, surprise, and unconventional patterns through partners and clients.",
+        "Stimulating networks, non-traditional bonds, and inventive collaboration can form.",
+        "Unreliable ties, abrupt separations, or shocks through others can destabilize agreements.",
+    ),
+    (
+        "Uranus",
+        "MC",
+        "Uranus on the MC directs innovation, independence, and disruption toward career and public role.",
+        "Technology, reform, breakthrough work, and an original reputation can advance.",
+        "Abrupt career changes, authority conflict, or public volatility can erode continuity.",
+    ),
+    (
+        "Uranus",
+        "IC",
+        "Uranus on the IC brings freedom, disruption, and reinvention into home, roots, and private foundations.",
+        "Independent living, fresh domestic arrangements, and release from stale family patterns can develop.",
+        "Sudden moves, domestic unrest, or difficulty putting down roots can prevent a stable refuge.",
+    ),
+    (
+        "Neptune",
+        "ASC",
+        "Neptune on the ASC makes sensitivity, imagination, spirituality, and permeability visible in identity.",
+        "Artistry, empathy, inspiration, and contemplative self-expression can deepen.",
+        "Blurred identity, projection, confusion, or escapism can make boundaries difficult to hold.",
+    ),
+    (
+        "Neptune",
+        "DSC",
+        "Neptune on the DSC brings idealization, compassion, imagination, and uncertainty through relationships.",
+        "Creative, spiritual, or deeply empathic bonds can form.",
+        "Deception, savior-victim dynamics, projection, or weak boundaries can obscure who the other person is.",
+    ),
+    (
+        "Neptune",
+        "MC",
+        "Neptune on the MC directs vision, imagination, compassion, and ambiguity toward vocation and reputation.",
+        "Art, spiritual service, healing work, and inspired public contribution can flourish.",
+        "Unclear career direction, reputation confusion, exploitation, or impractical promises can undermine results.",
+    ),
+    (
+        "Neptune",
+        "IC",
+        "Neptune on the IC makes home, roots, family, and livelihood foundations more sensitive, imaginative, and porous.",
+        "A creative, spiritual, compassionate, or retreat-like private base can develop.",
+        "Unreliable foundations, secrecy, false hope, or weak material due diligence can make home and livelihood unstable.",
+    ),
+    (
+        "Pluto",
+        "ASC",
+        "Pluto on the ASC makes intensity, power, regeneration, and self-confrontation central to identity.",
+        "Self-mastery, strategic courage, and profound personal reinvention can develop.",
+        "Obsession, control, crisis, or an intimidating impact can make ordinary self-expression difficult.",
+    ),
+    (
+        "Pluto",
+        "DSC",
+        "Pluto on the DSC brings power, intensity, and transformation through partners, clients, and adversaries.",
+        "Deep honesty, consequential alliances, and transformative collaboration can emerge.",
+        "Coercion, jealousy, manipulation, or power struggles can consume relationships.",
+    ),
+    (
+        "Pluto",
+        "MC",
+        "Pluto on the MC directs power, strategy, regeneration, and transformation toward career and reputation.",
+        "Influence, reform, crisis leadership, and strategic professional renewal can grow.",
+        "Public power struggles, compulsion, or extreme reputation shifts can overwhelm the original goal.",
+    ),
+    (
+        "Pluto",
+        "IC",
+        "Pluto on the IC concentrates ancestral, psychological, and power themes in home, roots, and private foundations.",
+        "Deep family repair, reclamation of the base, and private regeneration can occur.",
+        "Hidden conflict, control, obsession, or upheaval at home can make the foundation intense rather than restful.",
+    ),
+    (
+        "North Node",
+        "ASC",
+        "North Node on the ASC is a secondary locational variant that links group relationships and developmental pull with personal direction.",
+        "Future-facing participation, new networks, and a fresh way of presenting oneself can be explored.",
+        "Treating every identity shift as destined can overstate this non-planetary extension.",
+    ),
+    (
+        "North Node",
+        "DSC",
+        "North Node on the DSC is a secondary variant that brings group relationships and developmental pull through partners and contacts.",
+        "Meaningful networks, collaboration, and introductions to new communities can develop.",
+        "Over-reading contacts as fated or depending on group approval can distort relationship judgment.",
+    ),
+    (
+        "North Node",
+        "MC",
+        "North Node on the MC is a secondary variant that connects group relationships and developmental pull with public direction.",
+        "Networks, community contribution, and a future-facing public role can grow.",
+        "Claiming career destiny without natal context can give this extension more certainty than its sources support.",
+    ),
+    (
+        "North Node",
+        "IC",
+        "North Node on the IC is a secondary variant that brings developmental and group themes into home, ancestry, and belonging.",
+        "A new community, chosen family, or future-facing home base can be explored.",
+        "Forced fate narratives or group expectations can displace practical family and housing realities.",
+    ),
+    (
+        "Chiron",
+        "ASC",
+        "Chiron on the ASC is a secondary locational variant that makes wounds, unutilized gifts, and teaching through pain visible in identity.",
+        "Self-knowledge, mentoring, and integration of a previously neglected gift can develop.",
+        "Public vulnerability, reopened pain, or identifying mainly with woundedness can narrow the self.",
+    ),
+    (
+        "Chiron",
+        "DSC",
+        "Chiron on the DSC is a secondary variant that brings wounding, repair, and mentoring through partnerships.",
+        "Therapeutic alliances, empathy, and mutual learning can deepen.",
+        "Rescuer-victim patterns or repeated relational hurt can reopen what the bond was meant to integrate.",
+    ),
+    (
+        "Chiron",
+        "MC",
+        "Chiron on the MC is a secondary variant that directs wounded knowledge, teaching, and integration toward vocation and reputation.",
+        "Mentoring, counseling, teaching, and public use of hard-earned insight can grow.",
+        "Public exposure of pain or building a role entirely around injury can become limiting.",
+    ),
+    (
+        "Chiron",
+        "IC",
+        "Chiron on the IC is a secondary variant that locates wounds, unutilized gifts, and repair in family, roots, and the private base.",
+        "Ancestral repair, a restorative home, and teaching from lived experience can develop.",
+        "Reopened family pain, caretaker burdens, or difficulty feeling at home can keep the foundation tender.",
+    ),
+)
+
+
+def _planet_angle_matrix_source_refs(body: str, angle: str) -> str:
+    if body == "North Node":
+        return (
+            "`acg-src-furst-best-places-2015.page-0059`; "
+            "`acg-src-furst-best-places-2015.page-0060`; "
+            "`acg-src-furst-best-places-2015.page-0018`"
+        )
+    if body == "Chiron":
+        return (
+            "`acg-src-furst-best-places-2015.page-0121`; "
+            "`acg-src-furst-best-places-2015.page-0018`"
+        )
+    if body == "Neptune" and angle == "IC":
+        return (
+            "`acg-src-lewis-guttman-1989.page-0014`; "
+            "`acg-src-furst-best-places-2015.page-0018`; "
+            "`acg-src-furst-best-places-2015.page-0055`"
+        )
+    if body == "Neptune":
+        return (
+            "`acg-src-lewis-guttman-1989.page-0014`; "
+            "`acg-src-furst-best-places-2015.page-0018`"
+        )
+    return (
+        "`acg-src-lewis-guttman-1989.page-0013`; "
+        "`acg-src-lewis-guttman-1989.page-0014`; "
+        "`acg-src-furst-best-places-2015.page-0018`"
+    )
+
+
+def _render_planet_angle_matrix() -> str:
+    lines = [
+        "| Body | Angle | Summary | Supportive expression | Difficult expression | Classification | Source refs |",
+        "| --- | --- | --- | --- | --- | --- | --- |",
+    ]
+    lines.extend(
+        (
+            f"| {body} | {angle} | {summary} | {supportive} | {difficult} | "
+            f"synthesis | {_planet_angle_matrix_source_refs(body, angle)} |"
+        )
+        for body, angle, summary, supportive, difficult in _PLANET_ANGLE_MATRIX_ROWS
+    )
+    return "\n".join(lines)
+
+
 REFERENCE_DOCS = {
     "00_source_governance.md": dedent(
         """
@@ -594,9 +979,13 @@ REFERENCE_DOCS = {
         | MC | career, reputation, social role, public outcomes | how I am classified publicly here | synthesis | `acg-src-lewis-guttman-1989.page-0014`; `acg-src-furst-best-places-2015.page-0018` |
         | IC | home, roots, family, livelihood foundation | what supports or unsettles my base here | synthesis | `acg-src-lewis-guttman-1989.page-0014`; `acg-src-furst-best-places-2015.page-0018` |
 
+        ## Explicit Planet-By-Angle Matrix
+
+        {{PLANET_ANGLE_MATRIX}}
+
         ## Interpretation Rule
 
-        Generate or curate an explicit planet-by-angle matrix with both supportive and difficult expressions. A generic planet paragraph plus a generic angle suffix is only a fallback summary, not a source-exact interpretation. (`synthesis`; `acg-claim-explicit-planet-angle-matrix`)
+        Use the explicit matrix above for every supported body-and-angle combination. A generic planet paragraph plus a generic angle suffix is only a fallback for an unsupported extension, never for a canonical combination. (`synthesis`; `acg-claim-explicit-planet-angle-matrix`)
         """
     ).strip()
     + "\n",
@@ -752,6 +1141,10 @@ REFERENCE_DOCS = {
     ).strip()
     + "\n",
 }
+
+REFERENCE_DOCS["02_planetary_and_angular_reference.md"] = REFERENCE_DOCS[
+    "02_planetary_and_angular_reference.md"
+].replace("{{PLANET_ANGLE_MATRIX}}", _render_planet_angle_matrix())
 
 
 def write_reference_docs(reference_dir: Path) -> None:

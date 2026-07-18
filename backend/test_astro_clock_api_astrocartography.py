@@ -75,6 +75,193 @@ def test_astrocartography_map_degrades_when_global_parans_fail(monkeypatch):
     assert payload["data"]["map"]["global_parans"]["degraded"] is True
 
 
+def test_astrocartography_map_exposes_extended_body_provenance(monkeypatch):
+    client = app_module.app.test_client()
+
+    monkeypatch.setattr(
+        astro_clock_api,
+        "_natal_bundle_from_query",
+        lambda args: {
+            "meta": {
+                "timestamp": "2000-02-29T11:34:00Z",
+                "birth_time": {
+                    "status": "externally_certified",
+                    "confidence": "certified",
+                    "ranking_eligible": True,
+                },
+            }
+        },
+    )
+    monkeypatch.setattr(
+        astro_clock_api,
+        "_transit_bundle_from_query",
+        lambda args, natal_meta=None: None,
+    )
+    monkeypatch.setattr(
+        astrocartography_service,
+        "build_global_paran_tracks",
+        lambda *args, **kwargs: {
+            "track_count": 0,
+            "tracks": [],
+            "degraded": False,
+        },
+    )
+
+    response = client.get(
+        "/api/astro-clock/astrocartography/map"
+        "?body=North%20Node&body=Chiron&angle=MC"
+    )
+    data = response.get_json()["data"]
+    body_sources = data["calculation"]["natal"]["body_sources"]
+
+    assert response.status_code == 200
+    assert body_sources["North Node"]["node_type"] == "mean_node"
+    assert body_sources["North Node"]["node_polarity"] == "ascending"
+    assert body_sources["North Node"]["extension_status"] == "experimental"
+    assert body_sources["North Node"]["astrocartography_scope"] == (
+        "experimental_extension"
+    )
+    assert body_sources["Chiron"]["object_type"] == "centaur"
+    assert body_sources["Chiron"]["extension_status"] == "experimental"
+    assert body_sources["Chiron"]["astrocartography_scope"] == (
+        "experimental_extension"
+    )
+
+    line_provenance = {
+        line["body"]: line["calculation_provenance"]
+        for line in data["map"]["natal_lines"]
+    }
+    assert line_provenance["North Node"]["node_type"] == "mean_node"
+    assert line_provenance["North Node"]["extension_status"] == "experimental"
+    assert line_provenance["Chiron"]["extension_status"] == "experimental"
+
+
+def test_astrocartography_map_exposes_sampled_birth_time_line_corridors(monkeypatch):
+    client = app_module.app.test_client()
+
+    monkeypatch.setattr(
+        astro_clock_api,
+        "_natal_bundle_from_query",
+        lambda args: {
+            "meta": {
+                "timestamp": "2000-02-29T12:34:00+01:00",
+                "birth_time": {
+                    "status": "user_entered_time",
+                    "confidence": "user_entered",
+                    "ranking_eligibility": "provisional",
+                    "ranking_eligible": True,
+                },
+            }
+        },
+    )
+    monkeypatch.setattr(
+        astro_clock_api,
+        "_transit_bundle_from_query",
+        lambda args, natal_meta=None: None,
+    )
+
+    def fake_lines(timestamp_iso, bodies=None, angles=None):
+        parsed = astro_clock_api._parse_iso_datetime(timestamp_iso)
+        center = astro_clock_api._parse_iso_datetime("2000-02-29T12:34:00+01:00")
+        delta_minutes = (parsed - center).total_seconds() / 60.0
+        longitude = delta_minutes * 0.25
+        return {
+            "timestamp": timestamp_iso,
+            "bodies": ["Moon"],
+            "angles": ["MC"],
+            "lines": [
+                {
+                    "id": "Moon:MC",
+                    "body": "Moon",
+                    "angle": "MC",
+                    "label": "Moon MC",
+                    "color": "#2563eb",
+                    "segments": [[[-89.0, longitude], [89.0, longitude]]],
+                    "geometry": {
+                        "substellar_longitude_deg": longitude,
+                    },
+                }
+            ],
+        }
+
+    monkeypatch.setattr(
+        astrocartography_service,
+        "build_astrocartography_lines",
+        fake_lines,
+    )
+    monkeypatch.setattr(
+        astrocartography_service,
+        "build_global_paran_tracks",
+        lambda *args, **kwargs: {
+            "track_count": 0,
+            "tracks": [],
+            "degraded": False,
+        },
+    )
+
+    response = client.get("/api/astro-clock/astrocartography/map")
+    payload = response.get_json()["data"]
+
+    assert response.status_code == 200
+    assert payload["birth_time_sampling"]["status"] == "ready"
+    corridor_payload = payload["map"]["natal_line_uncertainty"]
+    assert corridor_payload["status"] == "evaluated"
+    assert corridor_payload["sample_count"] == 2
+    assert corridor_payload["corridors"][0]["sampled_width_km_at_equator"] == pytest.approx(
+        277.9875,
+        abs=0.2,
+    )
+
+
+def test_synthetic_home_score_includes_extended_mars_ic_after_all_factors():
+    client = app_module.app.test_client()
+    response = client.get(
+        "/api/astro-clock/astrocartography/location",
+        query_string={
+            "natal_datetime": "2000-02-29T12:34:00",
+            "natal_location": "Paris, France",
+            "natal_timezone": "Europe/Paris",
+            "latitude": "48.85341",
+            "longitude": "2.3488",
+            "target_location": "Synthetic Ocean Probe",
+            "target_latitude": "0.0",
+            "target_longitude": "-136.61213",
+            "target_timezone": "UTC",
+            "house_system_code": "R",
+            "goal_id": "home",
+        },
+    )
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert payload["success"] is True
+    result = payload["data"]
+    assert result["natal"]["meta"]["timestamp"] == "2000-02-29T12:34:00+01:00"
+
+    score = result["location_score"]
+    mars = next(
+        item
+        for item in score["contributions"]
+        if (item.get("component") or {}).get("component_id") == "home.line.04"
+    )
+    assert mars["label"] == "Mars IC"
+    assert mars["distance_km"] == pytest.approx(357.0, abs=0.1)
+    assert mars["matched"]["zone"] == "extended"
+    assert mars["distance_policy"] == {
+        "profile": "standard",
+        "primary_max_km": 300.0,
+        "standard_max_km": 500.0,
+        "effective_max_km": 500.0,
+        "status": "included_extended",
+    }
+    assert mars["distance_factor"] == pytest.approx(0.286, abs=0.001)
+    assert mars["birth_time_factor"] == 0.8
+    assert mars["natal_condition"]["factor"] == pytest.approx(0.7215, abs=0.001)
+    assert mars["score"] == pytest.approx(-0.561, abs=0.002)
+    assert score["raw_score"] == pytest.approx(2.658, abs=0.01)
+    assert score["score"] == 56
+
+
 def test_astrocartography_atlas_search_async_session_returns_progress_and_result(monkeypatch):
     client = app_module.app.test_client()
     _clear_atlas_sessions()
@@ -333,7 +520,10 @@ def test_astrocartography_validation_errors_return_400():
     assert compare_response.status_code == 400
     assert compare_response.get_json()["error"] == "At least two target_location values are required"
     assert atlas_response.status_code == 400
-    assert atlas_response.get_json()["error"] == "goal_id is required"
+    assert atlas_response.get_json()["error"] == (
+        "goal_id is required for ranked atlas search; use the map or a "
+        "single-location reading for a neutral, unranked overview"
+    )
 
 
 def test_astrocartography_direct_goal_filter_validation_matches_atlas_contract():
@@ -627,7 +817,11 @@ def test_natal_snap_propagates_birth_time_certification_and_ranking_eligibility(
         },
     }
     monkeypatch.setattr(astro_clock_api, "_snaps", lambda: {"snap-1": snap})
-    monkeypatch.setattr(astro_clock_api, "_hydrate_snap_payload", lambda value: value)
+    monkeypatch.setattr(
+        astro_clock_api,
+        "_hydrate_snap_payload",
+        lambda value, **_kwargs: value,
+    )
     monkeypatch.setattr(
         astro_clock_api,
         "_compute_chart_bundle_for",

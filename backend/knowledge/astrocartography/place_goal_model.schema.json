@@ -313,7 +313,10 @@
       "additionalProperties": false,
       "required": [
         "primary_profile",
-        "sensitivity_profiles"
+        "sensitivity_profiles",
+        "profile_multipliers",
+        "primary_boundary_km",
+        "standard_cutoff_km"
       ],
       "properties": {
         "primary_profile": {
@@ -331,6 +334,36 @@
               "wide"
             ]
           }
+        },
+        "profile_multipliers": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "conservative",
+            "standard",
+            "wide"
+          ],
+          "properties": {
+            "conservative": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "standard": {
+              "const": 1.0
+            },
+            "wide": {
+              "type": "number",
+              "exclusiveMinimum": 1.0
+            }
+          }
+        },
+        "primary_boundary_km": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "standard_cutoff_km": {
+          "type": "number",
+          "exclusiveMinimum": 0
         },
         "note": {
           "type": "string"
@@ -434,9 +467,14 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
+        "primary_max_km",
         "max_km"
       ],
       "properties": {
+        "primary_max_km": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
         "max_km": {
           "type": "number",
           "exclusiveMinimum": 0

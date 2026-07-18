@@ -1,6 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, Compass, Copy, Download, History, RotateCcw, Save, Trash2 } from 'lucide-react';
 import { AstroClockAPI } from './api.mjs';
+import {
+  formatSavedSnapLabel,
+  getSavedSnapIneligibilityLabel,
+  getSavedSnapDateTimeParts,
+  getSavedSnapTimezoneLabel,
+  isSavedSnapCalculationEligible,
+} from './savedSnapViewModel.mjs';
 
 const PILLAR_ORDER = ['hour', 'day', 'month', 'year'];
 const PILLAR_LABELS = {
@@ -239,30 +246,13 @@ function getSnapMetaParts(snap) {
   const label = firstPresent(snap?.label, snap?.id, 'Untitled snap') || 'Untitled snap';
   const iso = firstPresent(snap?.effective_datetime, dashboard?.timestamp, snap?.datetime, snap?.timestamp);
   const location = firstPresent(snap?.location, dashboard?.location);
-  const timezone = firstPresent(snap?.timezone, dashboard?.timezone, snap?.timezone_label, dashboard?.timezone_label);
-  let datePart = '';
-  let timePart = '';
-  if (iso) {
-    try {
-      const parsed = new Date(iso);
-      datePart = new Intl.DateTimeFormat('en-GB', {
-        year: 'numeric',
-        month: 'short',
-        day: '2-digit',
-      }).format(parsed);
-      timePart = new Intl.DateTimeFormat('en-GB', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-      }).format(parsed);
-    } catch (_) {}
-  }
+  const timezone = getSavedSnapTimezoneLabel(snap);
+  const { datePart, timePart } = getSavedSnapDateTimeParts(snap);
   return { label, iso, datePart, timePart, location, timezone };
 }
 
 function formatSnapLabel(snap) {
-  const parts = getSnapMetaParts(snap);
-  return [parts.label, parts.datePart, parts.timePart, parts.location].filter(Boolean).join(' | ');
+  return formatSavedSnapLabel(snap);
 }
 
 function snapHasLongitude(snap) {
@@ -3809,6 +3799,10 @@ export default function ChineseAstrologyPage({
   }, []);
 
   const snapOptions = useMemo(() => (Array.isArray(snaps) ? snaps.filter((snap) => snap?.id) : []), [snaps]);
+  const eligibleSnapOptions = useMemo(
+    () => snapOptions.filter((snap) => isSavedSnapCalculationEligible(snap)),
+    [snapOptions],
+  );
   const selectedSnap = useMemo(
     () => snapOptions.find((snap) => String(snap?.id || '') === String(selectedSnapId || '')) || null,
     [snapOptions, selectedSnapId],
@@ -3845,8 +3839,9 @@ export default function ChineseAstrologyPage({
         if (refreshedItems) {
           setSnaps(refreshedItems);
           setSnapsLoaded(true);
-          setSelectedSnapId((current) => current || (refreshedItems.length ? String(refreshedItems[0].id || '') : ''));
-          if (refreshedItems.length) setSourceMode('snap');
+          const firstEligible = refreshedItems.find((snap) => isSavedSnapCalculationEligible(snap));
+          setSelectedSnapId((current) => current || String(firstEligible?.id || ''));
+          if (firstEligible) setSourceMode('snap');
           return;
         }
       }
@@ -3854,8 +3849,9 @@ export default function ChineseAstrologyPage({
       const items = res?.success ? (res.items || []) : [];
       setSnaps(items);
       setSnapsLoaded(true);
-      setSelectedSnapId((current) => current || (items.length ? String(items[0].id || '') : ''));
-      if (items.length) setSourceMode('snap');
+      const firstEligible = items.find((snap) => isSavedSnapCalculationEligible(snap));
+      setSelectedSnapId((current) => current || String(firstEligible?.id || ''));
+      if (firstEligible) setSourceMode('snap');
     } catch (err) {
       setError(String(err?.message || 'Failed to load saved snaps.'));
     } finally {
@@ -3864,6 +3860,11 @@ export default function ChineseAstrologyPage({
   }, [onRefreshSnaps]);
 
   const runBazi = useCallback(async () => {
+    if (sourceMode === 'snap' && !isSavedSnapCalculationEligible(selectedSnap)) {
+      setData(null);
+      setError('This saved chart needs context review. Correct it in Astro Clock and use the corrected copy.');
+      return;
+    }
     const requestId = baziRequestIdRef.current + 1;
     baziRequestIdRef.current = requestId;
     setLoading(true);
@@ -3920,12 +3921,24 @@ export default function ChineseAstrologyPage({
     manual.time,
     manual.timezone,
     selectedSnapId,
+    selectedSnap,
     sourceMode,
     useTrueSolarTime,
   ]);
 
   const runCompatibility = useCallback(async () => {
     if (!comparisonReady) return;
+    const comparisonSnap = snapOptions.find(
+      (snap) => String(snap?.id || '') === String(comparisonSnapId || ''),
+    );
+    if (!isSavedSnapCalculationEligible(selectedSnap) || !isSavedSnapCalculationEligible(comparisonSnap)) {
+      setCompatibilityData(null);
+      setCompatibilityProfiles(null);
+      setCompatibilityError(
+        'A selected saved chart needs context review. Correct it in Astro Clock and use the corrected copy.',
+      );
+      return;
+    }
     const requestId = compatibilityRequestIdRef.current + 1;
     compatibilityRequestIdRef.current = requestId;
     setCompatibilityLoading(true);
@@ -3964,7 +3977,7 @@ export default function ChineseAstrologyPage({
         setCompatibilityLoading(false);
       }
     }
-  }, [calculationSex, comparisonReady, comparisonSnapId, dayBoundaryRule, hourPillarVariant, luckDirectionRule, relationshipCalculationSex, relationshipContext, selectedSnapId, useTrueSolarTime]);
+  }, [calculationSex, comparisonReady, comparisonSnapId, dayBoundaryRule, hourPillarVariant, luckDirectionRule, relationshipCalculationSex, relationshipContext, selectedSnap, selectedSnapId, snapOptions, useTrueSolarTime]);
 
   const handleOracleLineChange = useCallback((index, value) => {
     setOracleManualLines((current) => current.map((line, lineIndex) => (lineIndex === index ? value : line)));
@@ -3998,28 +4011,34 @@ export default function ChineseAstrologyPage({
   }, [externalSnaps, externalSnapsLoaded]);
 
   useEffect(() => {
-    if (activeSnapId) {
+    const activeSnap = snapOptions.find(
+      (snap) => String(snap?.id || '') === String(activeSnapId || ''),
+    );
+    if (activeSnapId && activeSnap && isSavedSnapCalculationEligible(activeSnap)) {
       setSelectedSnapId(String(activeSnapId));
       setSourceMode('snap');
     }
-  }, [activeSnapId]);
+  }, [activeSnapId, snapOptions]);
 
   useEffect(() => {
-    if (!activeSnapId && !selectedSnapId && snapOptions.length) {
-      setSelectedSnapId(String(snapOptions[0].id || ''));
+    const selectedEligible = eligibleSnapOptions.some(
+      (snap) => String(snap?.id || '') === String(selectedSnapId || ''),
+    );
+    if (!selectedSnapId && eligibleSnapOptions.length) {
+      setSelectedSnapId(String(eligibleSnapOptions[0].id || ''));
       setSourceMode('snap');
     }
-    if (!activeSnapId && selectedSnapId && snapOptions.length && !snapOptions.some((snap) => String(snap?.id || '') === String(selectedSnapId))) {
-      setSelectedSnapId(String(snapOptions[0].id || ''));
+    if (selectedSnapId && !selectedEligible) {
+      setSelectedSnapId(String(eligibleSnapOptions[0]?.id || ''));
     }
-  }, [activeSnapId, selectedSnapId, snapOptions]);
+  }, [eligibleSnapOptions, selectedSnapId]);
 
   useEffect(() => {
     if (!comparisonSnapId) return;
-    if (!snapOptions.some((snap) => String(snap?.id || '') === String(comparisonSnapId))) {
+    if (!eligibleSnapOptions.some((snap) => String(snap?.id || '') === String(comparisonSnapId))) {
       setComparisonSnapId('');
     }
-  }, [comparisonSnapId, snapOptions]);
+  }, [comparisonSnapId, eligibleSnapOptions]);
 
   useEffect(() => {
     if (snapsLoaded || snapOptions.length || effectiveLoadingSnaps) return;
@@ -4225,10 +4244,13 @@ export default function ChineseAstrologyPage({
     setRelationshipContext(DEFAULT_PREFERENCES.relationshipContext);
     setSourceMode(DEFAULT_PREFERENCES.sourceMode);
     setUseTrueSolarTime(DEFAULT_PREFERENCES.useTrueSolarTime);
-    setSelectedSnapId(activeSnapId ? String(activeSnapId) : String(snapOptions[0]?.id || ''));
+    const activeEligible = eligibleSnapOptions.find(
+      (snap) => String(snap?.id || '') === String(activeSnapId || ''),
+    );
+    setSelectedSnapId(String(activeEligible?.id || eligibleSnapOptions[0]?.id || ''));
     setCopyStatus('Preferences reset');
     window.setTimeout?.(() => setCopyStatus(''), 1800);
-  }, [activeSnapId, snapOptions]);
+  }, [activeSnapId, eligibleSnapOptions]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4 backdrop-blur-[2px]">
@@ -4328,18 +4350,28 @@ export default function ChineseAstrologyPage({
             </div>
 
             {sourceMode === 'snap' ? (
+              <>
               <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_200px_170px_auto]">
                 <Field label="primary snap">
                   <select
                     aria-label="Primary saved snap"
                     value={selectedSnapId}
                     onChange={(event) => setSelectedSnapId(event.target.value)}
-                    disabled={effectiveLoadingSnaps || !snapOptions.length}
+                    disabled={effectiveLoadingSnaps || !eligibleSnapOptions.length}
                     className={underlineControlClass}
                   >
                     <option value="">{effectiveLoadingSnaps ? 'Loading saved snaps...' : 'Select a saved snap'}</option>
                     {snapOptions.map((snap) => (
-                      <option key={snap.id} value={snap.id}>{formatSnapLabel(snap)}</option>
+                      <option
+                        key={snap.id}
+                        value={snap.id}
+                        disabled={!isSavedSnapCalculationEligible(snap)}
+                      >
+                        {formatSnapLabel(snap)}
+                        {getSavedSnapIneligibilityLabel(snap)
+                          ? ` — ${getSavedSnapIneligibilityLabel(snap)}`
+                          : ''}
+                      </option>
                     ))}
                   </select>
                 </Field>
@@ -4348,12 +4380,21 @@ export default function ChineseAstrologyPage({
                     aria-label="Relationship snap"
                     value={comparisonSnapId}
                     onChange={(event) => setComparisonSnapId(event.target.value)}
-                    disabled={effectiveLoadingSnaps || snapOptions.length < 2}
+                    disabled={effectiveLoadingSnaps || eligibleSnapOptions.length < 2}
                     className={underlineControlClass}
                   >
                     <option value="">{effectiveLoadingSnaps ? 'Loading saved snaps...' : 'No second snap'}</option>
                     {snapOptions.map((snap) => (
-                      <option key={`compare-${snap.id}`} value={snap.id}>{formatSnapLabel(snap)}</option>
+                      <option
+                        key={`compare-${snap.id}`}
+                        value={snap.id}
+                        disabled={!isSavedSnapCalculationEligible(snap)}
+                      >
+                        {formatSnapLabel(snap)}
+                        {getSavedSnapIneligibilityLabel(snap)
+                          ? ` — ${getSavedSnapIneligibilityLabel(snap)}`
+                          : ''}
+                      </option>
                     ))}
                   </select>
                 </Field>
@@ -4393,6 +4434,12 @@ export default function ChineseAstrologyPage({
                   {effectiveLoadingSnaps ? 'Loading' : 'Refresh'}
                 </button>
               </div>
+              {snapOptions.some((snap) => !isSavedSnapCalculationEligible(snap)) ? (
+                <p className="font-serif text-[11px] italic leading-5 text-zinc-500 sm:col-span-2 lg:col-span-5">
+                  Review-required and superseded saved charts are disabled for BaZi and compatibility. Use a corrected copy from Astro Clock.
+                </p>
+              ) : null}
+              </>
             ) : (
               <div className="grid flex-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
                 <Field label="date">

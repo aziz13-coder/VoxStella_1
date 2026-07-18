@@ -282,10 +282,6 @@ def compute_asteroid_positions(
         for ephe_path in _existing_ephemeris_paths():
             try:
                 swe.set_ephe_path(ephe_path or "")
-            except Exception as exc:
-                candidate_items: List[Dict[str, Any]] = []
-                candidate_missing = [{"name": body["name"], "reason": str(exc)} for body in bodies]
-            else:
                 candidate_items, candidate_missing = _compute_asteroid_items_for_current_path(
                     jd_ut,
                     flags,
@@ -293,6 +289,14 @@ def compute_asteroid_positions(
                     ascendant,
                     bodies,
                 )
+            except Exception as exc:
+                candidate_items = []
+                candidate_missing = [{"name": body["name"], "reason": str(exc)} for body in bodies]
+            finally:
+                try:
+                    swe.set_ephe_path("")
+                except Exception:
+                    pass
             if len(candidate_items) > best_count:
                 items = candidate_items
                 missing = candidate_missing

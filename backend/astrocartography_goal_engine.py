@@ -14,10 +14,10 @@ ANGULAR_HOUSE_TO_ANGLE = {
 }
 ANGLE_TO_HOUSE = {angle: house for house, angle in ANGULAR_HOUSE_TO_ANGLE.items()}
 RELOCATION_ANGULAR_ORB_DEG = 5.0
-DISTANCE_SENSITIVITY_PROFILES = {
-    "conservative": 0.8,
+DEFAULT_DISTANCE_SENSITIVITY_PROFILES = {
+    "conservative": 0.6,
     "standard": 1.0,
-    "wide": 5.0 / 3.0,
+    "wide": 1.4,
 }
 DIMINISHING_RETURN_FACTORS = (1.0, 0.8, 0.65, 0.5)
 DEFAULT_EVIDENCE_POLICY = {
@@ -1248,6 +1248,29 @@ def _score_distance(distance_km: float, max_km: float, falloff: str = "linear") 
     return max(0.0, 1.0 - (distance_km / max_km))
 
 
+def _distance_profile_multipliers(model: Dict[str, Any]) -> Dict[str, float]:
+    policy = (model or {}).get("distance_policy") or {}
+    configured = policy.get("profile_multipliers") or {}
+    requested_profiles = [
+        str(item).strip().lower()
+        for item in (policy.get("sensitivity_profiles") or DEFAULT_DISTANCE_SENSITIVITY_PROFILES)
+        if str(item).strip()
+    ]
+    profiles: Dict[str, float] = {}
+    for profile in requested_profiles:
+        fallback = DEFAULT_DISTANCE_SENSITIVITY_PROFILES.get(profile)
+        if fallback is None:
+            continue
+        try:
+            multiplier = float(configured.get(profile, fallback))
+        except (TypeError, ValueError):
+            multiplier = float(fallback)
+        profiles[profile] = max(0.1, multiplier)
+    for profile, fallback in DEFAULT_DISTANCE_SENSITIVITY_PROFILES.items():
+        profiles.setdefault(profile, float(fallback))
+    return profiles
+
+
 def _heuristic_distance_weight(distance_km: Any, max_km: float = 500.0) -> float:
     try:
         value = max(0.0, float(distance_km))
@@ -1968,11 +1991,14 @@ def _score_line_component(
     relocation: Optional[Dict[str, Any]] = None,
     multiplier: float = 1.0,
     distance_scale: float = 1.0,
+    distance_profile: str = "standard",
 ) -> Optional[Dict[str, Any]]:
     planet = str(component.get("planet") or "")
     allowed_angles = {str(angle).upper() for angle in component.get("angles") or []}
     distance = component.get("distance") or {}
-    max_km = float(distance.get("max_km") or 500.0) * max(0.1, float(distance_scale))
+    primary_max_km = float(distance.get("primary_max_km") or 300.0)
+    standard_max_km = float(distance.get("max_km") or 500.0)
+    max_km = standard_max_km * max(0.1, float(distance_scale))
     falloff = str(distance.get("falloff") or "linear")
     candidates = [
         row for row in rows
@@ -1981,7 +2007,8 @@ def _score_line_component(
     if not candidates:
         return None
     best = min(candidates, key=lambda row: float(row.get("distance_km") or 999999.0))
-    factor = _score_distance(float(best.get("distance_km") or 0.0), max_km=max_km, falloff=falloff)
+    best_distance_km = float(best.get("distance_km") or 0.0)
+    factor = _score_distance(best_distance_km, max_km=max_km, falloff=falloff)
     if factor <= 0.0:
         return None
     weight = float(component.get("weight") or 0.0)
@@ -2002,6 +2029,22 @@ def _score_line_component(
         "matched": best,
         "label": best.get("label"),
         "distance_km": best.get("distance_km"),
+        "distance_factor": round(factor, 6),
+        "distance_policy": {
+            "profile": str(distance_profile),
+            "primary_max_km": round(primary_max_km, 3),
+            "standard_max_km": round(standard_max_km, 3),
+            "effective_max_km": round(max_km, 3),
+            "status": _distance_policy_status(
+                profile=str(distance_profile),
+                distance_km=best_distance_km,
+                primary_max_km=primary_max_km,
+                standard_max_km=standard_max_km,
+                effective_max_km=max_km,
+                falloff=falloff,
+                active=True,
+            ),
+        },
         "evidence_keys": [f"{context}:line:{row_id}"],
         "evidence_block": "transit_overlay" if context == "transit" else "natal_lines",
         "natal_condition": condition_meta,
@@ -2043,12 +2086,15 @@ def _score_crossing_component(
     relocation: Optional[Dict[str, Any]] = None,
     multiplier: float = 1.0,
     distance_scale: float = 1.0,
+    distance_profile: str = "standard",
 ) -> Optional[Dict[str, Any]]:
     target_pair = tuple(sorted(str(name) for name in component.get("pair") or []))
     if len(target_pair) != 2:
         return None
     distance = component.get("distance") or {}
-    max_km = float(distance.get("max_km") or 500.0) * max(0.1, float(distance_scale))
+    primary_max_km = float(distance.get("primary_max_km") or 300.0)
+    standard_max_km = float(distance.get("max_km") or 500.0)
+    max_km = standard_max_km * max(0.1, float(distance_scale))
     falloff = str(distance.get("falloff") or "linear")
     candidates_by_key: Dict[str, Dict[str, Any]] = {}
     for item in crossings:
@@ -2064,7 +2110,8 @@ def _score_crossing_component(
     if not candidates:
         return None
     best = min(candidates, key=lambda row: float(row.get("distance_km") or 999999.0))
-    factor = _score_distance(float(best.get("distance_km") or 0.0), max_km=max_km, falloff=falloff)
+    best_distance_km = float(best.get("distance_km") or 0.0)
+    factor = _score_distance(best_distance_km, max_km=max_km, falloff=falloff)
     if factor <= 0.0:
         return None
     weight = float(component.get("weight") or 0.0)
@@ -2097,6 +2144,22 @@ def _score_crossing_component(
         "matched": best,
         "label": best.get("label"),
         "distance_km": best.get("distance_km"),
+        "distance_factor": round(factor, 6),
+        "distance_policy": {
+            "profile": str(distance_profile),
+            "primary_max_km": round(primary_max_km, 3),
+            "standard_max_km": round(standard_max_km, 3),
+            "effective_max_km": round(max_km, 3),
+            "status": _distance_policy_status(
+                profile=str(distance_profile),
+                distance_km=best_distance_km,
+                primary_max_km=primary_max_km,
+                standard_max_km=standard_max_km,
+                effective_max_km=max_km,
+                falloff=falloff,
+                active=True,
+            ),
+        },
         "canonical_crossing_id": canonical_key,
         "evidence_keys": [f"{context}:crossing:{canonical_key}"],
         "evidence_block": "transit_overlay" if context == "transit" else "crossing_interactions",
@@ -2458,50 +2521,151 @@ def _evidence_summary(
     }
 
 
+def _distance_contribution_key(item: Dict[str, Any]) -> str:
+    component = item.get("component") or {}
+    component_id = str(component.get("component_id") or "").strip()
+    evidence_keys = "|".join(sorted(str(key) for key in (item.get("evidence_keys") or []) if str(key)))
+    matched = item.get("matched") or {}
+    matched_id = str(
+        item.get("canonical_crossing_id")
+        or matched.get("id")
+        or item.get("label")
+        or ""
+    ).strip()
+    identity = component_id or evidence_keys or matched_id
+    return ":".join(
+        [
+            str(item.get("context") or ""),
+            str(item.get("model_scope") or ""),
+            str(item.get("source_model_id") or ""),
+            str(item.get("kind") or ""),
+            identity,
+        ]
+    )
+
+
+def _distance_policy_status(
+    *,
+    profile: str,
+    distance_km: float,
+    primary_max_km: float,
+    standard_max_km: float,
+    effective_max_km: float,
+    falloff: str,
+    active: bool,
+) -> str:
+    if distance_km > effective_max_km:
+        return "excluded_outside_profile"
+    if _score_distance(distance_km, max_km=effective_max_km, falloff=falloff) <= 0.0:
+        return "excluded_zero_at_boundary"
+    if not active:
+        return "excluded_by_profile_evidence_policy"
+    if profile == "wide" and distance_km > standard_max_km:
+        return "included_wide_sensitivity"
+    if distance_km > primary_max_km:
+        return "included_extended"
+    if profile == "conservative":
+        return "included_conservative"
+    return "included_primary"
+
+
 def _distance_sensitivity(
     model: Dict[str, Any],
-    contributions: Sequence[Dict[str, Any]],
-    base_raw_total: float,
+    profile_results: Dict[str, Dict[str, Any]],
 ) -> Dict[str, Any]:
-    raw_by_profile: Dict[str, float] = {}
-    score_by_profile: Dict[str, int] = {}
-    for profile, scale in DISTANCE_SENSITIVITY_PROFILES.items():
-        adjusted_total = 0.0
-        for item in contributions:
-            score = float(item.get("score") or 0.0)
+    multipliers = _distance_profile_multipliers(model)
+    policy = model.get("distance_policy") or {}
+
+    candidates: Dict[str, Dict[str, Any]] = {}
+    contributions_by_profile: Dict[str, Dict[str, Dict[str, Any]]] = {}
+    for profile in multipliers:
+        result = profile_results.get(profile) or {}
+        indexed: Dict[str, Dict[str, Any]] = {}
+        for item in result.get("contributions") or []:
             if item.get("kind") not in {"line", "crossing"} or item.get("distance_km") is None:
-                adjusted_total += score
                 continue
-            component = item.get("component") or {}
-            distance = component.get("distance") or {}
-            base_max_km = float(distance.get("max_km") or 500.0)
-            falloff = str(distance.get("falloff") or "linear")
-            standard_factor = _score_distance(
-                float(item.get("distance_km") or 0.0),
-                max_km=base_max_km,
-                falloff=falloff,
+            key = _distance_contribution_key(item)
+            indexed[key] = item
+            candidates.setdefault(key, item)
+        contributions_by_profile[profile] = indexed
+
+    profiles: Dict[str, Dict[str, Any]] = {}
+    for profile, multiplier in multipliers.items():
+        result = profile_results.get(profile) or {}
+        raw_score = float(result.get("raw_score") or 0.0)
+        evidence = result.get("evidence") or {}
+        observations: List[Dict[str, Any]] = []
+        indexed = contributions_by_profile.get(profile) or {}
+        for key, candidate in candidates.items():
+            component = candidate.get("component") or {}
+            distance_policy = component.get("distance") or {}
+            distance_km = float(candidate.get("distance_km") or 0.0)
+            primary_max_km = float(distance_policy.get("primary_max_km") or 300.0)
+            standard_max_km = float(distance_policy.get("max_km") or 500.0)
+            effective_max_km = standard_max_km * float(multiplier)
+            falloff = str(distance_policy.get("falloff") or "linear")
+            active_item = indexed.get(key)
+            active = bool(active_item is not None and abs(float(active_item.get("score") or 0.0)) > 1e-9)
+            matched = candidate.get("matched") or {}
+            observations.append(
+                {
+                    "component_id": component.get("component_id"),
+                    "kind": candidate.get("kind"),
+                    "context": candidate.get("context"),
+                    "label": candidate.get("label"),
+                    "distance_km": round(distance_km, 3),
+                    "display_zone": matched.get("zone"),
+                    "primary_max_km": round(primary_max_km, 3),
+                    "base_max_km": round(standard_max_km, 3),
+                    "standard_max_km": round(standard_max_km, 3),
+                    "effective_max_km": round(effective_max_km, 3),
+                    "falloff": falloff,
+                    "active": active,
+                    "profile_score": round(float((active_item or {}).get("score") or 0.0), 4),
+                    "policy_status": _distance_policy_status(
+                        profile=profile,
+                        distance_km=distance_km,
+                        primary_max_km=primary_max_km,
+                        standard_max_km=standard_max_km,
+                        effective_max_km=effective_max_km,
+                        falloff=falloff,
+                        active=active,
+                    ),
+                }
             )
-            profile_factor = _score_distance(
+        observations.sort(
+            key=lambda item: (
                 float(item.get("distance_km") or 0.0),
-                max_km=base_max_km * float(scale),
-                falloff=falloff,
+                str(item.get("component_id") or ""),
             )
-            adjusted_total += score * (profile_factor / standard_factor) if standard_factor > 1e-9 else 0.0
-        raw_by_profile[profile] = round(adjusted_total, 4)
-        score_by_profile[profile] = _normalize_goal_score(model, adjusted_total)
-    scores = list(score_by_profile.values())
+        )
+        profiles[profile] = {
+            "distance_multiplier": round(float(multiplier), 6),
+            "raw_score": round(raw_score, 4),
+            "score": _normalize_goal_score(model, raw_score),
+            "interpretation_status": evidence.get("status"),
+            "independent_signal_count": int(evidence.get("independent_signal_count") or 0),
+            "distance_evidence": observations,
+        }
+
+    scores = [int((item or {}).get("score") or 0) for item in profiles.values()]
     spread = (max(scores) - min(scores)) if scores else 0
+    standard_result = profile_results.get("standard") or {}
     return {
-        "profiles": {
-            profile: {
-                "raw_score": raw_by_profile[profile],
-                "score": score_by_profile[profile],
-            }
-            for profile in DISTANCE_SENSITIVITY_PROFILES
+        "policy": {
+            "primary_profile": str(policy.get("primary_profile") or "standard"),
+            "primary_boundary_km": round(float(policy.get("primary_boundary_km") or 300.0), 3),
+            "standard_cutoff_km": round(float(policy.get("standard_cutoff_km") or 500.0), 3),
+            "profile_multipliers": {
+                profile: round(float(multiplier), 6)
+                for profile, multiplier in multipliers.items()
+            },
+            "note": policy.get("note"),
         },
+        "profiles": profiles,
         "score_spread": spread,
         "sensitivity_stability": "high" if spread <= 6 else ("moderate" if spread <= 14 else "low"),
-        "standard_raw_score": round(base_raw_total, 4),
+        "standard_raw_score": round(float(standard_result.get("raw_score") or 0.0), 4),
     }
 
 
@@ -2514,6 +2678,9 @@ def evaluate_goal_model(
     transit_rows: Optional[Sequence[Dict[str, Any]]] = None,
     transit_crossings: Optional[Sequence[Dict[str, Any]]] = None,
     transit_multiplier: float = 0.35,
+    _distance_profile: str = "standard",
+    _distance_scale: float = 1.0,
+    _include_distance_sensitivity: bool = True,
 ) -> Dict[str, Any]:
     model = get_goal_model(goal_id)
     score_polarity = goal_model_score_polarity(model)
@@ -2545,6 +2712,8 @@ def evaluate_goal_model(
                     context="natal",
                     relocation=relocation,
                     multiplier=scope_weight,
+                    distance_scale=_distance_scale,
+                    distance_profile=_distance_profile,
                 )
                 if contribution:
                     scoped_contributions.append(contribution)
@@ -2555,6 +2724,8 @@ def evaluate_goal_model(
                         context="transit",
                         relocation=relocation,
                         multiplier=effective_transit_multiplier * scope_weight,
+                        distance_scale=_distance_scale,
+                        distance_profile=_distance_profile,
                     )
                     if transit_contribution:
                         scoped_contributions.append(transit_contribution)
@@ -2565,6 +2736,8 @@ def evaluate_goal_model(
                     context="natal",
                     relocation=relocation,
                     multiplier=scope_weight,
+                    distance_scale=_distance_scale,
+                    distance_profile=_distance_profile,
                 )
                 if contribution:
                     scoped_contributions.append(contribution)
@@ -2575,6 +2748,8 @@ def evaluate_goal_model(
                         context="transit",
                         relocation=relocation,
                         multiplier=effective_transit_multiplier * scope_weight,
+                        distance_scale=_distance_scale,
+                        distance_profile=_distance_profile,
                     )
                     if transit_contribution:
                         scoped_contributions.append(transit_contribution)
@@ -2647,14 +2822,73 @@ def evaluate_goal_model(
         "parent": round(sum(float(item.get("score") or 0.0) for item in contributions if item.get("model_scope") == "parent"), 3),
         "specialist_residual": round(sum(float(item.get("score") or 0.0) for item in contributions if item.get("model_scope") == "specialist_residual"), 3),
     }
-    distance_sensitivity = _distance_sensitivity(model, contributions, raw_total)
+    current_profile_result = {
+        "raw_score": raw_total,
+        "evidence": evidence,
+        "contributions": contributions,
+    }
+    if _include_distance_sensitivity:
+        profile_results: Dict[str, Dict[str, Any]] = {
+            str(_distance_profile): current_profile_result,
+        }
+        for profile, multiplier in _distance_profile_multipliers(model).items():
+            if profile in profile_results:
+                continue
+            profile_evaluation = evaluate_goal_model(
+                goal_id,
+                natal_rows=natal_rows,
+                natal_crossings=natal_crossings,
+                relocation=relocation,
+                transit_rows=transit_rows,
+                transit_crossings=transit_crossings,
+                transit_multiplier=transit_multiplier,
+                _distance_profile=profile,
+                _distance_scale=multiplier,
+                _include_distance_sensitivity=False,
+            )
+            profile_contributions = profile_evaluation.get("contributions") or []
+            profile_results[profile] = {
+                "raw_score": sum(float(item.get("score") or 0.0) for item in profile_contributions),
+                "evidence": profile_evaluation.get("evidence") or {},
+                "contributions": profile_contributions,
+            }
+        distance_sensitivity = _distance_sensitivity(model, profile_results)
+    else:
+        distance_sensitivity = {
+            "policy": {
+                "primary_profile": str((model.get("distance_policy") or {}).get("primary_profile") or "standard"),
+                "primary_boundary_km": round(
+                    float((model.get("distance_policy") or {}).get("primary_boundary_km") or 300.0),
+                    3,
+                ),
+                "standard_cutoff_km": round(
+                    float((model.get("distance_policy") or {}).get("standard_cutoff_km") or 500.0),
+                    3,
+                ),
+                "profile_multipliers": {
+                    str(_distance_profile): round(float(_distance_scale), 6),
+                },
+                "note": (model.get("distance_policy") or {}).get("note"),
+            },
+            "profiles": {
+                str(_distance_profile): {
+                    "distance_multiplier": round(float(_distance_scale), 6),
+                    "raw_score": round(raw_total, 4),
+                    "score": _normalize_goal_score(model, raw_total),
+                    "interpretation_status": evidence.get("status"),
+                    "independent_signal_count": int(evidence.get("independent_signal_count") or 0),
+                    "distance_evidence": [],
+                }
+            },
+            "score_spread": 0,
+            "sensitivity_stability": "high",
+            "standard_raw_score": round(raw_total, 4) if _distance_profile == "standard" else None,
+        }
     profile_scores = [
         int((item or {}).get("score") or 0)
         for item in (distance_sensitivity.get("profiles") or {}).values()
     ]
     birth_time = ((relocation.get("confidence") or {}).get("birth_time") or {})
-    birth_time_confidence = float(birth_time.get("value")) if birth_time.get("value") is not None else 1.0
-    uncertainty_margin = int(round((1.0 - max(0.0, min(1.0, birth_time_confidence))) * 20.0))
     score_interval: Dict[str, Optional[int]]
     if score is None:
         score_interval = {"low": None, "high": None}
@@ -2662,12 +2896,12 @@ def evaluate_goal_model(
         low_profile = min(profile_scores) if profile_scores else score
         high_profile = max(profile_scores) if profile_scores else score
         score_interval = {
-            "low": max(0, low_profile - uncertainty_margin),
-            "high": min(100, high_profile + uncertainty_margin),
+            "low": max(0, low_profile),
+            "high": min(100, high_profile),
         }
     rank_stability = {
-        "status": "not_evaluated",
-        "reason": "Rank stability requires comparison across multiple locations.",
+        "status": "not_applicable",
+        "reason": "This is a single-location evaluation; rank stability is calculated by comparison and atlas workflows.",
         "sensitivity_proxy": distance_sensitivity.get("sensitivity_stability"),
     }
     return {
@@ -2690,8 +2924,13 @@ def evaluate_goal_model(
         "evidence": evidence,
         "uncertainty": {
             "birth_time": birth_time,
+            "birth_time_sampling": {
+                "status": "not_sampled",
+                "reason": "A single goal evaluation does not contain alternate-time chart calculations.",
+            },
             "distance_sensitivity": distance_sensitivity,
             "score_interval": score_interval,
+            "score_interval_method": "recomputed_distance_profiles_v1",
         },
         "rank_stability": rank_stability,
         "breakdown": breakdown,

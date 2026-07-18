@@ -243,11 +243,15 @@ const ASTRO_CLOCK_CORE_TIMEOUT_MS = 90000;
 
 function appendClockContext(params, opts = {}) {
   if (!(params instanceof URLSearchParams)) return;
+  if (opts.houseSystem) params.set('house_system_code', String(opts.houseSystem));
+  if (opts.snapId) {
+    params.set('snap_id', String(opts.snapId));
+    return;
+  }
   if (opts.mode) params.set('mode', String(opts.mode));
   if (opts.datetime) params.set('datetime', String(opts.datetime));
   if (opts.location) params.set('location', String(opts.location));
   if (opts.timezone) params.set('timezone', String(opts.timezone));
-  if (opts.houseSystem) params.set('house_system_code', String(opts.houseSystem));
   appendCoordinates(params, opts);
 }
 
@@ -804,27 +808,54 @@ export const AstroClockAPI = {
     houseSystem,
     certification,
     dashboard,
-  } = {}) => request('/api/astro-clock/snap', {
-    method: 'POST',
-    timeoutMs: ASTRO_CLOCK_CORE_TIMEOUT_MS,
-    body: JSON.stringify({
-      label,
-      include_modern: !!includeModern,
-      special_degrees: Array.isArray(specialDegrees) ? specialDegrees : undefined,
-      mode,
-      datetime,
-      location,
-      timezone,
-      latitude,
-      longitude,
-      house_system: houseSystem,
-      house_system_code: houseSystem,
-      certification,
-      dashboard,
-    })
-  }),
+    idempotencyKey,
+  } = {}) => {
+    const normalizedIdempotencyKey = String(idempotencyKey || '').trim();
+    return request('/api/astro-clock/snap', {
+      method: 'POST',
+      timeoutMs: ASTRO_CLOCK_CORE_TIMEOUT_MS,
+      headers: normalizedIdempotencyKey
+        ? { 'Idempotency-Key': normalizedIdempotencyKey }
+        : undefined,
+      body: JSON.stringify({
+        label,
+        include_modern: !!includeModern,
+        special_degrees: Array.isArray(specialDegrees) ? specialDegrees : undefined,
+        mode,
+        datetime,
+        location,
+        timezone,
+        latitude,
+        longitude,
+        house_system: houseSystem,
+        house_system_code: houseSystem,
+        certification,
+        dashboard,
+        idempotency_key: normalizedIdempotencyKey || undefined,
+      })
+    });
+  },
   listSnaps: () => request('/api/astro-clock/snaps'),
   getSnap: (id, opts = {}) => request(`/api/astro-clock/snaps/${encodeURIComponent(id)}`, { signal: opts?.signal }),
+  confirmSnapContext: (id, opts = {}) => request(
+    `/api/astro-clock/snaps/${encodeURIComponent(id)}/confirm-context`,
+    {
+      method: 'POST',
+      timeoutMs: ASTRO_CLOCK_CORE_TIMEOUT_MS,
+      signal: opts?.signal,
+      body: JSON.stringify({
+        local_datetime: opts.localDatetime,
+        timezone: opts.timezone,
+        location: opts.location,
+        latitude: opts.latitude,
+        longitude: opts.longitude,
+        house_system_code: opts.houseSystem || 'R',
+        include_modern: opts.includeModern !== false,
+        include_chiron: opts.includeChiron !== false,
+        persist: opts.persist === true,
+      }),
+    },
+  ),
   deleteSnap: (id) => request(`/api/astro-clock/snaps/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   getChineseAstrologyBazi: (opts = {}) => request('/api/astro-clock/chinese-astrology/bazi', {
     method: 'POST',
@@ -1253,7 +1284,16 @@ export const AstroClockAPI = {
     timeoutMs: 300000,
   })
   ,
-  resolveTimezone: (location) => request('/api/get-timezone', { method: 'POST', body: JSON.stringify({ location }) })
+  resolveTimezone: (location, options={}) => request('/api/get-timezone', {
+    method: 'POST',
+    body: JSON.stringify({
+      location,
+      require_specific_location: options.requireSpecific === true,
+    }),
+    signal: options.signal,
+    skipLicense: true,
+    timeoutMs: 15000,
+  })
   ,
   getAutoContext: (opts={}) => {
     const p = new URLSearchParams();

@@ -1,6 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AstroClockAPI } from './api.mjs';
 import { shouldIgnoreElectionStreamError } from './electionStreamState.mjs';
+import {
+  formatSavedSnapLabel as formatCanonicalSavedSnapLabel,
+  getSavedSnapIneligibilityLabel,
+  isSavedSnapCalculationEligible,
+} from './savedSnapViewModel.mjs';
 
 const ALL_WEEKDAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 export const MARRIAGE_ALPHA_DESCRIPTION =
@@ -185,11 +190,12 @@ function formatShortTs(iso, tz) {
 
 function formatSavedSnapLabel(snap) {
   if (!snap || typeof snap !== 'object') return 'Saved chart';
-  const label = String(snap.label || '').trim();
-  const timezone = snap?.dashboard?.timezone || undefined;
-  const when = snap.effective_datetime ? formatShortTs(snap.effective_datetime, timezone) : '';
-  const location = String(snap.location || '').trim();
-  return [label, when, location].filter(Boolean).join(' | ') || String(snap.id || 'Saved chart');
+  return formatCanonicalSavedSnapLabel(snap) || String(snap.id || 'Saved chart');
+}
+
+function formatSavedSnapOptionLabel(snap) {
+  const reason = getSavedSnapIneligibilityLabel(snap);
+  return `${formatSavedSnapLabel(snap)}${reason ? ` — ${reason}` : ''}`;
 }
 
 function normalizeElectionSeriesRows(rows) {
@@ -654,6 +660,10 @@ export default function ElectionModal({
   const [result, setResult] = useState(null);
   const [selectedSeriesTimestamp, setSelectedSeriesTimestamp] = useState('');
   const [reportStatus, setReportStatus] = useState('');
+  const eligibleSnaps = useMemo(
+    () => snaps.filter((snap) => isSavedSnapCalculationEligible(snap)),
+    [snaps],
+  );
 
   useEffect(() => {
     if (open) {
@@ -666,14 +676,20 @@ export default function ElectionModal({
       // Prefetch snaps for convenience
       const seededSnaps = Array.isArray(initialSnaps) ? initialSnaps : [];
       if (seededSnaps.length) setSnaps(seededSnaps);
-      if (activeSnapId) {
+      const seededActive = seededSnaps.find(
+        (snap) => String(snap?.id || '') === String(activeSnapId || ''),
+      );
+      if (activeSnapId && seededActive && isSavedSnapCalculationEligible(seededActive)) {
         setSelectedSnapId(String(activeSnapId));
         setSourceMode('snap');
       }
       AstroClockAPI.listSnaps().then((res) => {
         const items = res?.items || [];
         setSnaps(items);
-        if (activeSnapId && items.some((snap) => String(snap?.id || '') === String(activeSnapId))) {
+        if (activeSnapId && items.some((snap) => (
+          String(snap?.id || '') === String(activeSnapId)
+          && isSavedSnapCalculationEligible(snap)
+        ))) {
           setSelectedSnapId(String(activeSnapId));
           setSourceMode('snap');
         }
@@ -684,6 +700,15 @@ export default function ElectionModal({
       setBeautyBodySigns('');
     }
   }, [activeSnapId, initialSnaps, open]);
+
+  useEffect(() => {
+    const eligibleIds = new Set(eligibleSnaps.map((snap) => String(snap?.id || '')));
+    setSelectedSnapId((current) => (current && !eligibleIds.has(String(current)) ? '' : current));
+    setParticipantASnapId((current) => (current && !eligibleIds.has(String(current)) ? '' : current));
+    setParticipantBSnapId((current) => (current && !eligibleIds.has(String(current)) ? '' : current));
+    setEstateParticipantSnapId((current) => (current && !eligibleIds.has(String(current)) ? '' : current));
+    setBusinessParticipantSnapIds((current) => current.filter((id) => eligibleIds.has(String(id))));
+  }, [eligibleSnaps]);
 
   useEffect(() => {
     if (matter !== 'conception' && genderPref) {
@@ -721,7 +746,7 @@ export default function ElectionModal({
   const isBusinessBeta = isBusinessMatter && businessAlgorithm === 'beta';
   const participantModeActive = isMarriageBeta || isBusinessBeta || isEstateMatter;
   const natalAvailable = !participantModeActive && (sourceMode === 'snap' && !!selectedSnapId);
-  const hasSavedSnaps = Array.isArray(snaps) && snaps.length > 0;
+  const hasSavedSnaps = eligibleSnaps.length > 0;
   const currentProcedureLabel = BEAUTY_PROCEDURE_LABELS[beautyProcedureType] || 'Selected procedure';
   const businessBetaExtraction = result?.business_beta_extraction || null;
   const businessBetaPeriods = Array.isArray(result?.business_beta_periods) ? result.business_beta_periods : [];
@@ -2229,7 +2254,9 @@ export default function ElectionModal({
                   <select className="px-2 py-1 border rounded w-full" value={participantASnapId} onChange={e=>setParticipantASnapId(e.target.value)} disabled={!hasSavedSnaps}>
                     <option value="">{hasSavedSnaps ? 'Select saved chart' : 'No saved charts found'}</option>
                     {snaps.map(s => (
-                      <option key={s.id} value={s.id}>{formatSavedSnapLabel(s)}</option>
+                      <option key={s.id} value={s.id} disabled={!isSavedSnapCalculationEligible(s)}>
+                        {formatSavedSnapOptionLabel(s)}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -2238,7 +2265,9 @@ export default function ElectionModal({
                   <select className="px-2 py-1 border rounded w-full" value={participantBSnapId} onChange={e=>setParticipantBSnapId(e.target.value)} disabled={!hasSavedSnaps}>
                     <option value="">{hasSavedSnaps ? 'Select saved chart' : 'No saved charts found'}</option>
                     {snaps.map(s => (
-                      <option key={s.id} value={s.id}>{formatSavedSnapLabel(s)}</option>
+                      <option key={s.id} value={s.id} disabled={!isSavedSnapCalculationEligible(s)}>
+                        {formatSavedSnapOptionLabel(s)}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -2258,17 +2287,19 @@ export default function ElectionModal({
                         {snaps.map((snap) => {
                           const snapId = String(snap.id || '');
                           const checked = businessParticipantSnapIds.includes(snapId);
+                          const needsReview = !isSavedSnapCalculationEligible(snap);
                           return (
                             <label
                               key={snapId}
-                              className={`flex items-start gap-3 rounded-lg border px-3 py-2 text-sm transition-colors ${checked ? 'border-zinc-900 bg-white dark:border-zinc-200 dark:bg-zinc-800' : 'border-transparent bg-white/70 hover:border-zinc-300 dark:bg-zinc-900/60 dark:hover:border-zinc-600'}`}
+                              className={`flex items-start gap-3 rounded-lg border px-3 py-2 text-sm transition-colors ${needsReview ? 'cursor-not-allowed opacity-55' : ''} ${checked ? 'border-zinc-900 bg-white dark:border-zinc-200 dark:bg-zinc-800' : 'border-transparent bg-white/70 hover:border-zinc-300 dark:bg-zinc-900/60 dark:hover:border-zinc-600'}`}
                             >
                               <input
                                 type="checkbox"
                                 checked={checked}
+                                disabled={needsReview}
                                 onChange={() => toggleBusinessParticipantSnapId(snapId)}
                               />
-                              <span>{formatSavedSnapLabel(snap)}</span>
+                              <span>{formatSavedSnapOptionLabel(snap)}</span>
                             </label>
                           );
                         })}
@@ -2297,7 +2328,9 @@ export default function ElectionModal({
                   >
                     <option value="">{hasSavedSnaps ? 'Select saved chart' : 'No saved charts found'}</option>
                     {snaps.map((snap) => (
-                      <option key={snap.id} value={snap.id}>{formatSavedSnapLabel(snap)}</option>
+                      <option key={snap.id} value={snap.id} disabled={!isSavedSnapCalculationEligible(snap)}>
+                        {formatSavedSnapOptionLabel(snap)}
+                      </option>
                     ))}
                   </select>
                   <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
@@ -2333,7 +2366,9 @@ export default function ElectionModal({
                 <select className="px-2 py-1 border rounded w-full" value={selectedSnapId} onChange={e=>setSelectedSnapId(e.target.value)} disabled={!hasSavedSnaps}>
                   <option value="">{hasSavedSnaps ? 'Select saved chart' : 'No saved charts found'}</option>
                   {snaps.map(s => (
-                    <option key={s.id} value={s.id}>{formatSavedSnapLabel(s)}</option>
+                    <option key={s.id} value={s.id} disabled={!isSavedSnapCalculationEligible(s)}>
+                      {formatSavedSnapOptionLabel(s)}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -2341,6 +2376,11 @@ export default function ElectionModal({
               </>
             )}
           </div>
+          {snaps.some((snap) => !isSavedSnapCalculationEligible(snap)) ? (
+            <p className="mb-3 font-serif text-xs italic leading-5 text-zinc-500">
+              Review-required and superseded saved charts are disabled for election and participant calculations. Use a corrected copy from Astro Clock.
+            </p>
+          ) : null}
 
           <div className="flex items-center gap-2 mb-2">
             <button className="px-4 py-1.5 rounded bg-zinc-900 text-white disabled:opacity-50" disabled={loading} onClick={doScan}>Scan</button>

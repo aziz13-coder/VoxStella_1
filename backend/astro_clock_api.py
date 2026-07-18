@@ -73,6 +73,14 @@ from swisseph_state import (
     swisseph_ephemeris_path,
     swisseph_lock,
 )
+from snapshot_schema import (
+    SNAP_RECORD_SCHEMA_VERSION,
+    canonical_time_context,
+    canonicalize_snapshot_record,
+    coordinate_pair_from_value,
+    is_generic_location_label,
+    timezone_label_for_instant,
+)
 from moon_day import compute_moon_day
 from election_models.lunar_fertility import (
     SwissEphemerisAdapter as LunarFertilityEphemerisAdapter,
@@ -284,6 +292,37 @@ _background_executor = _BoundedDaemonExecutor(
 
 class _BackgroundCapacityError(RuntimeError):
     pass
+
+
+class LocalTimeResolutionError(ValueError):
+    """Stable error contract for ambiguous, nonexistent, or mismatched local time."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        code: str,
+        timezone_name: Optional[str],
+        input_value: Any,
+        wall_time_status: Optional[str] = None,
+        candidates: Optional[List[Dict[str, Any]]] = None,
+    ) -> None:
+        super().__init__(message)
+        self.code = str(code)
+        self.timezone_name = timezone_name
+        self.input_value = str(input_value) if input_value is not None else None
+        self.wall_time_status = wall_time_status
+        self.candidates = copy.deepcopy(candidates or [])
+
+    def to_payload(self) -> Dict[str, Any]:
+        return {
+            'code': self.code,
+            'message': str(self),
+            'input': self.input_value,
+            'timezone': self.timezone_name,
+            'wall_time_status': self.wall_time_status,
+            'candidates': copy.deepcopy(self.candidates),
+        }
 
 
 def _submit_background_job(job_name: str, callback) -> bool:
@@ -2806,6 +2845,13 @@ def _error_handler(f):
     def _w(*args, **kwargs):
         try:
             return f(*args, **kwargs)
+        except LocalTimeResolutionError as e:
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'error_code': e.code,
+                'time_resolution': e.to_payload(),
+            }), 400
         except LocationError as e:
             return jsonify({'success': False, 'error': str(e)}), 400
         except ValueError as e:
@@ -2984,6 +3030,9 @@ def _snap_coordinate_pair(*sources: Any) -> Optional[Tuple[float, float]]:
         coords = _coords_from_request_args(source)
         if coords is not None:
             return coords
+        coords = coordinate_pair_from_value(source)
+        if coords is not None:
+            return coords
     return None
 
 
@@ -3090,7 +3139,10 @@ def _apply_snap_dashboard_context(
             out['location'] = location
         if timezone_name:
             out['timezone'] = timezone_name
-            out.setdefault('timezone_label', timezone_name)
+            out['timezone_label'] = (
+                timezone_label_for_instant(timezone_name, timestamp.isoformat())
+                or timezone_name
+            )
         if house_system:
             out['house_system_code'] = house_system
         if coords:
@@ -3452,15 +3504,22 @@ def _solar_conditions_from_chart(planets: List[Dict[str, Any]], cd: Dict[str, An
 
 
 def _timezone_label_from_parts(tz_name: Any, local_iso: Any, utc_iso: Any = None) -> Optional[str]:
-    if not (tz_name and local_iso):
+    if not tz_name:
         return None
+    if utc_iso:
+        canonical = timezone_label_for_instant(tz_name, utc_iso)
+        if canonical:
+            return canonical
     try:
         loc_dt = datetime.fromisoformat(str(local_iso).replace('Z', '+00:00'))
+        if loc_dt.tzinfo is not None:
+            canonical = timezone_label_for_instant(
+                tz_name,
+                loc_dt.astimezone(timezone.utc).isoformat(),
+            )
+            if canonical:
+                return canonical
         delta = loc_dt.utcoffset()
-        if delta is None and utc_iso:
-            utc_dt = datetime.fromisoformat(str(utc_iso).replace('Z', '+00:00'))
-            # Fall back to wall-clock difference when serialized timestamps are naive.
-            delta = loc_dt.replace(tzinfo=None) - utc_dt.replace(tzinfo=None)
         if delta is None:
             return str(tz_name)
         delta_min = int(round(delta.total_seconds() / 60.0))
@@ -3597,7 +3656,7 @@ def get_current():
     with _astro_perf_span('route.current'):
         eng = _engine_instance()
         with _astro_perf_span('route.current.get_current_data'):
-            data, _active_settings = _data_for_request_clock_context(eng)
+            data, _active_settings = _data_for_optional_confirmed_snap(eng)
         with _astro_perf_span('route.current.serialize'):
             payload = _serialize_real_time(data)
     return _json_ok(payload)
@@ -4015,7 +4074,7 @@ def get_dashboard():
         include_morin=include_morin,
     ):
         eng = _engine_instance()
-        data, _active_settings = _data_for_request_clock_context(eng)
+        data, _active_settings = _data_for_optional_confirmed_snap(eng)
         payload = _build_dashboard_payload(
             eng,
             data,
@@ -4030,7 +4089,7 @@ def get_dashboard():
 def get_points_degree_hits():
     with _astro_perf_span('route.points_degree_hits'):
         eng = _engine_instance()
-        data, active_settings = _data_for_request_clock_context(
+        data, active_settings = _data_for_optional_confirmed_snap(
             eng,
             house_system_override=POINTS_HOUSE_SYSTEM_CODE,
         )
@@ -4193,6 +4252,18 @@ def _valid_explicit_timezone(timezone_name: Optional[str]) -> Optional[str]:
         return None
 
 
+def _valid_confirmation_timezone(timezone_name: Optional[str]) -> Optional[str]:
+    """Validate an explicitly supplied IANA zone, including UTC-family zones."""
+    tz = str(timezone_name).strip() if timezone_name is not None else ''
+    if not tz:
+        return None
+    try:
+        ZoneInfo(tz)
+        return tz
+    except Exception:
+        return None
+
+
 def _normalize_location_key(location: Optional[str]) -> str:
     return " ".join(str(location or "").strip().lower().split())
 
@@ -4321,6 +4392,178 @@ def _resolve_timezone_for_context(
     return tz or None
 
 
+def _time_resolution_candidates(context: Any) -> List[Dict[str, Any]]:
+    if not isinstance(context, dict):
+        return []
+    candidates: List[Dict[str, Any]] = []
+    for row in context.get('wall_time_candidates') or []:
+        if not isinstance(row, dict):
+            continue
+        local_datetime = row.get('local_datetime')
+        utc_offset = None
+        try:
+            local_parsed = _parse_iso_datetime(local_datetime)
+            offset = local_parsed.utcoffset()
+            if offset is not None:
+                total_minutes = int(offset.total_seconds() // 60)
+                sign = '+' if total_minutes >= 0 else '-'
+                hours, minutes = divmod(abs(total_minutes), 60)
+                utc_offset = f'{sign}{hours:02d}:{minutes:02d}'
+        except Exception:
+            pass
+        candidates.append({
+            'fold': row.get('fold'),
+            'local_datetime': local_datetime,
+            'utc_offset': utc_offset,
+            'instant_utc': row.get('instant_utc'),
+            'valid': bool(row.get('round_trip_matches')),
+        })
+    return candidates
+
+
+def _strict_confirmed_local_time_context(
+    dt_raw: Any,
+    timezone_name: str,
+    *,
+    source_field: str = 'local_datetime',
+) -> Dict[str, Any]:
+    """Resolve a local civil time without guessing through DST or bad offsets."""
+    context = canonical_time_context(
+        dt_raw,
+        timezone_name,
+        source_field=source_field,
+        legacy_local_wall_time=True,
+    )
+    status = context.get('wall_time_status')
+    candidates = _time_resolution_candidates(context)
+    if status == 'missing_time':
+        raise LocalTimeResolutionError(
+            'local_datetime must include an explicit time (YYYY-MM-DDTHH:MM).',
+            code='missing_local_time',
+            timezone_name=timezone_name,
+            input_value=dt_raw,
+            wall_time_status=status,
+            candidates=candidates,
+        )
+
+    try:
+        parsed = _parse_iso_datetime(dt_raw)
+    except Exception as exc:
+        raise LocalTimeResolutionError(
+            'local_datetime must be a valid ISO-8601 date and time.',
+            code='invalid_local_datetime',
+            timezone_name=timezone_name,
+            input_value=dt_raw,
+            wall_time_status=status,
+            candidates=candidates,
+        ) from exc
+
+    if parsed.tzinfo is None:
+        if context.get('ambiguous'):
+            code = (
+                'ambiguous_local_time'
+                if status == 'ambiguous_fold'
+                else (
+                    'nonexistent_local_time'
+                    if status == 'nonexistent_gap'
+                    else 'invalid_local_datetime'
+                )
+            )
+            message = {
+                'ambiguous_local_time': (
+                    f'Local time {dt_raw} occurs twice in {timezone_name}. '
+                    'Provide an offset-aware local_datetime using one of the listed offsets.'
+                ),
+                'nonexistent_local_time': (
+                    f'Local time {dt_raw} does not exist in {timezone_name} because '
+                    'of a daylight-saving transition.'
+                ),
+                'invalid_local_datetime': (
+                    'local_datetime must be a valid ISO-8601 date and time.'
+                ),
+            }[code]
+            raise LocalTimeResolutionError(
+                message,
+                code=code,
+                timezone_name=timezone_name,
+                input_value=dt_raw,
+                wall_time_status=status,
+                candidates=candidates,
+            )
+        if not context.get('instant_utc'):
+            raise LocalTimeResolutionError(
+                'local_datetime could not be resolved in the supplied timezone.',
+                code='invalid_local_datetime',
+                timezone_name=timezone_name,
+                input_value=dt_raw,
+                wall_time_status=status,
+                candidates=candidates,
+            )
+        return context
+
+    # An aware confirmed-local value must describe the same wall clock and
+    # offset that the supplied IANA zone had at that instant.  This lets an
+    # explicit offset select either side of a repeated fall-back hour.
+    wall_context = canonical_time_context(
+        parsed.replace(tzinfo=None),
+        timezone_name,
+        source_field=source_field,
+        legacy_local_wall_time=True,
+    )
+    wall_candidates = _time_resolution_candidates(wall_context)
+    input_instant = parsed.astimezone(timezone.utc).isoformat()
+    matching = [
+        row
+        for row in wall_candidates
+        if row.get('valid') and row.get('instant_utc') == input_instant
+    ]
+    if not matching:
+        valid_candidates = [row for row in wall_candidates if row.get('valid')]
+        wall_status = wall_context.get('wall_time_status')
+        if not valid_candidates and wall_status == 'nonexistent_gap':
+            code = 'nonexistent_local_time'
+            message = (
+                f'Local time {parsed.replace(tzinfo=None).isoformat()} does not exist '
+                f'in {timezone_name} because of a daylight-saving transition.'
+            )
+        else:
+            code = 'timezone_offset_mismatch'
+            message = (
+                'The UTC offset in local_datetime does not match the supplied '
+                f'IANA timezone ({timezone_name}) at that local wall time.'
+            )
+        raise LocalTimeResolutionError(
+            message,
+            code=code,
+            timezone_name=timezone_name,
+            input_value=dt_raw,
+            wall_time_status=wall_status,
+            candidates=wall_candidates,
+        )
+
+    selected = matching[0]
+    aware_context = canonical_time_context(
+        parsed,
+        timezone_name,
+        source_field=source_field,
+        legacy_local_wall_time=False,
+    )
+    aware_context.update({
+        'interpretation': 'confirmed_local_civil_time_with_iana_zone',
+        'wall_time_status': (
+            'ambiguous_fold_resolved_by_offset'
+            if len([row for row in wall_candidates if row.get('valid')]) > 1
+            else 'unique'
+        ),
+        'wall_time_candidates': copy.deepcopy(
+            wall_context.get('wall_time_candidates') or []
+        ),
+        'selected_fold': selected.get('fold'),
+        'supplied_utc_offset': selected.get('utc_offset'),
+    })
+    return aware_context
+
+
 def _normalize_manual_datetime(
     dt_raw: Any,
     *,
@@ -4338,14 +4581,14 @@ def _normalize_manual_datetime(
         normalized = parsed.astimezone(timezone.utc)
         return normalized, (resolved_tz or "UTC")
 
-    if resolved_tz:
-        try:
-            local_dt = parsed.replace(tzinfo=ZoneInfo(resolved_tz))
-            return local_dt.astimezone(timezone.utc), resolved_tz
-        except Exception:
-            pass
-
-    return parsed.replace(tzinfo=timezone.utc), "UTC"
+    strict_timezone = resolved_tz or 'UTC'
+    context = _strict_confirmed_local_time_context(
+        dt_raw,
+        strict_timezone,
+        source_field='datetime',
+    )
+    instant = _parse_iso_datetime(context.get('instant_utc'))
+    return instant.astimezone(timezone.utc), strict_timezone
 
 
 def _localize(dt: datetime, tz: Optional[str]) -> datetime:
@@ -4402,7 +4645,7 @@ def _legacy_snap_coords_from_location(location: Optional[str]) -> Optional[Tuple
 @_error_handler
 def get_planetary_hours():
     eng = _engine_instance()
-    data, active_settings = _data_for_request_clock_context(eng)
+    data, active_settings = _data_for_optional_confirmed_snap(eng)
     target_dt: Optional[datetime] = None
     date_str = request.args.get('date')
     datetime_str = request.args.get('datetime')
@@ -4477,48 +4720,6 @@ def _legacy_snap_store_path() -> Optional[Path]:
     return base / "snaps_store.json"
 
 
-def _load_snap_file(path: Path) -> List[Dict[str, Any]]:
-    try:
-        with path.open("r", encoding="utf-8-sig") as handle:
-            data = json.load(handle)
-    except Exception:
-        return []
-    snaps = data.get("snaps", []) if isinstance(data, dict) else []
-    return [snap for snap in snaps if isinstance(snap, dict)]
-
-
-def _merge_legacy_snap_store(current_path: Path) -> None:
-    """Copy legacy user snaps forward without deleting the legacy file."""
-    legacy_path = _legacy_snap_store_path()
-    if not legacy_path or legacy_path == current_path or not legacy_path.exists():
-        return
-    legacy_snaps = _load_snap_file(legacy_path)
-    if not legacy_snaps:
-        return
-    current_snaps = _load_snap_file(current_path) if current_path.exists() else []
-    merged_by_key: Dict[str, Dict[str, Any]] = {}
-    order: List[str] = []
-    for snap in legacy_snaps + current_snaps:
-        key = str(snap.get("id") or json.dumps(snap, sort_keys=True, default=str))
-        if key not in merged_by_key:
-            order.append(key)
-        merged_by_key[key] = snap
-    merged = [merged_by_key[key] for key in order]
-    current_ids = {str(snap.get("id") or json.dumps(snap, sort_keys=True, default=str)) for snap in current_snaps}
-    legacy_ids = {str(snap.get("id") or json.dumps(snap, sort_keys=True, default=str)) for snap in legacy_snaps}
-    if legacy_ids.issubset(current_ids):
-        return
-    try:
-        current_path.parent.mkdir(parents=True, exist_ok=True)
-        tmp_path = current_path.with_suffix(current_path.suffix + ".tmp")
-        with tmp_path.open("w", encoding="utf-8") as handle:
-            json.dump({"snaps": merged}, handle, ensure_ascii=False)
-        os.replace(tmp_path, current_path)
-        logger.info("Migrated %d legacy Astro Clock snaps into %s", len(legacy_ids - current_ids), current_path)
-    except Exception as exc:
-        logger.warning("Failed to migrate legacy Astro Clock snaps from %s: %s", legacy_path, exc)
-
-
 def _snaps() -> SnapStore:
     global _snap_store
     if _snap_store is None:
@@ -4527,9 +4728,55 @@ def _snaps() -> SnapStore:
         except Exception:
             max_snaps = 500
         snap_path = _snap_store_path()
-        _merge_legacy_snap_store(snap_path)
-        _snap_store = SnapStore(str(snap_path), max_snaps=max_snaps)
+        store = SnapStore(str(snap_path), max_snaps=max_snaps, auto_migrate=True)
+        legacy_path = _legacy_snap_store_path()
+        if legacy_path and legacy_path != snap_path and legacy_path.exists():
+            try:
+                store.import_legacy(str(legacy_path))
+            except Exception as exc:
+                logger.warning(
+                    "Legacy Astro Clock snaps were not imported because the source "
+                    "could not be preserved safely: %s",
+                    exc,
+                )
+        _snap_store = store
     return _snap_store
+
+
+def preview_snap_store_migration(*, include_document: bool = False) -> Dict[str, Any]:
+    """Dry-run the real store migration without changing the snap document."""
+    snap_path = _snap_store_path()
+    if not snap_path.exists():
+        empty_document = {
+            'schema_version': SNAP_RECORD_SCHEMA_VERSION,
+            'snaps': [],
+            'tombstones': {},
+            'legacy_imports': {},
+        }
+        preview = {
+            'changed': False,
+            'path': str(snap_path),
+            'from_schema_version': None,
+            'to_schema_version': SNAP_RECORD_SCHEMA_VERSION,
+            'report': {
+                'record_count': 0,
+                'migrated_records': 0,
+                'semantic_duplicate_groups': [],
+                'duplicates_removed': 0,
+            },
+            'review_required_ids': [],
+        }
+        if include_document:
+            preview['document'] = empty_document
+        return preview
+    store = SnapStore(str(snap_path), auto_migrate=False)
+    return store.preview_migration(include_document=include_document)
+
+
+def initialize_snap_store_migration() -> Dict[str, Any]:
+    """Initialize, back up, migrate, and import the user snap store."""
+    store = _snaps()
+    return store.migration_report()
 
 
 def _settings_for_payload_clock_context(
@@ -4690,9 +4937,27 @@ def create_snap():
     )
     active_location = getattr(active_settings, 'location', None) or eng.settings.location
     active_timezone = getattr(active_settings, 'timezone', None) or eng.settings.timezone
+    payload_coords = _snap_coordinate_pair(payload)
+    dashboard_coords = _snap_coordinate_pair(payload_dashboard) if payload_dashboard else None
     active_coords = _coords_from_settings(active_settings)
+    coordinate_origin = None
+    if payload_coords is not None:
+        coordinate_origin = 'request_coordinates'
+    elif dashboard_coords is not None:
+        coordinate_origin = 'applied_dashboard'
+    elif active_coords is not None:
+        coordinate_origin = 'runtime_chart_context'
     if active_coords is None and active_location:
         active_coords = _ensure_coords_for_location(active_location, settings_hint=active_settings)
+        if active_coords is not None:
+            coordinate_origin = 'geocoder'
+    coordinate_provenance = {
+        'source': coordinate_origin or 'missing',
+        'persisted_with_chart': bool(active_coords is not None),
+        'inferred_at_read_time': False,
+        'inferred_during_calculation': coordinate_origin == 'geocoder',
+        'review_required': active_coords is None,
+    }
 
     # Summary for listing/search
     # Planetary hour ruler
@@ -4733,14 +4998,24 @@ def create_snap():
         summary['certification'] = certification_summary
 
     snap = {
+        'schema_version': SNAP_RECORD_SCHEMA_VERSION,
         'id': str(uuid4()),
         'label': label,
-        'effective_datetime': data.timestamp.isoformat(),
+        'created_at': datetime.now(timezone.utc).isoformat(),
+        'effective_datetime': (
+            data.timestamp.astimezone(timezone.utc).isoformat()
+            if getattr(data.timestamp, 'tzinfo', None) is not None
+            else data.timestamp.replace(tzinfo=timezone.utc).isoformat()
+        ),
         'location': active_location,
         'timezone': active_timezone,
-        'timezone_label': dash.get('timezone_label'),
+        'timezone_label': (
+            timezone_label_for_instant(active_timezone, data.timestamp)
+            or dash.get('timezone_label')
+        ),
         'latitude': (active_coords[0] if active_coords else None),
         'longitude': (active_coords[1] if active_coords else None),
+        'coordinate_provenance': coordinate_provenance,
         'special_degrees': special_degrees,
         'summary': summary,
         'chart_snapshot': chart_snapshot,
@@ -4750,9 +5025,33 @@ def create_snap():
         snap['profile_hint'] = profile_hint
     if certification_payload:
         snap['certification'] = certification_payload
+    snap = canonicalize_snapshot_record(snap)
     store = _snaps()
-    store.add(snap)
-    return _json_ok({'id': snap['id'], 'label': label})
+    idempotency_key = str(
+        payload.get('idempotency_key')
+        or request.headers.get('Idempotency-Key')
+        or ''
+    ).strip() or None
+    add_method = getattr(store, 'add')
+    supports_idempotency = False
+    try:
+        supports_idempotency = 'idempotency_key' in inspect.signature(add_method).parameters
+    except Exception:
+        supports_idempotency = False
+    stored_snap = (
+        add_method(snap, idempotency_key=idempotency_key)
+        if supports_idempotency
+        else add_method(snap)
+    )
+    if not isinstance(stored_snap, dict):
+        stored_snap = snap
+    return _json_ok({
+        'id': stored_snap.get('id') or snap['id'],
+        'label': stored_snap.get('label') or label,
+        'schema_version': stored_snap.get('schema_version'),
+        'effective_datetime': stored_snap.get('effective_datetime'),
+        'local_datetime': stored_snap.get('local_datetime'),
+    })
 
 
 @astro_clock_bp.route('/snaps', methods=['GET'])
@@ -4760,7 +5059,10 @@ def create_snap():
 def list_snaps():
     store = _snaps()
     items = []
-    for snap in store.list():
+    for raw_snap in store.list():
+        snap = _hydrate_snap_payload(raw_snap, infer_coordinates=False)
+        if not snap:
+            continue
         dashboard = snap.get('dashboard') if isinstance(snap, dict) else {}
         timezone_value = snap.get('timezone') or (dashboard or {}).get('timezone')
         timezone_label = snap.get('timezone_label') or (dashboard or {}).get('timezone_label')
@@ -4779,8 +5081,17 @@ def list_snaps():
         items.append({
             'id': snap.get('id'),
             'label': snap.get('label'),
+            'schema_version': snap.get('schema_version'),
             'effective_datetime': snap.get('effective_datetime'),
+            'local_datetime': snap.get('local_datetime'),
             'location': snap.get('location'),
+            'timezone': timezone_value,
+            'timezone_label': timezone_label,
+            'coordinate_provenance': snap.get('coordinate_provenance'),
+            'calculation_context': snap.get('calculation_context'),
+            'resolved_context': snap.get('resolved_context'),
+            'duplicate_group': snap.get('duplicate_group'),
+            'superseded_by': snap.get('superseded_by'),
             'summary': summary,
             'special_degrees': snap.get('special_degrees') or [],
             'dashboard': {
@@ -4792,28 +5103,65 @@ def list_snaps():
         })
     # Frontend expects success flag and top-level items
     from flask import jsonify as _j
-    return _j({'success': True, 'items': items})
+    migration_report = (
+        store.migration_report()
+        if callable(getattr(store, 'migration_report', None))
+        else {}
+    )
+    return _j({
+        'success': True,
+        'items': items,
+        'migration_report': migration_report,
+    })
 
 
-def _hydrate_snap_payload(snap: Any) -> Optional[Dict[str, Any]]:
+def _hydrate_snap_payload(
+    snap: Any,
+    *,
+    infer_coordinates: bool = True,
+) -> Optional[Dict[str, Any]]:
     if not isinstance(snap, dict):
         return None
-    hydrated = dict(snap)
+    hydrated = canonicalize_snapshot_record(snap)
     dashboard = hydrated.get('dashboard') if isinstance(hydrated.get('dashboard'), dict) else {}
     dashboard = dict(dashboard)
 
     timestamp_value = hydrated.get('effective_datetime') or dashboard.get('timestamp')
     location_value = hydrated.get('location') or dashboard.get('location')
-    coords = _coords_from_request_args(hydrated) or _coords_from_request_args(dashboard)
-    if coords is None and location_value:
-        coords = _legacy_snap_coords_from_location(location_value)
+    coords = _snap_coordinate_pair(hydrated, dashboard)
+    coordinate_provenance = dict(hydrated.get('coordinate_provenance') or {})
+    saved_coords = coords is not None and bool(
+        coordinate_provenance.get('persisted_with_chart', True)
+    )
+    inferred_coords = None
+    if coords is None and location_value and infer_coordinates:
+        inferred_coords = _legacy_snap_coords_from_location(location_value)
+        coords = inferred_coords
+        if inferred_coords is not None:
+            coordinate_provenance = {
+                'source': 'inferred_from_saved_location',
+                'persisted_with_chart': False,
+                'inferred_at_read_time': True,
+                'location_specificity': (
+                    (hydrated.get('coordinate_provenance') or {}).get('location_specificity')
+                    or 'unknown'
+                ),
+                'review_required': True,
+            }
 
     timezone_value = hydrated.get('timezone') or dashboard.get('timezone')
-    timezone_label = hydrated.get('timezone_label') or dashboard.get('timezone_label')
-    if not timezone_value:
-        timezone_value = _resolve_timezone_for_context(None, location_value, coords=coords)
-    if not timezone_label and timezone_value:
-        timezone_label = timezone_value
+    if not timezone_value and infer_coordinates:
+        timezone_value = _resolve_timezone_for_context(
+            None,
+            location_value,
+            coords=coords,
+            lookup_coords=infer_coordinates,
+        )
+    timezone_label = (
+        timezone_label_for_instant(timezone_value, timestamp_value)
+        if timezone_value and timestamp_value
+        else None
+    ) or timezone_value
     certification_payload = _normalize_snap_certification_payload(
         hydrated.get('certification') or dashboard.get('certification')
     )
@@ -4824,12 +5172,25 @@ def _hydrate_snap_payload(snap: Any) -> Optional[Dict[str, Any]]:
     hydrated['timezone_label'] = timezone_label
     hydrated['latitude'] = float(coords[0]) if coords else None
     hydrated['longitude'] = float(coords[1]) if coords else None
+    hydrated['coordinate_provenance'] = coordinate_provenance
+    resolved_context = dict(hydrated.get('resolved_context') or {})
+    resolved_context.update({
+        'latitude': float(coords[0]) if coords else None,
+        'longitude': float(coords[1]) if coords else None,
+        'timezone': timezone_value,
+        'timezone_label': timezone_label,
+        'coordinate_provenance': copy.deepcopy(coordinate_provenance),
+        'chart_native': bool(saved_coords),
+    })
+    hydrated['resolved_context'] = resolved_context
     dashboard['timestamp'] = dashboard.get('timestamp') or timestamp_value
     dashboard['location'] = dashboard.get('location') or location_value
     dashboard['timezone'] = timezone_value
     dashboard['timezone_label'] = timezone_label
-    dashboard['latitude'] = float(coords[0]) if coords else None
-    dashboard['longitude'] = float(coords[1]) if coords else None
+    if saved_coords:
+        dashboard['latitude'] = float(coords[0])
+        dashboard['longitude'] = float(coords[1])
+        dashboard['coordinate_provenance'] = copy.deepcopy(coordinate_provenance)
     if certification_payload:
         hydrated['certification'] = certification_payload
         dashboard['certification'] = certification_payload
@@ -4840,14 +5201,376 @@ def _hydrate_snap_payload(snap: Any) -> Optional[Dict[str, Any]]:
     return hydrated
 
 
+def _saved_snap_context_blocking_reasons(snap: Any) -> List[str]:
+    """Return reasons a saved chart is unsafe to reuse for a fresh calculation."""
+    if not isinstance(snap, dict):
+        return ['saved chart context is unavailable']
+
+    context = (
+        snap.get('calculation_context')
+        if isinstance(snap.get('calculation_context'), dict)
+        else {}
+    )
+    time_provenance = (
+        context.get('time_provenance')
+        if isinstance(context.get('time_provenance'), dict)
+        else {}
+    )
+    coordinate_provenance = (
+        snap.get('coordinate_provenance')
+        if isinstance(snap.get('coordinate_provenance'), dict)
+        else (
+            context.get('coordinate_provenance')
+            if isinstance(context.get('coordinate_provenance'), dict)
+            else {}
+        )
+    )
+
+    reasons: List[str] = []
+    if str(snap.get('superseded_by') or '').strip():
+        reasons.append('saved chart was superseded by a corrected copy')
+    if context.get('review_required'):
+        reasons.append('legacy place/time context still requires review')
+    if time_provenance.get('ambiguous'):
+        reasons.append('birth time is ambiguous or nonexistent in the saved timezone')
+
+    timezone_name = context.get('timezone') or snap.get('timezone')
+    try:
+        ZoneInfo(str(timezone_name).strip()) if timezone_name else None
+        valid_timezone = bool(timezone_name)
+    except Exception:
+        valid_timezone = False
+    if not valid_timezone:
+        reasons.append('saved birth context has no valid IANA timezone')
+
+    instant_raw = context.get('instant_utc') or snap.get('effective_datetime')
+    try:
+        instant = _parse_iso_datetime(instant_raw) if instant_raw else None
+    except Exception:
+        instant = None
+    if instant is None or instant.tzinfo is None:
+        reasons.append('saved birth time has no confirmed UTC instant')
+
+    coords = _snap_coordinate_pair(snap, snap.get('dashboard'))
+    coordinates_persisted = (
+        coordinate_provenance.get('persisted_with_chart') is True
+        if 'persisted_with_chart' in coordinate_provenance
+        else coords is not None
+    )
+    if (
+        coords is None
+        or not coordinates_persisted
+        or coordinate_provenance.get('inferred_at_read_time')
+        or coordinate_provenance.get('review_required')
+    ):
+        reasons.append('birth coordinates were not confirmed with the saved chart')
+
+    return list(dict.fromkeys(reasons))
+
+
+def _require_confirmed_saved_snap_context(
+    snap: Any,
+    *,
+    feature_label: str,
+) -> None:
+    """Prevent uncertain migrated context from silently driving a new model."""
+    reasons = _saved_snap_context_blocking_reasons(snap)
+    if not reasons:
+        return
+    raise ValueError(
+        f"{feature_label} cannot use this saved chart because "
+        f"{'; '.join(reasons)}. Confirm/correct the saved context first with "
+        "the specific birthplace, saved coordinates, local civil time, and "
+        "IANA timezone."
+    )
+
+
 @astro_clock_bp.route('/snaps/<snap_id>', methods=['GET'])
 @_error_handler
 def get_snap(snap_id: str):
     store = _snaps()
-    snap = _hydrate_snap_payload(store.get(snap_id))
+    snap = _hydrate_snap_payload(store.get(snap_id), infer_coordinates=False)
     if not snap:
         return jsonify({'success': False, 'error': 'Not found'}), 404
     return jsonify({'success': True, 'snap': snap})
+
+
+def _recast_snap_summary(
+    bundle: Dict[str, Any],
+    *,
+    instant_utc: datetime,
+    timezone_name: str,
+    latitude: float,
+    longitude: float,
+    profile_hint: Optional[str],
+) -> Tuple[Dict[str, Any], Optional[str]]:
+    """Rebuild every summary value that is valid for the replacement chart."""
+    chart_data = (
+        bundle.get('chart_data')
+        if isinstance(bundle.get('chart_data'), dict)
+        else {}
+    )
+    planets = _normalized_planet_rows(chart_data.get('planets'))
+    moon = next(
+        (
+            row for row in planets
+            if str(row.get('planet') or row.get('name') or '').strip().lower()
+            == 'moon'
+        ),
+        None,
+    )
+    moon_sign = moon.get('sign') if isinstance(moon, dict) else None
+    if not moon_sign and isinstance(moon, dict):
+        try:
+            sign_names = (
+                'Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo',
+                'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius',
+                'Pisces',
+            )
+            moon_sign = sign_names[int(float(moon.get('longitude')) % 360 // 30)]
+        except Exception:
+            moon_sign = None
+
+    sect_info = None
+    try:
+        sect_info = compute_sect_info(chart_data)
+    except Exception:
+        sect_info = None
+
+    hour_ruler = None
+    try:
+        local_datetime = instant_utc.astimezone(ZoneInfo(timezone_name))
+        planetary_hour = _ph_instance(latitude, longitude).get_current_planetary_hour(
+            local_datetime
+        )
+        if planetary_hour:
+            hour_ruler = getattr(planetary_hour.ruling_planet, 'value', None)
+    except Exception:
+        hour_ruler = None
+
+    return {
+        'hour_ruler': hour_ruler,
+        'moon_sign': moon_sign,
+        'chart_sect': (sect_info or {}).get('chart_sect'),
+        'sect_light': (sect_info or {}).get('sect_light'),
+        'profile_hint': profile_hint,
+        'recast_context_status': 'recomputed',
+    }, profile_hint
+
+
+def recast_snap_with_confirmed_context(
+    snap_id: str,
+    *,
+    local_datetime: Any,
+    timezone_name: str,
+    location: str,
+    latitude: float,
+    longitude: float,
+    house_system_code: str = 'R',
+    include_modern: bool = True,
+    include_chiron: bool = True,
+    persist: bool = False,
+) -> Dict[str, Any]:
+    """Build a coherent replacement snap from explicitly confirmed context.
+
+    ``persist=False`` is a dry run.  When persistence is requested the legacy
+    record is preserved and marked ``superseded_by``; it is never overwritten.
+    """
+    store = _snaps()
+    raw_snap = store.get(snap_id)
+    if not isinstance(raw_snap, dict):
+        raise ValueError('Saved snap not found')
+    confirmed_location = str(location or '').strip()
+    if not confirmed_location:
+        raise ValueError('A specific confirmed location is required')
+    if is_generic_location_label(confirmed_location):
+        raise ValueError(
+            'A specific city or place is required. A country or broad region '
+            'cannot confirm birth coordinates.'
+        )
+    coords = _coords_from_request_args({
+        'latitude': latitude,
+        'longitude': longitude,
+    }, strict=True)
+    if coords is None:
+        raise ValueError('Confirmed latitude and longitude are required')
+    valid_timezone = _valid_confirmation_timezone(timezone_name)
+    if not valid_timezone:
+        raise ValueError('A valid IANA timezone is required for context confirmation')
+    confirmed_time = _strict_confirmed_local_time_context(
+        local_datetime,
+        valid_timezone,
+        source_field='confirmed_local_datetime',
+    )
+    instant_utc = _parse_iso_datetime(confirmed_time.get('instant_utc'))
+    if instant_utc is None:
+        raise ValueError('A confirmed local date and time is required')
+    resolved_timezone = valid_timezone
+    local_aware = instant_utc.astimezone(ZoneInfo(resolved_timezone))
+    effective_house_system = (
+        _validated_astrocartography_house_system_code(
+            house_system_code,
+            default='R',
+        )
+        or 'R'
+    )
+    bundle = _compute_chart_bundle_for(
+        instant_utc.isoformat(),
+        confirmed_location,
+        resolved_timezone,
+        house_system_code=effective_house_system,
+        latitude=coords[0],
+        longitude=coords[1],
+        include_modern=include_modern,
+        include_chiron=include_chiron,
+    )
+    chart_data = copy.deepcopy(bundle.get('chart_data') or {})
+    chart_snapshot = _synastry_chart_snapshot_from_chart_data(chart_data)
+    chart_snapshot['house_system_code'] = effective_house_system
+    dashboard = {
+        'timestamp': instant_utc.isoformat(),
+        'local_datetime': local_aware.isoformat(),
+        'location': confirmed_location,
+        'timezone': resolved_timezone,
+        'timezone_label': timezone_label_for_instant(
+            resolved_timezone,
+            instant_utc,
+        ),
+        'latitude': coords[0],
+        'longitude': coords[1],
+        'house_system_code': effective_house_system,
+        'planets': copy.deepcopy(chart_snapshot.get('planets') or []),
+        'house_cusps': copy.deepcopy(chart_snapshot.get('house_cusps') or []),
+        'ascendant': chart_snapshot.get('ascendant'),
+        'midheaven': chart_snapshot.get('midheaven'),
+        'house_rulers': copy.deepcopy(chart_snapshot.get('house_rulers') or {}),
+    }
+    replacement_profile_hint = _extract_synastry_profile_hint(
+        raw_snap,
+        raw_snap.get('summary'),
+    )
+    replacement_special_degrees = _normalize_special_degree_tokens(
+        raw_snap.get('special_degrees')
+    )
+    replacement_summary, replacement_profile_hint = _recast_snap_summary(
+        bundle,
+        instant_utc=instant_utc,
+        timezone_name=resolved_timezone,
+        latitude=coords[0],
+        longitude=coords[1],
+        profile_hint=replacement_profile_hint,
+    )
+    original_label = str(raw_snap.get('label') or 'Snapshot').strip()
+    replacement = {
+        'schema_version': SNAP_RECORD_SCHEMA_VERSION,
+        'id': str(uuid4()),
+        'created_at': datetime.now(timezone.utc).isoformat(),
+        'label': f'{original_label} (confirmed context)',
+        'effective_datetime': instant_utc.isoformat(),
+        'local_datetime': local_aware.isoformat(),
+        'location': confirmed_location,
+        'timezone': resolved_timezone,
+        'timezone_label': dashboard['timezone_label'],
+        'latitude': coords[0],
+        'longitude': coords[1],
+        'coordinate_provenance': {
+            'source': 'user_confirmed_context_override',
+            'persisted_with_chart': True,
+            'inferred_at_read_time': False,
+            'inferred_during_calculation': False,
+            'location_specificity': 'specific',
+            'review_required': False,
+        },
+        'calculation_context': {
+            'instant_utc': instant_utc.isoformat(),
+            'local_datetime': local_aware.isoformat(),
+            'timezone': resolved_timezone,
+            'timezone_label': dashboard['timezone_label'],
+            'timezone_source': 'user_confirmed_context_override',
+            'location': confirmed_location,
+            'latitude': coords[0],
+            'longitude': coords[1],
+            'house_system_code': effective_house_system,
+            'coordinate_provenance': {
+                'source': 'user_confirmed_context_override',
+                'persisted_with_chart': True,
+                'inferred_at_read_time': False,
+                'review_required': False,
+            },
+            'time_provenance': {
+                **confirmed_time,
+                'interpretation': 'confirmed_local_civil_time_with_iana_zone',
+            },
+            'conflicts': [],
+            'review_required': False,
+        },
+        'special_degrees': replacement_special_degrees,
+        'summary': replacement_summary,
+        'chart_snapshot': chart_snapshot,
+        'dashboard': dashboard,
+        'recast_provenance': {
+            'kind': 'confirmed_context_recast',
+            'source_snap_id': snap_id,
+            'engine': 'Swiss Ephemeris',
+            'all_planets_houses_and_angles_recomputed_together': True,
+            'legacy_source_preserved': True,
+            'recomputed_fields': [
+                'summary.hour_ruler',
+                'summary.moon_sign',
+                'summary.chart_sect',
+                'summary.sect_light',
+            ],
+            'invalidated_fields': {
+                'certification': (
+                    'not carried because the certified birth context changed'
+                ),
+            },
+            'preserved_user_metadata': {
+                'special_degrees': bool(replacement_special_degrees),
+                'profile_hint': bool(replacement_profile_hint),
+            },
+        },
+    }
+    if replacement_profile_hint:
+        replacement['profile_hint'] = replacement_profile_hint
+    replacement = canonicalize_snapshot_record(replacement)
+    if persist:
+        add_replacement = getattr(store, 'add_replacement', None)
+        if not callable(add_replacement):
+            raise RuntimeError('The configured snapshot store cannot preserve a replacement safely')
+        return add_replacement(snap_id, replacement)
+    return replacement
+
+
+@astro_clock_bp.route('/snaps/<snap_id>/confirm-context', methods=['POST'])
+@_error_handler
+def confirm_snap_context(snap_id: str):
+    payload = request.get_json(silent=True) or {}
+    if not isinstance(payload, dict):
+        raise ValueError('JSON object body is required')
+    persist = _truthy_payload_flag(payload.get('persist'))
+    replacement = recast_snap_with_confirmed_context(
+        snap_id,
+        local_datetime=payload.get('local_datetime') or payload.get('datetime'),
+        timezone_name=str(payload.get('timezone') or '').strip(),
+        location=str(payload.get('location') or '').strip(),
+        latitude=payload.get('latitude'),
+        longitude=payload.get('longitude'),
+        house_system_code=str(
+            payload.get('house_system_code')
+            or payload.get('house_system')
+            or 'R'
+        ).strip(),
+        include_modern=payload.get('include_modern', True) is not False,
+        include_chiron=payload.get('include_chiron', True) is not False,
+        persist=persist,
+    )
+    return _json_ok({
+        'persisted': persist,
+        'original_snap_id': snap_id,
+        'original_preserved': True,
+        'replacement': replacement,
+    })
 
 
 def _first_nonempty_text(*values: Any) -> Optional[str]:
@@ -4884,9 +5607,16 @@ def _chinese_astrology_birth_context(payload: Dict[str, Any]):
     source = 'direct_input'
     snap_label = None
     if snap_id:
-        snap = _hydrate_snap_payload(_snaps().get(snap_id))
+        snap = _hydrate_snap_payload(
+            _snaps().get(snap_id),
+            infer_coordinates=False,
+        )
         if not snap:
             raise ValueError('Saved snap not found')
+        _require_confirmed_saved_snap_context(
+            snap,
+            feature_label='Chinese Astrology',
+        )
         source = 'saved_snap'
         snap_label = _first_nonempty_text(snap.get('label'), snap.get('id'), 'Saved snap')
 
@@ -5392,12 +6122,73 @@ def get_receptions():
     TraditionalReceptionCalculator so dev parity matches packaged builds.
     """
     eng = _engine_instance()
-    data, _active_settings = _data_for_request_clock_context(eng)
+    data, _active_settings = _data_for_optional_confirmed_snap(eng)
     try:
         chart = data.chart_result if isinstance(data.chart_result, dict) else json.loads(data.chart_result)
     except Exception:
         chart = {}
     return _json_ok(_extract_receptions_payload(chart))
+
+
+def _data_for_optional_confirmed_snap(
+    eng: AstroClockEngine,
+    *,
+    house_system_override: Optional[str] = None,
+) -> Tuple[Any, AstroClockSettings]:
+    snap_id = str(request.args.get('snap_id') or '').strip()
+    if not snap_id:
+        if house_system_override is None:
+            return _data_for_request_clock_context(eng)
+        return _data_for_request_clock_context(
+            eng,
+            house_system_override=house_system_override,
+        )
+    bundle = _bundle_from_snap_id(
+        snap_id,
+        house_system_code=_validated_astrocartography_house_system_code(
+            house_system_override
+            or request.args.get('house_system_code')
+            or request.args.get('house_system')
+        ),
+        missing_error='Saved snap not found',
+    )
+    meta = bundle.get('meta') if isinstance(bundle.get('meta'), dict) else {}
+    chart_data = (
+        bundle.get('chart_data')
+        if isinstance(bundle.get('chart_data'), dict)
+        else {}
+    )
+    chart_result = (
+        dict(bundle.get('chart_result'))
+        if isinstance(bundle.get('chart_result'), dict)
+        else {}
+    )
+    chart_result['chart_data'] = copy.deepcopy(chart_data)
+    if bundle.get('raw_chart') is not None:
+        chart_result['_raw_chart'] = bundle.get('raw_chart')
+    timestamp_raw = meta.get('timestamp') or meta.get('instant_utc')
+    timestamp = _parse_iso_datetime(timestamp_raw)
+    if timestamp.tzinfo is None:
+        raise ValueError('Saved snap is missing a confirmed UTC instant')
+    settings = AstroClockSettings(
+        mode=ClockMode.MANUAL,
+        location=meta.get('location'),
+        custom_time=timestamp.astimezone(timezone.utc),
+        timezone=meta.get('timezone'),
+        latitude=meta.get('latitude'),
+        longitude=meta.get('longitude'),
+        paused_at=None,
+        house_system_code=meta.get('house_system_code'),
+    )
+    data = SimpleNamespace(
+        timestamp=timestamp.astimezone(timezone.utc),
+        settings=settings,
+        chart_result=chart_result,
+        moon_state=None,
+        dispositor_chains={},
+        current_aspects=[],
+    )
+    return data, settings
 
 
 @astro_clock_bp.route('/compass', methods=['GET'])
@@ -5406,7 +6197,7 @@ def get_compass():
     """Return local-space compass bearings for the active chart context."""
     include_modern = (request.args.get('include_modern', '0').lower() in {'1', 'true', 'yes'})
     eng = _engine_instance()
-    data, active_settings = _data_for_request_clock_context(eng)
+    data, active_settings = _data_for_optional_confirmed_snap(eng)
     try:
         chart = data.chart_result if isinstance(data.chart_result, dict) else json.loads(data.chart_result)
     except Exception:
@@ -5433,7 +6224,7 @@ def get_directional_3d():
     """Return geometry rows for the advanced Directional chart view."""
     include_modern = (request.args.get('include_modern', '0').lower() in {'1', 'true', 'yes'})
     eng = _engine_instance()
-    data, active_settings = _data_for_request_clock_context(eng)
+    data, active_settings = _data_for_optional_confirmed_snap(eng)
     try:
         chart = data.chart_result if isinstance(data.chart_result, dict) else json.loads(data.chart_result)
     except Exception:
@@ -5463,6 +6254,18 @@ def birth_time_certification_rectify():
         body = {}
     if not isinstance(body, dict):
         return jsonify({'success': False, 'error': 'JSON object body is required'}), 400
+    snap_id = str(body.get('snap_id') or '').strip()
+    if snap_id:
+        snap = _hydrate_snap_payload(
+            _snaps().get(snap_id),
+            infer_coordinates=False,
+        )
+        if not snap:
+            return jsonify({'success': False, 'error': 'Saved snap not found'}), 400
+        _require_confirmed_saved_snap_context(
+            snap,
+            feature_label='Birth Certification',
+        )
     try:
         from birth_certification import rectify_birth_time_from_payload
 
@@ -5743,16 +6546,39 @@ def _configure_synastry_ephemeris_path(swe_module: Any):
         yield
 
 
+def _synastry_utc_instant_from_meta(meta: Dict[str, Any]) -> Optional[datetime]:
+    context = (meta or {}).get('calculation_context')
+    if not isinstance(context, dict):
+        context = {}
+    time_provenance = context.get('time_provenance')
+    if isinstance(time_provenance, dict) and time_provenance.get('ambiguous'):
+        return None
+    timestamp = str(
+        context.get('instant_utc')
+        or (meta or {}).get('instant_utc')
+        or (meta or {}).get('timestamp')
+        or ''
+    ).strip()
+    if not timestamp:
+        return None
+    try:
+        parsed = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+    except Exception:
+        return None
+    # A naive legacy timestamp has no single astronomical meaning.  Do not
+    # silently treat it as UTC and mix newly calculated points into a chart
+    # that may have been cast from local civil time.
+    if parsed.tzinfo is None:
+        return None
+    return parsed.astimezone(timezone.utc)
+
+
 def _synastry_point_capability(meta: Dict[str, Any]) -> Dict[str, bool]:
     try:
         _swe = require_swisseph()
-        timestamp = str((meta or {}).get('timestamp') or '').strip()
-        if not timestamp:
+        dt_utc = _synastry_utc_instant_from_meta(meta)
+        if dt_utc is None:
             return {"modern_supported": False, "chiron_supported": False}
-        dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        dt_utc = dt.astimezone(timezone.utc)
         hour_decimal = (
             dt_utc.hour
             + (dt_utc.minute / 60.0)
@@ -5804,15 +6630,10 @@ def _extend_chart_data_for_synastry(
     except Exception:
         return chart_data
 
-    timestamp = str((meta or {}).get('timestamp') or '').strip()
-    if not timestamp:
-        return chart_data
-
     try:
-        dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        dt_utc = dt.astimezone(timezone.utc)
+        dt_utc = _synastry_utc_instant_from_meta(meta)
+        if dt_utc is None:
+            return chart_data
         hour_decimal = (
             dt_utc.hour
             + (dt_utc.minute / 60.0)
@@ -7382,6 +8203,180 @@ def _attach_astrocartography_birth_time_quality(
     return bundle
 
 
+def _election_precision_from_saved_bundle(bundle: Any) -> Dict[str, Any]:
+    """Translate persisted birth-time quality into election model precision."""
+    payload = bundle if isinstance(bundle, dict) else {}
+    meta = payload.get('meta') if isinstance(payload.get('meta'), dict) else {}
+    quality = (
+        payload.get('birth_time')
+        if isinstance(payload.get('birth_time'), dict)
+        else (
+            meta.get('birth_time')
+            if isinstance(meta.get('birth_time'), dict)
+            else {}
+        )
+    )
+    status = str(quality.get('status') or '').strip().lower()
+    eligibility = str(
+        quality.get('ranking_eligibility') or ''
+    ).strip().lower()
+    precision_safe = bool(quality.get('ranking_eligible'))
+    if status in {
+        'aa', 'record', 'certificate', 'family_exact', 'certified',
+        'certified_source',
+    }:
+        precision_class = 'certified'
+    elif status == 'rectified_candidate' and precision_safe:
+        precision_class = 'timed'
+    elif precision_safe:
+        precision_class = 'known_time'
+    else:
+        precision_class = status or 'unknown'
+    return {
+        'precision_class': precision_class,
+        'precision_safe': precision_safe,
+        'precision_source': (
+            f'saved_birth_time_quality:{eligibility or "unclassified"}'
+        ),
+    }
+
+
+def _astrocartography_birth_time_sample_contexts(
+    bundle: Dict[str, Any],
+    *,
+    bodies: Optional[Iterable[str]],
+    angles: Optional[Iterable[str]],
+    house_system_code: Optional[str],
+    include_chart_data: bool,
+) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
+    from astrocartography_service import build_astrocartography_lines
+    from astrocartography_uncertainty import (
+        build_birth_time_sampling_plan,
+        shift_iso_timestamp,
+    )
+
+    natal_meta = bundle.get("meta") or {}
+    birth_time_quality = natal_meta.get("birth_time")
+    if not isinstance(birth_time_quality, dict):
+        return {
+            "status": "not_sampled",
+            "method": "bounded_symmetric_time_grid_v1",
+            "reason": "Birth-time quality metadata is unavailable.",
+            "samples": [],
+        }, []
+    sampling_plan = build_birth_time_sampling_plan(birth_time_quality)
+    timestamp = str(natal_meta.get("timestamp") or "").strip()
+    if not timestamp or not sampling_plan.get("samples"):
+        return sampling_plan, []
+
+    contexts: List[Dict[str, Any]] = []
+    failures: List[Dict[str, Any]] = []
+    for sample in sampling_plan.get("samples") or []:
+        offset_minutes = float(sample.get("offset_minutes") or 0.0)
+        shifted_timestamp = shift_iso_timestamp(timestamp, offset_minutes)
+        timezone_name = str(natal_meta.get("timezone") or "").strip()
+        if timezone_name:
+            try:
+                shifted_timestamp = (
+                    _parse_iso_datetime(shifted_timestamp)
+                    .astimezone(ZoneInfo(timezone_name))
+                    .isoformat()
+                )
+            except Exception:
+                pass
+        try:
+            lines_payload = build_astrocartography_lines(
+                shifted_timestamp,
+                bodies=bodies,
+                angles=angles,
+            )
+        except Exception as exc:
+            failures.append(
+                {
+                    "id": sample.get("id"),
+                    "offset_minutes": sample.get("offset_minutes"),
+                    "stage": "line_geometry",
+                    "error": str(exc) or "Alternate-time line calculation failed.",
+                }
+            )
+            continue
+        sample_meta = {
+            **natal_meta,
+            "timestamp": shifted_timestamp,
+            "birth_time": copy.deepcopy(natal_meta.get("birth_time") or {}),
+        }
+        chart_data: Dict[str, Any] = {}
+        if include_chart_data:
+            try:
+                shifted_bundle = _compute_chart_bundle_for(
+                    shifted_timestamp,
+                    natal_meta.get("location"),
+                    natal_meta.get("timezone"),
+                    house_system_code=house_system_code,
+                    latitude=natal_meta.get("latitude"),
+                    longitude=natal_meta.get("longitude"),
+                    include_modern=True,
+                    include_chiron=True,
+                )
+            except Exception as exc:
+                failures.append(
+                    {
+                        "id": sample.get("id"),
+                        "offset_minutes": sample.get("offset_minutes"),
+                        "stage": "relocated_chart_source",
+                        "error": str(exc) or "Alternate-time chart calculation failed.",
+                    }
+                )
+                continue
+            chart_data = shifted_bundle.get("chart_data") or {}
+            shifted_meta = shifted_bundle.get("meta") or {}
+            sample_meta = {
+                **sample_meta,
+                **shifted_meta,
+                "birth_time": copy.deepcopy(natal_meta.get("birth_time") or {}),
+            }
+        contexts.append(
+            {
+                **sample,
+                "timestamp": shifted_timestamp,
+                "meta": sample_meta,
+                "chart_data": chart_data,
+                "lines_payload": lines_payload,
+            }
+        )
+    prepared_plan = {
+        **sampling_plan,
+        "status": (
+            (
+                "prepared_partial"
+                if contexts
+                else "failed"
+            )
+            if failures
+            else sampling_plan.get("status")
+        ),
+        "prepared_sample_count": len(contexts),
+        "requested_sample_count": len(sampling_plan.get("samples") or []),
+        "coverage_complete": len(contexts) == len(sampling_plan.get("samples") or []),
+        "failures": failures,
+        "preparation_warning": (
+            "One or more alternate-time calculations failed; sampled envelopes and score ranges are incomplete."
+            if failures
+            else None
+        ),
+        "samples": [
+            {
+                "id": sample.get("id"),
+                "position": sample.get("position"),
+                "offset_minutes": sample.get("offset_minutes"),
+                "timestamp": sample.get("timestamp"),
+            }
+            for sample in contexts
+        ],
+    }
+    return prepared_plan, contexts
+
+
 def _astrocartography_filter_selection(args: Any) -> Tuple[Optional[List[str]], Optional[List[str]], Dict[str, Any]]:
     from astrocartography_service import DEFAULT_ANGLES, DEFAULT_BODIES
 
@@ -7557,6 +8552,8 @@ def _astrocartography_ephemeris_provenance(
     *,
     bodies: Optional[Iterable[str]],
 ) -> Dict[str, Any]:
+    from astrocartography_service import body_calculation_provenance
+
     selected_bodies = [str(value or "").strip() for value in (bodies or []) if str(value or "").strip()]
     payload: Dict[str, Any] = {
         "engine": "Swiss Ephemeris",
@@ -7567,9 +8564,11 @@ def _astrocartography_ephemeris_provenance(
     }
     for body in selected_bodies:
         payload["body_sources"][body] = {
+            **body_calculation_provenance(body),
             "source": "swiss_ephemeris",
             "accuracy": "ephemeris",
             "degraded": False,
+            "ranking_eligible": True,
         }
     if "Chiron" not in selected_bodies:
         return payload
@@ -7589,6 +8588,7 @@ def _astrocartography_ephemeris_provenance(
     except Exception:
         payload["degraded"] = True
         payload["body_sources"]["Chiron"] = {
+            **body_calculation_provenance("Chiron"),
             "source": "jpl_mean_orbital_elements_fallback",
             "accuracy": "low_precision_approximation",
             "degraded": True,
@@ -7605,11 +8605,19 @@ def _astrocartography_calculation_metadata(
     *,
     timestamp_iso: str,
 ) -> Dict[str, Any]:
+    from astrocartography_service import body_calculation_provenance
+
     geometry = copy.deepcopy(lines_payload.get("calculation") or {})
     service_bodies = geometry.get("bodies") if isinstance(geometry, dict) else None
     if isinstance(service_bodies, dict) and service_bodies:
-        body_sources = {
-            str(body): {
+        body_sources: Dict[str, Dict[str, Any]] = {}
+        for body, record in service_bodies.items():
+            if not isinstance(record, dict):
+                continue
+            body_name = str(body)
+            body_metadata = body_calculation_provenance(body_name)
+            body_sources[body_name] = {
+                **body_metadata,
                 "source": record.get("position_source") or record.get("ephemeris_engine"),
                 "ephemeris_engine": record.get("ephemeris_engine"),
                 "returned_flags": record.get("returned_flags"),
@@ -7618,10 +8626,28 @@ def _astrocartography_calculation_metadata(
                 "ranking_eligible": bool(
                     record.get("ranking_eligible", not bool(record.get("degraded")))
                 ),
+                "object_type": record.get("object_type")
+                or body_metadata.get("object_type"),
+                "node_type": record.get("node_type")
+                or body_metadata.get("node_type"),
+                "node_polarity": record.get("node_polarity")
+                or body_metadata.get("node_polarity"),
+                "astrocartography_scope": record.get("astrocartography_scope")
+                or body_metadata.get("astrocartography_scope"),
+                "extension_status": record.get("extension_status")
+                or body_metadata.get("extension_status"),
+                "doctrine_scope": record.get("doctrine_scope")
+                or body_metadata.get("doctrine_scope"),
+                "ranking_eligibility_scope": record.get("ranking_eligibility_scope")
+                or body_metadata.get("ranking_eligibility_scope"),
+                "extension_note": record.get("extension_note")
+                or body_metadata.get("extension_note"),
             }
-            for body, record in service_bodies.items()
-            if isinstance(record, dict)
-        }
+            body_sources[body_name] = {
+                key: value
+                for key, value in body_sources[body_name].items()
+                if value is not None
+            }
         ephemeris = {
             "engine": "Swiss Ephemeris",
             "frame": geometry.get("coordinate_frame") or "geocentric_equatorial",
@@ -8282,9 +9308,16 @@ def _bundle_from_snap_id(
     house_system_code: Optional[str] = None,
     missing_error: str = 'Snap not found',
 ) -> Dict[str, Any]:
-    snap = _hydrate_snap_payload(_snaps().get(snap_id))
+    snap = _hydrate_snap_payload(
+        _snaps().get(snap_id),
+        infer_coordinates=False,
+    )
     if not snap:
         raise ValueError(missing_error)
+    _require_confirmed_saved_snap_context(
+        snap,
+        feature_label='This place/time-sensitive calculation',
+    )
     dt = snap.get('effective_datetime')
     loc = snap.get('location')
     tz = snap.get('timezone')
@@ -8305,9 +9338,19 @@ def _bundle_from_snap_id(
         longitude=snap.get('longitude'),
     )
     meta = dict(bundle.get("meta") or {})
+    coordinate_provenance = dict(snap.get("coordinate_provenance") or {})
+    coordinates_persisted = bool(
+        coordinate_provenance.get("persisted_with_chart")
+        if "persisted_with_chart" in coordinate_provenance
+        else (
+            snap.get("latitude") is not None
+            and snap.get("longitude") is not None
+        )
+    )
+    meta["coordinate_provenance"] = coordinate_provenance
     meta["coordinate_source"] = (
         "saved_snap"
-        if snap.get("latitude") is not None and snap.get("longitude") is not None
+        if coordinates_persisted
         else "resolved_saved_location"
     )
     bundle["meta"] = meta
@@ -8421,6 +9464,8 @@ def _astrocartography_target_analysis(
     goal_id: Optional[str] = None,
     transit_lines_payload: Optional[Dict[str, Any]] = None,
     transit_meta: Optional[Dict[str, Any]] = None,
+    birth_time_sampling_plan: Optional[Dict[str, Any]] = None,
+    natal_time_samples: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     from astrocartography_service import (
         PRIMARY_READING_RADIUS_KM,
@@ -8440,6 +9485,7 @@ def _astrocartography_target_analysis(
         summarize_relocation_features,
     )
     from astrocartography_goal_models import get_goal_model
+    from astrocartography_uncertainty import attach_birth_time_sample_evaluations
 
     target_payload = {
         'candidate_id': target_id,
@@ -8778,6 +9824,65 @@ def _astrocartography_target_analysis(
             transit_rows=(transit_scoring.get('nearest_lines') or []) if transit_scoring else None,
             transit_crossings=(transit_scoring.get('crossings') or []) if transit_scoring else None,
         )
+        sample_evaluations: List[Dict[str, Any]] = []
+        for sample in natal_time_samples or []:
+            sample_lines_payload = sample.get("lines_payload") or {}
+            sample_scoring = build_goal_scoring_context(
+                _ranking_eligible_astrocartography_lines(sample_lines_payload),
+                float(latitude),
+                float(longitude),
+                primary_radius_km=PRIMARY_READING_RADIUS_KM,
+                extended_radius_km=EXTENDED_READING_RADIUS_KM,
+            )
+            sample_relocation_bundle = _compute_relocation_chart_bundle(
+                natal_chart_data=sample.get("chart_data") or {},
+                natal_meta=sample.get("meta") or {},
+                target_label=resolved_name or target_location,
+                latitude=float(latitude),
+                longitude=float(longitude),
+                timezone_name=target_timezone,
+                house_system_code=house_system_code,
+                coordinate_source=coordinate_source,
+            )
+            if sample_relocation_bundle.get("available") is False:
+                sample_relocation_features = {
+                    "planet_houses": {},
+                    "planet_angles": {},
+                    "house_occupancy": {},
+                    "metrics": {},
+                }
+            else:
+                sample_relocation_features = extract_relocation_features(
+                    _ranking_eligible_relocation_chart(
+                        sample_relocation_bundle.get("chart_data") or {}
+                    )
+                )
+            sample_goal_eval = evaluate_goal_model(
+                goal_id,
+                natal_rows=sample_scoring.get("nearest_lines") or [],
+                natal_crossings=sample_scoring.get("crossings") or [],
+                relocation=sample_relocation_features,
+                transit_rows=(transit_scoring.get("nearest_lines") or []) if transit_scoring else None,
+                transit_crossings=(transit_scoring.get("crossings") or []) if transit_scoring else None,
+            )
+            lead_line = (sample_scoring.get("nearest_lines") or [{}])[0] or {}
+            sample_evaluations.append(
+                {
+                    "id": sample.get("id"),
+                    "position": sample.get("position"),
+                    "offset_minutes": sample.get("offset_minutes"),
+                    "timestamp": sample.get("timestamp"),
+                    "evaluation": sample_goal_eval,
+                    "lead_line": lead_line.get("label"),
+                    "lead_line_distance_km": lead_line.get("distance_km"),
+                    "relocation_available": sample_relocation_bundle.get("available", True),
+                }
+            )
+        goal_eval = attach_birth_time_sample_evaluations(
+            goal_eval,
+            sampling_plan=birth_time_sampling_plan or {},
+            sample_evaluations=sample_evaluations,
+        )
         goal_eval["ranking_eligible"] = bool(
             goal_eval.get("ranking_eligible", True)
             and
@@ -8838,6 +9943,21 @@ def astrocartography_map():
         body_provenance = (natal_provenance.get("body_sources") or {}).get(line.get("body"))
         if body_provenance:
             line["calculation_provenance"] = body_provenance
+    birth_time_sampling_plan, natal_time_samples = _astrocartography_birth_time_sample_contexts(
+        bundle,
+        bodies=natal_lines.get("bodies") or bodies,
+        angles=natal_lines.get("angles") or angles,
+        house_system_code=_validated_astrocartography_house_system_code(
+            request.args.get("house_system_code"),
+        ),
+        include_chart_data=False,
+    )
+    from astrocartography_uncertainty import summarize_line_uncertainty_corridors
+    line_uncertainty = summarize_line_uncertainty_corridors(
+        natal_lines,
+        sampling_plan=birth_time_sampling_plan,
+        sample_line_payloads=natal_time_samples,
+    )
     empty_global_parans = {
         'headline': 'Global paran corridors are unavailable in the current runtime.',
         'orb_deg': 1.0,
@@ -8851,6 +9971,7 @@ def astrocartography_map():
     response: Dict[str, Any] = {
         'natal': natal_meta,
         'birth_time': natal_meta.get("birth_time"),
+        'birth_time_sampling': birth_time_sampling_plan,
         'calculation': {
             "natal": natal_provenance,
             "degraded": bool(natal_provenance.get("degraded")),
@@ -8863,6 +9984,7 @@ def astrocartography_map():
         },
         'map': {
             'natal_lines': natal_lines.get('lines') or [],
+            'natal_line_uncertainty': line_uncertainty,
             'global_parans': _filter_astrocartography_parans(
                 _safe_astrocartography_optional_payload(
                     'natal_global_parans',
@@ -8993,9 +10115,17 @@ def _build_astrocartography_location_payload(args: Any) -> Dict[str, Any]:
         natal_lines,
         timestamp_iso=str(natal_meta.get("timestamp") or ""),
     )
+    birth_time_sampling_plan, natal_time_samples = _astrocartography_birth_time_sample_contexts(
+        bundle,
+        bodies=natal_lines.get("bodies") or bodies,
+        angles=natal_lines.get("angles") or angles,
+        house_system_code=house_system_code,
+        include_chart_data=bool(goal_id),
+    )
 
     response: Dict[str, Any] = {
         'birth_time': natal_meta.get("birth_time"),
+        'birth_time_sampling': birth_time_sampling_plan,
         'distance_policy': _astrocartography_distance_policy(),
         'filters': {
             "bodies": natal_lines.get("bodies") or [],
@@ -9032,7 +10162,15 @@ def _build_astrocartography_location_payload(args: Any) -> Dict[str, Any]:
             goal_id=goal_id,
             transit_lines_payload=transit_lines,
             transit_meta=transit_meta,
+            birth_time_sampling_plan=birth_time_sampling_plan,
+            natal_time_samples=natal_time_samples,
         )
+    )
+    from astrocartography_uncertainty import summarize_line_uncertainty_corridors
+    response.setdefault("natal", {})["line_uncertainty"] = summarize_line_uncertainty_corridors(
+        natal_lines,
+        sampling_plan=birth_time_sampling_plan,
+        sample_line_payloads=natal_time_samples,
     )
     return response
 
@@ -9097,6 +10235,13 @@ def astrocartography_compare():
     natal_lines["provenance"] = _astrocartography_calculation_metadata(
         natal_lines,
         timestamp_iso=str(natal_meta.get("timestamp") or ""),
+    )
+    birth_time_sampling_plan, natal_time_samples = _astrocartography_birth_time_sample_contexts(
+        bundle,
+        bodies=natal_lines.get("bodies") or bodies,
+        angles=natal_lines.get("angles") or angles,
+        house_system_code=house_system_code,
+        include_chart_data=bool(goal_id),
     )
     transit_bundle = _transit_bundle_from_query(request.args, natal_meta=natal_meta)
     transit_meta = (transit_bundle.get('meta') or {}) if transit_bundle else None
@@ -9163,6 +10308,8 @@ def astrocartography_compare():
             goal_id=goal_id,
             transit_lines_payload=transit_lines,
             transit_meta=transit_meta,
+            birth_time_sampling_plan=birth_time_sampling_plan,
+            natal_time_samples=natal_time_samples,
         )
         targets.append(analysis)
 
@@ -9172,6 +10319,30 @@ def astrocartography_compare():
         for item in targets
         if (item.get("location_score") or {}).get("ranking_eligible", True)
     ]
+    from astrocartography_uncertainty import apply_cross_location_rank_stability
+    rank_stability = (
+        apply_cross_location_rank_stability(
+            ranking_candidates,
+            score_polarity=score_polarity,
+            top_k=len(ranking_candidates),
+            scope_candidate_count=len(targets),
+        )
+        if goal_id
+        else {
+            "status": "not_applicable",
+            "reason": "A selected goal is required before locations can be ranked.",
+            "candidate_count": len(targets),
+        }
+    )
+    for item in targets:
+        if item in ranking_candidates:
+            continue
+        location_score = item.get("location_score")
+        if isinstance(location_score, dict):
+            location_score["rank_stability"] = {
+                "status": "not_applicable",
+                "reason": "This location is not eligible for ranking.",
+            }
     ranking = sorted(
         [
             {
@@ -9207,7 +10378,9 @@ def astrocartography_compare():
 
     response: Dict[str, Any] = {
         'birth_time': birth_time_quality,
+        'birth_time_sampling': birth_time_sampling_plan,
         'ranking_eligible': bool(birth_time_quality.get("ranking_eligible", True)),
+        'rank_stability': rank_stability,
         'calculation': {
             "natal": natal_lines.get("provenance") or {},
             "transit": (transit_lines or {}).get("provenance") if transit_lines else None,
@@ -9386,7 +10559,10 @@ def _run_astrocartography_atlas_search(params: Any, *, progress_callback=None, s
 
     goal_id = str(params.get('goal_id') or '').strip().lower()
     if not goal_id:
-        raise ValueError('goal_id is required')
+        raise ValueError(
+            'goal_id is required for ranked atlas search; use the map or a '
+            'single-location reading for a neutral, unranked overview'
+        )
 
     query_text = str(params.get('query') or '').strip()
     country_code = str(params.get('country_code') or '').strip().upper()
@@ -9447,6 +10623,13 @@ def _run_astrocartography_atlas_search(params: Any, *, progress_callback=None, s
         timestamp_iso=str(natal_meta.get("timestamp") or ""),
     )
     natal_lines["provenance"] = natal_provenance
+    birth_time_sampling_plan, natal_time_samples = _astrocartography_birth_time_sample_contexts(
+        bundle,
+        bodies=relevant_bodies,
+        angles=relevant_angles,
+        house_system_code=house_system_code,
+        include_chart_data=True,
+    )
 
     _check_should_continue()
     transit_bundle = _transit_bundle_from_query(params, natal_meta=natal_meta)
@@ -9508,6 +10691,62 @@ def _run_astrocartography_atlas_search(params: Any, *, progress_callback=None, s
             coordinate_source=str(target.get("coordinate_source") or "atlas_candidate"),
         )
 
+    atlas_time_samples: List[Dict[str, Any]] = []
+    for sample in natal_time_samples:
+        sample_chart_data = _extend_chart_data_for_synastry(
+            sample.get("chart_data") or {},
+            sample.get("meta") or {},
+            include_modern=True,
+            include_chiron=True,
+        )
+        sample_meta = sample.get("meta") or {}
+
+        def _sample_relocation_resolver(
+            item: Dict[str, Any],
+            *,
+            _sample_chart_data: Dict[str, Any] = sample_chart_data,
+            _sample_meta: Dict[str, Any] = sample_meta,
+        ) -> Dict[str, Any]:
+            target = item.get("target") or {}
+            atlas_city = item.get("atlas_city") or {}
+            try:
+                target_lat = float(target.get("latitude"))
+                target_lon = float(target.get("longitude"))
+            except Exception:
+                return {
+                    "available": False,
+                    "relocation_unavailable": True,
+                    "chart_data": {},
+                    "error": {
+                        "code": "candidate_coordinates_missing",
+                        "message": "Exact atlas candidate coordinates are missing.",
+                    },
+                    "warnings": ["The uncertainty sample was retained with line-only evidence."],
+                }
+            return _compute_relocation_chart_bundle(
+                natal_chart_data=_sample_chart_data,
+                natal_meta=_sample_meta,
+                target_label=str(target.get("label") or target.get("query") or ""),
+                latitude=target_lat,
+                longitude=target_lon,
+                timezone_name=atlas_city.get("timezone") or None,
+                house_system_code=house_system_code,
+                coordinate_source=str(target.get("coordinate_source") or "atlas_candidate"),
+            )
+
+        atlas_time_samples.append(
+            {
+                "id": sample.get("id"),
+                "position": sample.get("position"),
+                "offset_minutes": sample.get("offset_minutes"),
+                "timestamp": sample.get("timestamp"),
+                "natal_lines": _ranking_eligible_astrocartography_lines(
+                    sample.get("lines_payload") or {}
+                ),
+                "relocation_bundle_resolver": _sample_relocation_resolver,
+            }
+        )
+
     def _atlas_progress(payload: Dict[str, Any]) -> None:
         _check_should_continue()
         if progress_callback is None:
@@ -9533,6 +10772,8 @@ def _run_astrocartography_atlas_search(params: Any, *, progress_callback=None, s
         relocation_bundle_resolver=_resolve_relocation_bundle,
         progress_callback=_atlas_progress,
         should_continue=_check_should_continue,
+        birth_time_sampling_plan=birth_time_sampling_plan,
+        birth_time_samples=atlas_time_samples,
     )
 
     _check_should_continue()
@@ -9553,9 +10794,11 @@ def _run_astrocartography_atlas_search(params: Any, *, progress_callback=None, s
             'label': goal_model.get('label'),
             'summary': goal_model.get('summary'),
             'score_polarity': search_result.get('score_polarity') or 'higher_is_better',
+            'selection_required_for_ranking': True,
         },
         'natal': natal_meta,
         'birth_time': birth_time_quality,
+        'birth_time_sampling': search_result.get("birth_time_sampling") or birth_time_sampling_plan,
         'ranking_eligible': True,
         'calculation': {
             "natal": natal_provenance,
@@ -9578,6 +10821,7 @@ def _run_astrocartography_atlas_search(params: Any, *, progress_callback=None, s
         'atlas': {
             'query': search_result.get('query') or {},
             'resolution': search_result.get('resolution') or {},
+            'candidate_pool_policy': search_result.get('candidate_pool_policy') or {},
             'catalog_candidate_count': search_result.get('catalog_candidate_count'),
             'live_candidate_count': search_result.get('live_candidate_count'),
             'used_live_augmentation': search_result.get('used_live_augmentation'),
@@ -9590,6 +10834,13 @@ def _run_astrocartography_atlas_search(params: Any, *, progress_callback=None, s
             'relocation_unavailable_count': search_result.get('relocation_unavailable_count', 0),
             'relocation_unavailable': search_result.get('relocation_unavailable') or [],
             'ranking_eligibility': birth_time_quality.get("ranking_eligibility"),
+            'ranking_mode': search_result.get('ranking_mode') or 'goal_specific_astrology',
+            'ranking_basis': search_result.get('ranking_basis') or {},
+            'practical_context': search_result.get('practical_context') or {},
+            'goal_selection': search_result.get('goal_selection') or {},
+            'geographic_diversity': search_result.get('geographic_diversity') or {},
+            'birth_time_sampling': search_result.get('birth_time_sampling') or birth_time_sampling_plan,
+            'rank_stability': search_result.get('rank_stability') or {},
         },
         'results': search_result.get('results') or [],
         'ranking': search_result.get('ranking') or [],
@@ -10312,45 +11563,157 @@ def mundane_scan_result():
     return _json_ok(payload)
 
 
+def _cohere_saved_synastry_chart(
+    chart_data: Dict[str, Any],
+) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
+    """Make saved planet houses agree with the one frozen cusp set."""
+    out = copy.deepcopy(chart_data if isinstance(chart_data, dict) else {})
+    cusps = _synastry_house_cusps(out)
+    changes: List[Dict[str, Any]] = []
+    if len(cusps) != 12:
+        return out, changes
+    out['house_cusps'] = list(cusps)
+    out['houses'] = list(cusps)
+    if out.get('ascendant') is None:
+        out['ascendant'] = cusps[0]
+    if out.get('midheaven') is None:
+        out['midheaven'] = cusps[9]
+
+    planets = out.get('planets')
+    if isinstance(planets, dict):
+        rows = [
+            (str(name), payload)
+            for name, payload in planets.items()
+            if isinstance(payload, dict)
+        ]
+    elif isinstance(planets, list):
+        rows = [
+            (str(row.get('planet') or row.get('name') or ''), row)
+            for row in planets
+            if isinstance(row, dict)
+        ]
+    else:
+        rows = []
+    for name, row in rows:
+        try:
+            longitude = float(row.get('longitude'))
+        except (TypeError, ValueError):
+            continue
+        derived_house = _synastry_house_for_longitude(longitude, cusps)
+        if derived_house is None:
+            continue
+        previous_house = row.get('house')
+        try:
+            previous_value = int(previous_house) if previous_house is not None else None
+        except (TypeError, ValueError):
+            previous_value = None
+        if previous_value != derived_house:
+            changes.append({
+                'planet': name,
+                'stored_house': previous_house,
+                'cusp_derived_house': derived_house,
+                'resolution': 'frozen_cusp_set',
+            })
+        row['house'] = derived_house
+    return out, changes
+
+
 def _synastry_bundle_from_snap_id(snap_id: str, house_system_code: Optional[str] = None) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     raw_snap = _snaps().get(snap_id)
     if not isinstance(raw_snap, dict):
         raise ValueError('Synastry snap not found')
-    snap = dict(raw_snap)
+    snap = _hydrate_snap_payload(raw_snap, infer_coordinates=False)
+    if not snap:
+        raise ValueError('Synastry snap not found')
+    _require_confirmed_saved_snap_context(
+        snap,
+        feature_label='Synastry',
+    )
     dashboard = snap.get('dashboard') if isinstance(snap.get('dashboard'), dict) else {}
     dt = snap.get('effective_datetime') or dashboard.get('timestamp')
     loc = snap.get('location') or dashboard.get('location')
     tz = snap.get('timezone') or dashboard.get('timezone')
     coords = _snap_coordinate_pair(snap, dashboard)
+    calculation_context = (
+        copy.deepcopy(snap.get('calculation_context'))
+        if isinstance(snap.get('calculation_context'), dict)
+        else {}
+    )
+    coordinate_provenance = dict(snap.get('coordinate_provenance') or {})
     saved_chart = _synastry_chart_snapshot_from_dashboard(dashboard)
     saved_chart.update(_synastry_chart_snapshot_from_chart_data(snap.get('chart_snapshot')))
-    if coords is None and loc:
-        coords = _legacy_snap_coords_from_location(loc)
+    saved_chart, house_consistency_changes = _cohere_saved_synastry_chart(saved_chart)
+    context_warnings: List[str] = []
+    if calculation_context.get('review_required'):
+        context_warnings.append(
+            'This saved chart uses migrated legacy context that requires place/time review.'
+        )
+    if house_consistency_changes:
+        context_warnings.append(
+            'Stored planet-house labels were derived again from the frozen cusp set to keep the chart internally consistent.'
+        )
 
     if _has_synastry_chart_snapshot(saved_chart):
-        bundle = {
-            'chart_result': {},
-            'chart_data': saved_chart,
-            'meta': {
-                'timestamp': dashboard.get('timestamp') or dt,
-                'location': dashboard.get('location') or loc,
-                'timezone': tz,
-                'latitude': (coords[0] if coords else None),
-                'longitude': (coords[1] if coords else None),
-            },
-            'raw_chart': None,
-        }
+        saved_house_system = str(
+            saved_chart.get('house_system_code')
+            or dashboard.get('house_system_code')
+            or dashboard.get('house_system')
+            or calculation_context.get('house_system_code')
+            or ''
+        ).strip().upper()
+        requested_house_system = str(house_system_code or '').strip().upper()
+        can_recast_house_system = bool(
+            requested_house_system
+            and requested_house_system != saved_house_system
+            and coords is not None
+            and coordinate_provenance.get('persisted_with_chart')
+            and dt
+            and loc
+        )
+        if can_recast_house_system:
+            _require_confirmed_saved_snap_context(
+                snap,
+                feature_label='Synastry house-system recasting',
+            )
+            bundle = _compute_chart_bundle_for(
+                dt,
+                loc,
+                tz or None,
+                house_system_code=requested_house_system,
+                latitude=coords[0],
+                longitude=coords[1],
+            )
+            bundle.setdefault('meta', {})
+            bundle['meta']['context_recast'] = {
+                'reason': 'requested_house_system_differs_from_frozen_chart',
+                'from_house_system_code': saved_house_system or None,
+                'to_house_system_code': requested_house_system,
+            }
+        else:
+            if requested_house_system and requested_house_system != saved_house_system:
+                context_warnings.append(
+                    'The requested house-system override was not applied because the frozen chart lacks confirmed chart-native coordinates.'
+                )
+            bundle = {
+                'chart_result': {},
+                'chart_data': saved_chart,
+                'meta': {
+                    'timestamp': dt,
+                    'instant_utc': dt,
+                    'location': loc,
+                    'timezone': tz,
+                    'latitude': (coords[0] if coords else None),
+                    'longitude': (coords[1] if coords else None),
+                },
+                'raw_chart': None,
+            }
     else:
-        snap = _hydrate_snap_payload(raw_snap)
-        if not snap:
-            raise ValueError('Synastry snap not found')
-        dashboard = snap.get('dashboard') if isinstance(snap.get('dashboard'), dict) else {}
-        dt = snap.get('effective_datetime') or dashboard.get('timestamp')
-        loc = snap.get('location') or dashboard.get('location')
-        tz = snap.get('timezone') or dashboard.get('timezone')
-        coords = _snap_coordinate_pair(snap, dashboard)
         if not dt or not loc:
             raise ValueError('Synastry snap is missing datetime or location')
+        _require_confirmed_saved_snap_context(
+            snap,
+            feature_label='Synastry recasting',
+        )
         bundle = _compute_chart_bundle_for(
             dt,
             loc,
@@ -10359,15 +11722,38 @@ def _synastry_bundle_from_snap_id(snap_id: str, house_system_code: Optional[str]
             latitude=(coords[0] if coords else None),
             longitude=(coords[1] if coords else None),
         )
+        bundle.setdefault('meta', {})
+        if coords is None:
+            coordinate_provenance = {
+                'source': 'recomputed_from_saved_location',
+                'persisted_with_chart': False,
+                'inferred_at_read_time': True,
+                'review_required': True,
+            }
+            context_warnings.append(
+                'The legacy snap had no frozen chart or saved coordinates, so the entire chart was recomputed from its saved location.'
+            )
+    bundle.setdefault('meta', {})
+    bundle['meta'].update({
+        'timestamp': dt,
+        'instant_utc': dt,
+        'calculation_context': calculation_context,
+        'coordinate_provenance': coordinate_provenance,
+        'context_warnings': context_warnings,
+        'house_consistency_changes': house_consistency_changes,
+    })
     chart_meta = {
         'id': snap.get('id'),
         'label': snap.get('label') or 'Snapshot',
         'effective_datetime': dt,
+        'local_datetime': snap.get('local_datetime'),
         'location': loc,
         'timezone': (bundle.get('meta') or {}).get('timezone'),
+        'coordinate_provenance': coordinate_provenance,
+        'calculation_context': calculation_context,
+        'context_warnings': context_warnings,
         'profile_hint': snap.get('profile_hint') or (snap.get('summary') or {}).get('profile_hint'),
     }
-    bundle.setdefault('meta', {})
     if chart_meta.get('profile_hint'):
         bundle['meta']['profile_hint'] = chart_meta.get('profile_hint')
     return bundle, chart_meta
@@ -10458,6 +11844,22 @@ def synastry_compute():
         'modern_supported': bool(point_capability_a.get('modern_supported') and point_capability_b.get('modern_supported')),
         'chiron_supported': bool(point_capability_a.get('chiron_supported') and point_capability_b.get('chiron_supported')),
     }
+    report['governance']['saved_chart_context'] = {
+        'chart_a': {
+            'review_required': bool(
+                ((chart_a.get('calculation_context') or {}).get('review_required'))
+            ),
+            'warnings': chart_a.get('context_warnings') or [],
+            'coordinate_provenance': chart_a.get('coordinate_provenance') or {},
+        },
+        'chart_b': {
+            'review_required': bool(
+                ((chart_b.get('calculation_context') or {}).get('review_required'))
+            ),
+            'warnings': chart_b.get('context_warnings') or [],
+            'coordinate_provenance': chart_b.get('coordinate_provenance') or {},
+        },
+    }
     return _json_ok(report)
 
 
@@ -10472,7 +11874,7 @@ def traits_profile():
     """
     with _astro_perf_span('route.traits_profile'):
         eng = _engine_instance()
-        data, _active_settings = _data_for_request_clock_context(eng)
+        data, _active_settings = _data_for_optional_confirmed_snap(eng)
         with _astro_perf_span('route.traits_profile.compact_dashboard'):
             rt = _compact_dashboard(data)
             cd = _extract_chart_data_from_result(data.chart_result if isinstance(data.chart_result, dict) else {})
@@ -11670,7 +13072,7 @@ def forensic_analysis():
 
     with _astro_perf_span('route.forensic.prepare_chart', mode=q_mode or None):
         eng = _engine_instance()
-        data, _active_settings = _data_for_request_clock_context(eng)
+        data, _active_settings = _data_for_optional_confirmed_snap(eng)
         dash = _build_dashboard_payload(
             eng,
             data,
@@ -12663,18 +14065,31 @@ def election_suggest_stream():
             return score_marriage_beta_election(cd, natal_hits=natal_hits, options=opts)
         return score_marriage_election(cd, natal_hits=natal_hits, options=opts)
 
-    # Natal context (optional) for enhancements
+    # Natal context (optional) for enhancements. Presence of any natal-scoped
+    # field is an explicit request, including incomplete direct input.
     natal_cd = None
+    natal_context_requested = any(
+        request.args.get(field_name) is not None
+        for field_name in (
+            'natal_snap_id',
+            'natal_datetime',
+            'natal_location',
+            'natal_timezone',
+        )
+    )
     participant_mode_active = (
         (matter == 'marriage' and marriage_algorithm == 'beta')
         or (matter == 'business' and business_algorithm == 'beta')
         or matter == 'estate'
     )
-    if not participant_mode_active and (natal_snap or natal_datetime or natal_location):
+    if not participant_mode_active and natal_context_requested:
         try:
             natal_cd, _nm = _natal_from_query(request.args)
-        except Exception:
-            natal_cd = None
+        except Exception as exc:
+            return jsonify({
+                'success': False,
+                'error': str(exc) or 'Natal context could not be loaded safely',
+            }), 400
     # Additional natal helpers
     natal_cusps = None
     try:
@@ -12748,15 +14163,14 @@ def election_suggest_stream():
                     or str(snap.get('location') or '').strip()
                     or f'Founder {idx}'
                 )
+                precision = _election_precision_from_saved_bundle(bundle)
                 business_participants.append(
                     {
                         'snap_id': snap_id,
                         'label': label,
                         'chart_data': bundle.get('chart_data') or {},
                         'meta': bundle.get('meta') or {},
-                        'precision_class': 'certified',
-                        'precision_safe': True,
-                        'precision_source': 'business_beta_certified_override',
+                        **precision,
                     }
                 )
         except ValueError as exc:
@@ -12781,14 +14195,13 @@ def election_suggest_stream():
                 or str(snap.get('location') or '').strip()
                 or 'Estate participant'
             )
+            precision = _election_precision_from_saved_bundle(bundle)
             estate_participant = {
                 'snap_id': estate_participant_snap_id,
                 'label': label,
                 'chart_data': bundle.get('chart_data') or {},
                 'meta': bundle.get('meta') or {},
-                'precision_class': 'certified',
-                'precision_safe': True,
-                'precision_source': 'estate_certified_override',
+                **precision,
             }
         except ValueError as exc:
             return jsonify({'success': False, 'error': str(exc)}), 400
@@ -13397,17 +14810,29 @@ def election_suggest_stream():
         if matter == 'business':
             payload['business_algorithm'] = business_algorithm
             if business_algorithm == 'beta':
+                certified_assumption = bool(business_participants) and all(
+                    item.get('precision_class') == 'certified'
+                    and item.get('precision_safe') is True
+                    for item in business_participants
+                )
                 payload['participants'] = {
                     'participant_snap_ids': [item.get('snap_id') for item in business_participants if item.get('snap_id')],
                     'items': [
                         {
                             'snap_id': item.get('snap_id'),
                             'label': item.get('label'),
+                            'precision_class': item.get('precision_class'),
+                            'precision_safe': item.get('precision_safe'),
+                            'precision_source': item.get('precision_source'),
                         }
                         for item in business_participants
                     ],
-                    'certified_assumption': True,
-                    'precision_note': 'Selected founder-owner charts are treated as certified for Ascendant-based business beta fit in this scan.',
+                    'certified_assumption': certified_assumption,
+                    'precision_note': (
+                        'All selected founder-owner charts have certified birth-time quality.'
+                        if certified_assumption
+                        else 'Uncertified or unresolved participant charts are precision-gated; unsafe Ascendant-based fit is withheld.'
+                    ),
                 }
                 if extraction_payload is not None:
                     payload['business_beta_extraction'] = {
@@ -13421,21 +14846,33 @@ def election_suggest_stream():
                         'line_stats': extraction_payload.get('line_stats') or [],
                         'passing_row_count': extraction_payload.get('passing_row_count') or 0,
                         'period_count': extraction_payload.get('period_count') or 0,
-                        'certified_assumption': True,
+                        'certified_assumption': certified_assumption,
                     }
                     payload['business_beta_periods'] = extraction_payload.get('periods') or []
         if matter == 'estate':
             payload['estate_direction'] = estate_direction
+            certified_assumption = bool(
+                estate_participant
+                and estate_participant.get('precision_class') == 'certified'
+                and estate_participant.get('precision_safe') is True
+            )
             payload['participants'] = {
                 'estate_participant_snap_id': estate_participant_snap_id,
                 'items': [
                     {
                         'snap_id': estate_participant.get('snap_id'),
                         'label': estate_participant.get('label'),
+                        'precision_class': estate_participant.get('precision_class'),
+                        'precision_safe': estate_participant.get('precision_safe'),
+                        'precision_source': estate_participant.get('precision_source'),
                     }
                 ] if estate_participant else [],
-                'certified_assumption': True,
-                'precision_note': 'Selected estate participant chart is treated as certified for Ascendant-based property fit in this scan.',
+                'certified_assumption': certified_assumption,
+                'precision_note': (
+                    'The selected estate participant has certified birth-time quality.'
+                    if certified_assumption
+                    else 'Uncertified or unresolved participant charts are precision-gated; unsafe Ascendant-based fit is withheld.'
+                ),
             }
             if extraction_payload is not None:
                 payload['estate_extraction'] = {
@@ -13449,7 +14886,7 @@ def election_suggest_stream():
                     'line_stats': extraction_payload.get('line_stats') or [],
                     'passing_row_count': extraction_payload.get('passing_row_count') or 0,
                     'period_count': extraction_payload.get('period_count') or 0,
-                    'certified_assumption': True,
+                    'certified_assumption': certified_assumption,
                 }
                 payload['estate_periods'] = extraction_payload.get('periods') or []
         yield f"data: {json.dumps({'type':'done','data':payload})}\n\n"

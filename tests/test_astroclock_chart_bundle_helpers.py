@@ -187,7 +187,7 @@ def test_natal_bundle_from_query_uses_snap_context(monkeypatch):
     chart_data, meta = astro_clock_api._natal_from_query(args)
 
     assert calls == {
-        "dt_iso": "2001-05-15T14:20:00Z",
+        "dt_iso": "2001-05-15T14:20:00+00:00",
         "location": "Washington, District of Columbia",
         "timezone": "America/New_York",
         "house_system_code": "R",
@@ -197,9 +197,17 @@ def test_natal_bundle_from_query_uses_snap_context(monkeypatch):
     assert bundle["raw_chart"] is sentinel
     assert chart_data == {"house_rulers": {"1": "Moon"}}
     assert meta == {
-        "timestamp": "2001-05-15T14:20:00Z",
+        "timestamp": "2001-05-15T14:20:00+00:00",
         "location": "Washington, District of Columbia",
         "timezone": "America/New_York",
         "coordinate_source": "saved_snap",
+        "coordinate_provenance": {
+            "source": "snap.latitude_longitude",
+            "persisted_with_chart": True,
+            "inferred_at_read_time": False,
+            "legacy_shape": "snap.latitude_longitude",
+            "location_specificity": "specific",
+            "review_required": False,
+        },
         "birth_time": _USER_ENTERED_BIRTH_TIME_QUALITY,
     }

@@ -14,8 +14,13 @@ ATLAS_SEARCH_RESOLUTIONS: Dict[str, Dict[str, Any]] = {
     "coarse": {
         "id": "coarse",
         "label": "Coarse",
-        "description": "Capitals, admin centers, and only the largest metros.",
+        "description": (
+            "Largest metros (population 500,000+) plus capitals and first-level "
+            "administrative centers regardless of population."
+        ),
         "min_population": 500000,
+        "population_floor_applies_to": "cities_other_than_capitals_and_first_level_admin_centers",
+        "population_floor_exceptions": ["PPLC", "PPLA"],
         "candidate_limit": 3200,
         "relocation_limit": 12,
     },

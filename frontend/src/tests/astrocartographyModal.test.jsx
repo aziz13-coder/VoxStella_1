@@ -176,6 +176,25 @@ describe('AstrocartographyModal', () => {
     expect(await screen.findByText('Failed to load saved natal snaps. Refresh to retry.')).toBeInTheDocument();
   });
 
+  it('blocks review-required saved charts until the corrected copy is selected', async () => {
+    await renderModal({
+      snaps: [{
+        id: 'snap-review',
+        label: 'Legacy chart',
+        calculation_context: { review_required: true },
+      }],
+      activeSnapId: 'snap-review',
+    });
+
+    expect((await screen.findAllByText(
+      /cannot be used for astrocartography.*correct its context or choose its corrected copy/i,
+    )).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('option', {
+      name: 'Legacy chart (needs context review)',
+    })[0]).toBeDisabled();
+    expect(astroClockApiMock.getAstrocartographyMap).not.toHaveBeenCalled();
+  });
+
   it('keeps General inspection selected and explains the atlas dependency on PathFinder goals', async () => {
     await renderModal({
       snaps: [{ id: 'snap-1', label: 'Test Snap' }],
@@ -190,6 +209,7 @@ describe('AstrocartographyModal', () => {
     expect(screen.getByDisplayValue('General inspection')).toHaveValue('');
     expect(screen.getByText('General inspection keeps the workspace neutral. Choose a PathFinder goal to rank candidate cities.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Rank Candidate Cities' })).toBeDisabled();
+    expect(screen.getByText(/Astrology ranking only\. It does not assess personal safety/i)).toBeInTheDocument();
   });
 
   it('offers Chiron as an astrocartography body filter', async () => {
@@ -203,6 +223,51 @@ describe('AstrocartographyModal', () => {
     });
 
     expect(screen.getByLabelText(/Chiron/i)).toBeChecked();
+  });
+
+  it('shows one full body name without a duplicate abbreviation chip', async () => {
+    await renderModal({
+      snaps: [{ id: 'snap-1', label: 'Test Snap' }],
+      activeSnapId: 'snap-1',
+    });
+
+    await waitFor(() => {
+      expect(astroClockApiMock.getAstrocartographyMap).toHaveBeenCalled();
+    });
+
+    expect(screen.getByLabelText('Jupiter')).toBeChecked();
+    expect(screen.queryByText('Ju')).not.toBeInTheDocument();
+    expect(screen.getByText(/North Node uses the mean node/i)).toBeInTheDocument();
+  });
+
+  it('shows observed birth-time resampling and the returned line envelope', async () => {
+    const response = makeMapResponse();
+    response.data.birth_time = {
+      status: 'user_entered_time',
+      confidence: 'user_entered',
+      ranking_eligible: true,
+    };
+    response.data.birth_time_sampling = {
+      status: 'ready',
+      sample_count: 2,
+      sampled_uncertainty_minutes: 5,
+      assumption: 'User-entered times without a declared range are sampled at ±5 minutes.',
+    };
+    response.data.map.natal_line_uncertainty = {
+      status: 'evaluated',
+      corridors: [
+        { id: 'Mars:IC', sampled_width_km_at_equator: 83.6 },
+      ],
+    };
+    astroClockApiMock.getAstrocartographyMap.mockResolvedValueOnce(response);
+
+    await renderModal({
+      snaps: [{ id: 'snap-1', label: 'Test Snap' }],
+      activeSnapId: 'snap-1',
+    });
+
+    expect(await screen.findByText(/Recalculated 2 alternative birth times/i)).toBeInTheDocument();
+    expect(screen.getByText(/widest sampled map-line envelope is about 84 km/i)).toBeInTheDocument();
   });
 
   it('labels higher-is-worse goals as lower-pressure rankings with an experimental caveat', async () => {
@@ -444,7 +509,58 @@ describe('AstrocartographyModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Inspect' }));
 
     expect((await screen.findAllByText('relocation_failed: Relocated houses could not be calculated.')).length).toBeGreaterThan(0);
+    expect(screen.getByText('Regiomontanus (R)')).toBeInTheDocument();
     expect(screen.queryByText('[object Object]')).not.toBeInTheDocument();
+  });
+
+  it('labels experimental and fallback line meanings on individual reading cards', async () => {
+    astroClockApiMock.getAstrocartographyLocation.mockResolvedValue({
+      success: true,
+      data: {
+        target: { label: 'Paris, France', query: 'Paris', latitude: 48.85341, longitude: 2.3488 },
+        birth_time: { status: 'user_entered_time', ranking_eligible: true },
+        natal: {
+          reading: {
+            signal_score: 45,
+            nearest_lines: [
+              {
+                id: 'North Node:ASC',
+                label: 'North Node ASC',
+                distance_km: 42,
+                zone: 'primary',
+                summary: 'An experimental nodal interpretation.',
+                caution: 'Treat as secondary.',
+                interpretation_status: 'curated_experimental_extension',
+              },
+              {
+                id: 'Unsupported:MC',
+                label: 'Unsupported MC',
+                distance_km: 84,
+                zone: 'primary',
+                summary: 'A generic fallback interpretation.',
+                caution: 'Dedicated doctrine is unavailable.',
+                interpretation_status: 'generic_unsupported_fallback',
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    await renderModal({
+      snaps: [{ id: 'snap-1', label: 'Test Snap' }],
+      activeSnapId: 'snap-1',
+    });
+    await waitFor(() => expect(astroClockApiMock.getAstrocartographyMap).toHaveBeenCalled());
+    fireEvent.change(screen.getByPlaceholderText('e.g., London, UK'), {
+      target: { value: 'Jerusalem' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Inspect' }));
+
+    expect(await screen.findByText('Experimental extension')).toBeInTheDocument();
+    expect(screen.getByText('Generic fallback')).toBeInTheDocument();
+    expect(screen.getByText(/separately curated experimental extension/i)).toBeInTheDocument();
+    expect(screen.getByText(/No dedicated body–angle interpretation/i)).toBeInTheDocument();
   });
 
   it('preserves atlas target identity and ignores an older inspection response', async () => {
@@ -468,12 +584,31 @@ describe('AstrocartographyModal', () => {
             {
               target: { label: 'Alpha City', query: 'Alpha City', latitude: 10, longitude: 20 },
               atlas_city: { geonameid: 101, country_name: 'Alpha' },
+              rank: 1,
+              astrology_rank: 1,
+              display_rank: 1,
+              selection_order: 1,
               location_score: { score: 80, rank_stability: { status: 'stable', detail: 'Held in sensitivity checks.' } },
+              geographic_group: { label: 'Alpha City area', selection_pass: 'distinct_region' },
             },
             {
               target: { label: 'Beta City', query: 'Beta City', latitude: 20, longitude: 30 },
               atlas_city: { geonameid: 202, country_name: 'Beta' },
-              location_score: { score: 60, rank_stability: 0.6 },
+              rank: 3,
+              astrology_rank: 3,
+              display_rank: 2,
+              selection_order: 2,
+              location_score: {
+                score: 60,
+                rank_stability: {
+                  status: 'moderate',
+                  rank_interval: { best: 2, worst: 4 },
+                  candidate_count: 21,
+                  scope_candidate_count: 100,
+                  bounded_scope: true,
+                  scope_coverage: 0.21,
+                },
+              },
             },
           ],
         },
@@ -494,7 +629,13 @@ describe('AstrocartographyModal', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Rank Candidate Cities' }));
 
-    expect(await screen.findByText('1. Alpha City')).toBeInTheDocument();
+    expect(await screen.findByText('Astrology rank #1')).toBeInTheDocument();
+    expect(screen.getAllByText('Alpha City').length).toBeGreaterThan(0);
+    expect(screen.getByText('Astrology rank #3')).toBeInTheDocument();
+    expect(screen.getByText('Regional display order #2')).toBeInTheDocument();
+    expect(screen.queryByText('2. Beta City')).not.toBeInTheDocument();
+    expect(screen.getByText(/evaluated among 21 of 100 candidates/i)).toBeInTheDocument();
+    expect(screen.getByText('Regional group: Alpha City area')).toBeInTheDocument();
     const inspectButtons = screen.getAllByRole('button', { name: 'Inspect' });
     fireEvent.click(inspectButtons[1]);
     await waitFor(() => expect(astroClockApiMock.getAstrocartographyLocation).toHaveBeenCalledTimes(1));
@@ -592,6 +733,9 @@ describe('AstrocartographyModal', () => {
         relocation: {
           available: true,
           summary: {},
+          provenance: {
+            house_system_code: 'R',
+          },
           local_space: {
             origin_kind: 'relocated_target',
             origin: { label: 'Target City', latitude: 40, longitude: -73 },
@@ -619,6 +763,9 @@ describe('AstrocartographyModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Local Space' }));
     expect(screen.getAllByText('Relocated Local Space').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Target City').length).toBeGreaterThan(0);
+    expect(screen.getByText('Regiomontanus (R)')).toBeInTheDocument();
+    expect(screen.getByText(/Relocated house placements depend on this setting/i)).toBeInTheDocument();
+    expect(screen.getByText(/Directional Local Space rays are shown separately/i)).toBeInTheDocument();
 
     const natalButtons = screen.getAllByRole('button', { name: 'Natal' });
     fireEvent.click(natalButtons[natalButtons.length - 1]);
@@ -639,6 +786,23 @@ describe('AstrocartographyModal', () => {
     expect(getAstrocartographyOrdinal({ score: 80 })).toBe('Strong');
     expect(getAstrocartographyOrdinal({ score: 80 }, { rankingEligible: false })).toBe('Insufficient');
     expect(getAstrocartographyRankStability({ rank_stability: 0.8 }).label).toBe('Stable');
+    expect(getAstrocartographyRankStability({
+      rank_stability: {
+        status: 'moderate',
+        rank_interval: { best: 2, worst: 5 },
+        candidate_count: 21,
+        scope_candidate_count: 100,
+        bounded_scope: true,
+        scope_coverage: 0.21,
+      },
+    })).toEqual(expect.objectContaining({
+      label: 'Moderate',
+      detail: 'Reported rank range 2–5 · evaluated among 21 of 100 candidates',
+      boundedScope: true,
+      candidateCount: 21,
+      scopeCandidateCount: 100,
+      scopeCoverage: 0.21,
+    }));
     expect(getAstrocartographyBirthTimeAssessment({
       birth_time: {
         status: 'approximate',

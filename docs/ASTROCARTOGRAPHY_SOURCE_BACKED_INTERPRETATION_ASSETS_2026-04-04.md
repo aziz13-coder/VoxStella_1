@@ -46,6 +46,7 @@ Consumer:
 - common caution language
 - angle-domain language
 - user-facing angle shorthand
+- an explicit supportive-and-difficult interpretation for every supported planet-by-angle combination
 - primary and extended interpretation radii
 
 ## What Is Still Not A Final Model
@@ -69,3 +70,8 @@ This change puts the current Astrocartography inspector on firmer ground:
 - the descriptive copy is knowledge-base backed
 - the distance policy is corpus backed
 - the remaining non-source-specific logic is reduced to simple proximity ranking
+
+The runtime asset is deterministic and checked against its source builder in
+the test suite. Release checks can run:
+
+`python scripts/build_astrocartography_runtime_assets.py --check`

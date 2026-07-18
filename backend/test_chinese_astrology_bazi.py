@@ -215,6 +215,55 @@ def test_chinese_astrology_bazi_route_uses_saved_snap_context(monkeypatch):
     assert isinstance(data["relationships"]["events"], list)
 
 
+def test_chinese_astrology_rejects_uncertain_legacy_saved_context_but_allows_direct_input(
+    monkeypatch,
+):
+    client = app_module.app.test_client()
+    legacy_snap = {
+        "id": "legacy-synthetic",
+        "label": "Synthetic legacy chart",
+        "effective_datetime": "2000-02-29",
+        "location": "Paris, France",
+        "timezone": "Europe/Paris",
+        "timezone_label": "Europe/Paris (UTC+01:00)",
+        "coords": [48.85341, 2.3488],
+        "dashboard": {
+            "timestamp": "2000-02-29",
+            "location": "Paris, France",
+            "timezone": "Europe/Paris",
+        },
+    }
+    monkeypatch.setattr(
+        astro_clock_api,
+        "_snaps",
+        lambda: _FakeSnapStore([legacy_snap]),
+    )
+
+    saved_response = client.post(
+        "/api/astro-clock/chinese-astrology/bazi",
+        json={"snap_id": "legacy-synthetic"},
+    )
+    saved_payload = saved_response.get_json()
+
+    assert saved_response.status_code == 400
+    assert saved_payload["success"] is False
+    assert "Confirm/correct the saved context first" in saved_payload["error"]
+
+    direct_response = client.post(
+        "/api/astro-clock/chinese-astrology/bazi",
+        json={
+            "datetime": "2000-02-29T11:34:00+00:00",
+            "location": "Paris, France",
+            "timezone": "Europe/Paris",
+            "latitude": 48.85341,
+            "longitude": 2.3488,
+        },
+    )
+
+    assert direct_response.status_code == 200
+    assert direct_response.get_json()["success"] is True
+
+
 def test_chinese_astrology_compatibility_route_compares_two_saved_snaps(monkeypatch):
     client = app_module.app.test_client()
     snap_a = {
@@ -368,6 +417,7 @@ def test_chinese_astrology_compatibility_route_returns_withheld_boundary_contrac
             "id": snap_id,
             "label": label,
             "effective_datetime": timestamp,
+            "location": "Greenwich, UK",
             "timezone": "UTC",
             "latitude": 0.0,
             "longitude": 0.0,
@@ -422,16 +472,18 @@ def test_chinese_astrology_compatibility_solar_term_503_identifies_participant(
 ):
     client = app_module.app.test_client()
     snaps = [
-        {
-            "id": snap_id,
-            "effective_datetime": timestamp,
-            "timezone": "UTC",
-            "latitude": 0.0,
-            "longitude": 0.0,
-            "dashboard": {
-                "timestamp": timestamp,
+            {
+                "id": snap_id,
+                "effective_datetime": timestamp,
+                "location": "Greenwich, UK",
                 "timezone": "UTC",
                 "latitude": 0.0,
+                "longitude": 0.0,
+                "dashboard": {
+                    "timestamp": timestamp,
+                    "location": "Greenwich, UK",
+                    "timezone": "UTC",
+                    "latitude": 0.0,
                 "longitude": 0.0,
             },
         }

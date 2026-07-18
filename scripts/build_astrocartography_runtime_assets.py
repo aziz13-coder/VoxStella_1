@@ -18,7 +18,6 @@ from __future__ import annotations
 import argparse
 import json
 import re
-from datetime import date
 from pathlib import Path
 from typing import Dict, List
 
@@ -29,6 +28,8 @@ OUTPUT_PATH = ROOT / "backend" / "knowledge" / "astrocartography" / "interpretat
 SOURCE_REGISTRY_PATH = ROOT / "horary_knowledge" / "astrocartography_sources" / "source_registry.json"
 CLAIM_REGISTRY_PATH = ROOT / "horary_knowledge" / "astrocartography_sources" / "claim_registry.json"
 PAGE_ID_RE = re.compile(r"`(acg-src-[a-z0-9-]+\.page-[0-9]{4})`")
+ASSET_SCHEMA_VERSION = 2
+ASSET_GENERATED_ON = "2026-07-18"
 
 
 def _read_text(path: Path) -> str:
@@ -90,6 +91,9 @@ def build_runtime_assets() -> Dict[str, object]:
 
     body_rows = _parse_markdown_table(_extract_section_lines(planet_reference_text, "## Planet Baselines"))
     angle_rows = _parse_markdown_table(_extract_section_lines(planet_reference_text, "## Angle Modifiers"))
+    line_interpretation_rows = _parse_markdown_table(
+        _extract_section_lines(planet_reference_text, "## Explicit Planet-By-Angle Matrix")
+    )
     range_lines = _extract_section_lines(range_reference_text, "## Product Default Recommendation")
 
     angle_id_map = {
@@ -128,6 +132,50 @@ def build_runtime_assets() -> Dict[str, object]:
             },
         }
 
+    line_interpretations: Dict[str, Dict[str, object]] = {}
+    for row in line_interpretation_rows:
+        body = row["Body"]
+        angle_id = angle_id_map.get(row["Angle"], row["Angle"])
+        key = f"{body}:{angle_id}"
+        if key in line_interpretations:
+            raise ValueError(f"Duplicate explicit planet-by-angle row: {key}")
+        line_interpretations[key] = {
+            "summary": row["Summary"],
+            "supportive_expression": row["Supportive expression"],
+            "difficult_expression": row["Difficult expression"],
+            "doctrine_scope": (
+                "secondary_extension"
+                if body in {"North Node", "Chiron"}
+                else "core_planet_line"
+            ),
+            "model_status": (
+                "experimental_extension"
+                if body in {"North Node", "Chiron"}
+                else "doctrine_synthesis"
+            ),
+            "source_ref": {
+                "file": str(planet_reference_path.relative_to(ROOT)).replace("\\", "/"),
+                "section": "Explicit Planet-By-Angle Matrix",
+                "claim_id": "acg-claim-explicit-planet-angle-matrix",
+                "claim_classification": row.get("Classification") or "synthesis",
+                "page_ids": _page_ids(row.get("Source refs") or ""),
+            },
+        }
+
+    expected_line_keys = {
+        f"{body}:{angle_id}"
+        for body in bodies
+        for angle_id in angles
+    }
+    actual_line_keys = set(line_interpretations)
+    if actual_line_keys != expected_line_keys:
+        missing = sorted(expected_line_keys - actual_line_keys)
+        extra = sorted(actual_line_keys - expected_line_keys)
+        raise ValueError(
+            "Explicit planet-by-angle matrix must cover every supported combination "
+            f"(missing={missing}, extra={extra})"
+        )
+
     feature_note = ""
     for line in feature_notes_text.splitlines():
         if "corpus-backed interpretation library" in line:
@@ -135,7 +183,8 @@ def build_runtime_assets() -> Dict[str, object]:
             break
 
     return {
-        "generated_on": date.today().isoformat(),
+        "asset_schema_version": ASSET_SCHEMA_VERSION,
+        "generated_on": ASSET_GENERATED_ON,
         "generator": "scripts/build_astrocartography_runtime_assets.py",
         "sources": [
             str(planet_reference_path.relative_to(ROOT)).replace("\\", "/"),
@@ -177,18 +226,39 @@ def build_runtime_assets() -> Dict[str, object]:
             "note": feature_note,
             "generic_planet_plus_angle_is_fallback_only": True,
             "preferred_claim_id": "acg-claim-explicit-planet-angle-matrix",
+            "supported_matrix_complete": True,
         },
         "bodies": bodies,
         "angles": angles,
+        "line_interpretations": line_interpretations,
     }
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build Astrocartography runtime interpretation assets.")
     parser.add_argument("--output", type=Path, default=OUTPUT_PATH, help="Output JSON path")
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Fail if the checked-in runtime asset differs from the deterministic builder output.",
+    )
     args = parser.parse_args()
 
     payload = build_runtime_assets()
+    if args.check:
+        if not args.output.exists():
+            raise SystemExit(f"Astrocartography runtime asset is missing: {args.output}")
+        try:
+            current = json.loads(args.output.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise SystemExit(f"Unable to read Astrocartography runtime asset: {exc}") from exc
+        if current != payload:
+            raise SystemExit(
+                "Astrocartography runtime asset is stale. "
+                "Run: python scripts/build_astrocartography_runtime_assets.py"
+            )
+        print(f"Current: {args.output}")
+        return
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
     print(f"Wrote {args.output}")

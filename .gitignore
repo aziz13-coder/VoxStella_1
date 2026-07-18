@@ -16,6 +16,11 @@ frontend/.env.production
 backend/*.log
 backend/research/.cache/
 frontend/backend/research/.cache/
+**/snaps_store.json
+**/snaps_store.json.lock
+**/snaps_store.json.backup-*.json
+**/snaps_store.json.corrupt-quarantine.*.json
+**/.snaps_store.json.*.tmp
 **/__pycache__/
 *.pyc
 *.log

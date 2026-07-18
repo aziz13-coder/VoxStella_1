@@ -171,7 +171,35 @@ def _validate_payload_semantics(payload: Dict[str, Any]) -> None:
                 f"models[{index}]({model_id}).normalization: min_score must be below max_score"
             )
 
+        distance_policy = model.get("distance_policy") or {}
+        if distance_policy:
+            multipliers = distance_policy.get("profile_multipliers") or {}
+            conservative = float(multipliers.get("conservative") or 0.0)
+            standard = float(multipliers.get("standard") or 0.0)
+            wide = float(multipliers.get("wide") or 0.0)
+            if not (0.0 < conservative < standard == 1.0 < wide):
+                raise GoalModelValidationError(
+                    f"models[{index}]({model_id}).distance_policy.profile_multipliers: "
+                    "expected conservative < standard (1.0) < wide"
+                )
+            primary_boundary_km = float(distance_policy.get("primary_boundary_km") or 0.0)
+            standard_cutoff_km = float(distance_policy.get("standard_cutoff_km") or 0.0)
+            if not (0.0 < primary_boundary_km < standard_cutoff_km):
+                raise GoalModelValidationError(
+                    f"models[{index}]({model_id}).distance_policy: "
+                    "primary_boundary_km must be positive and below standard_cutoff_km"
+                )
+
         for component_index, component in enumerate(model.get("score_components") or []):
+            if component.get("kind") in {"line", "crossing"}:
+                distance = component.get("distance") or {}
+                primary_max_km = float(distance.get("primary_max_km") or 0.0)
+                max_km = float(distance.get("max_km") or 0.0)
+                if not (0.0 < primary_max_km < max_km):
+                    raise GoalModelValidationError(
+                        f"models[{index}]({model_id}).score_components[{component_index}].distance: "
+                        "primary_max_km must be positive and below max_km"
+                    )
             if component.get("kind") != "constraint":
                 continue
             adjustments = [

@@ -9,6 +9,10 @@ import {
   getAstrocartographyTargetQuery,
   resolveAstrocartographyTargetQuery,
 } from './astrocartographyTargets.mjs';
+import {
+  getSavedSnapIneligibilityLabel,
+  isSavedSnapCalculationEligible,
+} from './savedSnapViewModel.mjs';
 import MundaneWorkspace from './MundaneWorkspace.jsx';
 import WeatherWorkspace from './WeatherWorkspace.jsx';
 import {
@@ -21,18 +25,18 @@ import {
 } from './researchWorkspacePrimitives.jsx';
 
 const BODY_OPTIONS = [
-  { id: 'Sun', short: 'Su' },
-  { id: 'Moon', short: 'Mo' },
-  { id: 'Mercury', short: 'Me' },
-  { id: 'Venus', short: 'Ve' },
-  { id: 'Mars', short: 'Ma' },
-  { id: 'Jupiter', short: 'Ju' },
-  { id: 'Saturn', short: 'Sa' },
-  { id: 'Uranus', short: 'Ur' },
-  { id: 'Neptune', short: 'Ne' },
-  { id: 'Pluto', short: 'Pl' },
-  { id: 'North Node', short: 'NN' },
-  { id: 'Chiron', short: 'Ch' },
+  { id: 'Sun' },
+  { id: 'Moon' },
+  { id: 'Mercury' },
+  { id: 'Venus' },
+  { id: 'Mars' },
+  { id: 'Jupiter' },
+  { id: 'Saturn' },
+  { id: 'Uranus' },
+  { id: 'Neptune' },
+  { id: 'Pluto' },
+  { id: 'North Node' },
+  { id: 'Chiron' },
 ];
 const ANGLE_OPTIONS = ['MC', 'IC', 'ASC', 'DSC'];
 const DEFAULT_VIEW = { center: [20, 0], zoom: 2 };
@@ -79,7 +83,7 @@ const ATLAS_RESOLUTION_OPTIONS = [
   {
     id: 'coarse',
     label: 'Coarse',
-    hint: 'Fastest scan. Capitals, admin seats, and the largest metros.',
+    hint: 'Fastest scan. Cities of 500,000+, plus capitals and first-level admin centers even below that size.',
   },
   {
     id: 'standard',
@@ -153,6 +157,16 @@ const LOCAL_SPACE_OPTIONS = [
   { id: 'relocated', label: 'Relocated' },
   { id: 'natal', label: 'Natal' },
 ];
+const HOUSE_SYSTEM_LABELS = {
+  R: 'Regiomontanus',
+  P: 'Placidus',
+  E: 'Equal',
+  W: 'Whole Sign',
+  O: 'Porphyry',
+  C: 'Campanus',
+  K: 'Koch',
+  T: 'Topocentric',
+};
 const GOAL_GROUP_LABELS = {
   broad: 'Core Goals',
   specialist: 'Specialist Variants',
@@ -759,16 +773,40 @@ export function getAstrocartographyRankStability(payload) {
   }
   const labelValue = value.label || value.status || value.ordinal || value.classification;
   const label = String(labelValue || 'Not assessed').trim().replace(/[_-]+/g, ' ');
-  const rankRange = Array.isArray(value.rank_range) ? value.rank_range.join('–') : '';
-  const detail = String(
+  const rankRange = Array.isArray(value.rank_range)
+    ? value.rank_range.join('–')
+    : (
+      value.rank_interval?.best != null && value.rank_interval?.worst != null
+        ? `${value.rank_interval.best}–${value.rank_interval.worst}`
+        : ''
+    );
+  const reportedDetail = String(
     value.detail
     || value.reason
     || value.summary
     || (rankRange ? `Reported rank range ${rankRange}` : '')
   ).trim();
+  const candidateCount = Number(value.candidate_count);
+  const scopeCandidateCount = Number(value.scope_candidate_count);
+  const hasCandidateCount = Number.isFinite(candidateCount) && candidateCount > 0;
+  const hasScopeCandidateCount = Number.isFinite(scopeCandidateCount) && scopeCandidateCount > 0;
+  const boundedScope = value.bounded_scope === true || (
+    hasCandidateCount
+    && hasScopeCandidateCount
+    && scopeCandidateCount > candidateCount
+  );
+  const boundedScopeDetail = boundedScope && hasCandidateCount && hasScopeCandidateCount
+    ? `evaluated among ${candidateCount} of ${scopeCandidateCount} candidates`
+    : '';
+  const detail = [reportedDetail, boundedScopeDetail].filter(Boolean).join(' · ');
+  const scopeCoverage = Number(value.scope_coverage);
   return {
     label: label ? label.charAt(0).toUpperCase() + label.slice(1) : 'Not assessed',
     detail,
+    boundedScope,
+    candidateCount: hasCandidateCount ? candidateCount : null,
+    scopeCandidateCount: hasScopeCandidateCount ? scopeCandidateCount : null,
+    scopeCoverage: Number.isFinite(scopeCoverage) ? scopeCoverage : null,
   };
 }
 
@@ -994,6 +1032,10 @@ function SelectedCitySummaryCard({
   const targetLabel = getTargetDisplayLabel(target, 'Selected location');
   const activeMode = viewMode === 'transit' && targetResult?.transit ? 'Transit overlay' : 'Natal baseline';
   const locationScore = Number(targetResult?.location_score?.score || 0);
+  const scoreInterval = targetResult?.location_score?.score_interval;
+  const scoreLow = Number(scoreInterval?.low);
+  const scoreHigh = Number(scoreInterval?.high);
+  const hasScoreInterval = Number.isFinite(scoreLow) && Number.isFinite(scoreHigh);
   const natalSignal = Number(targetResult?.natal?.reading?.signal_score || 0);
   const transitSignal = Number(targetResult?.transit?.reading?.signal_score || 0);
   const higherIsWorse = selectedGoal?.score_polarity === 'higher_is_worse';
@@ -1047,7 +1089,7 @@ function SelectedCitySummaryCard({
         {targetResult?.location_score?.score != null ? (
           <MetricChip
             label={scoreLabel}
-            value={`${scoreOrdinal} · index ${locationScore}`}
+            value={`${scoreOrdinal} · index ${locationScore}${hasScoreInterval ? ` · sampled ${scoreLow}–${scoreHigh}` : ''}`}
             tone={getSignalMetricTone(locationScore, higherIsWorse)}
           />
         ) : null}
@@ -1120,6 +1162,26 @@ function ReportSection({ section }) {
 
 function ReadingLineCard({ row }) {
   if (!row) return null;
+  const interpretationStatus = String(row.interpretation_status || '').trim().toLowerCase();
+  const interpretationMeta = interpretationStatus === 'curated_experimental_extension'
+    ? {
+      label: 'Experimental extension',
+      detail: 'This Node or Chiron meaning is a separately curated experimental extension.',
+      className: 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100',
+    }
+    : interpretationStatus === 'generic_unsupported_fallback'
+      ? {
+        label: 'Generic fallback',
+        detail: 'No dedicated body–angle interpretation is available for this line.',
+        className: 'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-100',
+      }
+      : interpretationStatus === 'curated_supported_matrix'
+        ? {
+          label: 'Curated line meaning',
+          detail: 'This reading uses the dedicated body–angle interpretation.',
+          className: 'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-100',
+        }
+        : null;
   return (
     <div className={astroNestedCardCls}>
       <div className="flex items-start justify-between gap-2">
@@ -1131,6 +1193,17 @@ function ReadingLineCard({ row }) {
           {row.zone}
         </span>
       </div>
+      {interpretationMeta ? (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <span
+            className={`rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] ${interpretationMeta.className}`}
+            title={interpretationMeta.detail}
+          >
+            {interpretationMeta.label}
+          </span>
+          <span className={astroMetaTextCls}>{interpretationMeta.detail}</span>
+        </div>
+      ) : null}
       <p className="mt-2 text-[12px] leading-6 text-zinc-700 dark:text-zinc-200">{row.summary}</p>
       <p className={`mt-2 ${astroMetaTextCls}`}>{row.caution}</p>
     </div>
@@ -1176,8 +1249,23 @@ function ReadingPanel({ title, reading, emptyText, higherIsWorse = false }) {
   );
 }
 
-function BirthTimeAssessmentPanel({ assessment }) {
+function BirthTimeAssessmentPanel({ assessment, sampling, lineUncertainty }) {
   const meta = assessment || getAstrocartographyBirthTimeAssessment();
+  const samplingPayload = sampling && typeof sampling === 'object' ? sampling : {};
+  const corridorPayload = lineUncertainty && typeof lineUncertainty === 'object' ? lineUncertainty : {};
+  const samplingCount = Number(
+    samplingPayload.recomputed_sample_count
+    ?? samplingPayload.sample_count
+    ?? samplingPayload.samples?.length
+    ?? 0
+  );
+  const sampledMinutes = Number(samplingPayload.sampled_uncertainty_minutes);
+  const widestCorridor = Array.isArray(corridorPayload.corridors)
+    ? corridorPayload.corridors.reduce((widest, item) => {
+      const width = Number(item?.sampled_width_km_at_equator);
+      return Number.isFinite(width) ? Math.max(widest, width) : widest;
+    }, 0)
+    : 0;
   const statusCls = meta.rankingEligible === true
     ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-100'
     : (meta.rankingEligible === false
@@ -1199,6 +1287,23 @@ function BirthTimeAssessmentPanel({ assessment }) {
         <ul className="space-y-1 text-[11px] leading-5 text-amber-700 dark:text-amber-200">
           {meta.warnings.slice(0, 3).map((warning) => <li key={warning}>{warning}</li>)}
         </ul>
+      ) : null}
+      {samplingCount > 0 ? (
+        <div className={astroNestedCardCls}>
+          <div className={astroSectionLabelCls}>Observed time sensitivity</div>
+          <p className="mt-2 text-[12px] leading-5 text-zinc-700 dark:text-zinc-200">
+            Recalculated {samplingCount} alternative birth times
+            {Number.isFinite(sampledMinutes) ? ` across ±${sampledMinutes} minutes` : ''}.
+          </p>
+          {samplingPayload.assumption ? (
+            <p className={`mt-1 ${astroMetaTextCls}`}>{samplingPayload.assumption}</p>
+          ) : null}
+          {widestCorridor > 0 ? (
+            <p className={`mt-1 ${astroMetaTextCls}`}>
+              The widest sampled map-line envelope is about {Math.round(widestCorridor)} km at the equator; curved rising and setting lines vary by latitude.
+            </p>
+          ) : null}
+        </div>
       ) : null}
     </ConsoleRailSection>
   );
@@ -1322,18 +1427,21 @@ function MethodologyPanel({
         <div className={astroSectionLabelCls}>Paran policy</div>
         <p className="mt-2 text-[12px] leading-5 text-zinc-600 dark:text-zinc-300">
           {activeParans?.orb_deg != null
-            ? `Orb ≤ ${activeParans.orb_deg}°`
+            ? `Angular residual limit ≤ ${activeParans.orb_deg}°`
             : (distancePolicy?.local_paran_orb_deg != null
-              ? `Local orb ≤ ${distancePolicy.local_paran_orb_deg}°`
-              : 'Orb not reported')}
+              ? `Local angular residual limit ≤ ${distancePolicy.local_paran_orb_deg}°`
+              : 'Angular residual limit not reported')}
           {activeParans?.max_distance_km != null
             ? ` · distance ≤ ${activeParans.max_distance_km} km`
             : (distancePolicy?.local_paran_radius_km != null
               ? ` · local radius ${distancePolicy.local_paran_radius_km} km`
               : '')}
           {distancePolicy?.global_paran_orb_deg != null
-            ? ` · global orb ≤ ${distancePolicy.global_paran_orb_deg}°`
+            ? ` · global residual limit ≤ ${distancePolicy.global_paran_orb_deg}°`
             : ''}
+        </p>
+        <p className={`mt-1 ${astroMetaTextCls}`}>
+          These orb and distance limits are Vox Stella comparison settings, not universal astronomical boundaries.
         </p>
         {effectiveParanAngles.length ? (
           <p className={`mt-1 ${astroMetaTextCls}`}>
@@ -1719,6 +1827,16 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
       setMapError('Choose a saved natal snap to load the map.');
       return;
     }
+    const selectedSnap = (Array.isArray(snapOptions) ? snapOptions : []).find(
+      (snap) => String(snap?.id || '') === String(selectedSnapId),
+    );
+    if (!isSavedSnapCalculationEligible(selectedSnap)) {
+      setMapData(null);
+      setMapError(
+        'This saved chart needs context review before astrocartography. Correct it in Astro Clock and use the corrected copy.',
+      );
+      return;
+    }
     const { runId, controller } = beginAbortableRequest(mapRequestRef);
     const isActive = () => (
       mountedRef.current
@@ -1747,7 +1865,7 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
     } finally {
       if (isActive()) setLoadingMap(false);
     }
-  }, [activeTransitRequest, houseSystem, selectedAngles, selectedBodies, selectedSnapId]);
+  }, [activeTransitRequest, houseSystem, selectedAngles, selectedBodies, selectedSnapId, snapOptions]);
 
   useEffect(() => {
     if (!open || analysisMode !== 'astrocartography' || !selectedSnapId) return;
@@ -2050,14 +2168,40 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
   );
   const selectedTarget = targetResult?.target || null;
   const hasSavedSnaps = Array.isArray(snapOptions) && snapOptions.length > 0;
+  const eligibleSnapOptions = useMemo(
+    () => (Array.isArray(snapOptions)
+      ? snapOptions.filter((snap) => isSavedSnapCalculationEligible(snap))
+      : []),
+    [snapOptions],
+  );
+  const selectedSnapNeedsReview = useMemo(
+    () => (Array.isArray(snapOptions) ? snapOptions : []).some(
+      (snap) => (
+        String(snap?.id || '') === String(selectedSnapId || '')
+        && !isSavedSnapCalculationEligible(snap)
+      ),
+    ),
+    [selectedSnapId, snapOptions],
+  );
 
   useEffect(() => {
-    if (!open || selectedSnapId || !hasSavedSnaps) return;
-    const defaultSnapId = String(activeSnapId || snapOptions[0]?.id || '');
+    if (!open || selectedSnapId || !eligibleSnapOptions.length) return;
+    const activeEligible = eligibleSnapOptions.find(
+      (snap) => String(snap?.id || '') === String(activeSnapId || ''),
+    );
+    const defaultSnapId = String(activeEligible?.id || eligibleSnapOptions[0]?.id || '');
     if (defaultSnapId) {
       setSelectedSnapId(defaultSnapId);
     }
-  }, [activeSnapId, hasSavedSnaps, open, selectedSnapId, snapOptions]);
+  }, [activeSnapId, eligibleSnapOptions, open, selectedSnapId]);
+
+  useEffect(() => {
+    if (!open || !selectedSnapNeedsReview) return;
+    setSelectedSnapId('');
+    setSnapLoadError(
+      'This saved chart cannot be used for astrocartography. Correct its context or choose its corrected copy in Astro Clock.',
+    );
+  }, [open, selectedSnapNeedsReview]);
 
   const snapSummary = useMemo(() => {
     const all = Array.isArray(snapOptions) ? snapOptions : [];
@@ -2096,6 +2240,18 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
     mapData,
     snapSummary,
   ), [atlasResults, compareResult, mapData, snapSummary, targetResult]);
+  const birthTimeSampling = firstNonEmptyObject(
+    targetResult?.birth_time_sampling,
+    targetResult?.location_score?.uncertainty?.birth_time_sampling,
+    atlasResults?.birth_time_sampling,
+    atlasResults?.atlas?.birth_time_sampling,
+    compareResult?.birth_time_sampling,
+    mapData?.birth_time_sampling,
+  );
+  const natalLineUncertainty = firstNonEmptyObject(
+    targetResult?.natal?.line_uncertainty,
+    mapData?.map?.natal_line_uncertainty,
+  );
   const rankingIneligible = birthTimeAssessment.rankingEligible === false;
   const rankingEligibilityPending = loadingMap && birthTimeAssessment.rankingEligible == null;
 
@@ -2116,6 +2272,14 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
   const natalLocalSpace = targetResult?.natal?.local_space || null;
   const relocatedLocalSpace = targetResult?.relocation?.local_space || null;
   const activeLocalSpace = localSpaceMode === 'natal' ? natalLocalSpace : relocatedLocalSpace;
+  const relocationHouseSystemCode = String(
+    targetResult?.relocation?.provenance?.house_system_code
+    || targetResult?.relocation?.meta?.house_system_code
+    || targetResult?.relocation?.chart_data?.house_system_code
+    || defaultHouseSystem
+    || ''
+  ).trim().toUpperCase();
+  const relocationHouseSystemLabel = HOUSE_SYSTEM_LABELS[relocationHouseSystemCode] || relocationHouseSystemCode;
   const activeLocalSpaceOrigin = getLocalSpaceOrigin(
     activeLocalSpace,
     localSpaceMode === 'relocated' ? selectedTarget : null,
@@ -2704,8 +2868,15 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
                   >
                     <option value="">Select a saved snap...</option>
                     {snapOptions.map((snap) => (
-                      <option key={snap.id} value={snap.id}>
+                      <option
+                        key={snap.id}
+                        value={snap.id}
+                        disabled={!isSavedSnapCalculationEligible(snap)}
+                      >
                         {snap.label || snap.id}
+                        {getSavedSnapIneligibilityLabel(snap)
+                          ? ` (${getSavedSnapIneligibilityLabel(snap)})`
+                          : ''}
                       </option>
                     ))}
                   </select>
@@ -2798,8 +2969,15 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
                 >
                   <option value="">Select a saved snap...</option>
                   {snapOptions.map((snap) => (
-                    <option key={snap.id} value={snap.id}>
+                    <option
+                      key={snap.id}
+                      value={snap.id}
+                      disabled={!isSavedSnapCalculationEligible(snap)}
+                    >
                       {snap.label || snap.id}
+                      {getSavedSnapIneligibilityLabel(snap)
+                        ? ` (${getSavedSnapIneligibilityLabel(snap)})`
+                        : ''}
                     </option>
                   ))}
                 </select>
@@ -2864,10 +3042,13 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
                         checked={selectedBodies.includes(body.id)}
                         onChange={() => handleToggleBody(body.id)}
                       />
-                      <span className="inline-flex items-center gap-2"><span className="min-w-[1.75rem] rounded-md border border-zinc-300 bg-zinc-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-600 dark:border-zinc-600 dark:bg-zinc-900/60 dark:text-zinc-300">{body.short}</span><span>{body.id}</span></span>
+                      <span>{body.id}</span>
                     </label>
                   ))}
                 </div>
+                <p className={`mt-3 ${astroMetaTextCls}`}>
+                  Sun through Pluto are the core map bodies. North Node uses the mean node; North Node and Chiron are optional experimental interpretive extensions.
+                </p>
               </ConsoleRailSection>
 
               <ConsoleRailSection title="Angles" eyebrow="filter" module="astrocartography" bodyClassName="mt-3">
@@ -3059,6 +3240,9 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
                 <p className="text-[11px] text-zinc-600">
                   {selectedAtlasResolution.hint} Region: {selectedAtlasContinent.label}.
                 </p>
+                <div className="rounded-[4px] border border-amber-200 bg-amber-50/80 p-3 text-[11px] leading-5 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
+                  Astrology ranking only. It does not assess personal safety, healthcare, living costs, employment, or visa requirements. Check those separately before travel or relocation.
+                </div>
               </ConsoleRailSection>
 
               <ConsoleRailSection title="Inspect City" eyebrow="target" module="astrocartography">
@@ -3091,7 +3275,11 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
                 />
               </ConsoleRailSection>
 
-              <BirthTimeAssessmentPanel assessment={birthTimeAssessment} />
+              <BirthTimeAssessmentPanel
+                assessment={birthTimeAssessment}
+                sampling={birthTimeSampling}
+                lineUncertainty={natalLineUncertainty}
+              />
 
               {showInspectorDetails ? (
                 <ReadingPanel
@@ -3156,6 +3344,17 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
 
               {showInspectorDetails ? (
               <ConsoleRailSection title="Relocation" eyebrow="research" module="astrocartography" bodyClassName="mt-3 space-y-2">
+                {relocationHouseSystemCode ? (
+                  <div className={astroNestedCardCls}>
+                    <div className={astroSectionLabelCls}>Relocation house system</div>
+                    <p className="mt-2 text-[12px] leading-5 text-zinc-700 dark:text-zinc-200">
+                      {relocationHouseSystemLabel} ({relocationHouseSystemCode})
+                    </p>
+                    <p className={`mt-1 ${astroMetaTextCls}`}>
+                      Relocated house placements depend on this setting; the world map lines do not.
+                    </p>
+                  </div>
+                ) : null}
                 {targetResult?.relocation?.available === false || targetResult?.relocation?.relocation_unavailable ? (
                   <div className="rounded-[4px] border border-amber-200 bg-amber-50/80 p-3 text-[11px] leading-5 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
                     <div className={astroSectionLabelCls}>Relocation unavailable</div>
@@ -3236,6 +3435,9 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
                       <p className={`mt-1 ${astroMetaTextCls}`}>
                         Origin: {formatStatusLabel(activeLocalSpace.origin_kind, localSpaceMode)}
                       </p>
+                      <p className={`mt-1 ${astroMetaTextCls}`}>
+                        Directional Local Space rays are shown separately from world-map lines and do not enter PathFinder scores unless a returned goal model explicitly includes them.
+                      </p>
                     </div>
                     {Array.isArray(activeLocalSpace?.dominant_sectors) && activeLocalSpace.dominant_sectors.slice(0, 2).map((sector) => (
                       <div key={`sector-${sector.sector}`} className={astroNestedCardCls}>
@@ -3294,6 +3496,14 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
                       const targetLabel = getTargetDisplayLabel(target, `Candidate ${index + 1}`);
                       const targetQuery = getAstrocartographyTargetQuery(target);
                       const score = Number(item?.location_score?.score || 0);
+                      const reportedAstrologyRank = Number(item?.astrology_rank ?? item?.rank);
+                      const astrologyRank = Number.isInteger(reportedAstrologyRank) && reportedAstrologyRank > 0
+                        ? reportedAstrologyRank
+                        : index + 1;
+                      const reportedDisplayOrder = Number(item?.display_rank ?? item?.selection_order);
+                      const displayOrder = Number.isInteger(reportedDisplayOrder) && reportedDisplayOrder > 0
+                        ? reportedDisplayOrder
+                        : index + 1;
                       const ordinal = getAstrocartographyOrdinal(item?.location_score, {
                         rankingEligible: birthTimeAssessment.rankingEligible,
                       });
@@ -3307,10 +3517,21 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
                         <div key={buildCompareKey(target) || `${targetQuery || targetLabel}-${index}`} className={astroNestedCardCls}>
                           <div className="flex items-start justify-between gap-2">
                             <div>
-                              <div className="text-sm font-medium">{index + 1}. {targetLabel}</div>
+                              <div className="text-sm font-medium">{targetLabel}</div>
+                              <div className={`mt-1 flex flex-wrap gap-x-3 gap-y-1 ${astroMetaTextCls}`}>
+                                <span>Astrology rank #{astrologyRank}</span>
+                                {displayOrder !== astrologyRank ? (
+                                  <span>Regional display order #{displayOrder}</span>
+                                ) : null}
+                              </div>
                               <div className="mt-1 text-[12px] leading-6 text-zinc-600 dark:text-zinc-300">
                                 {city.country_name}{city.population ? ` | Pop ${Number(city.population).toLocaleString()}` : ''}
                               </div>
+                              {item?.geographic_group?.label ? (
+                                <div className={`mt-1 ${astroMetaTextCls}`}>
+                                  Regional group: {item.geographic_group.label}
+                                </div>
+                              ) : null}
                             </div>
                             <div className="text-right">
                               <span className={`inline-flex px-2 py-0.5 rounded-full border text-[10px] uppercase tracking-wide ${getSignalBadgeCls(score, selectedGoalHigherIsWorse)}`}>

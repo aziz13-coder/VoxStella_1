@@ -201,6 +201,78 @@ describe('BirthCertificationModal', () => {
     expect(within(screen.getByLabelText('Candidate results')).getAllByText('91.2').length).toBeGreaterThan(0);
   });
 
+  it('requires explicit review before rectifying from a saved chart and sends its snap id', async () => {
+    const savedSnap = {
+      id: 'snap-confirmed',
+      label: 'Synthetic saved chart',
+      effective_datetime: '2001-06-15T08:15:00+00:00',
+      location: 'Synthetic place',
+      timezone: 'Europe/London',
+      latitude: 51.5,
+      longitude: -0.1,
+    };
+    renderModal({ snaps: [savedSnap] });
+
+    fireEvent.change(screen.getByLabelText('Birth chart source'), { target: { value: 'snap' } });
+    await waitFor(() => expect(screen.getByLabelText('Saved snap')).toHaveValue('snap-confirmed'));
+
+    fireEvent.change(screen.getByLabelText('Event label'), { target: { value: 'Synthetic milestone' } });
+    fireEvent.change(screen.getByLabelText('Event timestamp'), { target: { value: '2020-01-01T12:00:00+00:00' } });
+    fireEvent.change(screen.getByLabelText('Event latitude'), { target: { value: '52' } });
+    fireEvent.change(screen.getByLabelText('Event longitude'), { target: { value: '0' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Run Certification' }));
+
+    expect(await screen.findByText(/Confirm that you reviewed the saved chart date, timezone, place, and coordinates/i)).toBeInTheDocument();
+    expect(astroClockApiMock.rectifyBirthTime).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /I reviewed the saved chart/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Run Certification' }));
+
+    await waitFor(() => expect(astroClockApiMock.rectifyBirthTime).toHaveBeenCalledTimes(1));
+    expect(astroClockApiMock.rectifyBirthTime).toHaveBeenCalledWith(expect.objectContaining({
+      snap_id: 'snap-confirmed',
+      birth: expect.objectContaining({
+        date: '2001-06-15',
+        location: 'Synthetic place',
+        timezone: 'Europe/London',
+        latitude: 51.5,
+        longitude: -0.1,
+      }),
+    }));
+  });
+
+  it('disables unsafe saved charts as certification sources', () => {
+    renderModal({
+      snaps: [
+        {
+          id: 'snap-safe',
+          label: 'Safe chart',
+          effective_datetime: '2002-04-05T09:20:00+00:00',
+          timezone: 'Etc/UTC',
+          latitude: 1,
+          longitude: 2,
+        },
+        {
+          id: 'snap-review',
+          label: 'Review chart',
+          calculation_context: { review_required: true },
+        },
+        {
+          id: 'snap-old',
+          label: 'Old chart',
+          superseded_by: 'snap-safe',
+        },
+      ],
+    });
+
+    fireEvent.change(screen.getByLabelText('Birth chart source'), { target: { value: 'snap' } });
+    const select = screen.getByLabelText('Saved snap');
+    expect(within(select).getByRole('option', { name: /Review chart.*needs context review/i })).toBeDisabled();
+    expect(within(select).getByRole('option', { name: /Old chart.*superseded.*corrected copy/i })).toBeDisabled();
+    expect(screen.getByText(/Review-required and superseded saved charts are disabled/i)).toBeInTheDocument();
+  });
+
   it('saves the selected certification candidate as a saved snap', async () => {
     const onRefreshSnaps = vi.fn().mockResolvedValue(undefined);
     renderModal({ onRefreshSnaps });

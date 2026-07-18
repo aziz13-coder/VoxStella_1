@@ -103,6 +103,11 @@ def test_election_routes_support_each_registered_matter(monkeypatch, matter: str
         lambda snap_id, *, house_system_code=None, missing_error="Snap not found": {
             "chart_data": _generic_chart(),
             "meta": {"timestamp": "2026-03-08T00:00:00Z", "house_system_code": house_system_code},
+            "birth_time": {
+                "status": "certified",
+                "ranking_eligible": True,
+                "ranking_eligibility": "confirmed",
+            },
         },
     )
     monkeypatch.setattr(

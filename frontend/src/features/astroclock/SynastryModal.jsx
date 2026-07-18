@@ -1,5 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AstroClockAPI } from './api.mjs';
+import {
+  formatSavedSnapLabel,
+  getSavedSnapDateTimeParts,
+  getSavedSnapTimezoneLabel,
+  isSavedSnapCalculationEligible,
+} from './savedSnapViewModel.mjs';
 
 const PAPER = 'bg-white';
 const serifStyle = { fontFamily: 'Iowan Old Style, Palatino Linotype, Book Antiqua, Georgia, serif' };
@@ -25,48 +31,14 @@ function normalizeProfileHint(value) {
 }
 
 function formatSnapLabel(snap) {
-  if (!snap) return 'Unknown snap';
-  const label = String(snap.label || 'Untitled Snap').trim() || 'Untitled Snap';
-  const iso = String(snap.effective_datetime || '');
-  const location = String(snap.location || '').trim();
-  let stamp = '';
-  if (iso) {
-    try {
-      stamp = new Intl.DateTimeFormat('en-GB', {
-        year: 'numeric',
-        month: 'short',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-      }).format(new Date(iso));
-    } catch (_) {}
-  }
-  return [label, stamp, location].filter(Boolean).join(' | ');
+  return snap ? formatSavedSnapLabel(snap) : 'Unknown snap';
 }
 
 function getSnapMetaParts(snap) {
   const label = String(snap?.label || 'Untitled Snap').trim() || 'Untitled Snap';
-  const iso = String(snap?.effective_datetime || '');
   const location = String(snap?.location || '').trim();
-  const timezone = String(snap?.timezone || snap?.tz || '').trim();
-  let datePart = '';
-  let timePart = '';
-  if (iso) {
-    try {
-      const parsed = new Date(iso);
-      datePart = new Intl.DateTimeFormat('en-GB', {
-        year: 'numeric',
-        month: 'short',
-        day: '2-digit',
-      }).format(parsed);
-      timePart = new Intl.DateTimeFormat('en-GB', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-      }).format(parsed);
-    } catch (_) {}
-  }
+  const timezone = getSavedSnapTimezoneLabel(snap);
+  const { datePart, timePart } = getSavedSnapDateTimeParts(snap);
   return { label, datePart, timePart, location, timezone };
 }
 
@@ -570,7 +542,9 @@ function StructuredAreasPanel({ areas, selectedBuckets, onSelectBucket }) {
 
 export default function SynastryModal({ open, onClose, snaps = [], activeSnapId = '' }) {
   const sortedSnaps = useMemo(() => {
-    const list = Array.isArray(snaps) ? snaps.slice() : [];
+    const list = Array.isArray(snaps)
+      ? snaps.filter((snap) => isSavedSnapCalculationEligible(snap))
+      : [];
     return list.sort((a, b) => {
       const ta = new Date(String(a?.effective_datetime || '')).getTime();
       const tb = new Date(String(b?.effective_datetime || '')).getTime();
@@ -852,7 +826,7 @@ export default function SynastryModal({ open, onClose, snaps = [], activeSnapId 
         {pointCapabilityNotice ? <div className="border-b border-amber-200 bg-amber-50/70 px-6 py-2.5 text-[12px] text-amber-700">{pointCapabilityNotice}</div> : null}
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6" aria-busy={refreshing ? 'true' : 'false'}>
-          {(sortedSnaps.length || 0) < 2 ? <StatePanel title="Save two snaps to compare." body="Synastry runs on frozen chart snapshots. Save at least two snaps in Astro Clock, then reopen this memo." /> : null}
+          {(sortedSnaps.length || 0) < 2 ? <StatePanel title="Save or correct two snaps to compare." body="Synastry uses coherent frozen chart snapshots. Correct any saved context marked for review in Astro Clock, then reopen this memo." /> : null}
           {!((sortedSnaps.length || 0) < 2) && snapAId === snapBId && snapAId ? <StatePanel title="Subject A and Subject B are the same snap." body="Choose a different snap on either side to produce a comparison." tone="warn" /> : null}
           {!((sortedSnaps.length || 0) < 2) && !(snapAId === snapBId && snapAId) && initialLoading ? <div className="px-6 py-10">{[0, 1, 2].map((idx) => <div key={idx} className="mb-8 space-y-3"><div className="h-3 w-24 animate-pulse rounded bg-zinc-200" /><div className="h-8 w-2/3 animate-pulse rounded bg-zinc-200" /><div className="h-3 w-full animate-pulse rounded bg-zinc-100" /><div className="h-3 w-5/6 animate-pulse rounded bg-zinc-100" /></div>)}</div> : null}
           {!((sortedSnaps.length || 0) < 2) && !(snapAId === snapBId && snapAId) && !initialLoading && error && !data ? <StatePanel title="The memo could not be composed." body={String(error || 'Failed to load synastry report')} tone="danger" /> : null}

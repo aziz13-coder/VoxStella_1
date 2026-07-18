@@ -189,6 +189,9 @@ def test_actual_atlas_keyword_query_preserves_broad_filter_semantics(
     assert candidates
     assert all(str(city.get(field) or "") == expected for city in candidates)
     assert result["candidate_pool_policy"]["mandatory_candidates_preserved"] is True
+    assert result["candidate_pool_policy"]["minimum_population"] == 500000
+    assert result["candidate_pool_policy"]["population_floor_exceptions"] == ["PPLC", "PPLA"]
+    assert "regardless of population" in result["resolution"]["description"]
 
 
 def test_actual_atlas_prefix_keyword_excludes_timezone_substring_false_positives(
@@ -278,6 +281,146 @@ def test_build_location_score_sort_key_supports_warning_polarity():
     assert warning_order[0] == safer
 
 
+def test_equal_astrology_scores_use_stable_identity_not_population():
+    tiny_alpha = {
+        "target": {"candidate_id": "alpha-id", "label": "Alpha City"},
+        "atlas_city": {"population": 1},
+        "location_score": {"raw_score": 4.0, "score": 60},
+    }
+    huge_zeta = {
+        "target": {"candidate_id": "zeta-id", "label": "Zeta City"},
+        "atlas_city": {"population": 10_000_000},
+        "location_score": {"raw_score": 4.0, "score": 60},
+    }
+
+    ordered = sorted(
+        [huge_zeta, tiny_alpha],
+        key=atlas_engine._scored_candidate_sort_key,
+    )
+
+    assert [item["target"]["candidate_id"] for item in ordered] == [
+        "alpha-id",
+        "zeta-id",
+    ]
+    assert atlas_engine.ASTROLOGY_RANKING_BASIS["population_used_for_ranking"] is False
+    assert atlas_engine.ASTROLOGY_RANKING_BASIS["tie_breaker"] == "stable_label_then_candidate_id"
+
+
+def test_geographic_diversity_prefers_distinct_regions_and_labels_every_result():
+    rows = [
+        {"target": {"candidate_id": "quito", "label": "Quito", "latitude": -0.1807, "longitude": -78.4678}},
+        {"target": {"candidate_id": "ibarra", "label": "Ibarra", "latitude": 0.3517, "longitude": -78.1223}},
+        {"target": {"candidate_id": "london", "label": "London", "latitude": 51.5074, "longitude": -0.1278}},
+        {"target": {"candidate_id": "paris", "label": "Paris", "latitude": 48.8566, "longitude": 2.3522}},
+    ]
+
+    selected, metadata = atlas_engine.select_geographically_diverse_results(
+        rows,
+        limit=3,
+        radius_km=250.0,
+    )
+
+    assert [item["target"]["candidate_id"] for item in selected] == ["quito", "london", "paris"]
+    assert metadata["distinct_region_count"] == 3
+    assert metadata["same_region_fill_count"] == 0
+    assert all((item.get("geographic_group") or {}).get("label") for item in selected)
+    assert all(item["ranking_basis"]["scope"] == "astrological_interpretation_only" for item in selected)
+    assert all(item["practical_context"]["status"] == "not_assessed" for item in selected)
+    assert all(item["suitability_assessed"] is False for item in selected)
+
+
+def test_geographic_diversity_uses_labeled_same_region_fill_for_local_searches():
+    rows = [
+        {"target": {"candidate_id": "quito", "label": "Quito", "latitude": -0.1807, "longitude": -78.4678}},
+        {"target": {"candidate_id": "ibarra", "label": "Ibarra", "latitude": 0.3517, "longitude": -78.1223}},
+        {"target": {"candidate_id": "latacunga", "label": "Latacunga", "latitude": -0.9352, "longitude": -78.6155}},
+    ]
+
+    selected, metadata = atlas_engine.select_geographically_diverse_results(
+        rows,
+        limit=3,
+        radius_km=250.0,
+    )
+
+    assert len(selected) == 3
+    assert metadata["distinct_region_count"] == 1
+    assert metadata["same_region_fill_count"] == 2
+    assert [item["geographic_group"]["selection_pass"] for item in selected] == [
+        "distinct_region",
+        "same_region_fill",
+        "same_region_fill",
+    ]
+    assert {item["geographic_group"]["label"] for item in selected} == {"Quito area"}
+
+
+def test_diversity_keeps_global_astrology_rank_separate_from_display_rank():
+    rows = [
+        {
+            "target": {"candidate_id": "a-strong", "label": "A Strong", "latitude": 0.0, "longitude": 0.0},
+            "location_score": {"raw_score": 10.0, "score": 80},
+        },
+        {
+            "target": {"candidate_id": "a-nearby", "label": "A Nearby", "latitude": 0.5, "longitude": 0.5},
+            "location_score": {"raw_score": 9.0, "score": 75},
+        },
+        {
+            "target": {"candidate_id": "b-distant", "label": "B Distant", "latitude": 30.0, "longitude": 30.0},
+            "location_score": {"raw_score": 2.0, "score": 45},
+        },
+    ]
+
+    selected, _metadata = atlas_engine.select_geographically_diverse_results(
+        rows,
+        limit=3,
+        radius_km=250.0,
+    )
+    ranking = atlas_engine._build_scored_candidate_ranking(selected)
+
+    assert [item["target"]["candidate_id"] for item in selected] == [
+        "a-strong",
+        "b-distant",
+        "a-nearby",
+    ]
+    assert [item["astrology_rank"] for item in ranking] == [1, 3, 2]
+    assert [item["rank"] for item in ranking] == [1, 3, 2]
+    assert [item["display_rank"] for item in ranking] == [1, 2, 3]
+    assert [item["selection_order"] for item in ranking] == [1, 2, 3]
+
+
+def test_wide_time_stability_pool_is_bounded_and_keeps_displayed_outlier():
+    rows = [
+        {
+            "target": {
+                "candidate_id": f"city-{index:03d}",
+                "label": f"City {index:03d}",
+                "latitude": float((index % 80) - 40),
+                "longitude": float((index * 3) % 180),
+            },
+            "location_score": {
+                "raw_score": 100.0 - index,
+                "score": 100 - index,
+            },
+        }
+        for index in range(100)
+    ]
+
+    pool, policy = atlas_engine.build_bounded_stability_evaluation_pool(
+        rows,
+        required_rows=[rows[0], rows[-1]],
+        requested_limit=8,
+        time_sample_count=12,
+    )
+
+    assert len(pool) == 21
+    assert rows[-1] in pool
+    assert policy["candidate_cap"] == 21
+    assert policy["planned_full_recalculations"] == 252
+    assert policy["max_full_recalculations"] == 256
+    assert policy["within_evaluation_cap"] is True
+    assert policy["bounded_scope"] is True
+    assert policy["required_displayed_candidates_preserved"] is True
+
+
 def test_rank_candidate_pool_for_goal_ranks_lowest_score_first_for_warning_models(monkeypatch):
     fake_cities = [
         {"label": "Low Risk City", "query": "Low Risk City", "latitude": 0.0, "longitude": 0.0},
@@ -322,6 +465,12 @@ def test_rank_candidate_pool_for_goal_ranks_lowest_score_first_for_warning_model
 
     assert result["score_polarity"] == "higher_is_worse"
     assert [row["label"] for row in result["ranking"]] == ["Low Risk City", "High Risk City"]
+    assert result["ranking_mode"] == "goal_specific_astrology"
+    assert result["ranking_basis"]["scope"] == "astrological_interpretation_only"
+    assert result["practical_context"]["status"] == "not_assessed"
+    assert result["goal_selection"]["neutral_overview"]["ranked"] is False
+    assert result["geographic_diversity"]["enabled"] is True
+    assert all(row["suitability_assessed"] is False for row in result["ranking"])
 
 
 def test_rank_atlas_cities_for_goal_prefers_stronger_supported_city(monkeypatch):
@@ -618,6 +767,10 @@ def test_rank_atlas_cities_for_goal_emits_progress(monkeypatch):
 
     assert progress_events
     assert progress_events[0]["stage"] == "collect_candidates"
+    stability_events = [event for event in progress_events if event["stage"] == "stability"]
+    assert stability_events
+    assert stability_events[-1]["message"] == "Rank stability evaluation complete"
+    assert stability_events[-1]["max_full_recalculations"] == 256
     assert progress_events[-1]["stage"] == "ready"
     assert progress_events[-1]["percent"] == 1.0
 

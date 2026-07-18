@@ -293,6 +293,65 @@
       "evidence_limitations": "The sources give materially different working ranges; the selected cutoffs require sensitivity testing and must not imply a hard physical edge."
     },
     {
+      "claim_id": "acg-claim-goal-component-weight-calibration-unverified",
+      "classification": "experimental",
+      "statement": "Numeric goal-component weights, distance falloff multipliers, interaction scales, thresholds, score caps, and normalization ranges are Vox Stella calibration choices rather than quantities recovered from the local astrocartography sources.",
+      "status": "experimental-calibration-limitation",
+      "source_refs": [],
+      "evidence_limitations": "The local corpus supplies qualitative doctrine and examples, but it does not establish comparative numeric weights or predictive calibration. Synthetic semantic fixtures can detect implementation drift; they do not validate outcomes."
+    },
+    {
+      "claim_id": "acg-claim-goal-component-doctrine-unverified",
+      "classification": "experimental",
+      "statement": "A goal-component mapping with no curated direct or synthesis reference is an explicit Vox Stella hypothesis and must not inherit authority from a model label, a legacy filename, or a generic planet keyword.",
+      "status": "experimental-unverified-doctrine",
+      "source_refs": [],
+      "evidence_limitations": "Unsourced planet-pair meanings, relocated-house formulas, derived relocation metrics, and score constraints require independent doctrine curation before they can be promoted beyond experimental status."
+    },
+    {
+      "claim_id": "acg-claim-local-space-product-policy",
+      "classification": "experimental",
+      "statement": "Local Space is calculated and presented as a separate birthplace- or relocated-origin azimuth technique; its ray lengths, display sectors, range rings, and ranking use are Vox Stella product policies rather than astrocartography line evidence.",
+      "status": "experimental-product-policy",
+      "source_refs": [],
+      "evidence_limitations": "The current local corpus supports keeping Local Space distinct from angular-line astrocartography, but it does not establish the product's selected ray length, sector summaries, or score contribution."
+    },
+    {
+      "claim_id": "acg-claim-paran-orb-radius-product-policy",
+      "classification": "experimental",
+      "statement": "The 2 degree local residual limit, 1 degree global residual limit, and 1,200 km local search radius used for parans are Vox Stella numerical policies, not universal doctrinal constants.",
+      "status": "experimental-product-policy",
+      "source_refs": [],
+      "evidence_limitations": "The local corpus supports separating parans from ordinary line intersections and proximity blends, but it does not establish these numerical residual and radius choices."
+    },
+    {
+      "claim_id": "acg-claim-relocation-house-system-policy",
+      "classification": "experimental",
+      "statement": "Relocated houses depend on the selected house system; Vox Stella defaults astrocartography relocation work to Regiomontanus when no valid natal or explicit house-system choice is available.",
+      "status": "experimental-product-policy",
+      "source_refs": [],
+      "evidence_limitations": "Relocation doctrine supports preserving the natal instant and recalculating angles and houses for place, but the local corpus does not establish Regiomontanus as a universal default or make house-system-dependent scores interchangeable."
+    },
+    {
+      "claim_id": "acg-claim-extended-body-policy",
+      "classification": "experimental",
+      "statement": "The canonical astrocartography body set is the ten planets from Sun through Pluto; Vox Stella treats the mean North Node and Chiron as separately labeled experimental extensions and does not silently infer a true-node or South-Node counterpart.",
+      "status": "experimental-product-policy",
+      "source_refs": [
+        {
+          "source_id": "acg-src-furst-best-places-2015",
+          "page": 59,
+          "page_id": "acg-src-furst-best-places-2015.page-0059"
+        },
+        {
+          "source_id": "acg-src-furst-best-places-2015",
+          "page": 60,
+          "page_id": "acg-src-furst-best-places-2015.page-0060"
+        }
+      ],
+      "evidence_limitations": "Furst supports distinguishing the lunar nodes, but it does not validate Vox Stella's mean-node selection, Chiron extension, comparative weights, or omission of an independently calculated South Node."
+    },
+    {
       "claim_id": "acg-claim-specialist-goal-formulas",
       "classification": "experimental",
       "statement": "Specialist gambling, health, accident, hostile-place, erotic, or similar goal scores are Vox Stella hypotheses unless a separate curated doctrine and held-out validation set is provided.",

@@ -366,12 +366,12 @@ def test_payload_shape_top_hits_limit_and_danger_metadata():
 def test_chart_meta_datetime_utc_is_converted_from_offset_timestamp():
     payload = compute_symbolic_points_payload(
         _chart(),
-        timestamp_iso="1990-01-13T21:33:00+02:00",
+        timestamp_iso="2000-02-29T12:34:00+01:00",
         house_system="P",
     )
 
-    assert payload["chart_meta"]["datetime"] == "1990-01-13T21:33:00+02:00"
-    assert payload["chart_meta"]["datetime_utc"] == "1990-01-13T19:33:00Z"
+    assert payload["chart_meta"]["datetime"] == "2000-02-29T12:34:00+01:00"
+    assert payload["chart_meta"]["datetime_utc"] == "2000-02-29T11:34:00Z"
 
 
 def test_unavailable_dependencies_are_structured_not_silent_zeroes():

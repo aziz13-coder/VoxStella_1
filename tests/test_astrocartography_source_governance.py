@@ -12,6 +12,7 @@ if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
 import build_astrocartography_knowledge_base as kb_builder
+import build_astrocartography_goal_models as goal_model_builder
 import build_astrocartography_runtime_assets as runtime_builder
 from astrocartography_source_governance import (
     ALLOWED_CLAIM_CLASSIFICATIONS,
@@ -121,6 +122,206 @@ def test_runtime_builder_carries_governed_page_provenance() -> None:
         "acg-src-lewis-guttman-1989.page-0014",
         "acg-src-furst-best-places-2015.page-0018",
     ]
+    assert len(payload["line_interpretations"]) == 48
+    assert payload["interpretation_policy"]["supported_matrix_complete"] is True
+    assert payload["line_interpretations"]["Mars:IC"]["source_ref"]["claim_id"] == (
+        "acg-claim-explicit-planet-angle-matrix"
+    )
+    assert payload["line_interpretations"]["Sun:ASC"]["doctrine_scope"] == (
+        "core_planet_line"
+    )
+    assert payload["line_interpretations"]["Chiron:ASC"]["doctrine_scope"] == (
+        "secondary_extension"
+    )
+    assert payload["line_interpretations"]["North Node:ASC"]["model_status"] == (
+        "experimental_extension"
+    )
+    assert payload["line_interpretations"]["Chiron:ASC"]["model_status"] == (
+        "experimental_extension"
+    )
+
+
+def test_checked_in_interpretation_runtime_matches_deterministic_builder() -> None:
+    checked_in = json.loads(
+        runtime_builder.OUTPUT_PATH.read_text(encoding="utf-8")
+    )
+
+    assert checked_in == runtime_builder.build_runtime_assets()
+
+
+def test_checked_in_goal_runtime_assets_match_deterministic_builder() -> None:
+    expected = goal_model_builder.build_payload()
+
+    for path in goal_model_builder.OUTPUT_PATHS:
+        assert json.loads(path.read_text(encoding="utf-8")) == expected
+
+
+def test_every_goal_component_has_resolved_evidence_and_calibration_limit() -> None:
+    payload = json.loads(
+        (
+            REPO_ROOT
+            / "backend"
+            / "knowledge"
+            / "astrocartography"
+            / "place_goal_models.runtime.json"
+        ).read_text(encoding="utf-8")
+    )
+    claims = {
+        row["claim_id"]: row
+        for row in load_claim_registry()["claims"]
+    }
+    chunks = {
+        json.loads(line)["chunk_id"]
+        for line in (
+            REPO_ROOT
+            / "horary_knowledge"
+            / "astrocartography_knowledge_base"
+            / "chunk_index.jsonl"
+        ).read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    }
+    known_refs = set(claims) | chunks
+    components = [
+        component
+        for model in payload["models"]
+        for component in model.get("score_components") or []
+    ]
+
+    assert len(components) == 265
+    assert all(component.get("evidence_refs") for component in components)
+    assert all(
+        set(component["evidence_refs"]) <= known_refs
+        for component in components
+    )
+    assert all(
+        "acg-claim-goal-component-weight-calibration-unverified"
+        in component["evidence_refs"]
+        for component in components
+    )
+
+    experimental = [
+        component
+        for component in components
+        if component.get("source_status") == "experimental"
+    ]
+    assert experimental
+    assert all(
+        "acg-claim-goal-component-doctrine-unverified"
+        in component["evidence_refs"]
+        for component in experimental
+    )
+
+    governed = [
+        component
+        for component in components
+        if component.get("source_status") != "experimental"
+    ]
+    assert governed
+    assert {component["kind"] for component in governed} == {"line"}
+    assert {
+        component["planet"]
+        for component in governed
+    } <= {
+        "Sun",
+        "Moon",
+        "Mercury",
+        "Venus",
+        "Mars",
+        "Jupiter",
+        "Saturn",
+        "Uranus",
+        "Neptune",
+        "Pluto",
+    }
+    assert all(
+        any(
+            ref in chunks
+            or (claims.get(ref) or {}).get("classification")
+            in {"direct", "synthesis"}
+            for ref in component["evidence_refs"]
+        )
+        for component in governed
+    )
+
+
+def test_goal_policy_metadata_names_extensions_and_sensitivity_limits() -> None:
+    payload = json.loads(
+        (
+            REPO_ROOT
+            / "backend"
+            / "knowledge"
+            / "astrocartography"
+            / "place_goal_models.runtime.json"
+        ).read_text(encoding="utf-8")
+    )
+    models = {row["id"]: row for row in payload["models"]}
+
+    policy = models["home"]["distance_policy"]
+    assert policy["primary_profile"] == "standard"
+    assert policy["profile_multipliers"] == {
+        "conservative": 0.6,
+        "standard": 1.0,
+        "wide": 1.4,
+    }
+    assert policy["primary_boundary_km"] == 300.0
+    assert policy["standard_cutoff_km"] == 500.0
+    assert "linear reduced weight" in policy["note"].lower()
+    assert "not probability" in policy["note"].lower()
+
+    extended = models["personal_growth"]["extended_body_policy"]
+    assert extended["status"] == "experimental"
+    assert extended["supported"] == ["North Node"]
+    assert extended["not_scored"] == ["South Node"]
+    assert "mean lunar node" in extended["note"]
+    assert "true node" in extended["note"]
+    assert "Chiron" in extended["note"]
+
+
+def test_specialist_descriptions_match_composed_planet_components() -> None:
+    payload = json.loads(
+        (
+            REPO_ROOT
+            / "backend"
+            / "knowledge"
+            / "astrocartography"
+            / "place_goal_models.runtime.json"
+        ).read_text(encoding="utf-8")
+    )
+    models = {row["id"]: row for row in payload["models"]}
+
+    def model_bodies(model_id: str) -> set[str]:
+        model = models[model_id]
+        bodies = set()
+        for component in model.get("score_components") or []:
+            if component.get("planet"):
+                bodies.add(component["planet"])
+            bodies.update(component.get("pair") or [])
+            bodies.update(component.get("planets") or [])
+        composition = model.get("composition") or {}
+        parent_id = composition.get("parent_id")
+        if parent_id:
+            bodies.update(model_bodies(parent_id))
+        return bodies
+
+    accident_bodies = model_bodies("accident_prone")
+    assert accident_bodies == {
+        "Mars",
+        "Saturn",
+        "Uranus",
+        "Neptune",
+        "Pluto",
+    }
+    assert "Chiron" not in models["accident_prone"]["description"]
+
+    travel_bodies = model_bodies("travel_fun")
+    assert travel_bodies == {
+        "Moon",
+        "Mercury",
+        "Venus",
+        "Jupiter",
+        "Saturn",
+    }
+    assert "Sun" not in models["travel_fun"]["description"]
 
 
 def _build_into(destination: Path) -> None:

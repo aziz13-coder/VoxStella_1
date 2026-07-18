@@ -66,6 +66,33 @@ def test_health_endpoint_exposes_app_and_api_versions():
     assert payload["services"]["astro_clock_blueprint"]["status"] == "healthy"
 
 
+def test_strict_timezone_resolution_rejects_country_before_cache_lookup():
+    module = _load_app_module()
+    client = module.app.test_client()
+    with module._timezone_cache_lock:
+        module._timezone_cache["israel"] = {
+            "success": True,
+            "location": "Jerusalem, Israel",
+            "latitude": 31.76904,
+            "longitude": 35.21633,
+            "timezone": "Asia/Jerusalem",
+        }
+
+    response = client.post(
+        "/api/get-timezone",
+        json={
+            "location": "Israel",
+            "require_specific_location": True,
+        },
+    )
+
+    assert response.status_code == 400
+    payload = response.get_json()
+    assert payload["success"] is False
+    assert payload["error_type"] == "LocationSpecificityError"
+    assert "specific city or place" in payload["error"]
+
+
 def test_metrics_endpoint_aggregates_bounded_astro_clock_runtime(monkeypatch):
     module = _load_app_module()
     client = module.app.test_client()

@@ -84,6 +84,7 @@ from backend_instance import (
     is_valid_instance_challenge,
     load_backend_instance_secret,
 )
+from snapshot_schema import is_generic_location_label
 
 
 
@@ -278,7 +279,7 @@ CORS(
     app,
     resources={r"/api/*": {"origins": _cors_origins()}},
     methods=["GET", "POST", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization", "X-License-Token"],
+    allow_headers=["Content-Type", "Authorization", "X-License-Token", "Idempotency-Key"],
 )
 
 PROTECTED_ENDPOINT_PREFIXES = (
@@ -544,8 +545,26 @@ def _register_astro_clock_blueprint():
         from astro_clock_api import (  # type: ignore
             astro_clock_bp as _bp,
             get_background_runtime_metrics as _background_metrics,
+            initialize_snap_store_migration as _initialize_snap_store_migration,
         )
         app.register_blueprint(_bp)
+        migrate_on_start = (
+            getattr(sys, "frozen", False)
+            or str(os.getenv("HORARY_MIGRATE_SNAPS_ON_START", "")).strip().lower()
+            in {"1", "true", "yes", "on"}
+        )
+        if migrate_on_start:
+            try:
+                migration_report = _initialize_snap_store_migration()
+                logger.info(
+                    "Astro Clock snap migration initialized: records=%s migrated=%s",
+                    migration_report.get("record_count"),
+                    migration_report.get("migrated_records"),
+                )
+            except Exception:
+                logger.exception(
+                    "Astro Clock snap migration needs recovery; the original store was not overwritten"
+                )
         _ASTRO_CLOCK_BLUEPRINT_READY = True
         _ASTRO_CLOCK_BLUEPRINT_ERROR = None
         _ASTRO_CLOCK_BACKGROUND_METRICS = _background_metrics
@@ -1024,6 +1043,24 @@ def get_timezone():
         if not location:
 
             return jsonify({'error': 'Location is required', 'success': False}), 400
+
+        require_specific_location = data.get('require_specific_location') in {
+            True,
+            1,
+            '1',
+            'true',
+            'yes',
+            'on',
+        }
+        if require_specific_location and is_generic_location_label(location):
+            return jsonify({
+                'error': (
+                    'Enter a specific city or place. A country or broad region '
+                    'cannot confirm birth coordinates.'
+                ),
+                'success': False,
+                'error_type': 'LocationSpecificityError',
+            }), 400
 
         
 

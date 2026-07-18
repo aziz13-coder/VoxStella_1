@@ -1,4 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import {
+  formatSavedSnapDateTime,
+  formatSavedSnapLabel,
+  getSavedSnapIneligibilityLabel,
+  isSavedSnapCalculationEligible,
+} from './savedSnapViewModel.mjs';
 
 const SYSTEMS = ['EQL', 'EQU', 'HOR'];
 const SYSTEM_COLORS = {
@@ -113,39 +119,21 @@ function snapDashboard(snap) {
   return snap?.dashboard && typeof snap.dashboard === 'object' ? snap.dashboard : {};
 }
 
-function formatDatePart(value) {
-  if (!value) return '';
-  try {
-    return new Intl.DateTimeFormat('en-GB', {
-      year: 'numeric',
-      month: 'short',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    }).format(new Date(value));
-  } catch (_) {
-    return '';
-  }
-}
-
 function getSnapParts(snap) {
   const dashboard = snapDashboard(snap);
   const label = String(firstPresent(snap?.label, snap?.id, 'Untitled snap') || 'Untitled snap').trim();
-  const iso = firstPresent(snap?.effective_datetime, dashboard?.timestamp, snap?.datetime, snap?.timestamp);
   const location = String(firstPresent(snap?.location, dashboard?.location, '') || '').trim();
   const timezone = String(firstPresent(snap?.timezone, dashboard?.timezone, snap?.timezone_label, dashboard?.timezone_label, '') || '').trim();
   return {
     label,
-    stamp: formatDatePart(iso),
+    stamp: formatSavedSnapDateTime(snap),
     location,
     timezone,
   };
 }
 
 function formatSnapLabel(snap) {
-  const parts = getSnapParts(snap);
-  return [parts.label, parts.stamp, parts.location].filter(Boolean).join(' | ');
+  return formatSavedSnapLabel(snap);
 }
 
 function safeObjectSymbol(item) {
@@ -651,7 +639,13 @@ function DirectionalSourceBar({
   snapsLoaded,
   onRefreshSnaps,
 }) {
-  const hasSnaps = Array.isArray(snapOptions) && snapOptions.length > 0;
+  const eligibleSnapOptions = (Array.isArray(snapOptions) ? snapOptions : []).filter(
+    (snap) => isSavedSnapCalculationEligible(snap),
+  );
+  const hasSnaps = eligibleSnapOptions.length > 0;
+  const hasReviewRequiredSnaps = (Array.isArray(snapOptions) ? snapOptions : []).some(
+    (snap) => !isSavedSnapCalculationEligible(snap),
+  );
   const selectedParts = getSnapParts(selectedSnap);
   const snapMessage = loadingSnaps
     ? 'Loading saved snaps...'
@@ -688,6 +682,7 @@ function DirectionalSourceBar({
                 ? 'border-zinc-900 bg-zinc-900 text-white'
                 : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-400 hover:text-zinc-950'
             }`}
+            disabled={!hasSnaps}
           >
             Saved Snap
           </button>
@@ -703,7 +698,16 @@ function DirectionalSourceBar({
           >
             <option value="">{snapMessage}</option>
             {snapOptions.map((snap) => (
-              <option key={snap.id} value={snap.id}>{formatSnapLabel(snap)}</option>
+              <option
+                key={snap.id}
+                value={snap.id}
+                disabled={!isSavedSnapCalculationEligible(snap)}
+              >
+                {formatSnapLabel(snap)}
+                {getSavedSnapIneligibilityLabel(snap)
+                  ? ` — ${getSavedSnapIneligibilityLabel(snap)}`
+                  : ''}
+              </option>
             ))}
           </select>
           {typeof onRefreshSnaps === 'function' ? (
@@ -715,6 +719,11 @@ function DirectionalSourceBar({
             >
               {loadingSnaps ? 'Loading' : 'Refresh'}
             </button>
+          ) : null}
+          {hasReviewRequiredSnaps ? (
+            <span className="font-serif text-[11px] italic leading-5 text-zinc-500">
+              Review-required and superseded saved charts are disabled. Use a corrected copy from Astro Clock.
+            </span>
           ) : null}
           {chartSource === 'snap' && selectedSnap ? (
             <div className="min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-zinc-500">

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from datetime import date
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -10,7 +9,10 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE_PATH = ROOT / "backend" / "knowledge" / "astrocartography" / "place_goal_models.source.json"
 OUTPUT_PATH = ROOT / "backend" / "knowledge" / "astrocartography" / "place_goal_models.runtime.json"
 FRONTEND_OUTPUT_PATH = ROOT / "frontend" / "backend" / "knowledge" / "astrocartography" / "place_goal_models.runtime.json"
+CLAIM_REGISTRY_PATH = ROOT / "horary_knowledge" / "astrocartography_sources" / "claim_registry.json"
+CHUNK_INDEX_PATH = ROOT / "horary_knowledge" / "astrocartography_knowledge_base" / "chunk_index.jsonl"
 OUTPUT_PATHS = (OUTPUT_PATH, FRONTEND_OUTPUT_PATH)
+ASSET_GENERATED_ON = "2026-07-18"
 REQUIRED_MODEL_IDS = {
     "education",
     "love",
@@ -87,6 +89,11 @@ DEFAULT_EVIDENCE_POLICY = {
         "transit_overlay": 4.0,
     },
 }
+DISTANCE_PROFILE_MULTIPLIERS = {
+    "conservative": 0.6,
+    "standard": 1.0,
+    "wide": 1.4,
+}
 SPECIALIST_PARENT_WEIGHT = 0.95
 LEWIS_PLANET_ANGLE_EVIDENCE = [
     "acg-claim-lewis-planetary-location-baselines",
@@ -148,10 +155,104 @@ MERCURY_SATURN_EVIDENCE = [
     "acg-src-furst-best-places-2015.page-0034.chunk-001",
     "acg-src-hermes-map-2023.page-0130.chunk-002",
 ]
+WEIGHT_CALIBRATION_LIMITATION = (
+    "acg-claim-goal-component-weight-calibration-unverified"
+)
+UNVERIFIED_DOCTRINE_LIMITATION = (
+    "acg-claim-goal-component-doctrine-unverified"
+)
+EXTENDED_BODY_POLICY_EVIDENCE = [
+    "acg-claim-extended-body-policy",
+    "acg-claim-nodes-require-directional-distinction",
+    "acg-src-furst-best-places-2015.page-0059.chunk-001",
+    "acg-src-furst-best-places-2015.page-0060.chunk-001",
+]
+NEPTUNE_IC_CAUTION_EVIDENCE = [
+    "acg-claim-neptune-ic-has-material-cautions",
+    "acg-src-furst-best-places-2015.page-0055.chunk-001",
+]
 
 
-def _distance(max_km: float = 300.0, falloff: str = "linear") -> Dict[str, Any]:
-    return {"max_km": max_km, "falloff": falloff}
+def _unique_refs(*groups: List[str]) -> List[str]:
+    return list(
+        dict.fromkeys(
+            str(item).strip()
+            for group in groups
+            for item in group
+            if str(item).strip()
+        )
+    )
+
+
+def _govern_component_evidence(component: Dict[str, Any]) -> None:
+    """Attach traceable doctrine and explicit calibration limitations.
+
+    A generic planetary line can be a documented synthesis of a planet
+    baseline and an angular frame. Pair weights, relocated-house formulas,
+    derived metrics, and score constraints are not promoted by analogy: they
+    stay experimental unless their authoring call supplied curated evidence.
+    All numerical calibration remains explicitly unverified.
+    """
+
+    kind = str(component.get("kind") or "").strip().lower()
+    source_status = str(component.get("source_status") or "synthesis").strip()
+    refs = [
+        str(item).strip()
+        for item in (component.get("evidence_refs") or [])
+        if str(item).strip()
+    ]
+
+    if kind == "line":
+        planet = str(component.get("planet") or "").strip()
+        angles = {
+            str(item).strip().upper()
+            for item in (component.get("angles") or [])
+            if str(item).strip()
+        }
+        if planet in CANONICAL_ACG_BODIES and source_status != "experimental":
+            refs = _unique_refs(
+                refs,
+                LEWIS_DSC_EVIDENCE if "DSC" in angles else LEWIS_PLANET_ANGLE_EVIDENCE,
+            )
+            if planet == "Jupiter":
+                refs = _unique_refs(refs, FURST_JUPITER_EDUCATION_EVIDENCE)
+            if planet == "Neptune" and "IC" in angles:
+                refs = _unique_refs(refs, NEPTUNE_IC_CAUTION_EVIDENCE)
+            source_status = "synthesis"
+        elif planet in {"North Node", "South Node", "Chiron"}:
+            refs = _unique_refs(refs, EXTENDED_BODY_POLICY_EVIDENCE)
+            source_status = "experimental"
+
+    if kind in {"relocation", "modifier", "constraint"}:
+        source_status = "experimental"
+
+    if kind == "crossing" and not refs:
+        source_status = "experimental"
+
+    if source_status == "experimental":
+        refs = _unique_refs(refs, [UNVERIFIED_DOCTRINE_LIMITATION])
+
+    if not refs:
+        source_status = "experimental"
+        refs = [UNVERIFIED_DOCTRINE_LIMITATION]
+
+    component["source_status"] = source_status
+    component["evidence_refs"] = _unique_refs(
+        refs,
+        [WEIGHT_CALIBRATION_LIMITATION],
+    )
+
+
+def _distance(
+    primary_max_km: float = 300.0,
+    max_km: float = 500.0,
+    falloff: str = "linear",
+) -> Dict[str, Any]:
+    return {
+        "primary_max_km": primary_max_km,
+        "max_km": max_km,
+        "falloff": falloff,
+    }
 
 
 def line_component(
@@ -160,7 +261,8 @@ def line_component(
     weight: float,
     rationale: str,
     *,
-    max_km: float = 300.0,
+    primary_max_km: float = 300.0,
+    max_km: float = 500.0,
     falloff: str = "linear",
     polarity: str = "support",
     source_status: str = "synthesis",
@@ -171,7 +273,11 @@ def line_component(
         "kind": "line",
         "planet": planet,
         "angles": angles,
-        "distance": _distance(max_km=max_km, falloff=falloff),
+        "distance": _distance(
+            primary_max_km=primary_max_km,
+            max_km=max_km,
+            falloff=falloff,
+        ),
         "weight": weight,
         "polarity": polarity,
         "source_status": source_status,
@@ -186,7 +292,8 @@ def crossing_component(
     weight: float,
     rationale: str,
     *,
-    max_km: float = 300.0,
+    primary_max_km: float = 300.0,
+    max_km: float = 500.0,
     falloff: str = "linear",
     polarity: str = "support",
     source_status: str = "synthesis",
@@ -197,7 +304,11 @@ def crossing_component(
     return {
         "kind": "crossing",
         "pair": pair,
-        "distance": _distance(max_km=max_km, falloff=falloff),
+        "distance": _distance(
+            primary_max_km=primary_max_km,
+            max_km=max_km,
+            falloff=falloff,
+        ),
         "weight": weight,
         "interaction_scale": interaction_scale,
         "polarity": polarity,
@@ -348,7 +459,26 @@ def _new_models() -> List[Dict[str, Any]]:
                 legacy_ref("BELIEFS.HYP", "hyp", notes=["Recovered as a second-wave PathFinder belief and worldview rule family."]),
             ],
             "score_components": [
-                line_component("Jupiter", ["ASC", "MC"], 5.8, "Jupiter is the clearest meaning, philosophy, and teaching signal in the corpus."),
+                line_component(
+                    "Jupiter",
+                    ["ASC"],
+                    5.8,
+                    "Jupiter ASC foregrounds personal faith, meaning, confidence, and lived philosophical orientation.",
+                    evidence_refs=[
+                        *LEWIS_PLANET_ANGLE_EVIDENCE,
+                        *FURST_JUPITER_EDUCATION_EVIDENCE,
+                    ],
+                ),
+                line_component(
+                    "Jupiter",
+                    ["MC"],
+                    4.6,
+                    "Jupiter MC supports public teaching and religious or philosophical leadership, while its stronger material-status meaning remains with money and career.",
+                    evidence_refs=[
+                        *LEWIS_PLANET_ANGLE_EVIDENCE,
+                        *FURST_JUPITER_EDUCATION_EVIDENCE,
+                    ],
+                ),
                 line_component("Mercury", ["ASC", "MC"], 2.4, "Mercury keeps belief work connected to study, language, and coherent doctrine without making it purely academic."),
                 line_component("Sun", ["ASC"], 2.2, "Sun supports conviction, purpose, and lived integrity."),
                 line_component("Neptune", ["IC"], 1.8, "Neptune on the inner angle can deepen contemplative or imaginal life when the rest of the chart remains grounded."),
@@ -1350,7 +1480,10 @@ def _apply_model_overhaul(models_by_id: Dict[str, Dict[str, Any]]) -> None:
         model["distance_policy"] = {
             "primary_profile": "standard",
             "sensitivity_profiles": ["conservative", "standard", "wide"],
-            "note": "Scores expose conservative, standard, and wide distance sensitivity; the standard profile is not a probability claim.",
+            "profile_multipliers": dict(DISTANCE_PROFILE_MULTIPLIERS),
+            "primary_boundary_km": 300.0,
+            "standard_cutoff_km": 500.0,
+            "note": "The 300 km boundary separates primary from extended display evidence; standard scoring continues with a linear reduced weight through the 500 km cutoff. Conservative scores the 300 km primary band only, while wide tests evidence through 700 km. These profiles are sensitivity settings, not probability claims.",
         }
         normalization = dict(model.get("normalization") or {})
         normalization["method"] = "bounded_linear"
@@ -1359,6 +1492,13 @@ def _apply_model_overhaul(models_by_id: Dict[str, Dict[str, Any]]) -> None:
 
         seen_component_ids: set[str] = set()
         for index, component in enumerate(model.get("score_components") or [], start=1):
+            if component.get("kind") in {"line", "crossing"}:
+                authored_distance = component.get("distance") or {}
+                component["distance"] = {
+                    "primary_max_km": 300.0,
+                    "max_km": 500.0,
+                    "falloff": str(authored_distance.get("falloff") or "linear"),
+                }
             component_id = f"{model_id}.{str(component.get('kind') or 'component')}.{index:02d}"
             if component_id in seen_component_ids:
                 raise RuntimeError(f"Duplicate generated component id: {component_id}")
@@ -1370,7 +1510,7 @@ def _apply_model_overhaul(models_by_id: Dict[str, Dict[str, Any]]) -> None:
                 else str(component.get("source_status") or "synthesis")
             )
             component["evidence_role"] = str(component.get("evidence_role") or "local")
-            component.setdefault("evidence_refs", [])
+            _govern_component_evidence(component)
             if component.get("kind") == "crossing":
                 component.setdefault("interaction_scale", 0.5)
 
@@ -1382,7 +1522,13 @@ def _apply_model_overhaul(models_by_id: Dict[str, Dict[str, Any]]) -> None:
                 "status": "experimental",
                 "supported": extended_bodies,
                 "not_scored": not_scored,
-                "note": "The ten classical planetary lines are canonical. Nodes and Chiron are explicitly experimental extensions; an unlisted counterpart is not silently inferred.",
+                "note": (
+                    "The ten Sun-through-Pluto planetary lines are canonical. "
+                    "North Node means the mean lunar node in this engine, not "
+                    "the true node. Node and Chiron lines are explicitly "
+                    "experimental extensions; a South Node counterpart is not "
+                    "silently inferred."
+                ),
             }
         else:
             model.pop("extended_body_policy", None)
@@ -1396,6 +1542,21 @@ def _apply_model_overhaul(models_by_id: Dict[str, Dict[str, Any]]) -> None:
     speculation["label"] = "Speculation Themes"
     speculation["summary"] = "Research-only interpretation of speculative-place themes; it does not predict wins, payouts, or financial outcomes."
     speculation["description"] = "Experimental residual over the broader money model. Only local 5th-house symbolism differentiates places; natal pattern geometry is exposed as a non-ranking global prior."
+
+    models_by_id["accident_prone"]["description"] = (
+        "Experimental residual over the broad risk-pressure parent. The parent "
+        "contributes Mars, Saturn, Uranus, Pluto, and Neptune caution themes; "
+        "the residual adds Mars/Uranus and Mars/Pluto interactions plus local "
+        "bodily- and conflict-pressure corroboration. The residual adds no "
+        "separate planetary-line component and does not predict accidents."
+    )
+    models_by_id["travel_fun"]["description"] = (
+        "Experimental residual over the friends parent. The parent contributes "
+        "Venus, Jupiter, Mercury, Moon, and Saturn social-place themes; the "
+        "residual adds Mercury/Jupiter journey-house corroboration, mobility, "
+        "and travel-joy metrics. It adds no separate celebratory-planet line "
+        "component and is not validated as an outcome predictor."
+    )
 
     for model_id, label, summary in (
         ("health_risk", "Health Caution Themes", "Research-only interpretive bodily-pressure themes; not medical advice or prediction."),
@@ -1421,7 +1582,7 @@ def build_payload() -> Dict[str, Any]:
         models_by_id[model_id] = model
     _apply_model_overhaul(models_by_id)
     payload["schema_version"] = SCHEMA_VERSION
-    payload["generated_on"] = str(date.today())
+    payload["generated_on"] = ASSET_GENERATED_ON
     payload["generator"] = "scripts/build_astrocartography_goal_models.py"
     payload["models"] = list(models_by_id.values())
     _validate_payload(payload)
@@ -1445,6 +1606,60 @@ def _validate_payload(payload: Dict[str, Any]) -> None:
         model = models.get(model_id) or {}
         if str(model.get("score_polarity") or "").strip().lower() != "higher_is_worse":
             raise RuntimeError(f"Refusing to write {model_id} without higher_is_worse score polarity")
+
+    claims_payload = json.loads(CLAIM_REGISTRY_PATH.read_text(encoding="utf-8"))
+    claim_classes = {
+        str(row.get("claim_id") or ""): str(row.get("classification") or "")
+        for row in (claims_payload.get("claims") or [])
+        if isinstance(row, dict) and row.get("claim_id")
+    }
+    chunk_ids = {
+        str(row.get("chunk_id") or "")
+        for line in CHUNK_INDEX_PATH.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+        for row in [json.loads(line)]
+        if isinstance(row, dict) and row.get("chunk_id")
+    }
+    known_refs = set(claim_classes) | chunk_ids
+    evidence_errors: List[str] = []
+    for model_id, model in models.items():
+        for component in model.get("score_components") or []:
+            component_id = str(component.get("component_id") or "<missing-component-id>")
+            prefix = f"{model_id}/{component_id}"
+            refs = [
+                str(item).strip()
+                for item in (component.get("evidence_refs") or [])
+                if str(item).strip()
+            ]
+            unknown = sorted(set(refs) - known_refs)
+            if not refs:
+                evidence_errors.append(f"{prefix}: evidence_refs must not be empty")
+            if unknown:
+                evidence_errors.append(f"{prefix}: unknown evidence refs {unknown}")
+            if WEIGHT_CALIBRATION_LIMITATION not in refs:
+                evidence_errors.append(
+                    f"{prefix}: missing explicit unverified calibration marker"
+                )
+            source_status = str(component.get("source_status") or "")
+            if source_status == "experimental":
+                if UNVERIFIED_DOCTRINE_LIMITATION not in refs:
+                    evidence_errors.append(
+                        f"{prefix}: experimental component lacks unverified doctrine marker"
+                    )
+            elif not any(
+                ref in chunk_ids
+                or claim_classes.get(ref) in {"direct", "synthesis"}
+                for ref in refs
+            ):
+                evidence_errors.append(
+                    f"{prefix}: {source_status or 'unclassified'} component lacks "
+                    "direct or synthesis source support"
+                )
+    if evidence_errors:
+        raise RuntimeError(
+            "Refusing to write ungoverned astrocartography goal components:\n- "
+            + "\n- ".join(evidence_errors)
+        )
 
     import sys
 

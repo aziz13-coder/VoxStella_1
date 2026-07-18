@@ -2,10 +2,16 @@ from __future__ import annotations
 
 import math
 from datetime import datetime, timezone
+from functools import lru_cache
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from asteroids import _resolve_ephemeris_path as _resolve_astrocartography_ephemeris_path
-from astrocartography_assets import get_angle_reference, get_body_reference, get_range_policy
+from astrocartography_assets import (
+    get_angle_reference,
+    get_body_reference,
+    get_line_interpretation_reference,
+    get_range_policy,
+)
 from swisseph_state import swisseph as swe, swisseph_ephemeris_path, swisseph_lock
 
 
@@ -93,6 +99,20 @@ try:
     ANGLE_INTERPRETATION = get_angle_reference()
 except Exception:
     ANGLE_INTERPRETATION = {}
+LINE_INTERPRETATION = get_line_interpretation_reference()
+_REQUIRED_LINE_INTERPRETATION_KEYS = {
+    f"{body}:{angle}"
+    for body in DEFAULT_BODIES
+    for angle in DEFAULT_ANGLES
+}
+_MISSING_LINE_INTERPRETATION_KEYS = (
+    _REQUIRED_LINE_INTERPRETATION_KEYS - set(LINE_INTERPRETATION)
+)
+if _MISSING_LINE_INTERPRETATION_KEYS:
+    raise RuntimeError(
+        "Astrocartography interpretation asset is missing supported combinations: "
+        + ", ".join(sorted(_MISSING_LINE_INTERPRETATION_KEYS))
+    )
 
 _EARTH_MEAN_RADIUS_KM = 6371.0088
 _SPHERICAL_GEOMETRY_MODEL = "spherical-great-circle-half-arc-v1"
@@ -149,14 +169,30 @@ def _parse_iso_utc(timestamp_iso: str) -> datetime:
 
 
 def _jd_ut_from_iso(timestamp_iso: str) -> float:
+    _require_swe()
     dt_utc = _parse_iso_utc(timestamp_iso)
-    hour = (
-        dt_utc.hour
-        + (dt_utc.minute / 60.0)
-        + (dt_utc.second / 3600.0)
-        + (dt_utc.microsecond / 3600000000.0)
-    )
-    return swe.julday(dt_utc.year, dt_utc.month, dt_utc.day, hour)  # type: ignore[arg-type]
+    second = float(dt_utc.second) + (float(dt_utc.microsecond) / 1_000_000.0)
+    utc_to_jd = getattr(swe, "utc_to_jd", None)
+    if not callable(utc_to_jd):
+        raise RuntimeError("Swiss Ephemeris UTC-to-UT1 conversion is unavailable")
+    try:
+        jd_pair = utc_to_jd(
+            dt_utc.year,
+            dt_utc.month,
+            dt_utc.day,
+            dt_utc.hour,
+            dt_utc.minute,
+            second,
+            getattr(swe, "GREG_CAL", 1),
+        )
+        jd_ut1 = float(jd_pair[1])
+    except (IndexError, TypeError, ValueError, OverflowError) as exc:
+        raise RuntimeError("Swiss Ephemeris returned an invalid UTC-to-UT1 result") from exc
+    except Exception as exc:
+        raise RuntimeError("Swiss Ephemeris UTC-to-UT1 conversion failed") from exc
+    if not math.isfinite(jd_ut1):
+        raise RuntimeError("Swiss Ephemeris returned a non-finite UT1 Julian day")
+    return jd_ut1
 
 
 def _wrap360(value: float) -> float:
@@ -380,6 +416,42 @@ def _ephemeris_engine_from_flags(returned_flags: int) -> str:
     return "unknown"
 
 
+def body_calculation_provenance(body: str) -> Dict[str, Any]:
+    if body == "North Node":
+        return {
+            "object_type": "calculated_lunar_node",
+            "node_type": "mean_node",
+            "node_polarity": "ascending",
+            "astrocartography_scope": "experimental_extension",
+            "extension_status": "experimental",
+            "doctrine_scope": "secondary_extension",
+            "ranking_eligibility_scope": "astronomical_geometry_quality_only",
+            "extension_note": (
+                "Mean North Node lines are a secondary experimental extension "
+                "beyond the original Sun-through-Pluto line set."
+            ),
+        }
+    if body == "Chiron":
+        return {
+            "object_type": "centaur",
+            "astrocartography_scope": "experimental_extension",
+            "extension_status": "experimental",
+            "doctrine_scope": "secondary_extension",
+            "ranking_eligibility_scope": "astronomical_geometry_quality_only",
+            "extension_note": (
+                "Chiron lines are a secondary experimental extension beyond "
+                "the original Sun-through-Pluto line set."
+            ),
+        }
+    return {
+        "object_type": "planetary_body",
+        "astrocartography_scope": "core_planet_line",
+        "extension_status": "not_extension",
+        "doctrine_scope": "core_planet_line",
+        "ranking_eligibility_scope": "astronomical_geometry_quality_only",
+    }
+
+
 def _equatorial_positions(timestamp_iso: str, bodies: Sequence[str]) -> Tuple[float, List[Dict[str, Any]]]:
     _require_swe()
     jd_ut = _jd_ut_from_iso(timestamp_iso)
@@ -428,6 +500,7 @@ def _equatorial_positions(timestamp_iso: str, bodies: Sequence[str]) -> Tuple[fl
                         "fallback_epoch_jd": _CHIRON_JPL_ELEMENTS["epoch_jd"],
                         "fallback_frame": "J2000 osculating elements; qualitative fallback only",
                     }
+                calculation.update(body_calculation_provenance(body))
                 positions.append(
                     {
                         "body": body,
@@ -1170,17 +1243,49 @@ def enrich_line_readings(
         zone = _distance_zone(distance_km, primary_radius_km=primary_radius_km, extended_radius_km=extended_radius_km)
         body_meta = BODY_INTERPRETATION.get(body, {})
         angle_meta = ANGLE_INTERPRETATION.get(angle, {})
+        line_meta = LINE_INTERPRETATION.get(f"{body}:{angle}", {})
         core_themes = body_meta.get("core_themes", "strong thematic emphasis")
         common_upside = body_meta.get("common_upside", "meaningful development")
         common_caution = body_meta.get("common_caution", "excess")
         domain = angle_meta.get("interprets_through", "this angle domain")
         shorthand = angle_meta.get("user_shorthand", "what changes here")
-        summary = (
-            f"{body} on the {angle} line emphasizes "
-            f"{core_themes} through {domain}."
-        )
-        upside = f"This line often supports {common_upside}."
-        caution = f"Watch for {common_caution}."
+        if line_meta:
+            summary = str(line_meta.get("summary") or "")
+            supportive_expression = str(
+                line_meta.get("supportive_expression") or common_upside
+            )
+            difficult_expression = str(
+                line_meta.get("difficult_expression") or common_caution
+            )
+            upside = f"Potential support: {supportive_expression}"
+            caution = f"Potential challenge: {difficult_expression}"
+            source_refs = [line_meta.get("source_ref")]
+            interpretation_method = "explicit_planet_angle_matrix"
+            doctrine_scope = str(
+                line_meta.get("doctrine_scope") or "supported_extension"
+            )
+            model_status = str(
+                line_meta.get("model_status") or "doctrine_synthesis"
+            )
+            interpretation_status = (
+                "curated_experimental_extension"
+                if model_status == "experimental_extension"
+                else "curated_supported_matrix"
+            )
+        else:
+            summary = (
+                f"{body} on the {angle} line emphasizes "
+                f"{core_themes} through {domain}."
+            )
+            supportive_expression = str(common_upside)
+            difficult_expression = str(common_caution)
+            upside = f"This line often supports {supportive_expression}."
+            caution = f"Watch for {difficult_expression}."
+            source_refs = [body_meta.get("source_ref"), angle_meta.get("source_ref")]
+            interpretation_method = "generic_planet_plus_angle_fallback"
+            interpretation_status = "generic_unsupported_fallback"
+            doctrine_scope = "unsupported_extension"
+            model_status = "unsupported"
         enriched.append(
             {
                 **row,
@@ -1192,13 +1297,17 @@ def enrich_line_readings(
                     extended_radius_km=extended_radius_km,
                 ),
                 "core_themes": core_themes,
-                "upside": common_upside,
+                "upside": supportive_expression,
                 "interprets_through": domain,
                 "user_shorthand": shorthand,
                 "summary": summary,
                 "upside_note": upside,
                 "caution": caution,
-                "source_refs": [body_meta.get("source_ref"), angle_meta.get("source_ref")],
+                "source_refs": [source_ref for source_ref in source_refs if source_ref],
+                "interpretation_method": interpretation_method,
+                "interpretation_status": interpretation_status,
+                "doctrine_scope": doctrine_scope,
+                "model_status": model_status,
             }
         )
     return enriched
@@ -1218,7 +1327,23 @@ def build_location_reading(
         primary_radius_km=primary_radius_km,
         extended_radius_km=extended_radius_km,
     )
+    all_ranked = nearest_lines_for_point(
+        lines,
+        latitude,
+        longitude,
+        limit=max(1, len(lines)),
+    )
+    all_readings = enrich_line_readings(
+        all_ranked,
+        primary_radius_km=primary_radius_km,
+        extended_radius_km=extended_radius_km,
+    )
     zone_counts = {
+        "primary": sum(1 for row in all_readings if row.get("zone") == "primary"),
+        "extended": sum(1 for row in all_readings if row.get("zone") == "extended"),
+        "background": sum(1 for row in all_readings if row.get("zone") == "background"),
+    }
+    displayed_zone_counts = {
         "primary": sum(1 for row in readings if row.get("zone") == "primary"),
         "extended": sum(1 for row in readings if row.get("zone") == "extended"),
         "background": sum(1 for row in readings if row.get("zone") == "background"),
@@ -1228,7 +1353,7 @@ def build_location_reading(
     support_line = support_candidates[0] if support_candidates else (readings[1] if len(readings) > 1 else None)
 
     if not lead_line:
-        headline = "No nearby astrocartography lines were found for this location in the current filter set."
+        headline = "No astrocartography lines were available for this location in the current filter set."
         support_note = "Broaden the active bodies or inspect a different city to surface a stronger pattern."
     elif lead_line.get("zone") == "primary":
         headline = (
@@ -1237,7 +1362,11 @@ def build_location_reading(
             f"{lead_line.get('interprets_through') or 'this angle domain'}."
         )
         support_note = (
-            f"Secondary support comes from {support_line.get('label')} and reinforces {support_line.get('upside') or 'that tone'}."
+            (
+                f"Secondary support comes from {support_line.get('label')} and reinforces {support_line.get('upside') or 'that tone'}."
+                if support_line.get("zone") != "background"
+                else f"{support_line.get('label')} is the next background line, outside the extended field rather than a reinforcing line."
+            )
             if support_line
             else "This looks like a concentrated single-line emphasis rather than a clustered zone."
         )
@@ -1247,7 +1376,11 @@ def build_location_reading(
             f"It points toward {lead_line.get('upside') or 'that topic'}, but more as a surrounding field than a direct hit."
         )
         support_note = (
-            f"{support_line.get('label')} adds a second layer nearby."
+            (
+                f"{support_line.get('label')} adds a second line within the extended field."
+                if support_line.get("zone") == "extended"
+                else f"{support_line.get('label')} is the next background line, outside the extended field."
+            )
             if support_line
             else "A closer city may sharpen the same theme more directly."
         )
@@ -1262,12 +1395,26 @@ def build_location_reading(
     signal_score = int(round(sum(top_scores) / max(1, len(top_scores)))) if top_scores else 0
 
     return {
+        "reading_mode": {
+            "id": "neutral_line_overview",
+            "goal_specific": False,
+            "ranked": False,
+            "description": (
+                "Describes line geometry around the selected location without "
+                "claiming a universal best destination; choose a goal only when "
+                "requesting a city ranking."
+            ),
+        },
         "signal_score": signal_score,
         "headline": headline,
         "support_note": support_note,
         "lead_line": lead_line,
         "support_line": support_line,
         "zone_counts": zone_counts,
+        "zone_counts_scope": "all_evaluated_lines",
+        "evaluated_line_count": len(all_readings),
+        "displayed_zone_counts": displayed_zone_counts,
+        "displayed_line_count": len(readings),
         "nearest_lines": readings,
     }
 
@@ -1838,6 +1985,34 @@ def crossing_candidates_for_point(
     return candidates[: max(1, int(limit))]
 
 
+@lru_cache(maxsize=4)
+def _goal_scoring_sensitivity_radius_km(extended_radius_km: float) -> float:
+    sensitivity_radius_km = float(extended_radius_km)
+    try:
+        from astrocartography_goal_models import list_goal_models
+
+        for model in list_goal_models():
+            distance_policy = model.get("distance_policy") or {}
+            wide_multiplier = float(
+                (distance_policy.get("profile_multipliers") or {}).get("wide")
+                or 1.0
+            )
+            for component in model.get("score_components") or []:
+                if component.get("kind") not in {"line", "crossing"}:
+                    continue
+                component_cutoff_km = float(
+                    ((component.get("distance") or {}).get("max_km"))
+                    or extended_radius_km
+                )
+                sensitivity_radius_km = max(
+                    sensitivity_radius_km,
+                    component_cutoff_km * wide_multiplier,
+                )
+    except Exception:
+        return float(extended_radius_km)
+    return sensitivity_radius_km
+
+
 def build_goal_scoring_context(
     lines: Sequence[Dict[str, Any]],
     latitude: float,
@@ -1847,6 +2022,10 @@ def build_goal_scoring_context(
     extended_radius_km: float = EXTENDED_READING_RADIUS_KM,
 ) -> Dict[str, Any]:
     """Build untruncated line and crossing rows for goal-model scoring."""
+    sensitivity_radius_km = _goal_scoring_sensitivity_radius_km(
+        float(extended_radius_km)
+    )
+
     scoring_rows = enrich_line_readings(
         nearest_lines_for_point(lines, latitude, longitude, limit=max(1, len(lines))),
         primary_radius_km=primary_radius_km,
@@ -1859,11 +2038,19 @@ def build_goal_scoring_context(
         longitude,
         nearest_rows=scoring_rows,
         limit=crossing_limit,
-        max_distance_km=extended_radius_km,
+        max_distance_km=sensitivity_radius_km,
     )
+    for crossing in crossings:
+        crossing["zone"] = _distance_zone(
+            float(crossing.get("distance_km") or 0.0),
+            primary_radius_km=primary_radius_km,
+            extended_radius_km=extended_radius_km,
+        )
     return {
         "nearest_lines": scoring_rows,
         "crossings": crossings,
+        "standard_cutoff_km": round(float(extended_radius_km), 3),
+        "sensitivity_cutoff_km": round(float(sensitivity_radius_km), 3),
     }
 
 

@@ -39,3 +39,13 @@ def get_angle_reference() -> Dict[str, Dict[str, Any]]:
     if not isinstance(angles, dict):
         raise ValueError("Astrocartography interpretation asset missing angles")
     return angles
+
+
+def get_line_interpretation_reference() -> Dict[str, Dict[str, Any]]:
+    payload = load_astrocartography_assets()
+    line_interpretations = payload.get("line_interpretations")
+    if not isinstance(line_interpretations, dict) or not line_interpretations:
+        raise ValueError(
+            "Astrocartography interpretation asset missing line_interpretations"
+        )
+    return line_interpretations

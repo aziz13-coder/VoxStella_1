@@ -1,6 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { MapPin, Plus, Save, ShieldCheck, Trash2 } from 'lucide-react';
 import { AstroClockAPI } from './api.mjs';
+import {
+  formatSavedSnapLabel,
+  getSavedSnapIneligibilityLabel,
+  getSavedSnapDateTimeParts,
+  isSavedSnapCalculationEligible,
+} from './savedSnapViewModel.mjs';
 
 const PAPER = 'bg-white';
 const serifStyle = { fontFamily: 'Iowan Old Style, Palatino Linotype, Book Antiqua, Georgia, serif' };
@@ -108,21 +114,12 @@ function getSnapMetaParts(snap) {
   const label = firstPresent(snap?.label, snap?.id, 'Untitled snap') || 'Untitled snap';
   const iso = firstPresent(snap?.effective_datetime, dashboard?.timestamp, snap?.datetime, snap?.timestamp);
   const location = firstPresent(snap?.location, dashboard?.location);
-  let datePart = '';
-  let timePart = '';
-  if (iso) {
-    try {
-      const parsed = new Date(iso);
-      datePart = new Intl.DateTimeFormat('en-GB', { year: 'numeric', month: 'short', day: '2-digit' }).format(parsed);
-      timePart = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }).format(parsed);
-    } catch (_) {}
-  }
+  const { datePart, timePart } = getSavedSnapDateTimeParts(snap);
   return { label, iso, location, datePart, timePart };
 }
 
 function formatSnapLabel(snap) {
-  const parts = getSnapMetaParts(snap);
-  return [parts.label, parts.datePart, parts.timePart, parts.location].filter(Boolean).join(' | ');
+  return formatSavedSnapLabel(snap);
 }
 
 function extractDate(value) {
@@ -496,11 +493,15 @@ export default function BirthCertificationModal({
   onRefreshSnaps,
 }) {
   const snapOptions = useMemo(() => (Array.isArray(snaps) ? snaps : []).filter((snap) => snap?.id), [snaps]);
+  const eligibleSnapOptions = useMemo(
+    () => snapOptions.filter((snap) => isSavedSnapCalculationEligible(snap)),
+    [snapOptions],
+  );
   const [chartSource, setChartSource] = useState('current');
   const [selectedSnapId, setSelectedSnapId] = useState(activeSnapId || '');
   const selectedSnap = useMemo(
-    () => snapOptions.find((snap) => String(snap?.id || '') === String(selectedSnapId || '')) || null,
-    [snapOptions, selectedSnapId],
+    () => eligibleSnapOptions.find((snap) => String(snap?.id || '') === String(selectedSnapId || '')) || null,
+    [eligibleSnapOptions, selectedSnapId],
   );
 
   const currentSeed = useMemo(
@@ -537,6 +538,7 @@ export default function BirthCertificationModal({
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [snapSaveState, setSnapSaveState] = useState({ loading: false, error: '', success: '' });
+  const [snapSeedConfirmed, setSnapSeedConfirmed] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -549,14 +551,32 @@ export default function BirthCertificationModal({
   }, [activeSeedKey, houseSystem, open]);
 
   useEffect(() => {
-    if (activeSnapId) setSelectedSnapId(String(activeSnapId));
-  }, [activeSnapId]);
+    if (!activeSnapId) return;
+    const activeSnap = snapOptions.find(
+      (snap) => String(snap?.id || '') === String(activeSnapId),
+    );
+    if (!activeSnap) return;
+    if (!isSavedSnapCalculationEligible(activeSnap)) {
+      setSelectedSnapId('');
+      setChartSource('current');
+      return;
+    }
+    setSelectedSnapId(String(activeSnapId));
+  }, [activeSnapId, snapOptions]);
 
   useEffect(() => {
-    if (chartSource === 'snap' && !selectedSnapId && snapOptions.length) {
-      setSelectedSnapId(String(snapOptions[0].id || ''));
+    setSnapSeedConfirmed(false);
+  }, [chartSource, selectedSnapId]);
+
+  useEffect(() => {
+    if (chartSource === 'snap' && !selectedSnap && eligibleSnapOptions.length) {
+      setSelectedSnapId(String(eligibleSnapOptions[0].id || ''));
     }
-  }, [chartSource, selectedSnapId, snapOptions]);
+    if (chartSource === 'snap' && !selectedSnap && !eligibleSnapOptions.length) {
+      setSelectedSnapId('');
+      setChartSource('current');
+    }
+  }, [chartSource, eligibleSnapOptions, selectedSnap]);
 
   useEffect(() => {
     if (typeof onRefreshSnaps !== 'function') return;
@@ -645,12 +665,18 @@ export default function BirthCertificationModal({
       instruments,
       eventRows,
     });
+    if (chartSource === 'snap' && selectedSnap && !snapSeedConfirmed) {
+      errors.push(
+        'Confirm that you reviewed the saved chart date, timezone, place, and coordinates before running Certification.',
+      );
+    }
     setValidationErrors(errors);
     setBackendError('');
     setSnapSaveState({ loading: false, error: '', success: '' });
     if (errors.length) return;
 
-    const payload = buildPayload({
+    const payload = {
+      ...buildPayload({
       birthDate,
       birthLocation,
       birthLatitude,
@@ -665,7 +691,11 @@ export default function BirthCertificationModal({
       includeSeries,
       instruments,
       eventRows,
-    });
+      }),
+      ...(chartSource === 'snap' && selectedSnap?.id
+        ? { snap_id: String(selectedSnap.id) }
+        : {}),
+    };
 
     try {
       setLoading(true);
@@ -781,7 +811,7 @@ export default function BirthCertificationModal({
                     aria-label="Birth chart source"
                   >
                     <option value="current">Current chart</option>
-                    <option value="snap">Saved snap</option>
+                    <option value="snap" disabled={!eligibleSnapOptions.length}>Saved snap</option>
                   </select>
                 </div>
 
@@ -793,20 +823,55 @@ export default function BirthCertificationModal({
                         value={selectedSnapId}
                         onChange={(event) => setSelectedSnapId(event.target.value)}
                         className={`${selectClass()} mt-1`}
-                        disabled={loadingSnaps}
+                        disabled={loadingSnaps || !eligibleSnapOptions.length}
                       >
                         <option value="">{loadingSnaps ? 'Loading snaps...' : 'Choose snap'}</option>
                         {snapOptions.map((snap) => (
-                          <option key={snap.id} value={snap.id}>{formatSnapLabel(snap)}</option>
+                          <option
+                            key={snap.id}
+                            value={snap.id}
+                            disabled={!isSavedSnapCalculationEligible(snap)}
+                          >
+                            {formatSnapLabel(snap)}
+                            {getSavedSnapIneligibilityLabel(snap)
+                              ? ` — ${getSavedSnapIneligibilityLabel(snap)}`
+                              : ''}
+                          </option>
                         ))}
                       </select>
                     </label>
+                    {snapOptions.some((snap) => !isSavedSnapCalculationEligible(snap)) ? (
+                      <p className="mt-2 font-serif text-[11px] italic leading-5 text-zinc-500">
+                        Review-required and superseded saved charts are disabled. Use a corrected copy from Astro Clock.
+                      </p>
+                    ) : null}
+                    {selectedSnap ? (
+                      <label className="mt-3 flex items-start gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-[11px] leading-5 text-sky-950">
+                        <input
+                          type="checkbox"
+                          className="mt-1"
+                          checked={snapSeedConfirmed}
+                          onChange={(event) => setSnapSeedConfirmed(event.target.checked)}
+                        />
+                        <span>
+                          I reviewed the saved chart’s date, IANA timezone, specific place, latitude, and longitude.
+                        </span>
+                      </label>
+                    ) : null}
                   </div>
+                ) : null}
+                {chartSource !== 'snap' && snapOptions.some((snap) => !isSavedSnapCalculationEligible(snap)) ? (
+                  <p className="mb-3 font-serif text-[11px] italic leading-5 text-zinc-500">
+                    Review-required and superseded saved charts cannot seed certification. Use a corrected copy from Astro Clock.
+                  </p>
                 ) : null}
 
                 <div className="grid min-w-0 gap-3 sm:grid-cols-2">
                   <Field label="Birth date">
-                    <input aria-label="Birth date" type="date" value={birthDate} onChange={(event) => setBirthDate(event.target.value)} className={textInputClass()} />
+                    <input aria-label="Birth date" type="date" value={birthDate} onChange={(event) => {
+                      setBirthDate(event.target.value);
+                      setSnapSeedConfirmed(false);
+                    }} className={textInputClass()} />
                   </Field>
                   <Field label="Source time status">
                     <select aria-label="Source time status" value={sourceTimeStatus} onChange={(event) => setSourceTimeStatus(event.target.value)} className={selectClass()}>
@@ -814,16 +879,28 @@ export default function BirthCertificationModal({
                     </select>
                   </Field>
                   <Field label="Birth location">
-                    <input aria-label="Birth location" type="text" value={birthLocation} onChange={(event) => setBirthLocation(event.target.value)} className={textInputClass()} />
+                    <input aria-label="Birth location" type="text" value={birthLocation} onChange={(event) => {
+                      setBirthLocation(event.target.value);
+                      setSnapSeedConfirmed(false);
+                    }} className={textInputClass()} />
                   </Field>
                   <Field label="Birth timezone">
-                    <input aria-label="Birth timezone" type="text" value={birthTimezone} onChange={(event) => setBirthTimezone(event.target.value)} className={textInputClass()} />
+                    <input aria-label="Birth timezone" type="text" value={birthTimezone} onChange={(event) => {
+                      setBirthTimezone(event.target.value);
+                      setSnapSeedConfirmed(false);
+                    }} className={textInputClass()} />
                   </Field>
                   <Field label="Birth latitude">
-                    <input aria-label="Birth latitude" type="number" step="0.0001" value={birthLatitude} onChange={(event) => setBirthLatitude(event.target.value)} className={textInputClass()} />
+                    <input aria-label="Birth latitude" type="number" step="0.0001" value={birthLatitude} onChange={(event) => {
+                      setBirthLatitude(event.target.value);
+                      setSnapSeedConfirmed(false);
+                    }} className={textInputClass()} />
                   </Field>
                   <Field label="Birth longitude">
-                    <input aria-label="Birth longitude" type="number" step="0.0001" value={birthLongitude} onChange={(event) => setBirthLongitude(event.target.value)} className={textInputClass()} />
+                    <input aria-label="Birth longitude" type="number" step="0.0001" value={birthLongitude} onChange={(event) => {
+                      setBirthLongitude(event.target.value);
+                      setSnapSeedConfirmed(false);
+                    }} className={textInputClass()} />
                   </Field>
                 </div>
               </div>

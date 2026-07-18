@@ -281,10 +281,10 @@ function sampleRows() {
   return [
     {
       name: 'Sample A',
-      date: '1990-01-13',
-      time: '21:33',
-      location: 'Jerusalem, Israel',
-      timezone: 'Asia/Jerusalem',
+      date: '2000-02-29',
+      time: '12:34',
+      location: 'Paris, France',
+      timezone: 'Europe/Paris',
       chart_type: 'natal',
     },
     {

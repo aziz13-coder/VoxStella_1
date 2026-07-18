@@ -117,6 +117,28 @@ describe('SynastryModal refresh behavior', () => {
     vi.clearAllMocks();
   });
 
+  it('excludes review-required saved charts until a corrected copy exists', async () => {
+    render(
+      <SynastryModal
+        open
+        onClose={vi.fn()}
+        snaps={[
+          {
+            ...snaps[0],
+            calculation_context: { review_required: true },
+          },
+          snaps[1],
+        ]}
+        activeSnapId="snap-a"
+      />
+    );
+
+    expect(await screen.findByText('Save or correct two snaps to compare.')).toBeInTheDocument();
+    expect(screen.getByText(/Correct any saved context marked for review in Astro Clock/)).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /Alpha/ })).not.toBeInTheDocument();
+    expect(astroClockApiMock.getSynastry).not.toHaveBeenCalled();
+  });
+
   it('keeps the current report visible while Chiron refreshes', async () => {
     let resolveSecondRequest;
     astroClockApiMock.getSynastry

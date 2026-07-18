@@ -60,12 +60,12 @@ describe('ResearchWorkspace', () => {
     const rows = normalizeResearchImportRows([
       {
         'Chart Name': 'Subject A',
-        'Birth Date': '1990-01-13',
-        'Birth Time': '21:33',
-        Place: 'Jerusalem, Israel',
-        TZ: 'Asia/Jerusalem',
-        Lat: '31.778',
-        Lng: '35.235',
+        'Birth Date': '2000-02-29',
+        'Birth Time': '12:34',
+        Place: 'Paris, France',
+        TZ: 'Europe/Paris',
+        Lat: '48.85341',
+        Lng: '2.3488',
         Type: 'natal',
       },
     ]);
@@ -73,12 +73,12 @@ describe('ResearchWorkspace', () => {
     expect(rows).toEqual([
       expect.objectContaining({
         name: 'Subject A',
-        date: '1990-01-13',
-        time: '21:33',
-        location: 'Jerusalem, Israel',
-        timezone: 'Asia/Jerusalem',
-        latitude: '31.778',
-        longitude: '35.235',
+        date: '2000-02-29',
+        time: '12:34',
+        location: 'Paris, France',
+        timezone: 'Europe/Paris',
+        latitude: '48.85341',
+        longitude: '2.3488',
         chart_type: 'natal',
       }),
     ]);
@@ -86,22 +86,22 @@ describe('ResearchWorkspace', () => {
 
   it('marks chart rows ready only when date/time and place or coordinate pair are present', () => {
     expect(isResearchRowReady({
-      date: '1990-01-13',
-      time: '21:33',
-      location: 'Jerusalem, Israel',
+      date: '2000-02-29',
+      time: '12:34',
+      location: 'Paris, France',
     })).toBe(true);
     expect(isResearchRowReady({
-      datetime: '1990-01-13T21:33:00',
-      latitude: '31.778',
-      longitude: '35.235',
+      datetime: '2000-02-29T12:34:00',
+      latitude: '48.85341',
+      longitude: '2.3488',
     })).toBe(true);
     expect(isResearchRowReady({
-      datetime: '1990-01-13T21:33:00',
-      latitude: '31.778',
+      datetime: '2000-02-29T12:34:00',
+      latitude: '48.85341',
     })).toBe(false);
     expect(isResearchRowReady({
-      date: '1990-01-13',
-      location: 'Jerusalem, Israel',
+      date: '2000-02-29',
+      location: 'Paris, France',
     })).toBe(false);
   });
 

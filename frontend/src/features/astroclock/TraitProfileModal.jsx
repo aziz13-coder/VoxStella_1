@@ -4,6 +4,13 @@ import { buildFixedStarProfessionSuggestions, buildFixedStarHealthSuggestions } 
 import { AstroClockAPI } from './api.mjs';
 import TraitProfilePointsTab from './TraitProfilePointsTab.jsx';
 import {
+  formatSavedSnapLabel,
+  getSavedSnapIneligibilityLabel,
+  getSavedSnapDateTimeParts,
+  getSavedSnapTimezoneLabel,
+  isSavedSnapCalculationEligible,
+} from './savedSnapViewModel.mjs';
+import {
   POLARITY_META,
   buildDomainIndex,
   buildHouseDeterminationChannels,
@@ -47,30 +54,13 @@ function getSnapMetaParts(snap) {
   const label = firstPresent(snap?.label, snap?.id, 'Untitled snap') || 'Untitled snap';
   const iso = firstPresent(snap?.effective_datetime, dashboard?.timestamp, snap?.datetime, snap?.timestamp);
   const location = firstPresent(snap?.location, dashboard?.location);
-  const timezone = firstPresent(snap?.timezone, dashboard?.timezone, snap?.timezone_label, dashboard?.timezone_label);
-  let datePart = '';
-  let timePart = '';
-  if (iso) {
-    try {
-      const parsed = new Date(iso);
-      datePart = new Intl.DateTimeFormat('en-GB', {
-        year: 'numeric',
-        month: 'short',
-        day: '2-digit',
-      }).format(parsed);
-      timePart = new Intl.DateTimeFormat('en-GB', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-      }).format(parsed);
-    } catch (_) {}
-  }
+  const timezone = getSavedSnapTimezoneLabel(snap);
+  const { datePart, timePart } = getSavedSnapDateTimeParts(snap);
   return { label, datePart, timePart, location, timezone, iso };
 }
 
 function formatSnapLabel(snap) {
-  const parts = getSnapMetaParts(snap);
-  return [parts.label, parts.datePart, parts.timePart, parts.location].filter(Boolean).join(' | ');
+  return formatSavedSnapLabel(snap);
 }
 
 function snapToTraitClockContext(snap, houseSystem) {
@@ -160,11 +150,19 @@ export default function TraitProfileModal({
   const [data, setData] = useState(null);
   const [fixedStarHits, setFixedStarHits] = useState(Array.isArray(initialFixedStarHits) ? initialFixedStarHits : []);
   const snapOptions = useMemo(() => (Array.isArray(snaps) ? snaps : []).filter((snap) => snap?.id), [snaps]);
-  const [chartSource, setChartSource] = useState(activeSnapId ? 'snap' : 'current');
+  const eligibleSnapOptions = useMemo(
+    () => snapOptions.filter((snap) => isSavedSnapCalculationEligible(snap)),
+    [snapOptions],
+  );
+  const initialActiveSnapIsEligible = Boolean(
+    activeSnapId
+      && eligibleSnapOptions.some((snap) => String(snap?.id || '') === String(activeSnapId)),
+  );
+  const [chartSource, setChartSource] = useState(initialActiveSnapIsEligible ? 'snap' : 'current');
   const [selectedSnapId, setSelectedSnapId] = useState(activeSnapId || '');
   const selectedSnap = useMemo(
-    () => snapOptions.find((snap) => String(snap?.id || '') === String(selectedSnapId || '')) || null,
-    [snapOptions, selectedSnapId],
+    () => eligibleSnapOptions.find((snap) => String(snap?.id || '') === String(selectedSnapId || '')) || null,
+    [eligibleSnapOptions, selectedSnapId],
   );
   // UI state for filters/sort
   const [band, setBand] = useState('all'); // all|strong|likely|possible
@@ -187,6 +185,18 @@ export default function TraitProfileModal({
     [mode, manualIso, manualLocation, timezone, latitude, longitude, houseSystem, chartSource, selectedSnap],
   );
   const chartContextKey = JSON.stringify(chartContext);
+  const traitApiContext = useMemo(
+    () => (
+      chartSource === 'snap' && selectedSnap?.id
+        ? {
+          snapId: String(selectedSnap.id),
+          houseSystem: chartContext?.houseSystem || houseSystem,
+        }
+        : chartContext
+    ),
+    [chartContext, chartSource, houseSystem, selectedSnap],
+  );
+  const traitApiContextKey = JSON.stringify(traitApiContext);
   const effectiveSpecialDegrees = useMemo(
     () => (chartSource === 'snap' && selectedSnap && Array.isArray(selectedSnap.special_degrees)
       ? selectedSnap.special_degrees
@@ -196,17 +206,28 @@ export default function TraitProfileModal({
   const specialDegreesKey = JSON.stringify(Array.isArray(effectiveSpecialDegrees) ? effectiveSpecialDegrees : []);
 
   useEffect(() => {
-    if (activeSnapId) {
-      setSelectedSnapId(String(activeSnapId));
-      setChartSource('snap');
+    if (!activeSnapId) return;
+    const activeSnap = snapOptions.find(
+      (snap) => String(snap?.id || '') === String(activeSnapId),
+    );
+    if (!activeSnap) return;
+    if (!isSavedSnapCalculationEligible(activeSnap)) {
+      setSelectedSnapId('');
+      setChartSource('current');
+      return;
     }
-  }, [activeSnapId]);
+    setSelectedSnapId(String(activeSnapId));
+    setChartSource('snap');
+  }, [activeSnapId, snapOptions]);
 
   useEffect(() => {
-    if (chartSource === 'snap' && !selectedSnapId && snapOptions.length) {
-      setSelectedSnapId(String(snapOptions[0].id || ''));
+    if (chartSource === 'snap' && !selectedSnap && eligibleSnapOptions.length) {
+      setSelectedSnapId(String(eligibleSnapOptions[0].id || ''));
     }
-  }, [chartSource, selectedSnapId, snapOptions]);
+    if (chartSource === 'snap' && selectedSnapId && !selectedSnap && !eligibleSnapOptions.length) {
+      setSelectedSnapId('');
+    }
+  }, [chartSource, eligibleSnapOptions, selectedSnap, selectedSnapId]);
 
   useEffect(() => {
     if (typeof onRefreshSnaps !== 'function') return;
@@ -225,7 +246,10 @@ export default function TraitProfileModal({
       }
       try {
         setLoading(true); setError(null);
-        const res = await AstroClockAPI.getTraitProfile({ specialDegrees: effectiveSpecialDegrees, ...chartContext });
+        const res = await AstroClockAPI.getTraitProfile({
+          specialDegrees: effectiveSpecialDegrees,
+          ...traitApiContext,
+        });
         if (!alive) return;
         if (res?.success) setData(res.data || {});
         else setError('Failed to load');
@@ -234,7 +258,7 @@ export default function TraitProfileModal({
       } finally { if (alive) setLoading(false); }
     })();
     return () => { alive = false; };
-  }, [chartSource, selectedSnap, loadingSnaps, snapOptions.length, specialDegreesKey, chartContextKey]);
+  }, [chartSource, selectedSnap, loadingSnaps, snapOptions.length, specialDegreesKey, chartContextKey, traitApiContextKey]);
 
   useEffect(() => {
     setFixedStarHits(Array.isArray(initialFixedStarHits) ? initialFixedStarHits : []);
@@ -597,7 +621,7 @@ export default function TraitProfileModal({
         setCopying(true);
         let fresh = null;
         try {
-          const res = await AstroClockAPI.getTraitProfile({ specialDegrees, ...chartContext });
+          const res = await AstroClockAPI.getTraitProfile({ specialDegrees, ...traitApiContext });
           if (res?.success) fresh = res.data;
         } catch (_) {}
         const payload = fresh || data || {};
@@ -839,7 +863,7 @@ export default function TraitProfileModal({
                 </div>
               )}
               {activeTab === 'points' && (
-                <TraitProfilePointsTab chartContext={chartContext} />
+                <TraitProfilePointsTab chartContext={traitApiContext} />
               )}
               {activeTab === 'all' && (
                 <TraitAllTraitsTab
@@ -998,10 +1022,16 @@ function TraitChartSourceBar({
   onRefreshSnaps,
 }) {
   const parts = getSnapMetaParts(selectedSnap);
-  const hasSnaps = Array.isArray(snapOptions) && snapOptions.length > 0;
+  const eligibleOptions = (Array.isArray(snapOptions) ? snapOptions : []).filter(
+    (snap) => isSavedSnapCalculationEligible(snap),
+  );
+  const hasSnaps = eligibleOptions.length > 0;
+  const hasReviewRequiredSnaps = (Array.isArray(snapOptions) ? snapOptions : []).some(
+    (snap) => !isSavedSnapCalculationEligible(snap),
+  );
   const switchToSnap = () => {
     setChartSource('snap');
-    if (!selectedSnapId && hasSnaps) setSelectedSnapId(String(snapOptions[0].id || ''));
+    if (!selectedSnapId && hasSnaps) setSelectedSnapId(String(eligibleOptions[0].id || ''));
   };
   return (
     <div className="shrink-0 border-b border-zinc-200 bg-white px-7 py-3">
@@ -1027,6 +1057,7 @@ function TraitChartSourceBar({
                 : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-400 hover:text-zinc-950'
             }`}
             onClick={switchToSnap}
+            disabled={!hasSnaps}
           >
             Saved Snap
           </button>
@@ -1044,7 +1075,16 @@ function TraitChartSourceBar({
           >
             <option value="">{loadingSnaps ? 'Loading saved snaps...' : 'Select a saved snap'}</option>
             {snapOptions.map((snap) => (
-              <option key={snap.id} value={snap.id}>{formatSnapLabel(snap)}</option>
+              <option
+                key={snap.id}
+                value={snap.id}
+                disabled={!isSavedSnapCalculationEligible(snap)}
+              >
+                {formatSnapLabel(snap)}
+                {getSavedSnapIneligibilityLabel(snap)
+                  ? ` — ${getSavedSnapIneligibilityLabel(snap)}`
+                  : ''}
+              </option>
             ))}
           </select>
           {typeof onRefreshSnaps === 'function' ? (
@@ -1056,6 +1096,11 @@ function TraitChartSourceBar({
             >
               {loadingSnaps ? 'Loading' : 'Refresh'}
             </button>
+          ) : null}
+          {hasReviewRequiredSnaps ? (
+            <span className="font-serif text-[11px] italic leading-5 text-zinc-500">
+              Review-required and superseded saved charts are disabled. Use a corrected copy from Astro Clock.
+            </span>
           ) : null}
           {chartSource === 'snap' && selectedSnap ? (
             <div className="min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-zinc-500">

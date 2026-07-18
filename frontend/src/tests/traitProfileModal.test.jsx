@@ -317,15 +317,71 @@ describe('TraitProfileModal layout', () => {
     await waitFor(() => expect(astroClockApiMock.getTraitProfile).toHaveBeenCalledTimes(2));
     const latestRequest = astroClockApiMock.getTraitProfile.mock.calls.at(-1)[0];
     expect(latestRequest).toMatchObject({
-      mode: 'manual',
-      datetime: snap.effective_datetime,
-      location: snap.location,
-      timezone: 'Europe/London',
+      snapId: 'snap-1',
       houseSystem: 'R',
-      latitude: 51.4769,
-      longitude: -0.0005,
       specialDegrees: ['Regulus'],
     });
+    expect(latestRequest).not.toHaveProperty('mode');
+    expect(latestRequest).not.toHaveProperty('datetime');
+    expect(latestRequest).not.toHaveProperty('location');
+    expect(latestRequest).not.toHaveProperty('timezone');
+    expect(latestRequest).not.toHaveProperty('latitude');
+    expect(latestRequest).not.toHaveProperty('longitude');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Points' }));
+    await waitFor(() => expect(astroClockApiMock.getDegreeHitPoints).toHaveBeenCalledTimes(1));
+    const pointsRequest = astroClockApiMock.getDegreeHitPoints.mock.calls.at(-1)[0];
+    expect(pointsRequest).toMatchObject({
+      snapId: 'snap-1',
+      houseSystem: 'P',
+      sexCode: '0',
+    });
+    expect(pointsRequest).not.toHaveProperty('mode');
+    expect(pointsRequest).not.toHaveProperty('datetime');
+    expect(pointsRequest).not.toHaveProperty('location');
+    expect(pointsRequest).not.toHaveProperty('timezone');
+    expect(pointsRequest).not.toHaveProperty('latitude');
+    expect(pointsRequest).not.toHaveProperty('longitude');
+  });
+
+  it('disables review-required and superseded saved charts as trait sources', async () => {
+    render(
+      <TraitProfileModal
+        onClose={vi.fn()}
+        specialDegrees={[]}
+        mode="manual"
+        manualIso="2026-03-22T06:32:00"
+        manualLocation="Israel"
+        timezone="Asia/Jerusalem"
+        houseSystem="R"
+        fixedStarHits={[]}
+        snaps={[
+          {
+            id: 'snap-safe',
+            label: 'Safe chart',
+            effective_datetime: '2002-04-05T09:20:00+00:00',
+            location: 'Synthetic place',
+          },
+          {
+            id: 'snap-review',
+            label: 'Review chart',
+            calculation_context: { review_required: true },
+          },
+          {
+            id: 'snap-old',
+            label: 'Old chart',
+            superseded_by: 'snap-safe',
+          },
+        ]}
+        snapsLoaded
+      />
+    );
+
+    await waitFor(() => expect(astroClockApiMock.getTraitProfile).toHaveBeenCalledTimes(1));
+    const select = screen.getByLabelText('Saved snap');
+    expect(within(select).getByRole('option', { name: /Review chart.*needs context review/i })).toBeDisabled();
+    expect(within(select).getByRole('option', { name: /Old chart.*superseded.*corrected copy/i })).toBeDisabled();
+    expect(screen.getByText(/Review-required and superseded saved charts are disabled/i)).toBeInTheDocument();
   });
 
   it('passes current chart coordinates in trait profile requests', async () => {

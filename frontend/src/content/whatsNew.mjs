@@ -1,4 +1,32 @@
 export const WHATS_NEW_RELEASES = {
+  '3.1.3': {
+    version: '3.1.3',
+    publishedAt: '2026-07-18',
+    headline: 'Safer saved chart corrections',
+    summary: 'This update makes older saved charts easier to review and correct, while keeping the original chart safely preserved.',
+    items: [
+      {
+        title: 'Automatic place details',
+        tag: 'Improved',
+        body: 'Entering a specific city can now fill its matching coordinates and timezone before you preview a corrected chart.',
+      },
+      {
+        title: 'Safer local-time choices',
+        tag: 'Improved',
+        body: 'When a daylight-saving time occurs twice, Vox Stella asks which occurrence you meant, and it stops times that never occurred.',
+      },
+      {
+        title: 'Corrected copies stay connected',
+        tag: 'Improved',
+        body: 'The original chart remains preserved while its corrected copy carries the confirmed details into related readings.',
+      },
+      {
+        title: 'Calmer review guidance',
+        tag: 'Polished',
+        body: 'Saved-chart review notes now use the quieter visual style of the rest of the workspace.',
+      },
+    ],
+  },
   '3.1.2': {
     version: '3.1.2',
     publishedAt: '2026-07-18',
