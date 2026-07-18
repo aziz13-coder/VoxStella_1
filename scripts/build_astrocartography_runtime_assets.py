@@ -26,6 +26,9 @@ from typing import Dict, List
 ROOT = Path(__file__).resolve().parents[1]
 REFERENCE_DIR = ROOT / "horary_knowledge" / "astrocartography_knowledge_base" / "reference"
 OUTPUT_PATH = ROOT / "backend" / "knowledge" / "astrocartography" / "interpretation_runtime.json"
+SOURCE_REGISTRY_PATH = ROOT / "horary_knowledge" / "astrocartography_sources" / "source_registry.json"
+CLAIM_REGISTRY_PATH = ROOT / "horary_knowledge" / "astrocartography_sources" / "claim_registry.json"
+PAGE_ID_RE = re.compile(r"`(acg-src-[a-z0-9-]+\.page-[0-9]{4})`")
 
 
 def _read_text(path: Path) -> str:
@@ -72,6 +75,10 @@ def _parse_range_value(section_lines: List[str], label: str) -> int:
     raise ValueError(f"Range value not found for {label}")
 
 
+def _page_ids(value: str) -> List[str]:
+    return PAGE_ID_RE.findall(value or "")
+
+
 def build_runtime_assets() -> Dict[str, object]:
     planet_reference_path = REFERENCE_DIR / "02_planetary_and_angular_reference.md"
     range_reference_path = REFERENCE_DIR / "03_techniques_and_ranges.md"
@@ -102,6 +109,8 @@ def build_runtime_assets() -> Dict[str, object]:
             "source_ref": {
                 "file": str(planet_reference_path.relative_to(ROOT)).replace("\\", "/"),
                 "section": "Planet Baselines",
+                "claim_classification": row.get("Classification") or "unclassified",
+                "page_ids": _page_ids(row.get("Source refs") or ""),
             },
         }
 
@@ -114,6 +123,8 @@ def build_runtime_assets() -> Dict[str, object]:
             "source_ref": {
                 "file": str(planet_reference_path.relative_to(ROOT)).replace("\\", "/"),
                 "section": "Angle Modifiers",
+                "claim_classification": row.get("Classification") or "unclassified",
+                "page_ids": _page_ids(row.get("Source refs") or ""),
             },
         }
 
@@ -130,7 +141,21 @@ def build_runtime_assets() -> Dict[str, object]:
             str(planet_reference_path.relative_to(ROOT)).replace("\\", "/"),
             str(range_reference_path.relative_to(ROOT)).replace("\\", "/"),
             str(feature_notes_path.relative_to(ROOT)).replace("\\", "/"),
+            str(SOURCE_REGISTRY_PATH.relative_to(ROOT)).replace("\\", "/"),
+            str(CLAIM_REGISTRY_PATH.relative_to(ROOT)).replace("\\", "/"),
         ],
+        "source_governance": {
+            "source_registry": str(SOURCE_REGISTRY_PATH.relative_to(ROOT)).replace("\\", "/"),
+            "claim_registry": str(CLAIM_REGISTRY_PATH.relative_to(ROOT)).replace("\\", "/"),
+            "authority_order": [
+                "acg-src-lewis-guttman-1989",
+                "acg-src-furst-best-places-2015",
+                "acg-src-hermes-map-2023",
+                "acg-src-lee-dictionary-1968",
+            ],
+            "excluded_source_ids": ["acg-src-houck-death-1994"],
+            "claim_classes": ["direct", "synthesis", "legacy-parity", "experimental"],
+        },
         "range_policy": {
             "primary_radius_km": _parse_range_value(range_lines, "Primary interpretation radius"),
             "extended_radius_km": _parse_range_value(range_lines, "Extended influence radius"),
@@ -138,11 +163,20 @@ def build_runtime_assets() -> Dict[str, object]:
             "source_ref": {
                 "file": str(range_reference_path.relative_to(ROOT)).replace("\\", "/"),
                 "section": "Product Default Recommendation",
+                "claim_id": "acg-claim-product-radius-policy",
+                "claim_classification": "experimental",
+                "page_ids": [
+                    "acg-src-lewis-guttman-1989.page-0012",
+                    "acg-src-furst-best-places-2015.page-0022",
+                    "acg-src-hermes-map-2023.page-0017",
+                ],
             },
         },
         "interpretation_policy": {
             "style": "source_backed_runtime_asset",
             "note": feature_note,
+            "generic_planet_plus_angle_is_fallback_only": True,
+            "preferred_claim_id": "acg-claim-explicit-planet-angle-matrix",
         },
         "bodies": bodies,
         "angles": angles,

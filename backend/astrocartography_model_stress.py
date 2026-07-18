@@ -7,6 +7,14 @@ from astrocartography_goal_engine import evaluate_goal_model, extract_relocation
 from astrocartography_goal_models import list_goal_models
 
 
+DEFAULT_PEER_OVERLAP_THRESHOLD = 0.92
+RESIDUAL_DISTINCTNESS_TOLERANCE = 1e-6
+PUBLIC_MODEL_STATUS = "active"
+STANDALONE_COMPOSITION_MODE = "standalone"
+SPECIALIST_COMPOSITION_MODE = "specialist_residual"
+RESEARCH_MODEL_STATUSES = {"experimental"}
+
+
 def _line(body: str, angle: str, distance_km: float) -> Dict[str, Any]:
     return {
         "id": f"{body}:{angle}:{distance_km}",
@@ -425,8 +433,61 @@ SCENARIOS: List[Dict[str, Any]] = [
 ]
 
 
-def evaluate_scenario(scenario: Dict[str, Any]) -> Dict[str, Any]:
-    model_ids = [str(model.get("id") or "") for model in list_goal_models()]
+def _model_inventory_entry(model: Dict[str, Any]) -> Dict[str, Any]:
+    goal_id = str(model.get("id") or "").strip().lower()
+    status = str(model.get("status") or "").strip().lower()
+    composition = model.get("composition") or {}
+    composition_mode = str(composition.get("mode") or "").strip().lower()
+    parent_id = str(composition.get("parent_id") or "").strip().lower()
+
+    if status == PUBLIC_MODEL_STATUS and composition_mode == STANDALONE_COMPOSITION_MODE:
+        gate_bucket = "public_peer"
+        reason = (
+            "Included: status is active and composition is standalone, so this "
+            "model participates in the default public semantic and peer-overlap gate."
+        )
+    elif status == PUBLIC_MODEL_STATUS and composition_mode == SPECIALIST_COMPOSITION_MODE:
+        gate_bucket = "active_specialist_residual"
+        reason = (
+            "Excluded from the default standalone semantic/peer gate and from "
+            "full-model peer cosine: this active specialist intentionally inherits "
+            "its parent and is assessed with residual distinctness and lift."
+        )
+    elif status in RESEARCH_MODEL_STATUSES:
+        gate_bucket = "non_public_research"
+        reason = (
+            f"Excluded from the default public gate because model status is {status}; "
+            "reported separately as non-public research."
+        )
+    elif status == "deprecated":
+        gate_bucket = "excluded"
+        reason = "Excluded because the model is deprecated."
+    else:
+        gate_bucket = "excluded"
+        reason = f"Excluded because model status {status or '<missing>'} is not active."
+
+    return {
+        "goal_id": goal_id,
+        "label": str(model.get("label") or goal_id),
+        "status": status,
+        "source_status": str(model.get("source_status") or "").strip().lower(),
+        "composition_mode": composition_mode,
+        "parent_id": parent_id or None,
+        "parent_weight": composition.get("parent_weight"),
+        "max_abs_residual": composition.get("max_abs_residual"),
+        "body_scope": str(model.get("body_scope") or "").strip().lower(),
+        "gate_bucket": gate_bucket,
+        "gate_reason": reason,
+    }
+
+
+def evaluate_scenario(
+    scenario: Dict[str, Any],
+    *,
+    model_ids: Sequence[str] | None = None,
+) -> Dict[str, Any]:
+    if model_ids is None:
+        model_ids = [str(model.get("id") or "") for model in list_goal_models()]
     ranking = []
     for goal_id in model_ids:
         evaluation = evaluate_goal_model(
@@ -441,6 +502,11 @@ def evaluate_scenario(scenario: Dict[str, Any]) -> Dict[str, Any]:
                 "label": evaluation.get("goal", {}).get("label"),
                 "score": evaluation.get("score"),
                 "raw_score": evaluation.get("raw_score"),
+                "ranking_eligible": bool(evaluation.get("ranking_eligible")),
+                "specialist_residual": float(
+                    ((evaluation.get("breakdown") or {}).get("specialist_residual"))
+                    or 0.0
+                ),
                 "top_support": (evaluation.get("top_supports") or [{}])[0].get("label"),
             }
         )
@@ -454,6 +520,149 @@ def evaluate_scenario(scenario: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _filter_scenario_results(
+    scenario_results: Sequence[Dict[str, Any]],
+    model_ids: Sequence[str],
+) -> List[Dict[str, Any]]:
+    included = {str(goal_id) for goal_id in model_ids}
+    filtered: List[Dict[str, Any]] = []
+    for result in scenario_results:
+        referenced_goals = {
+            str(result.get("expected_lead") or "").strip().lower(),
+            *(
+                str(item).strip().lower()
+                for item in (result.get("expected") or [])
+            ),
+        }
+        referenced_goals.discard("")
+        filtered.append(
+            {
+                "id": result.get("id"),
+                "label": result.get("label"),
+                "ranking": [
+                dict(item)
+                for item in (result.get("ranking") or [])
+                if str(item.get("goal_id") or "") in included
+                ],
+                "historical_probe_references": sorted(
+                    referenced_goals & included
+                ),
+                "semantic_assertions_applied": False,
+            }
+        )
+    return filtered
+
+
+def _expectation_exclusion(
+    *,
+    scenario_id: str,
+    expectation: str,
+    goal_id: str,
+    inventory_by_id: Dict[str, Dict[str, Any]],
+) -> Dict[str, Any]:
+    inventory = inventory_by_id.get(goal_id) or {}
+    return {
+        "scenario": scenario_id,
+        "expectation": expectation,
+        "goal_id": goal_id,
+        "status": inventory.get("status") or "unknown",
+        "composition_mode": inventory.get("composition_mode") or "unknown",
+        "gate_bucket": inventory.get("gate_bucket") or "unknown",
+        "reason": inventory.get("gate_reason") or "Goal is not in the public peer inventory.",
+    }
+
+
+def evaluate_public_semantic_expectations(
+    scenario_results: Sequence[Dict[str, Any]],
+    *,
+    public_peer_model_ids: Sequence[str],
+    inventory_by_id: Dict[str, Dict[str, Any]],
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
+    eligible = {str(goal_id) for goal_id in public_peer_model_ids}
+    failures: List[Dict[str, Any]] = []
+    exclusions: List[Dict[str, Any]] = []
+    annotated_results: List[Dict[str, Any]] = []
+
+    for result in scenario_results:
+        scenario_id = str(result.get("id") or "")
+        ranking = [
+            dict(item)
+            for item in (result.get("ranking") or [])
+            if str(item.get("goal_id") or "") in eligible
+        ]
+        top_ids = [str(item.get("goal_id") or "") for item in ranking[:3]]
+        raw_expected_lead = str(result.get("expected_lead") or "").strip().lower()
+        expected_lead = raw_expected_lead if raw_expected_lead in eligible else ""
+        if raw_expected_lead and not expected_lead:
+            exclusions.append(
+                _expectation_exclusion(
+                    scenario_id=scenario_id,
+                    expectation="expected_lead",
+                    goal_id=raw_expected_lead,
+                    inventory_by_id=inventory_by_id,
+                )
+            )
+
+        raw_expected = [
+            str(item).strip().lower()
+            for item in (result.get("expected") or [])
+            if str(item).strip()
+        ]
+        expected = [goal_id for goal_id in raw_expected if goal_id in eligible]
+        for excluded_goal in raw_expected:
+            if excluded_goal not in eligible:
+                exclusions.append(
+                    _expectation_exclusion(
+                        scenario_id=scenario_id,
+                        expectation="expected_in_top_3",
+                        goal_id=excluded_goal,
+                        inventory_by_id=inventory_by_id,
+                    )
+                )
+
+        if expected_lead:
+            top_id = top_ids[0] if top_ids else ""
+            if top_id != expected_lead:
+                failures.append(
+                    {
+                        "scenario": scenario_id,
+                        "expectation": "expected_lead",
+                        "expected_lead": expected_lead,
+                        "top_id": top_id,
+                        "top_ids": top_ids,
+                    }
+                )
+        if expected and not any(goal_id in top_ids for goal_id in expected):
+            failures.append(
+                {
+                    "scenario": scenario_id,
+                    "expectation": "expected_in_top_3",
+                    "expected": expected,
+                    "top_ids": top_ids,
+                }
+            )
+
+        annotated_results.append(
+            {
+                "id": result.get("id"),
+                "label": result.get("label"),
+                "ranking": ranking,
+                "public_expectations": {
+                    "expected_lead": expected_lead or None,
+                    "expected_in_top_3": expected,
+                    "assertion_count": int(bool(expected_lead)) + int(bool(expected)),
+                },
+                "excluded_expectation_count": sum(
+                    1
+                    for item in exclusions
+                    if str(item.get("scenario") or "") == scenario_id
+                ),
+            }
+        )
+
+    return annotated_results, failures, exclusions
+
+
 def cosine_similarity(left: Sequence[float], right: Sequence[float]) -> float:
     if len(left) != len(right) or not left:
         return 0.0
@@ -465,57 +674,320 @@ def cosine_similarity(left: Sequence[float], right: Sequence[float]) -> float:
     return dot / (left_norm * right_norm)
 
 
-def run_stress_suite() -> Dict[str, Any]:
-    scenario_results = [evaluate_scenario(scenario) for scenario in SCENARIOS]
-    goal_ids = [str(model.get("id") or "") for model in list_goal_models()]
-    score_matrix: Dict[str, List[float]] = {goal_id: [] for goal_id in goal_ids}
-    expectation_failures: List[Dict[str, Any]] = []
-
+def _find_high_overlap_pairs(
+    scenario_results: Sequence[Dict[str, Any]],
+    *,
+    model_ids: Sequence[str],
+    threshold: float,
+) -> List[Dict[str, Any]]:
+    score_matrix: Dict[str, List[float]] = {
+        str(goal_id): [] for goal_id in model_ids
+    }
     for result in scenario_results:
-        ranking = result.get("ranking") or []
-        top_ids = [str(item.get("goal_id") or "") for item in ranking[:3]]
-        top_id = top_ids[0] if top_ids else ""
-        expected = [str(item) for item in result.get("expected") or []]
-        expected_lead = str(result.get("expected_lead") or "")
-        if expected_lead and top_id != expected_lead:
-            expectation_failures.append(
-                {
-                    "scenario": result.get("id"),
-                    "expected_lead": expected_lead,
-                    "top_id": top_id,
-                    "top_ids": top_ids,
-                }
-            )
-        if expected and not any(goal_id in top_ids for goal_id in expected):
-            expectation_failures.append(
-                {
-                    "scenario": result.get("id"),
-                    "expected": expected,
-                    "top_ids": top_ids,
-                }
-            )
-        scores_by_goal = {str(item.get("goal_id") or ""): float(item.get("raw_score") or 0.0) for item in ranking}
-        for goal_id in goal_ids:
+        scores_by_goal = {
+            str(item.get("goal_id") or ""): float(item.get("raw_score") or 0.0)
+            for item in (result.get("ranking") or [])
+        }
+        for goal_id in score_matrix:
             score_matrix[goal_id].append(scores_by_goal.get(goal_id, 0.0))
 
     overlap_pairs: List[Dict[str, Any]] = []
-    for index, left_goal in enumerate(goal_ids):
-        for right_goal in goal_ids[index + 1:]:
-            similarity = cosine_similarity(score_matrix[left_goal], score_matrix[right_goal])
-            if similarity >= 0.92:
+    ordered_ids = list(score_matrix)
+    for index, left_goal in enumerate(ordered_ids):
+        for right_goal in ordered_ids[index + 1:]:
+            similarity = cosine_similarity(
+                score_matrix[left_goal],
+                score_matrix[right_goal],
+            )
+            if similarity >= threshold:
                 overlap_pairs.append(
                     {
                         "left": left_goal,
                         "right": right_goal,
                         "similarity": round(similarity, 3),
+                        "comparison_population": "active_standalone_public_peers",
                     }
                 )
-    overlap_pairs.sort(key=lambda item: (-float(item.get("similarity") or 0.0), item.get("left"), item.get("right")))
+    overlap_pairs.sort(
+        key=lambda item: (
+            -float(item.get("similarity") or 0.0),
+            item.get("left"),
+            item.get("right"),
+        )
+    )
+    return overlap_pairs
+
+
+def _build_specialist_residual_checks(
+    specialist_models: Sequence[Dict[str, Any]],
+    scenario_results: Sequence[Dict[str, Any]],
+    *,
+    inventory_by_id: Dict[str, Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    checks: List[Dict[str, Any]] = []
+    result_rows_by_scenario = {
+        str(result.get("id") or ""): {
+            str(item.get("goal_id") or ""): item
+            for item in (result.get("ranking") or [])
+        }
+        for result in scenario_results
+    }
+
+    for model in specialist_models:
+        specialist_id = str(model.get("id") or "").strip().lower()
+        composition = model.get("composition") or {}
+        parent_id = str(composition.get("parent_id") or "").strip().lower()
+        configured_bound = float(composition.get("max_abs_residual") or 0.0)
+        residuals: List[Dict[str, Any]] = []
+        for scenario in SCENARIOS:
+            scenario_id = str(scenario.get("id") or "")
+            specialist_row = (
+                result_rows_by_scenario.get(scenario_id, {}).get(specialist_id)
+                or {}
+            )
+            residuals.append(
+                {
+                    "scenario": scenario_id,
+                    "residual_lift": round(
+                        float(specialist_row.get("specialist_residual") or 0.0),
+                        6,
+                    ),
+                }
+            )
+
+        values = [float(item["residual_lift"]) for item in residuals]
+        nonzero_values = [
+            value
+            for value in values
+            if abs(value) > RESIDUAL_DISTINCTNESS_TOLERANCE
+        ]
+        minimum = min(values, default=0.0)
+        maximum = max(values, default=0.0)
+        residual_range = maximum - minimum
+        max_abs_observed = max((abs(value) for value in values), default=0.0)
+        distinctness_passed = bool(
+            nonzero_values
+            and residual_range > RESIDUAL_DISTINCTNESS_TOLERANCE
+        )
+        bound_passed = bool(
+            configured_bound > 0.0
+            and max_abs_observed
+            <= configured_bound + RESIDUAL_DISTINCTNESS_TOLERANCE
+        )
+        inventory = inventory_by_id.get(specialist_id) or {}
+        checks.append(
+            {
+                "specialist_id": specialist_id,
+                "parent_id": parent_id,
+                "status": inventory.get("status"),
+                "gate_bucket": inventory.get("gate_bucket"),
+                "method": "specialist_residual_vector",
+                "raw_full_model_cosine_excluded": True,
+                "exclusion_reason": (
+                    "Full-model cosine is structurally inflated by declared parent "
+                    "inheritance; only the bounded residual is assessed."
+                ),
+                "scenario_count": len(values),
+                "nonzero_residual_count": len(nonzero_values),
+                "positive_lift_count": sum(
+                    1
+                    for value in values
+                    if value > RESIDUAL_DISTINCTNESS_TOLERANCE
+                ),
+                "negative_lift_count": sum(
+                    1
+                    for value in values
+                    if value < -RESIDUAL_DISTINCTNESS_TOLERANCE
+                ),
+                "zero_lift_count": len(values) - len(nonzero_values),
+                "minimum_residual_lift": round(minimum, 6),
+                "maximum_residual_lift": round(maximum, 6),
+                "residual_range": round(residual_range, 6),
+                "configured_max_abs_residual": configured_bound,
+                "observed_max_abs_residual": round(max_abs_observed, 6),
+                "distinctness_passed": distinctness_passed,
+                "bound_passed": bound_passed,
+                "check_passed": distinctness_passed and bound_passed,
+                "affects_default_public_gate": False,
+                "residuals": residuals,
+            }
+        )
+    checks.sort(key=lambda item: str(item.get("specialist_id") or ""))
+    return checks
+
+
+def run_stress_suite(
+    *,
+    overlap_threshold: float = DEFAULT_PEER_OVERLAP_THRESHOLD,
+) -> Dict[str, Any]:
+    threshold = float(overlap_threshold)
+    if not 0.0 <= threshold <= 1.0:
+        raise ValueError("overlap_threshold must be between 0 and 1")
+
+    models = list_goal_models(include_deprecated=True)
+    inventory = [_model_inventory_entry(model) for model in models]
+    inventory.sort(key=lambda item: str(item.get("goal_id") or ""))
+    inventory_by_id = {
+        str(item.get("goal_id") or ""): item for item in inventory
+    }
+    models_by_id = {
+        str(model.get("id") or "").strip().lower(): model
+        for model in models
+    }
+
+    public_peer_model_ids = [
+        str(item["goal_id"])
+        for item in inventory
+        if item.get("gate_bucket") == "public_peer"
+    ]
+    active_specialist_models = [
+        models_by_id[str(item["goal_id"])]
+        for item in inventory
+        if item.get("gate_bucket") == "active_specialist_residual"
+    ]
+    research_models = [
+        models_by_id[str(item["goal_id"])]
+        for item in inventory
+        if item.get("gate_bucket") == "non_public_research"
+    ]
+    evaluated_model_ids = [
+        str(item["goal_id"])
+        for item in inventory
+        if item.get("gate_bucket") != "excluded"
+    ]
+
+    all_scenario_results = [
+        evaluate_scenario(scenario, model_ids=evaluated_model_ids)
+        for scenario in SCENARIOS
+    ]
+    (
+        public_scenarios,
+        public_semantic_failures,
+        semantic_exclusions,
+    ) = evaluate_public_semantic_expectations(
+        all_scenario_results,
+        public_peer_model_ids=public_peer_model_ids,
+        inventory_by_id=inventory_by_id,
+    )
+    public_overlap_pairs = _find_high_overlap_pairs(
+        public_scenarios,
+        model_ids=public_peer_model_ids,
+        threshold=threshold,
+    )
+    public_gate_passed = not public_semantic_failures and not public_overlap_pairs
+
+    active_specialist_checks = _build_specialist_residual_checks(
+        active_specialist_models,
+        all_scenario_results,
+        inventory_by_id=inventory_by_id,
+    )
+    research_specialist_models = [
+        model
+        for model in research_models
+        if str((model.get("composition") or {}).get("mode") or "")
+        == SPECIALIST_COMPOSITION_MODE
+    ]
+    research_residual_checks = _build_specialist_residual_checks(
+        research_specialist_models,
+        all_scenario_results,
+        inventory_by_id=inventory_by_id,
+    )
+    research_model_ids = [
+        str(model.get("id") or "").strip().lower()
+        for model in research_models
+    ]
+    research_scenarios = _filter_scenario_results(
+        all_scenario_results,
+        research_model_ids,
+    )
+
+    intentional_pair_exclusions = [
+        {
+            "parent_id": str((model.get("composition") or {}).get("parent_id") or ""),
+            "specialist_id": str(model.get("id") or ""),
+            "specialist_status": str(model.get("status") or ""),
+            "excluded_comparison": "raw_full_model_cosine",
+            "replacement_test": "specialist_residual_vector",
+            "reason": (
+                "The declared specialist inherits its parent by construction, so "
+                "full-model cosine is not an independent peer-overlap test."
+            ),
+        }
+        for model in [*active_specialist_models, *research_specialist_models]
+    ]
+    intentional_pair_exclusions.sort(
+        key=lambda item: str(item.get("specialist_id") or "")
+    )
+    model_exclusions = [
+        dict(item)
+        for item in inventory
+        if item.get("gate_bucket") != "public_peer"
+    ]
+
+    public_gate = {
+        "name": "active_standalone_public_peer_gate",
+        "model_ids": public_peer_model_ids,
+        "model_count": len(public_peer_model_ids),
+        "semantic_failures": public_semantic_failures,
+        "semantic_failure_count": len(public_semantic_failures),
+        "high_overlap_pairs": public_overlap_pairs,
+        "high_overlap_pair_count": len(public_overlap_pairs),
+        "overlap_threshold": threshold,
+        "passed": public_gate_passed,
+    }
+    active_specialist_section = {
+        "model_ids": [
+            str(model.get("id") or "") for model in active_specialist_models
+        ],
+        "checks": active_specialist_checks,
+        "all_checks_passed": all(
+            bool(check.get("check_passed")) for check in active_specialist_checks
+        ),
+        "affects_default_public_gate": False,
+        "reason": (
+            "Active specialists are declared residual compositions, not independent "
+            "standalone peers. Their residual diagnostics are reported separately."
+        ),
+    }
+    research_section = {
+        "non_public": True,
+        "affects_default_public_gate": False,
+        "model_ids": research_model_ids,
+        "models": [
+            dict(inventory_by_id[goal_id]) for goal_id in research_model_ids
+        ],
+        "scenarios": research_scenarios,
+        "residual_checks": research_residual_checks,
+        "note": (
+            "Experimental models are research observations only. Synthetic rankings "
+            "do not validate outcomes or promote these models to public use."
+        ),
+    }
 
     return {
-        "scenario_count": len(scenario_results),
-        "goal_count": len(goal_ids),
-        "scenarios": scenario_results,
-        "expectation_failures": expectation_failures,
-        "high_overlap_pairs": overlap_pairs,
+        "scenario_count": len(all_scenario_results),
+        "goal_count": len(inventory),
+        "evaluated_goal_count": len(evaluated_model_ids),
+        "model_inventory": inventory,
+        "model_exclusions": model_exclusions,
+        "intentional_parent_specialist_pair_exclusions": intentional_pair_exclusions,
+        "public_gate": public_gate,
+        "active_specialist_residuals": active_specialist_section,
+        "non_public_research": research_section,
+        "scenarios": public_scenarios,
+        "expectation_failures": public_semantic_failures,
+        "semantic_expectation_exclusions": semantic_exclusions,
+        "high_overlap_pairs": public_overlap_pairs,
+        "overlap_threshold": threshold,
+        "gate_passed": public_gate_passed,
+        "validation_scope": {
+            "fixture_type": "synthetic_semantic_stress",
+            "semantic_only": True,
+            "outcome_validation": False,
+            "default_public_gate": "active_standalone_peers_only",
+            "active_specialist_assessment": "separate_residual_diagnostics",
+            "experimental_models": "separate_non_public_research",
+            "public_specialist_gate": "requires_held_out_lift",
+            "promotion_requirement": "positive held-out lift on person-grouped historical outcomes",
+        },
     }

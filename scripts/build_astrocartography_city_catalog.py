@@ -27,8 +27,16 @@ OUTPUT_PATH = ROOT / "backend" / "knowledge" / "astrocartography" / "city_catalo
 
 GEONAMES_CITIES_URL = "https://download.geonames.org/export/dump/cities15000.zip"
 GEONAMES_COUNTRIES_URL = "https://download.geonames.org/export/dump/countryInfo.txt"
+GEONAMES_ADMIN1_URL = "https://download.geonames.org/export/dump/admin1CodesASCII.txt"
 
-INCLUDED_ADMIN_CODES = {"PPLC", "PPLA"}
+INCLUDED_ADMIN_CODES = {
+    "PPLC",
+    "PPLA",
+    "PPLA2",
+    "PPLA3",
+    "PPLA4",
+    "PPLA5",
+}
 INCLUDED_PLACE_CODES = INCLUDED_ADMIN_CODES | {"PPL"}
 DEFAULT_MIN_POPULATION = 15000
 CONTINENT_NAMES = {
@@ -39,6 +47,21 @@ CONTINENT_NAMES = {
     "NA": "North America",
     "OC": "Oceania",
     "SA": "South America",
+}
+CANADA_SUBDIVISION_ABBREVIATIONS = {
+    "alberta": "AB",
+    "british columbia": "BC",
+    "manitoba": "MB",
+    "new brunswick": "NB",
+    "newfoundland and labrador": "NL",
+    "northwest territories": "NT",
+    "nova scotia": "NS",
+    "nunavut": "NU",
+    "ontario": "ON",
+    "prince edward island": "PE",
+    "quebec": "QC",
+    "saskatchewan": "SK",
+    "yukon": "YT",
 }
 
 
@@ -61,11 +84,38 @@ def _load_country_meta(country_info_text: str) -> Dict[str, Dict[str, str]]:
         continent_code = str(parts[8] or "").strip().upper()
         if iso and name:
             countries[iso] = {
+                "country_iso3": str(parts[1] or "").strip().upper(),
                 "country_name": name,
                 "continent_code": continent_code,
                 "continent_name": CONTINENT_NAMES.get(continent_code, continent_code or "Unknown"),
             }
     return countries
+
+
+def _load_admin1_meta(admin1_text: str) -> Dict[str, Dict[str, Any]]:
+    admin1: Dict[str, Dict[str, Any]] = {}
+    for raw_line in admin1_text.splitlines():
+        parts = raw_line.rstrip("\n").split("\t")
+        if len(parts) < 4:
+            continue
+        code = str(parts[0] or "").strip().upper()
+        name = str(parts[1] or "").strip()
+        ascii_name = str(parts[2] or "").strip() or name
+        if not code or not name:
+            continue
+        country_code = code.split(".", 1)[0]
+        aliases = [name, ascii_name]
+        if country_code == "CA":
+            abbreviation = CANADA_SUBDIVISION_ABBREVIATIONS.get(ascii_name.lower())
+            if abbreviation:
+                aliases.append(abbreviation)
+        admin1[code] = {
+            "name": name,
+            "ascii_name": ascii_name,
+            "aliases": list(dict.fromkeys(alias for alias in aliases if alias)),
+            "geonameid": int(parts[3]) if str(parts[3] or "").strip().isdigit() else None,
+        }
+    return admin1
 
 
 def _load_city_rows_from_zip(payload: bytes) -> Iterable[List[str]]:
@@ -98,7 +148,9 @@ def _build_label(name: str, country_name: str, admin1_code: str) -> str:
 def build_catalog(min_population: int = DEFAULT_MIN_POPULATION) -> Dict[str, Any]:
     cities_zip = _download_bytes(GEONAMES_CITIES_URL)
     country_text = _download_bytes(GEONAMES_COUNTRIES_URL).decode("utf-8", errors="replace")
+    admin1_text = _download_bytes(GEONAMES_ADMIN1_URL).decode("utf-8", errors="replace")
     country_meta = _load_country_meta(country_text)
+    admin1_meta = _load_admin1_meta(admin1_text)
 
     seen: set[Tuple[str, str, str]] = set()
     cities: List[Dict[str, Any]] = []
@@ -128,7 +180,16 @@ def build_catalog(min_population: int = DEFAULT_MIN_POPULATION) -> Dict[str, Any
         admin1_code = str(row[10] or "").strip()
         timezone_name = str(row[17] or "").strip()
         meta = country_meta.get(country_code, {})
+        admin_meta = admin1_meta.get(f"{country_code}.{admin1_code}".upper(), {})
+        admin1_name = str(admin_meta.get("name") or "")
+        admin1_ascii_name = str(admin_meta.get("ascii_name") or admin1_name)
+        admin1_aliases = [
+            str(alias)
+            for alias in (admin_meta.get("aliases") or [])
+            if str(alias).strip()
+        ]
         country_name = str(meta.get("country_name") or country_code or "Unknown")
+        country_iso3 = str(meta.get("country_iso3") or "")
         continent_code = str(meta.get("continent_code") or "")
         continent_name = str(meta.get("continent_name") or continent_code or "Unknown")
 
@@ -153,10 +214,14 @@ def build_catalog(min_population: int = DEFAULT_MIN_POPULATION) -> Dict[str, Any
                 "name": name,
                 "ascii_name": ascii_name,
                 "country_code": country_code,
+                "country_iso3": country_iso3,
                 "country_name": country_name,
                 "continent_code": continent_code,
                 "continent_name": continent_name,
                 "admin1_code": admin1_code,
+                "admin1_name": admin1_name,
+                "admin1_ascii_name": admin1_ascii_name,
+                "admin1_aliases": admin1_aliases,
                 "latitude": latitude,
                 "longitude": longitude,
                 "population": population,
@@ -184,6 +249,7 @@ def build_catalog(min_population: int = DEFAULT_MIN_POPULATION) -> Dict[str, Any
             "dataset": "cities15000",
             "cities_url": GEONAMES_CITIES_URL,
             "countries_url": GEONAMES_COUNTRIES_URL,
+            "admin1_url": GEONAMES_ADMIN1_URL,
         },
         "thresholds": {
             "min_population": int(min_population),

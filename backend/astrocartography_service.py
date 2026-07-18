@@ -4,8 +4,9 @@ import math
 from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
+from asteroids import _resolve_ephemeris_path as _resolve_astrocartography_ephemeris_path
 from astrocartography_assets import get_angle_reference, get_body_reference, get_range_policy
-from swisseph_state import swisseph as swe, swisseph_lock
+from swisseph_state import swisseph as swe, swisseph_ephemeris_path, swisseph_lock
 
 
 DEFAULT_BODIES = [
@@ -93,8 +94,13 @@ try:
 except Exception:
     ANGLE_INTERPRETATION = {}
 
-_LATITUDE_SAMPLES = [float(lat) for lat in range(-89, 90, 1)]
-_PARAN_LATITUDE_SAMPLES = [float(lat) for lat in range(-84, 85, 2)]
+_EARTH_MEAN_RADIUS_KM = 6371.0088
+_SPHERICAL_GEOMETRY_MODEL = "spherical-great-circle-half-arc-v1"
+_DISPLAY_MAX_ARC_STEP_DEG = 12.0
+_DISPLAY_MAX_CHORD_ERROR_KM = 2.0
+_DISPLAY_MAX_RECURSION = 14
+_DISPLAY_POLE_LATITUDE_DEG = 89.999
+_GEOMETRY_TOLERANCE = 1e-10
 
 _LOCAL_SPACE_SECTOR_META = {
     "N": "North-facing routes emphasize outward direction, visibility, and initiative.",
@@ -162,6 +168,75 @@ def _wrap180(value: float) -> float:
     if wrapped > 180.0:
         wrapped -= 360.0
     return wrapped
+
+
+def _clamp_unit(value: float) -> float:
+    return max(-1.0, min(1.0, float(value)))
+
+
+def _vector_dot(left: Sequence[float], right: Sequence[float]) -> float:
+    return sum(float(left[index]) * float(right[index]) for index in range(3))
+
+
+def _vector_cross(left: Sequence[float], right: Sequence[float]) -> Tuple[float, float, float]:
+    return (
+        (float(left[1]) * float(right[2])) - (float(left[2]) * float(right[1])),
+        (float(left[2]) * float(right[0])) - (float(left[0]) * float(right[2])),
+        (float(left[0]) * float(right[1])) - (float(left[1]) * float(right[0])),
+    )
+
+
+def _vector_norm(vector: Sequence[float]) -> float:
+    return math.sqrt(max(0.0, _vector_dot(vector, vector)))
+
+
+def _normalize_vector(vector: Sequence[float]) -> Optional[Tuple[float, float, float]]:
+    if not isinstance(vector, (list, tuple)) or len(vector) < 3:
+        return None
+    magnitude = _vector_norm(vector)
+    if magnitude <= _GEOMETRY_TOLERANCE:
+        return None
+    return (
+        float(vector[0]) / magnitude,
+        float(vector[1]) / magnitude,
+        float(vector[2]) / magnitude,
+    )
+
+
+def _latlon_to_unit(latitude_deg: float, longitude_deg: float) -> Tuple[float, float, float]:
+    latitude = math.radians(float(latitude_deg))
+    longitude = math.radians(float(longitude_deg))
+    cos_latitude = math.cos(latitude)
+    return (
+        cos_latitude * math.cos(longitude),
+        cos_latitude * math.sin(longitude),
+        math.sin(latitude),
+    )
+
+
+def _unit_to_latlon(vector: Sequence[float]) -> Tuple[float, float]:
+    unit = _normalize_vector(vector)
+    if unit is None:
+        raise ValueError("A zero vector has no geographic coordinate")
+    latitude = math.degrees(math.asin(_clamp_unit(unit[2])))
+    longitude = _wrap180(math.degrees(math.atan2(unit[1], unit[0])))
+    return latitude, longitude
+
+
+def _angular_distance_rad(left: Sequence[float], right: Sequence[float]) -> float:
+    cross_norm = _vector_norm(_vector_cross(left, right))
+    return math.atan2(cross_norm, _clamp_unit(_vector_dot(left, right)))
+
+
+def _great_circle_distance_km(
+    latitude_a: float,
+    longitude_a: float,
+    latitude_b: float,
+    longitude_b: float,
+) -> float:
+    point_a = _latlon_to_unit(latitude_a, longitude_a)
+    point_b = _latlon_to_unit(latitude_b, longitude_b)
+    return _EARTH_MEAN_RADIUS_KM * _angular_distance_rad(point_a, point_b)
 
 
 # Low-precision Chiron fallback when Swiss Ephemeris asteroid files are absent.
@@ -293,95 +368,344 @@ def _fallback_chiron_equatorial_position(jd_ut: float) -> Optional[Tuple[float, 
     return ra_deg, dec_deg
 
 
-def _equatorial_positions(timestamp_iso: str, bodies: Sequence[str]) -> Tuple[float, List[Dict[str, float]]]:
+def _ephemeris_engine_from_flags(returned_flags: int) -> str:
+    if swe is None:
+        return "unavailable"
+    if int(returned_flags) & int(getattr(swe, "FLG_JPLEPH", getattr(swe, "SEFLG_JPLEPH", 1))):
+        return "jpl"
+    if int(returned_flags) & int(getattr(swe, "FLG_SWIEPH", getattr(swe, "SEFLG_SWIEPH", 2))):
+        return "swiss-ephemeris"
+    if int(returned_flags) & int(getattr(swe, "FLG_MOSEPH", getattr(swe, "SEFLG_MOSEPH", 4))):
+        return "moshier"
+    return "unknown"
+
+
+def _equatorial_positions(timestamp_iso: str, bodies: Sequence[str]) -> Tuple[float, List[Dict[str, Any]]]:
     _require_swe()
     jd_ut = _jd_ut_from_iso(timestamp_iso)
     flags = (
         getattr(swe, "FLG_SWIEPH", getattr(swe, "SEFLG_SWIEPH", 2))
-        | getattr(swe, "FLG_SPEED", getattr(swe, "SEFLG_SPEED", 256))
         | getattr(swe, "FLG_EQUATORIAL", getattr(swe, "SEFLG_EQUATORIAL", 2048))
     )
-    positions: List[Dict[str, float]] = []
-    with swisseph_lock():
-        gst_deg = _wrap360(float(swe.sidtime(jd_ut)) * 15.0)  # type: ignore[arg-type]
-        for body in bodies:
-            planet_id = PLANET_IDS.get(body)
-            if planet_id is None:
-                continue
-            try:
-                pos, _ = swe.calc_ut(jd_ut, planet_id, flags)  # type: ignore[arg-type]
-                ra_deg = _wrap360(float(pos[0]))
-                dec_deg = float(pos[1])
-            except Exception:
-                fallback_position = _fallback_chiron_equatorial_position(jd_ut) if body == "Chiron" else None
-                if fallback_position is None:
-                    raise
-                ra_deg, dec_deg = fallback_position
-            positions.append(
-                {
-                    "body": body,
-                    "ra_deg": ra_deg,
-                    "dec_deg": dec_deg,
-                }
-            )
+    positions: List[Dict[str, Any]] = []
+    ephemeris_path = _resolve_astrocartography_ephemeris_path() or ""
+    with swisseph_ephemeris_path(ephemeris_path, swe_module=swe):
+        with swisseph_lock():
+            gst_deg = _wrap360(float(swe.sidtime(jd_ut)) * 15.0)  # type: ignore[arg-type]
+            for body in bodies:
+                planet_id = PLANET_IDS.get(body)
+                if planet_id is None:
+                    continue
+                calculation: Dict[str, Any]
+                try:
+                    pos, returned_flags = swe.calc_ut(jd_ut, planet_id, flags)  # type: ignore[arg-type]
+                    ra_deg = _wrap360(float(pos[0]))
+                    dec_deg = float(pos[1])
+                    engine = _ephemeris_engine_from_flags(int(returned_flags))
+                    calculation = {
+                        "position_source": engine,
+                        "ephemeris_engine": engine,
+                        "returned_flags": int(returned_flags),
+                        "degraded": False,
+                        "accuracy": "ephemeris",
+                        "ranking_eligible": True,
+                    }
+                    if body == "Chiron" and ephemeris_path:
+                        calculation["orbital_data_source"] = "swiss-ephemeris-asteroid-file"
+                except Exception:
+                    fallback_position = _fallback_chiron_equatorial_position(jd_ut) if body == "Chiron" else None
+                    if fallback_position is None:
+                        raise
+                    ra_deg, dec_deg = fallback_position
+                    calculation = {
+                        "position_source": "jpl-elements-two-body-fallback",
+                        "ephemeris_engine": "analytic-fallback",
+                        "returned_flags": None,
+                        "degraded": True,
+                        "accuracy": "low",
+                        "ranking_eligible": False,
+                        "degraded_reason": "Bundled Swiss Ephemeris asteroid position was unavailable.",
+                        "fallback_epoch_jd": _CHIRON_JPL_ELEMENTS["epoch_jd"],
+                        "fallback_frame": "J2000 osculating elements; qualitative fallback only",
+                    }
+                positions.append(
+                    {
+                        "body": body,
+                        "ra_deg": ra_deg,
+                        "dec_deg": dec_deg,
+                        "calculation": calculation,
+                    }
+                )
     return gst_deg, positions
 
 
-def _split_segment_if_needed(
-    segments: List[List[List[float]]],
-    current: List[List[float]],
-    next_point: List[float],
-) -> List[List[float]]:
-    if not current:
-        current.append(next_point)
-        return current
-    prev_lon = float(current[-1][1])
-    next_lon = float(next_point[1])
-    if abs(prev_lon - next_lon) > 180.0:
-        if len(current) >= 2:
-            segments.append(current)
-        return [next_point]
-    current.append(next_point)
-    return current
+def _build_line_geometry(
+    ra_deg: float,
+    dec_deg: float,
+    gst_deg: float,
+    angle: str,
+) -> Optional[Dict[str, Any]]:
+    """Build an exact spherical half-great-circle representation.
+
+    ``midpoint`` identifies the requested half of the great circle: a point is
+    on the closed half arc when it lies in the plane and its dot product with
+    the midpoint is non-negative. ``axis`` joins the two arc endpoints and is
+    oriented northward where the geometry permits.
+    """
+
+    angle_name = str(angle or "").upper()
+    if angle_name not in ANGLE_META:
+        return None
+
+    substellar_longitude_deg = _wrap180(float(ra_deg) - float(gst_deg))
+    substellar_longitude = math.radians(substellar_longitude_deg)
+    declination = math.radians(float(dec_deg))
+    body_vector = (
+        math.cos(declination) * math.cos(substellar_longitude),
+        math.cos(declination) * math.sin(substellar_longitude),
+        math.sin(declination),
+    )
+    meridian_normal = (
+        -math.sin(substellar_longitude),
+        math.cos(substellar_longitude),
+        0.0,
+    )
+    meridian_midpoint = (
+        math.cos(substellar_longitude),
+        math.sin(substellar_longitude),
+        0.0,
+    )
+
+    if angle_name == "MC":
+        normal = meridian_normal
+        midpoint = meridian_midpoint
+    elif angle_name == "IC":
+        normal = meridian_normal
+        midpoint = tuple(-value for value in meridian_midpoint)
+    elif angle_name == "ASC":
+        normal = body_vector
+        rising_longitude = substellar_longitude - (math.pi / 2.0)
+        midpoint = (math.cos(rising_longitude), math.sin(rising_longitude), 0.0)
+    else:
+        normal = body_vector
+        setting_longitude = substellar_longitude + (math.pi / 2.0)
+        midpoint = (math.cos(setting_longitude), math.sin(setting_longitude), 0.0)
+
+    normal_unit = _normalize_vector(normal)
+    midpoint_unit = _normalize_vector(midpoint)
+    if normal_unit is None or midpoint_unit is None:
+        return None
+    axis = _normalize_vector(_vector_cross(normal_unit, midpoint_unit))
+    if axis is None:
+        return None
+    if (
+        axis[2] < -_GEOMETRY_TOLERANCE
+        or (
+            abs(axis[2]) <= _GEOMETRY_TOLERANCE
+            and (axis[1] < -_GEOMETRY_TOLERANCE or (abs(axis[1]) <= _GEOMETRY_TOLERANCE and axis[0] < 0.0))
+        )
+    ):
+        axis = tuple(-value for value in axis)
+
+    south_endpoint = _unit_to_latlon(tuple(-value for value in axis))
+    north_endpoint = _unit_to_latlon(axis)
+    return {
+        "model": _SPHERICAL_GEOMETRY_MODEL,
+        "angle": angle_name,
+        "normal": [float(value) for value in normal_unit],
+        "midpoint": [float(value) for value in midpoint_unit],
+        "axis": [float(value) for value in axis],
+        "endpoints": [
+            [float(south_endpoint[0]), float(south_endpoint[1])],
+            [float(north_endpoint[0]), float(north_endpoint[1])],
+        ],
+        "ra_deg": float(ra_deg),
+        "dec_deg": float(dec_deg),
+        "gst_deg": float(gst_deg),
+        "substellar_longitude_deg": float(substellar_longitude_deg),
+    }
 
 
-def _meridian_segments(longitude_deg: float) -> List[List[List[float]]]:
-    return [[[-89.0, float(longitude_deg)], [89.0, float(longitude_deg)]]]
+def _geometry_vectors(
+    geometry: Dict[str, Any],
+) -> Optional[Tuple[Tuple[float, float, float], Tuple[float, float, float], Tuple[float, float, float]]]:
+    if str(geometry.get("model") or "") != _SPHERICAL_GEOMETRY_MODEL:
+        return None
+    normal = _normalize_vector(geometry.get("normal") or [])
+    midpoint = _normalize_vector(geometry.get("midpoint") or [])
+    axis = _normalize_vector(geometry.get("axis") or [])
+    if normal is None or midpoint is None or axis is None:
+        return None
+    return normal, midpoint, axis
 
 
-def _angular_curve_segments(ra_deg: float, dec_deg: float, gst_deg: float, angle: str) -> List[List[List[float]]]:
-    dec_rad = math.radians(float(dec_deg))
+def _arc_vector_at_parameter(geometry: Dict[str, Any], parameter_rad: float) -> Tuple[float, float, float]:
+    vectors = _geometry_vectors(geometry)
+    if vectors is None:
+        raise ValueError("Invalid spherical line geometry")
+    _, midpoint, axis = vectors
+    return (
+        (math.cos(parameter_rad) * midpoint[0]) + (math.sin(parameter_rad) * axis[0]),
+        (math.cos(parameter_rad) * midpoint[1]) + (math.sin(parameter_rad) * axis[1]),
+        (math.cos(parameter_rad) * midpoint[2]) + (math.sin(parameter_rad) * axis[2]),
+    )
+
+
+def _display_parameter_bounds(geometry: Dict[str, Any]) -> Tuple[float, float]:
+    vectors = _geometry_vectors(geometry)
+    if vectors is None:
+        return -(math.pi / 2.0), math.pi / 2.0
+    _, _, axis = vectors
+    if abs(axis[2]) >= 1.0 - 1e-12:
+        inset = math.radians(90.0 - _DISPLAY_POLE_LATITUDE_DEG)
+        return -(math.pi / 2.0) + inset, (math.pi / 2.0) - inset
+    return -(math.pi / 2.0), math.pi / 2.0
+
+
+def _adaptive_arc_parameters(geometry: Dict[str, Any]) -> List[float]:
+    start, end = _display_parameter_bounds(geometry)
+    cache: Dict[float, Tuple[float, float]] = {}
+
+    def _point(parameter: float) -> Tuple[float, float]:
+        cached = cache.get(parameter)
+        if cached is None:
+            cached = _unit_to_latlon(_arc_vector_at_parameter(geometry, parameter))
+            cache[parameter] = cached
+        return cached
+
+    parameters: List[float] = [start]
+
+    def _subdivide(left: float, right: float, depth: int) -> None:
+        midpoint_parameter = (left + right) / 2.0
+        left_point = _point(left)
+        right_point = _point(right)
+        midpoint_point = _point(midpoint_parameter)
+        right_longitude = _longitude_near_reference(right_point[1], left_point[1])
+        linear_longitude = (left_point[1] + right_longitude) / 2.0
+        midpoint_longitude = _longitude_near_reference(midpoint_point[1], linear_longitude)
+        linear_latitude = (left_point[0] + right_point[0]) / 2.0
+        chord_error_km = _great_circle_distance_km(
+            midpoint_point[0],
+            midpoint_longitude,
+            linear_latitude,
+            linear_longitude,
+        )
+        arc_step_deg = math.degrees(right - left)
+        if depth < _DISPLAY_MAX_RECURSION and (
+            arc_step_deg > _DISPLAY_MAX_ARC_STEP_DEG
+            or chord_error_km > _DISPLAY_MAX_CHORD_ERROR_KM
+        ):
+            _subdivide(left, midpoint_parameter, depth + 1)
+            _subdivide(midpoint_parameter, right, depth + 1)
+            return
+        parameters.append(right)
+
+    _subdivide(start, end, 0)
+    return parameters
+
+
+def _seam_parameter(
+    geometry: Dict[str, Any],
+    left_parameter: float,
+    right_parameter: float,
+    boundary_longitude: float,
+) -> float:
+    left = float(left_parameter)
+    right = float(right_parameter)
+
+    def _offset(parameter: float) -> float:
+        _, raw_longitude = _unit_to_latlon(_arc_vector_at_parameter(geometry, parameter))
+        return _longitude_near_reference(raw_longitude, boundary_longitude) - boundary_longitude
+
+    left_offset = _offset(left)
+    right_offset = _offset(right)
+    for _ in range(60):
+        midpoint = (left + right) / 2.0
+        midpoint_offset = _offset(midpoint)
+        if abs(midpoint_offset) < 1e-12:
+            return midpoint
+        if (left_offset <= 0.0 <= midpoint_offset) or (left_offset >= 0.0 >= midpoint_offset):
+            right = midpoint
+            right_offset = midpoint_offset
+        else:
+            left = midpoint
+            left_offset = midpoint_offset
+    return (left + right) / 2.0
+
+
+def _display_segments_for_geometry(geometry: Dict[str, Any]) -> List[List[List[float]]]:
+    parameters = _adaptive_arc_parameters(geometry)
+    continuous: List[Tuple[float, float, float]] = []
+    prior_longitude: Optional[float] = None
+    for parameter in parameters:
+        latitude, longitude = _unit_to_latlon(_arc_vector_at_parameter(geometry, parameter))
+        if prior_longitude is not None:
+            longitude = _longitude_near_reference(longitude, prior_longitude)
+        continuous.append((parameter, latitude, longitude))
+        prior_longitude = longitude
+
+    if not continuous:
+        return []
+
     segments: List[List[List[float]]] = []
-    current: List[List[float]] = []
-    for latitude in _LATITUDE_SAMPLES:
-        phi = math.radians(float(latitude))
-        try:
-            cos_h0 = -math.tan(phi) * math.tan(dec_rad)
-        except Exception:
-            cos_h0 = 2.0
-        if cos_h0 < -1.0 or cos_h0 > 1.0:
+    current: List[List[float]] = [
+        [round(float(continuous[0][1]), 6), round(float(_wrap180(continuous[0][2])), 6)]
+    ]
+    for index in range(1, len(continuous)):
+        left_parameter, _, left_longitude = continuous[index - 1]
+        right_parameter, right_latitude, right_longitude = continuous[index]
+        low = min(left_longitude, right_longitude)
+        high = max(left_longitude, right_longitude)
+        boundaries = []
+        first_index = int(math.floor((low - 180.0) / 360.0)) - 1
+        last_index = int(math.ceil((high - 180.0) / 360.0)) + 1
+        for boundary_index in range(first_index, last_index + 1):
+            boundary = 180.0 + (360.0 * boundary_index)
+            if low + 1e-10 < boundary < high - 1e-10:
+                boundaries.append(boundary)
+        if right_longitude < left_longitude:
+            boundaries.reverse()
+
+        for boundary in boundaries:
+            crossing_parameter = _seam_parameter(
+                geometry,
+                left_parameter,
+                right_parameter,
+                boundary,
+            )
+            crossing_latitude, _ = _unit_to_latlon(
+                _arc_vector_at_parameter(geometry, crossing_parameter)
+            )
+            old_seam = 180.0 if right_longitude > left_longitude else -180.0
+            new_seam = -old_seam
+            seam_point = [round(float(crossing_latitude), 6), old_seam]
+            if not current or current[-1] != seam_point:
+                current.append(seam_point)
             if len(current) >= 2:
                 segments.append(current)
-            current = []
-            continue
-        h0_deg = math.degrees(math.acos(max(-1.0, min(1.0, cos_h0))))
-        lst_deg = ra_deg - h0_deg if angle == "ASC" else ra_deg + h0_deg
-        longitude_deg = _wrap180(lst_deg - gst_deg)
-        current = _split_segment_if_needed(segments, current, [float(latitude), longitude_deg])
+            current = [[round(float(crossing_latitude), 6), new_seam]]
+
+        next_point = [
+            round(float(right_latitude), 6),
+            round(float(_wrap180(right_longitude)), 6),
+        ]
+        if not current or current[-1] != next_point:
+            current.append(next_point)
     if len(current) >= 2:
         segments.append(current)
     return segments
 
 
-def _line_segments_for_angle(ra_deg: float, dec_deg: float, gst_deg: float, angle: str) -> List[List[List[float]]]:
-    angle_name = str(angle or "").upper()
-    if angle_name == "MC":
-        return _meridian_segments(_wrap180(ra_deg - gst_deg))
-    if angle_name == "IC":
-        return _meridian_segments(_wrap180(ra_deg + 180.0 - gst_deg))
-    if angle_name in {"ASC", "DSC"}:
-        return _angular_curve_segments(ra_deg, dec_deg, gst_deg, angle_name)
-    return []
+def _line_segments_for_angle(
+    ra_deg: float,
+    dec_deg: float,
+    gst_deg: float,
+    angle: str,
+) -> List[List[List[float]]]:
+    geometry = _build_line_geometry(ra_deg, dec_deg, gst_deg, angle)
+    if geometry is None:
+        return []
+    return _display_segments_for_geometry(geometry)
 
 
 def build_astrocartography_lines(
@@ -397,7 +721,10 @@ def build_astrocartography_lines(
         body = str(item["body"])
         color = PLANET_COLORS.get(body, "#64748b")
         for angle in normalized_angles:
-            segments = _line_segments_for_angle(item["ra_deg"], item["dec_deg"], gst_deg, angle)
+            geometry = _build_line_geometry(item["ra_deg"], item["dec_deg"], gst_deg, angle)
+            if geometry is None:
+                continue
+            segments = _display_segments_for_geometry(geometry)
             if not segments:
                 continue
             lines.append(
@@ -409,14 +736,29 @@ def build_astrocartography_lines(
                     "color": color,
                     "dash_array": ANGLE_META[angle]["dashArray"],
                     "segments": segments,
+                    "geometry": geometry,
+                    "calculation": dict(item.get("calculation") or {}),
                 }
             )
+    calculation_by_body = {
+        str(item.get("body") or ""): dict(item.get("calculation") or {})
+        for item in positions
+        if item.get("body")
+    }
     return {
         "timestamp": timestamp_iso,
         "gst_deg": round(gst_deg, 6),
         "bodies": normalized_bodies,
         "angles": normalized_angles,
         "lines": lines,
+        "calculation": {
+            "geometry_model": _SPHERICAL_GEOMETRY_MODEL,
+            "coordinate_frame": "apparent geocentric equator and equinox of date",
+            "geographic_model": "mean-radius sphere",
+            "earth_radius_km": _EARTH_MEAN_RADIUS_KM,
+            "degraded": any(bool(item.get("degraded")) for item in calculation_by_body.values()),
+            "bodies": calculation_by_body,
+        },
     }
 
 
@@ -530,6 +872,7 @@ def build_local_space_rays(
                 "altitude_deg": round(altitude_deg, 2),
                 "above_horizon": altitude_deg >= 0.0,
                 "segments": [points],
+                "calculation": dict(item.get("calculation") or {}),
                 "summary": (
                     f"{body} points toward {_bearing_label(azimuth_deg)} ({round(azimuth_deg, 1)}°) "
                     f"from this city."
@@ -659,13 +1002,6 @@ def build_local_space_workspace(
     }
 
 
-def _latlon_to_xy_km(lat_deg: float, lon_deg: float, ref_lat_deg: float) -> Tuple[float, float]:
-    mean_lat_rad = math.radians(ref_lat_deg)
-    x = float(lon_deg) * 111.320 * math.cos(mean_lat_rad)
-    y = float(lat_deg) * 110.574
-    return x, y
-
-
 def _longitude_near_reference(longitude_deg: float, reference_deg: float) -> float:
     longitude = float(longitude_deg)
     reference = float(reference_deg)
@@ -684,23 +1020,61 @@ def _point_segment_distance_km(
     end_lat: float,
     end_lon: float,
 ) -> float:
-    ref_lat = (float(point_lat) + float(start_lat) + float(end_lat)) / 3.0
-    point_lon = float(point_lon)
-    start_lon = _longitude_near_reference(float(start_lon), point_lon)
-    end_lon = _longitude_near_reference(float(end_lon), start_lon)
-    point_lon = _longitude_near_reference(point_lon, (start_lon + end_lon) / 2.0)
-    px, py = _latlon_to_xy_km(point_lat, point_lon, ref_lat)
-    ax, ay = _latlon_to_xy_km(start_lat, start_lon, ref_lat)
-    bx, by = _latlon_to_xy_km(end_lat, end_lon, ref_lat)
-    dx = bx - ax
-    dy = by - ay
-    if abs(dx) < 1e-9 and abs(dy) < 1e-9:
-        return math.hypot(px - ax, py - ay)
-    t = ((px - ax) * dx + (py - ay) * dy) / ((dx * dx) + (dy * dy))
-    t = max(0.0, min(1.0, t))
-    cx = ax + (t * dx)
-    cy = ay + (t * dy)
-    return math.hypot(px - cx, py - cy)
+    point = _latlon_to_unit(point_lat, point_lon)
+    start = _latlon_to_unit(start_lat, start_lon)
+    end = _latlon_to_unit(end_lat, end_lon)
+    segment_length = _angular_distance_rad(start, end)
+    if segment_length <= _GEOMETRY_TOLERANCE:
+        return _EARTH_MEAN_RADIUS_KM * _angular_distance_rad(point, start)
+
+    normal = _normalize_vector(_vector_cross(start, end))
+    candidates: List[Tuple[float, float, float]] = [start, end]
+    if normal is not None and segment_length < math.pi - 1e-9:
+        projection = _normalize_vector(
+            tuple(
+                point[index] - (_vector_dot(point, normal) * normal[index])
+                for index in range(3)
+            )
+        )
+        if projection is not None:
+            for candidate in (projection, tuple(-value for value in projection)):
+                start_to_candidate = _angular_distance_rad(start, candidate)
+                candidate_to_end = _angular_distance_rad(candidate, end)
+                if abs((start_to_candidate + candidate_to_end) - segment_length) <= 1e-8:
+                    candidates.append(candidate)
+
+    return _EARTH_MEAN_RADIUS_KM * min(
+        _angular_distance_rad(point, candidate)
+        for candidate in candidates
+    )
+
+
+def _point_half_arc_distance_km(
+    latitude: float,
+    longitude: float,
+    geometry: Dict[str, Any],
+) -> Optional[float]:
+    vectors = _geometry_vectors(geometry)
+    if vectors is None:
+        return None
+    normal, midpoint, axis = vectors
+    point = _latlon_to_unit(latitude, longitude)
+    candidates: List[Tuple[float, float, float]] = [
+        axis,
+        tuple(-value for value in axis),
+    ]
+    projection = _normalize_vector(
+        tuple(
+            point[index] - (_vector_dot(point, normal) * normal[index])
+            for index in range(3)
+        )
+    )
+    if projection is not None and _vector_dot(projection, midpoint) >= -_GEOMETRY_TOLERANCE:
+        candidates.append(projection)
+    return _EARTH_MEAN_RADIUS_KM * min(
+        _angular_distance_rad(point, candidate)
+        for candidate in candidates
+    )
 
 
 def nearest_lines_for_point(
@@ -711,26 +1085,31 @@ def nearest_lines_for_point(
 ) -> List[Dict[str, Any]]:
     ranked: List[Dict[str, Any]] = []
     for line in lines:
-        best_distance = None
-        for segment in line.get("segments") or []:
-            if not isinstance(segment, list):
-                continue
-            if len(segment) == 1:
-                pt = segment[0]
-                try:
-                    dist = _point_segment_distance_km(latitude, longitude, pt[0], pt[1], pt[0], pt[1])
-                except Exception:
+        best_distance = _point_half_arc_distance_km(
+            latitude,
+            longitude,
+            line.get("geometry") or {},
+        )
+        if best_distance is None:
+            for segment in line.get("segments") or []:
+                if not isinstance(segment, list):
                     continue
-                best_distance = dist if best_distance is None else min(best_distance, dist)
-                continue
-            for idx in range(len(segment) - 1):
-                a = segment[idx]
-                b = segment[idx + 1]
-                try:
-                    dist = _point_segment_distance_km(latitude, longitude, a[0], a[1], b[0], b[1])
-                except Exception:
+                if len(segment) == 1:
+                    pt = segment[0]
+                    try:
+                        dist = _point_segment_distance_km(latitude, longitude, pt[0], pt[1], pt[0], pt[1])
+                    except Exception:
+                        continue
+                    best_distance = dist if best_distance is None else min(best_distance, dist)
                     continue
-                best_distance = dist if best_distance is None else min(best_distance, dist)
+                for idx in range(len(segment) - 1):
+                    a = segment[idx]
+                    b = segment[idx + 1]
+                    try:
+                        dist = _point_segment_distance_km(latitude, longitude, a[0], a[1], b[0], b[1])
+                    except Exception:
+                        continue
+                    best_distance = dist if best_distance is None else min(best_distance, dist)
         if best_distance is None:
             continue
         ranked.append(
@@ -741,6 +1120,8 @@ def nearest_lines_for_point(
                 "label": line.get("label"),
                 "color": line.get("color"),
                 "distance_km": round(float(best_distance), 1),
+                "geometry_model": (line.get("geometry") or {}).get("model"),
+                "calculation": dict(line.get("calculation") or {}),
             }
         )
     ranked.sort(key=lambda row: (float(row.get("distance_km") or 0.0), str(row.get("label") or "")))
@@ -897,26 +1278,56 @@ def _segment_intersection(
     b1: Sequence[float],
     b2: Sequence[float],
 ) -> Optional[Tuple[float, float]]:
-    x1, y1 = float(a1[1]), float(a1[0])
-    x2, y2 = float(a2[1]), float(a2[0])
-    x3, y3 = float(b1[1]), float(b1[0])
-    x4, y4 = float(b2[1]), float(b2[0])
-    denom = ((x1 - x2) * (y3 - y4)) - ((y1 - y2) * (x3 - x4))
-    if abs(denom) < 1e-9:
+    start_a = _latlon_to_unit(float(a1[0]), float(a1[1]))
+    end_a = _latlon_to_unit(float(a2[0]), float(a2[1]))
+    start_b = _latlon_to_unit(float(b1[0]), float(b1[1]))
+    end_b = _latlon_to_unit(float(b2[0]), float(b2[1]))
+    length_a = _angular_distance_rad(start_a, end_a)
+    length_b = _angular_distance_rad(start_b, end_b)
+    if length_a <= _GEOMETRY_TOLERANCE or length_b <= _GEOMETRY_TOLERANCE:
         return None
-    px = (((x1 * y2) - (y1 * x2)) * (x3 - x4) - (x1 - x2) * ((x3 * y4) - (y3 * x4))) / denom
-    py = (((x1 * y2) - (y1 * x2)) * (y3 - y4) - (y1 - y2) * ((x3 * y4) - (y3 * x4))) / denom
+    normal_a = _normalize_vector(_vector_cross(start_a, end_a))
+    normal_b = _normalize_vector(_vector_cross(start_b, end_b))
+    if normal_a is None or normal_b is None:
+        return None
+    crossing = _normalize_vector(_vector_cross(normal_a, normal_b))
+    if crossing is None:
+        return None
 
-    def _between(value: float, start: float, end: float) -> bool:
-        return min(start, end) - 1e-9 <= value <= max(start, end) + 1e-9
+    def _on_segment(
+        candidate: Sequence[float],
+        start: Sequence[float],
+        end: Sequence[float],
+        length: float,
+    ) -> bool:
+        return abs(
+            _angular_distance_rad(start, candidate)
+            + _angular_distance_rad(candidate, end)
+            - length
+        ) <= 1e-8
 
-    if _between(px, x1, x2) and _between(py, y1, y2) and _between(px, x3, x4) and _between(py, y3, y4):
-        return (py, px)
-    return None
+    candidates: List[Tuple[float, float]] = []
+    for candidate in (crossing, tuple(-value for value in crossing)):
+        if _on_segment(candidate, start_a, end_a, length_a) and _on_segment(
+            candidate,
+            start_b,
+            end_b,
+            length_b,
+        ):
+            candidates.append(_unit_to_latlon(candidate))
+    if not candidates:
+        return None
+    candidates.sort(key=lambda point: (abs(point[0]), point[0], point[1]))
+    return candidates[0]
 
 
 def _point_distance_km(point_a: Sequence[float], point_b: Sequence[float]) -> float:
-    return _point_segment_distance_km(float(point_a[0]), float(point_a[1]), float(point_b[0]), float(point_b[1]), float(point_b[0]), float(point_b[1]))
+    return _great_circle_distance_km(
+        float(point_a[0]),
+        float(point_a[1]),
+        float(point_b[0]),
+        float(point_b[1]),
+    )
 
 
 def _angular_separation_deg(a_deg: float, b_deg: float) -> float:
@@ -924,14 +1335,53 @@ def _angular_separation_deg(a_deg: float, b_deg: float) -> float:
     return min(diff, 360.0 - diff)
 
 
-def _circular_midpoint_deg(a_deg: float, b_deg: float) -> float:
-    a_rad = math.radians(float(a_deg))
-    b_rad = math.radians(float(b_deg))
-    x = math.cos(a_rad) + math.cos(b_rad)
-    y = math.sin(a_rad) + math.sin(b_rad)
-    if abs(x) < 1e-9 and abs(y) < 1e-9:
-        return _wrap360((float(a_deg) + float(b_deg)) / 2.0)
-    return _wrap360(math.degrees(math.atan2(y, x)))
+def _half_arc_intersections(
+    geometry_a: Dict[str, Any],
+    geometry_b: Dict[str, Any],
+) -> List[Tuple[float, float]]:
+    vectors_a = _geometry_vectors(geometry_a)
+    vectors_b = _geometry_vectors(geometry_b)
+    if vectors_a is None or vectors_b is None:
+        return []
+    normal_a, midpoint_a, _ = vectors_a
+    normal_b, midpoint_b, _ = vectors_b
+    crossing = _normalize_vector(_vector_cross(normal_a, normal_b))
+    if crossing is None:
+        return []
+
+    points: List[Tuple[float, float]] = []
+    for candidate in (crossing, tuple(-value for value in crossing)):
+        if (
+            _vector_dot(candidate, midpoint_a) >= -_GEOMETRY_TOLERANCE
+            and _vector_dot(candidate, midpoint_b) >= -_GEOMETRY_TOLERANCE
+        ):
+            point = _unit_to_latlon(candidate)
+            # Geographic longitude, and therefore MC/IC/ASC/DSC identity, is
+            # undefined at the exact poles. Do not manufacture polar crossings.
+            if abs(point[0]) >= 90.0 - 1e-9:
+                continue
+            if not any(
+                _great_circle_distance_km(point[0], point[1], existing[0], existing[1]) < 1e-6
+                for existing in points
+            ):
+                points.append(point)
+    points.sort(key=lambda point: (point[0], point[1]))
+    return points
+
+
+def _canonical_angular_event_id(
+    body_a: str,
+    angle_a: str,
+    body_b: str,
+    angle_b: str,
+) -> str:
+    tokens = sorted(
+        [
+            f"{str(body_a)}:{str(angle_a).upper()}",
+            f"{str(body_b)}:{str(angle_b).upper()}",
+        ]
+    )
+    return f"angular-event:{tokens[0]}|{tokens[1]}"
 
 
 def _paran_event_lsts(ra_deg: float, dec_deg: float, latitude_deg: float) -> Dict[str, float]:
@@ -945,11 +1395,105 @@ def _paran_event_lsts(ra_deg: float, dec_deg: float, latitude_deg: float) -> Dic
         cos_h0 = -math.tan(phi) * math.tan(dec_rad)
     except Exception:
         cos_h0 = 2.0
-    if -1.0 <= cos_h0 <= 1.0:
-        h0_deg = math.degrees(math.acos(max(-1.0, min(1.0, cos_h0))))
+    if -1.0 - 1e-10 <= cos_h0 <= 1.0 + 1e-10:
+        h0_deg = math.degrees(math.acos(_clamp_unit(cos_h0)))
         events["ASC"] = _wrap360(ra_deg - h0_deg)
         events["DSC"] = _wrap360(ra_deg + h0_deg)
     return events
+
+
+def _exact_paran_events(
+    gst_deg: float,
+    positions: Sequence[Dict[str, Any]],
+    *,
+    maximum_residual_deg: float,
+) -> List[Dict[str, Any]]:
+    ordered_positions = sorted(
+        [item for item in positions if item.get("body")],
+        key=lambda item: (
+            PLANET_PRIORITY.get(str(item.get("body") or ""), 99),
+            str(item.get("body") or ""),
+        ),
+    )
+    exact_events: List[Dict[str, Any]] = []
+    seen: set[Tuple[str, int, int]] = set()
+    for index, item_a in enumerate(ordered_positions):
+        body_a = str(item_a.get("body") or "")
+        ra_a = float(item_a.get("ra_deg") or 0.0)
+        dec_a = float(item_a.get("dec_deg") or 0.0)
+        for item_b in ordered_positions[index + 1:]:
+            body_b = str(item_b.get("body") or "")
+            ra_b = float(item_b.get("ra_deg") or 0.0)
+            dec_b = float(item_b.get("dec_deg") or 0.0)
+            patterns = [
+                ("ASC", "MC"),
+                ("ASC", "IC"),
+                ("DSC", "MC"),
+                ("DSC", "IC"),
+                ("MC", "ASC"),
+                ("MC", "DSC"),
+                ("IC", "ASC"),
+                ("IC", "DSC"),
+            ]
+            for angle_a, angle_b in patterns:
+                geometry_a = _build_line_geometry(ra_a, dec_a, gst_deg, angle_a)
+                geometry_b = _build_line_geometry(ra_b, dec_b, gst_deg, angle_b)
+                if geometry_a is None or geometry_b is None:
+                    continue
+                for point_latitude, point_longitude in _half_arc_intersections(geometry_a, geometry_b):
+                    events_a = _paran_event_lsts(ra_a, dec_a, point_latitude)
+                    events_b = _paran_event_lsts(ra_b, dec_b, point_latitude)
+                    if angle_a not in events_a or angle_b not in events_b:
+                        continue
+                    actual_lst = _wrap360(float(gst_deg) + float(point_longitude))
+                    pair_orb = _angular_separation_deg(events_a[angle_a], events_b[angle_b])
+                    root_residual = max(
+                        pair_orb,
+                        _angular_separation_deg(actual_lst, events_a[angle_a]),
+                        _angular_separation_deg(actual_lst, events_b[angle_b]),
+                    )
+                    if root_residual > max(float(maximum_residual_deg), 1e-7):
+                        continue
+                    canonical_event_id = _canonical_angular_event_id(
+                        body_a,
+                        angle_a,
+                        body_b,
+                        angle_b,
+                    )
+                    dedupe_key = (
+                        canonical_event_id,
+                        int(round(point_latitude * 1_000_000.0)),
+                        int(round(point_longitude * 1_000_000.0)),
+                    )
+                    if dedupe_key in seen:
+                        continue
+                    seen.add(dedupe_key)
+                    exact_events.append(
+                        {
+                            "canonical_event_id": canonical_event_id,
+                            "body_a": body_a,
+                            "angle_a": angle_a,
+                            "body_b": body_b,
+                            "angle_b": angle_b,
+                            "latitude_deg": point_latitude,
+                            "longitude_deg": point_longitude,
+                            "orb_deg": pair_orb,
+                            "root_residual_deg": root_residual,
+                            "calculation": {
+                                "body_a": dict(item_a.get("calculation") or {}),
+                                "body_b": dict(item_b.get("calculation") or {}),
+                            },
+                        }
+                    )
+    exact_events.sort(
+        key=lambda event: (
+            float(event.get("root_residual_deg", 999999.0)),
+            str(event.get("canonical_event_id") or ""),
+            float(event.get("latitude_deg") or 0.0),
+            float(event.get("longitude_deg") or 0.0),
+        )
+    )
+    return exact_events
 
 
 def build_paran_candidates_for_point(
@@ -963,73 +1507,82 @@ def build_paran_candidates_for_point(
 ) -> Dict[str, Any]:
     normalized_bodies = _normalize_body_list(bodies)
     gst_deg, positions = _equatorial_positions(timestamp_iso, normalized_bodies)
-    horizon_angles = {"ASC", "DSC"}
-    meridian_angles = {"MC", "IC"}
     candidates: List[Dict[str, Any]] = []
-
-    for idx, item_a in enumerate(positions):
-        events_a = _paran_event_lsts(float(item_a.get("ra_deg") or 0.0), float(item_a.get("dec_deg") or 0.0), float(latitude))
-        body_a = str(item_a.get("body") or "")
-        for item_b in positions[idx + 1:]:
-            body_b = str(item_b.get("body") or "")
-            if body_a == body_b:
-                continue
-            events_b = _paran_event_lsts(float(item_b.get("ra_deg") or 0.0), float(item_b.get("dec_deg") or 0.0), float(latitude))
-            for angle_a, lst_a in events_a.items():
-                for angle_b, lst_b in events_b.items():
-                    if not (
-                        (angle_a in horizon_angles and angle_b in meridian_angles)
-                        or (angle_a in meridian_angles and angle_b in horizon_angles)
-                    ):
-                        continue
-                    orb = _angular_separation_deg(lst_a, lst_b)
-                    if orb > float(orb_deg):
-                        continue
-                    common_lst = _circular_midpoint_deg(lst_a, lst_b)
-                    paran_lon = _wrap180(common_lst - gst_deg)
-                    distance_km = _point_segment_distance_km(
-                        float(latitude),
-                        float(longitude),
-                        float(latitude),
-                        paran_lon,
-                        float(latitude),
-                        paran_lon,
-                    )
-                    if distance_km > float(max_distance_km):
-                        continue
-                    score_from_orb = max(0.0, 1.0 - (orb / max(float(orb_deg), 0.1)))
-                    score_from_distance = max(0.0, 1.0 - (distance_km / max(float(max_distance_km), 1.0)))
-                    signal_score = int(round(max(0.0, min(100.0, ((0.55 * score_from_orb) + (0.45 * score_from_distance)) * 100.0))))
-                    zone = _distance_zone(distance_km, primary_radius_km=PRIMARY_READING_RADIUS_KM, extended_radius_km=max_distance_km)
-                    candidates.append(
-                        {
-                            "id": f"{body_a}:{angle_a}|{body_b}:{angle_b}:paran",
-                            "kind": "paran",
-                            "label": f"{body_a} {angle_a} paran {body_b} {angle_b}",
-                            "body_a": body_a,
-                            "angle_a": angle_a,
-                            "body_b": body_b,
-                            "angle_b": angle_b,
-                            "planets": [body_a, body_b],
-                            "orb_deg": round(float(orb), 3),
-                            "orb_minutes": round(float(orb) * 4.0, 2),
-                            "distance_km": round(float(distance_km), 1),
-                            "longitude_deg": round(float(paran_lon), 4),
-                            "point": [round(float(latitude), 4), round(float(paran_lon), 4)],
-                            "zone": zone,
-                            "signal_score": signal_score,
-                            "summary": (
-                                f"{body_a} {angle_a} and {body_b} {angle_b} peak together at this latitude "
-                                f"with an orb of {round(float(orb), 2)} deg."
-                            ),
-                        }
-                    )
+    exact_events = _exact_paran_events(
+        gst_deg,
+        positions,
+        maximum_residual_deg=float(orb_deg),
+    )
+    for event in exact_events:
+        point_latitude = float(event.get("latitude_deg") or 0.0)
+        point_longitude = float(event.get("longitude_deg") or 0.0)
+        distance_km = _great_circle_distance_km(
+            float(latitude),
+            float(longitude),
+            point_latitude,
+            point_longitude,
+        )
+        if distance_km > float(max_distance_km):
+            continue
+        pair_orb = float(event.get("orb_deg") or 0.0)
+        root_residual = float(event.get("root_residual_deg") or 0.0)
+        score_from_orb = max(0.0, 1.0 - (root_residual / max(float(orb_deg), 0.1)))
+        score_from_distance = max(0.0, 1.0 - (distance_km / max(float(max_distance_km), 1.0)))
+        signal_score = int(
+            round(
+                max(
+                    0.0,
+                    min(
+                        100.0,
+                        ((0.55 * score_from_orb) + (0.45 * score_from_distance)) * 100.0,
+                    ),
+                )
+            )
+        )
+        zone = _distance_zone(
+            distance_km,
+            primary_radius_km=PRIMARY_READING_RADIUS_KM,
+            extended_radius_km=max_distance_km,
+        )
+        canonical_event_id = str(event.get("canonical_event_id") or "")
+        body_a = str(event.get("body_a") or "")
+        angle_a = str(event.get("angle_a") or "")
+        body_b = str(event.get("body_b") or "")
+        angle_b = str(event.get("angle_b") or "")
+        candidates.append(
+            {
+                "id": f"{canonical_event_id}:paran-point",
+                "canonical_event_id": canonical_event_id,
+                "kind": "paran",
+                "event_kind": "paran-crossing-point",
+                "label": f"{body_a} {angle_a} paran {body_b} {angle_b}",
+                "body_a": body_a,
+                "angle_a": angle_a,
+                "body_b": body_b,
+                "angle_b": angle_b,
+                "planets": [body_a, body_b],
+                "orb_deg": round(pair_orb, 6),
+                "orb_minutes": round(pair_orb * 4.0, 4),
+                "root_residual_deg": round(root_residual, 9),
+                "distance_km": round(distance_km, 1),
+                "latitude_deg": round(point_latitude, 6),
+                "longitude_deg": round(point_longitude, 6),
+                "point": [round(point_latitude, 6), round(point_longitude, 6)],
+                "zone": zone,
+                "signal_score": signal_score,
+                "calculation": dict(event.get("calculation") or {}),
+                "summary": (
+                    f"{body_a} {angle_a} and {body_b} {angle_b} form an exact "
+                    f"paran crossing near this coordinate."
+                ),
+            }
+        )
 
     candidates.sort(
         key=lambda item: (
-            float(item.get("distance_km") or 999999.0),
-            float(item.get("orb_deg") or 999999.0),
-            str(item.get("label") or ""),
+            float(item.get("distance_km", 999999.0)),
+            float(item.get("root_residual_deg", 999999.0)),
+            str(item.get("canonical_event_id") or ""),
         )
     )
     lead = candidates[0] if candidates else None
@@ -1041,7 +1594,9 @@ def build_paran_candidates_for_point(
     return {
         "headline": headline,
         "orb_deg": round(float(orb_deg), 2),
+        "orb_policy": "exact angular roots; orb_deg is the maximum accepted numerical residual",
         "max_distance_km": round(float(max_distance_km), 1),
+        "calculation_mode": "analytic-spherical-root",
         "count": len(candidates),
         "lead_paran": lead,
         "items": candidates[: max(1, int(limit))],
@@ -1058,96 +1613,60 @@ def build_global_paran_tracks(
 ) -> Dict[str, Any]:
     normalized_bodies = _normalize_body_list(bodies)
     gst_deg, positions = _equatorial_positions(timestamp_iso, normalized_bodies)
-    event_cache: Dict[Tuple[str, float], Dict[str, float]] = {}
     tracks: List[Dict[str, Any]] = []
-
-    def _events_for(body_name: str, ra_deg: float, dec_deg: float, latitude_deg: float) -> Dict[str, float]:
-        cache_key = (body_name, float(latitude_deg))
-        cached = event_cache.get(cache_key)
-        if cached is not None:
-            return cached
-        events = _paran_event_lsts(ra_deg, dec_deg, latitude_deg)
-        event_cache[cache_key] = events
-        return events
-
-    for idx, item_a in enumerate(positions):
-        body_a = str(item_a.get("body") or "")
-        ra_a = float(item_a.get("ra_deg") or 0.0)
-        dec_a = float(item_a.get("dec_deg") or 0.0)
-        for item_b in positions[idx + 1:]:
-            body_b = str(item_b.get("body") or "")
-            ra_b = float(item_b.get("ra_deg") or 0.0)
-            dec_b = float(item_b.get("dec_deg") or 0.0)
-            pair_patterns = [
-                (body_a, ra_a, dec_a, "ASC", body_b, ra_b, dec_b, "MC"),
-                (body_a, ra_a, dec_a, "ASC", body_b, ra_b, dec_b, "IC"),
-                (body_a, ra_a, dec_a, "DSC", body_b, ra_b, dec_b, "MC"),
-                (body_a, ra_a, dec_a, "DSC", body_b, ra_b, dec_b, "IC"),
-                (body_a, ra_a, dec_a, "MC", body_b, ra_b, dec_b, "ASC"),
-                (body_a, ra_a, dec_a, "MC", body_b, ra_b, dec_b, "DSC"),
-                (body_a, ra_a, dec_a, "IC", body_b, ra_b, dec_b, "ASC"),
-                (body_a, ra_a, dec_a, "IC", body_b, ra_b, dec_b, "DSC"),
-            ]
-            for lhs_body, lhs_ra, lhs_dec, lhs_angle, rhs_body, rhs_ra, rhs_dec, rhs_angle in pair_patterns:
-                segments: List[List[List[float]]] = []
-                current: List[List[float]] = []
-                min_orb_seen: Optional[float] = None
-                total_points = 0
-                exact_hits = 0
-                for latitude_deg in _PARAN_LATITUDE_SAMPLES:
-                    lhs_events = _events_for(lhs_body, lhs_ra, lhs_dec, latitude_deg)
-                    rhs_events = _events_for(rhs_body, rhs_ra, rhs_dec, latitude_deg)
-                    if lhs_angle not in lhs_events or rhs_angle not in rhs_events:
-                        if len(current) >= 2:
-                            segments.append(current)
-                        current = []
-                        continue
-                    orb = _angular_separation_deg(lhs_events[lhs_angle], rhs_events[rhs_angle])
-                    if orb > float(orb_deg):
-                        if len(current) >= 2:
-                            segments.append(current)
-                        current = []
-                        continue
-                    common_lst = _circular_midpoint_deg(lhs_events[lhs_angle], rhs_events[rhs_angle])
-                    longitude_deg = _wrap180(common_lst - gst_deg)
-                    current = _split_segment_if_needed(segments, current, [float(latitude_deg), float(longitude_deg)])
-                    total_points += 1
-                    if orb <= max(0.2, float(orb_deg) * 0.35):
-                        exact_hits += 1
-                    if min_orb_seen is None or orb < min_orb_seen:
-                        min_orb_seen = orb
-                if len(current) >= 2:
-                    segments.append(current)
-                if not segments or total_points < int(min_points):
-                    continue
-                tracks.append(
-                    {
-                        "id": f"{lhs_body}:{lhs_angle}|{rhs_body}:{rhs_angle}:global-paran",
-                        "kind": "global-paran",
-                        "label": f"{lhs_body} {lhs_angle} paran {rhs_body} {rhs_angle}",
-                        "body_a": lhs_body,
-                        "angle_a": lhs_angle,
-                        "body_b": rhs_body,
-                        "angle_b": rhs_angle,
-                        "color": "#7c3aed",
-                        "dash_array": "3 8",
-                        "segments": segments,
-                        "sample_count": total_points,
-                        "exact_hits": exact_hits,
-                        "min_orb_deg": round(float(min_orb_seen or 0.0), 3),
-                        "summary": (
-                            f"{lhs_body} {lhs_angle} and {rhs_body} {rhs_angle} stay in paran "
-                            f"alignment along this latitude corridor."
-                        ),
-                    }
-                )
+    exact_events = _exact_paran_events(
+        gst_deg,
+        positions,
+        maximum_residual_deg=float(orb_deg),
+    )
+    for event in exact_events:
+        canonical_event_id = str(event.get("canonical_event_id") or "")
+        body_a = str(event.get("body_a") or "")
+        angle_a = str(event.get("angle_a") or "")
+        body_b = str(event.get("body_b") or "")
+        angle_b = str(event.get("angle_b") or "")
+        latitude_deg = float(event.get("latitude_deg") or 0.0)
+        longitude_deg = float(event.get("longitude_deg") or 0.0)
+        residual = float(event.get("root_residual_deg") or 0.0)
+        tracks.append(
+            {
+                "id": f"{canonical_event_id}:paran-corridor",
+                "canonical_event_id": canonical_event_id,
+                "kind": "global-paran",
+                "event_kind": "paran-latitude-corridor",
+                "label": f"{body_a} {angle_a} paran {body_b} {angle_b}",
+                "body_a": body_a,
+                "angle_a": angle_a,
+                "body_b": body_b,
+                "angle_b": angle_b,
+                "color": "#7c3aed",
+                "dash_array": "3 8",
+                "segments": [
+                    [
+                        [round(latitude_deg, 6), -180.0],
+                        [round(latitude_deg, 6), 0.0],
+                        [round(latitude_deg, 6), 180.0],
+                    ]
+                ],
+                "root_point": [round(latitude_deg, 6), round(longitude_deg, 6)],
+                "latitude_deg": round(latitude_deg, 6),
+                "sample_count": 3,
+                "exact_hits": 1,
+                "min_orb_deg": round(float(event.get("orb_deg") or 0.0), 6),
+                "root_residual_deg": round(residual, 9),
+                "calculation": dict(event.get("calculation") or {}),
+                "summary": (
+                    f"{body_a} {angle_a} and {body_b} {angle_b} form an exact "
+                    f"paran root on this latitude corridor."
+                ),
+            }
+        )
 
     tracks.sort(
         key=lambda item: (
-            float(item.get("min_orb_deg") or 999999.0),
-            -int(item.get("exact_hits") or 0),
-            -int(item.get("sample_count") or 0),
-            str(item.get("label") or ""),
+            float(item.get("root_residual_deg", 999999.0)),
+            str(item.get("canonical_event_id") or ""),
+            float(item.get("latitude_deg") or 0.0),
         )
     )
     lead = tracks[0] if tracks else None
@@ -1159,7 +1678,10 @@ def build_global_paran_tracks(
     return {
         "headline": headline,
         "orb_deg": round(float(orb_deg), 2),
-        "latitude_step_deg": 2,
+        "orb_policy": "exact angular roots; orb_deg is the maximum accepted numerical residual",
+        "latitude_step_deg": 0,
+        "calculation_mode": "analytic-spherical-root",
+        "requested_min_points": int(min_points),
         "track_count": len(tracks),
         "lead_track": lead,
         "tracks": tracks[: max(1, int(limit))],
@@ -1196,25 +1718,49 @@ def crossing_candidates_for_point(
 
             best_point = None
             best_distance = None
-            for segment_a in line_a.get("segments") or []:
-                if not isinstance(segment_a, list) or len(segment_a) < 2:
-                    continue
-                for segment_b in line_b.get("segments") or []:
-                    if not isinstance(segment_b, list) or len(segment_b) < 2:
+            analytic_geometry = (
+                _geometry_vectors(line_a.get("geometry") or {}) is not None
+                and _geometry_vectors(line_b.get("geometry") or {}) is not None
+            )
+            if analytic_geometry:
+                for point in _half_arc_intersections(
+                    line_a.get("geometry") or {},
+                    line_b.get("geometry") or {},
+                ):
+                    distance = _great_circle_distance_km(
+                        latitude,
+                        longitude,
+                        point[0],
+                        point[1],
+                    )
+                    if best_distance is None or distance < best_distance:
+                        best_distance = distance
+                        best_point = point
+            else:
+                for segment_a in line_a.get("segments") or []:
+                    if not isinstance(segment_a, list) or len(segment_a) < 2:
                         continue
-                    for seg_a_idx in range(len(segment_a) - 1):
-                        a1 = segment_a[seg_a_idx]
-                        a2 = segment_a[seg_a_idx + 1]
-                        for seg_b_idx in range(len(segment_b) - 1):
-                            b1 = segment_b[seg_b_idx]
-                            b2 = segment_b[seg_b_idx + 1]
-                            point = _segment_intersection(a1, a2, b1, b2)
-                            if point is None:
-                                continue
-                            distance = _point_segment_distance_km(latitude, longitude, point[0], point[1], point[0], point[1])
-                            if best_distance is None or distance < best_distance:
-                                best_distance = distance
-                                best_point = point
+                    for segment_b in line_b.get("segments") or []:
+                        if not isinstance(segment_b, list) or len(segment_b) < 2:
+                            continue
+                        for seg_a_idx in range(len(segment_a) - 1):
+                            a1 = segment_a[seg_a_idx]
+                            a2 = segment_a[seg_a_idx + 1]
+                            for seg_b_idx in range(len(segment_b) - 1):
+                                b1 = segment_b[seg_b_idx]
+                                b2 = segment_b[seg_b_idx + 1]
+                                point = _segment_intersection(a1, a2, b1, b2)
+                                if point is None:
+                                    continue
+                                distance = _great_circle_distance_km(
+                                    latitude,
+                                    longitude,
+                                    point[0],
+                                    point[1],
+                                )
+                                if best_distance is None or distance < best_distance:
+                                    best_distance = distance
+                                    best_point = point
 
             if best_distance is None:
                 fallback_distance = (float(row_a.get("distance_km") or 0.0) + float(row_b.get("distance_km") or 0.0)) / 2.0
@@ -1227,23 +1773,68 @@ def crossing_candidates_for_point(
                     continue
                 kind = "crossing"
 
+            body_a = str(row_a.get("body") or line_a.get("body") or "")
+            angle_a = str(row_a.get("angle") or line_a.get("angle") or "")
+            body_b = str(row_b.get("body") or line_b.get("body") or "")
+            angle_b = str(row_b.get("angle") or line_b.get("angle") or "")
+            canonical_event_id = _canonical_angular_event_id(
+                body_a,
+                angle_a,
+                body_b,
+                angle_b,
+            )
+            ordered_lines = sorted(
+                [
+                    (
+                        str(row_a.get("id") or ""),
+                        str(row_a.get("label") or ""),
+                        body_a,
+                    ),
+                    (
+                        str(row_b.get("id") or ""),
+                        str(row_b.get("label") or ""),
+                        body_b,
+                    ),
+                ],
+                key=lambda item: item[0],
+            )
             zone = _distance_zone(best_distance, primary_radius_km=PRIMARY_READING_RADIUS_KM, extended_radius_km=max_distance_km)
             score = _line_proximity_score(best_distance, primary_radius_km=PRIMARY_READING_RADIUS_KM, extended_radius_km=max_distance_km)
             candidates.append(
                 {
-                    "id": f"{row_a.get('id')}|{row_b.get('id')}",
-                    "label": f"{row_a.get('label')} x {row_b.get('label')}",
+                    "id": f"{canonical_event_id}:intersection",
+                    "canonical_event_id": canonical_event_id,
+                    "label": f"{ordered_lines[0][1]} x {ordered_lines[1][1]}",
                     "kind": kind,
-                    "planets": [row_a.get("body"), row_b.get("body")],
-                    "lines": [row_a.get("id"), row_b.get("id")],
+                    "event_kind": (
+                        "angular-line-crossing"
+                        if kind == "crossing"
+                        else "angular-line-proximity-blend"
+                    ),
+                    "planets": [ordered_lines[0][2], ordered_lines[1][2]],
+                    "lines": [ordered_lines[0][0], ordered_lines[1][0]],
                     "distance_km": round(float(best_distance), 1),
                     "zone": zone,
                     "signal_score": score,
-                    "point": [round(float(best_point[0]), 4), round(float(best_point[1]), 4)] if best_point else None,
+                    "point": [round(float(best_point[0]), 6), round(float(best_point[1]), 6)] if best_point else None,
+                    "geometry_model": (
+                        _SPHERICAL_GEOMETRY_MODEL
+                        if analytic_geometry
+                        else "spherical-polyline-segments"
+                    ),
+                    "calculation": {
+                        "line_a": dict(line_a.get("calculation") or {}),
+                        "line_b": dict(line_b.get("calculation") or {}),
+                    },
                 }
             )
 
-    candidates.sort(key=lambda row: (float(row.get("distance_km") or 0.0), str(row.get("label") or "")))
+    candidates.sort(
+        key=lambda row: (
+            float(row.get("distance_km") or 0.0),
+            str(row.get("canonical_event_id") or ""),
+        )
+    )
     return candidates[: max(1, int(limit))]
 
 
@@ -1312,6 +1903,8 @@ def build_intersection_workspace(
     geometry_points = [
         {
             "id": item.get("id"),
+            "canonical_event_id": item.get("canonical_event_id"),
+            "event_kind": item.get("event_kind"),
             "label": item.get("label"),
             "point": item.get("point"),
             "distance_km": item.get("distance_km"),

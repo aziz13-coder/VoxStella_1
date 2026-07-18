@@ -2,41 +2,6 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional, Sequence
 
-from astrocartography_goal_engine import (
-    evaluate_accident_pressure_heuristic,
-    evaluate_benefic_minus_malefic_heuristic,
-    evaluate_gambling_natal_curated_heuristic,
-    evaluate_goal_model,
-)
-from astrocartography_goal_models import get_goal_model
-
-
-PARENT_MODEL_BY_GOAL = {
-    "accident_prone": "conflict",
-    "gambling_luck": "money",
-    "health_risk": "conflict",
-    "risk_pressure": "conflict",
-    "travel_fun": "friends",
-    "travel_relax": "home_retreat",
-}
-
-EXTRA_MODEL_BY_GOAL = {
-    "accident_prone": [
-        ("experimental_health_risk", "health_risk", "Experimental Model (Health Risk)"),
-    ],
-    "risk_pressure": [
-        ("experimental_health_risk", "health_risk", "Experimental Model (Health Risk)"),
-    ],
-    "travel_fun": [
-        ("existing_love", "love", "Existing Goal Model (Love)"),
-        ("existing_protective_places", "protective_places", "Existing Goal Model (Protective Places)"),
-    ],
-    "travel_relax": [
-        ("existing_beliefs", "beliefs", "Existing Goal Model (Beliefs)"),
-        ("existing_protective_places", "protective_places", "Existing Goal Model (Protective Places)"),
-    ],
-}
-
 BENEFICS = {"Jupiter", "Venus", "Sun", "Moon"}
 MALEFICS = {"Mars", "Saturn", "Uranus", "Neptune", "Pluto", "Chiron"}
 
@@ -104,6 +69,7 @@ def _build_baseline_payload(
     *,
     raw_score: float,
     summary: str,
+    score_polarity: str = "higher_is_better",
 ) -> Dict[str, Any]:
     return {
         "id": baseline_id,
@@ -111,6 +77,9 @@ def _build_baseline_payload(
         "raw_score": round(float(raw_score), 4),
         "score": _normalize_simple_score(raw_score),
         "summary": summary,
+        "score_polarity": score_polarity,
+        "comparator_kind": "independent_heuristic",
+        "independent_from_product_model": True,
     }
 
 
@@ -146,20 +115,20 @@ def _score_benefic_minus_malefic(
     transit_crossings: Optional[Sequence[Dict[str, Any]]] = None,
     transit_multiplier: float = 0.35,
 ) -> Dict[str, Any]:
-    result = evaluate_benefic_minus_malefic_heuristic(
-        result_id="benefic_minus_malefic",
-        result_label="Benefic Minus Malefic",
-        result_summary="Simple benefic pressure minus malefic pressure across nearby lines and crossings.",
-        natal_rows=natal_rows,
-        natal_crossings=natal_crossings,
-        transit_rows=transit_rows,
-        transit_crossings=transit_crossings,
-        transit_multiplier=transit_multiplier,
-    )
+    raw = _score_line_rows(natal_rows, bodies=BENEFICS, multiplier=1.0)
+    raw -= _score_line_rows(natal_rows, bodies=MALEFICS, multiplier=1.0)
+    raw += _score_crossings(natal_crossings, bodies=BENEFICS, multiplier=0.8)
+    raw -= _score_crossings(natal_crossings, bodies=MALEFICS, multiplier=0.8)
+    if transit_rows:
+        raw += _score_line_rows(transit_rows, bodies=BENEFICS, multiplier=transit_multiplier)
+        raw -= _score_line_rows(transit_rows, bodies=MALEFICS, multiplier=transit_multiplier)
+    if transit_crossings:
+        raw += _score_crossings(transit_crossings, bodies=BENEFICS, multiplier=0.8 * transit_multiplier)
+        raw -= _score_crossings(transit_crossings, bodies=MALEFICS, multiplier=0.8 * transit_multiplier)
     return _build_baseline_payload(
         "benefic_minus_malefic",
         "Benefic Minus Malefic",
-        raw_score=float(result.get("raw_score") or 0.0),
+        raw_score=raw,
         summary="Simple benefic pressure minus malefic pressure across nearby lines and crossings.",
     )
 
@@ -200,25 +169,23 @@ def _score_gambling_lines_only(
     transit_crossings: Optional[Sequence[Dict[str, Any]]] = None,
     transit_multiplier: float = 0.35,
 ) -> Dict[str, Any]:
-    result = evaluate_gambling_natal_curated_heuristic(
-        result_id="gambling_lines_only",
-        result_label="Gambling Lines Only",
-        result_summary="Benchmark-only ablation that keeps the gambling natal line and crossing layer while removing relocation scoring.",
-        natal_rows=natal_rows,
-        natal_crossings=natal_crossings,
-        relocation={},
-        transit_rows=transit_rows,
-        transit_crossings=transit_crossings,
-        transit_multiplier=transit_multiplier,
-        include_relocation=False,
-        include_activation_floor=False,
-        activation_override=1.0,
-    )
+    core = {"Jupiter", "Venus", "Mercury", "Sun", "Moon"}
+    cautions = {"Saturn", "Mars", "Neptune", "Pluto", "Uranus"}
+    raw = _score_line_rows(natal_rows, bodies=core, multiplier=1.0)
+    raw -= _score_line_rows(natal_rows, bodies=cautions, multiplier=0.75)
+    raw += _score_crossings(natal_crossings, bodies=core, multiplier=0.9)
+    raw -= _score_crossings(natal_crossings, bodies=cautions, multiplier=0.6)
+    if transit_rows:
+        raw += _score_line_rows(transit_rows, bodies=core, multiplier=transit_multiplier)
+        raw -= _score_line_rows(transit_rows, bodies=cautions, multiplier=0.75 * transit_multiplier)
+    if transit_crossings:
+        raw += _score_crossings(transit_crossings, bodies=core, multiplier=0.9 * transit_multiplier)
+        raw -= _score_crossings(transit_crossings, bodies=cautions, multiplier=0.6 * transit_multiplier)
     return _build_baseline_payload(
         "gambling_lines_only",
-        "Gambling Lines Only",
-        raw_score=float(result.get("raw_score") or 0.0),
-        summary="Benchmark-only ablation that keeps the gambling natal line and crossing layer while removing relocation scoring.",
+        "Gambling Lines Heuristic",
+        raw_score=raw,
+        summary="Independent benchmark heuristic using only gambling-related lines and crossings.",
     )
 
 
@@ -226,23 +193,16 @@ def _score_gambling_relocation_only(
     *,
     relocation: Dict[str, Any],
 ) -> Dict[str, Any]:
-    result = evaluate_gambling_natal_curated_heuristic(
-        result_id="gambling_relocation_only",
-        result_label="Gambling Relocation Only",
-        result_summary="Benchmark-only ablation that keeps the relocated gambling metrics while removing natal and transit line layers.",
-        natal_rows=[],
-        natal_crossings=[],
-        relocation=relocation,
-        transit_rows=None,
-        transit_crossings=None,
-        include_natal=False,
-        include_transit=False,
-    )
+    raw = 1.6 * _relocation_metric(relocation, "gambling_activation")
+    raw += 1.3 * _relocation_metric(relocation, "gambling_signature")
+    raw += 0.8 * _relocation_metric(relocation, "speculation")
+    raw += 0.6 * _relocation_metric(relocation, "money_support")
+    raw -= 0.9 * _relocation_metric(relocation, "speculation_drag")
     return _build_baseline_payload(
         "gambling_relocation_only",
-        "Gambling Relocation Only",
-        raw_score=float(result.get("raw_score") or 0.0),
-        summary="Benchmark-only ablation that keeps the relocated gambling metrics while removing natal and transit line layers.",
+        "Gambling Relocation Heuristic",
+        raw_score=raw,
+        summary="Independent benchmark heuristic using only a compact relocation metric formula.",
     )
 
 
@@ -255,23 +215,22 @@ def _score_gambling_no_activation_floor(
     transit_crossings: Optional[Sequence[Dict[str, Any]]] = None,
     transit_multiplier: float = 0.35,
 ) -> Dict[str, Any]:
-    result = evaluate_gambling_natal_curated_heuristic(
-        result_id="gambling_no_activation_floor",
-        result_label="Gambling No Activation Floor",
-        result_summary="Benchmark-only ablation that removes the low-activation penalty while keeping the full gambling model.",
+    line_payload = _score_gambling_lines_only(
         natal_rows=natal_rows,
         natal_crossings=natal_crossings,
-        relocation=relocation,
         transit_rows=transit_rows,
         transit_crossings=transit_crossings,
         transit_multiplier=transit_multiplier,
-        include_activation_floor=False,
+    )
+    relocation_payload = _score_gambling_relocation_only(relocation=relocation)
+    raw = float(line_payload.get("raw_score") or 0.0) + float(
+        relocation_payload.get("raw_score") or 0.0
     )
     return _build_baseline_payload(
         "gambling_no_activation_floor",
-        "Gambling No Activation Floor",
-        raw_score=float(result.get("raw_score") or 0.0),
-        summary="Benchmark-only ablation that removes the low-activation penalty while keeping the full gambling model.",
+        "Gambling Combined Heuristic",
+        raw_score=raw,
+        summary="Independent benchmark heuristic combining the line and relocation comparators.",
     )
 
 
@@ -300,6 +259,7 @@ def _score_malefic_pressure(
         "Malefic Pressure",
         raw_score=raw,
         summary="Simple malefic pressure heuristic across nearby lines and crossings.",
+        score_polarity="higher_is_worse",
     )
 
 
@@ -312,22 +272,39 @@ def _score_accident_pressure(
     transit_crossings: Optional[Sequence[Dict[str, Any]]] = None,
     transit_multiplier: float = 0.35,
 ) -> Dict[str, Any]:
-    result = evaluate_accident_pressure_heuristic(
-        result_id="accident_pressure",
-        result_label="Accident Pressure",
-        result_summary="Research comparator for acute accident-prone places using Mars/Uranus/Pluto pressure plus bodily-risk relocation metrics.",
-        natal_rows=natal_rows,
-        natal_crossings=natal_crossings,
-        relocation=relocation,
-        transit_rows=transit_rows,
-        transit_crossings=transit_crossings,
-        transit_multiplier=transit_multiplier,
-    )
+    core = {"Mars", "Uranus", "Pluto"}
+    secondary = {"Saturn", "Chiron"}
+    raw = _score_line_rows(natal_rows, bodies=core, angles={"ASC", "MC", "DSC"}, multiplier=1.6)
+    raw += _score_line_rows(natal_rows, bodies=secondary, angles={"ASC", "MC"}, multiplier=0.8)
+    raw += _score_crossings(natal_crossings, bodies=core | secondary, multiplier=1.2)
+    raw += 1.8 * _relocation_metric(relocation, "health_risk")
+    raw += 1.0 * _relocation_metric(relocation, "conflict_pressure")
+    raw += 0.7 * _relocation_metric(relocation, "malefic_pressure")
+    if transit_rows:
+        raw += _score_line_rows(
+            transit_rows,
+            bodies=core,
+            angles={"ASC", "MC", "DSC"},
+            multiplier=1.6 * transit_multiplier,
+        )
+        raw += _score_line_rows(
+            transit_rows,
+            bodies=secondary,
+            angles={"ASC", "MC"},
+            multiplier=0.8 * transit_multiplier,
+        )
+    if transit_crossings:
+        raw += _score_crossings(
+            transit_crossings,
+            bodies=core | secondary,
+            multiplier=1.2 * transit_multiplier,
+        )
     return _build_baseline_payload(
         "accident_pressure",
         "Accident Pressure",
-        raw_score=float(result.get("raw_score") or 0.0),
+        raw_score=raw,
         summary="Research comparator for acute accident-prone places using Mars/Uranus/Pluto pressure plus bodily-risk relocation metrics.",
+        score_polarity="higher_is_worse",
     )
 
 
@@ -374,6 +351,7 @@ def _score_hostile_places(
         "Hostile Places",
         raw_score=raw,
         summary="Research comparator for openly adversarial, combative, or harsh places with Mars/Saturn/Pluto conflict signatures.",
+        score_polarity="higher_is_worse",
     )
 
 
@@ -418,6 +396,7 @@ def _score_drain_breakdown(
         "Drain / Breakdown",
         raw_score=raw,
         summary="Research comparator for draining, structurally weakening, or breakdown-prone places using Saturn/Neptune/Pluto signatures.",
+        score_polarity="higher_is_worse",
     )
 
 
@@ -436,6 +415,7 @@ def _score_split_risk_max(
         "Subtype Max",
         raw_score=float(dominant.get("raw_score") or 0.0),
         summary=f"Maximum of the accident, hostile, and drain/breakdown research comparators. Dominant subtype: {dominant.get('label')}.",
+        score_polarity="higher_is_worse",
     )
 
 
@@ -450,45 +430,6 @@ def compute_case_baselines(
     transit_multiplier: float = 0.35,
 ) -> Dict[str, Dict[str, Any]]:
     baselines: Dict[str, Dict[str, Any]] = {}
-
-    parent_goal_id = PARENT_MODEL_BY_GOAL.get(str(goal_id or "").strip().lower())
-    if parent_goal_id:
-        parent_eval = evaluate_goal_model(
-            parent_goal_id,
-            natal_rows=natal_rows,
-            natal_crossings=natal_crossings,
-            relocation=relocation,
-            transit_rows=transit_rows,
-            transit_crossings=transit_crossings,
-            transit_multiplier=transit_multiplier,
-        )
-        baselines["parent_model"] = {
-            "id": "parent_model",
-            "label": f"Parent Model ({get_goal_model(parent_goal_id).get('label')})",
-            "goal_id": parent_goal_id,
-            "raw_score": float(parent_eval.get("raw_score") or 0.0),
-            "score": int(parent_eval.get("score") or 0),
-            "summary": f"Existing parent goal model for {goal_id}.",
-        }
-
-    for baseline_id, model_goal_id, label in EXTRA_MODEL_BY_GOAL.get(str(goal_id or "").strip().lower(), []):
-        eval_result = evaluate_goal_model(
-            model_goal_id,
-            natal_rows=natal_rows,
-            natal_crossings=natal_crossings,
-            relocation=relocation,
-            transit_rows=transit_rows,
-            transit_crossings=transit_crossings,
-            transit_multiplier=transit_multiplier,
-        )
-        baselines[baseline_id] = {
-            "id": baseline_id,
-            "label": label,
-            "goal_id": model_goal_id,
-            "raw_score": float(eval_result.get("raw_score") or 0.0),
-            "score": int(eval_result.get("score") or 0),
-            "summary": f"Existing goal model comparator for {goal_id}.",
-        }
 
     baselines["benefic_minus_malefic"] = _score_benefic_minus_malefic(
         natal_rows=natal_rows,
@@ -524,10 +465,18 @@ def compute_case_baselines(
             transit_crossings=transit_crossings,
             transit_multiplier=transit_multiplier,
         )
-    elif goal_id == "health_risk":
+    elif goal_id in {"health_risk", "accident_prone"}:
         baselines["malefic_pressure"] = _score_malefic_pressure(
             natal_rows=natal_rows,
             natal_crossings=natal_crossings,
+            transit_rows=transit_rows,
+            transit_crossings=transit_crossings,
+            transit_multiplier=transit_multiplier,
+        )
+        baselines["accident_pressure"] = _score_accident_pressure(
+            natal_rows=natal_rows,
+            natal_crossings=natal_crossings,
+            relocation=relocation,
             transit_rows=transit_rows,
             transit_crossings=transit_crossings,
             transit_multiplier=transit_multiplier,

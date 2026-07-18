@@ -1,0 +1,496 @@
+{
+  "schema_version": 1,
+  "registry_id": "vox-stella-astrocartography-source-registry-v1",
+  "path_policy": "All repository paths are POSIX-style and relative to the repository root. External source locations are intentionally not persisted.",
+  "authority_tiers": [
+    {
+      "id": "tier-1-canonical-doctrine",
+      "rank": 1,
+      "label": "Canonical doctrine",
+      "description": "Foundational Astro*Carto*Graphy doctrine. Conflicts are resolved in favor of this tier unless a documented product policy explicitly preserves a variant."
+    },
+    {
+      "id": "tier-2-secondary-practitioner",
+      "rank": 2,
+      "label": "Secondary practitioner",
+      "description": "Later practitioner synthesis useful for workflow, variants, and cautions, but not a replacement for the canonical source."
+    },
+    {
+      "id": "tier-3-tertiary-explainer",
+      "rank": 3,
+      "label": "Tertiary explainer",
+      "description": "Recent explanatory material useful for plain-language comparison only. It cannot establish canonical technique or comparative strength."
+    },
+    {
+      "id": "tier-4-terminology-only",
+      "rank": 4,
+      "label": "Terminology only",
+      "description": "Generic astrology vocabulary. Retrieval must be restricted to terminology and must not be treated as astrocartography doctrine."
+    },
+    {
+      "id": "tier-5-excluded",
+      "rank": 5,
+      "label": "Excluded from astrocartography retrieval",
+      "description": "Material outside astrocartography doctrine. It remains inventoried for provenance but is not indexed into the astrocartography knowledge base."
+    }
+  ],
+  "claim_classifications": [
+    {
+      "id": "direct",
+      "description": "A faithful, page-located report of what a named source states. It does not imply scientific validation."
+    },
+    {
+      "id": "synthesis",
+      "description": "A transparent interpretation combining two or more located sources. It must not be presented as a quotation or recovered formula."
+    },
+    {
+      "id": "legacy-parity",
+      "description": "A compatibility or feature-family choice inferred from legacy artifacts. It is product parity evidence, not astrological doctrine."
+    },
+    {
+      "id": "experimental",
+      "description": "A Vox Stella hypothesis or product policy that requires independent validation and must be labeled accordingly."
+    }
+  ],
+  "sources": [
+    {
+      "source_id": "acg-src-lewis-guttman-1989",
+      "key": "lewis_guttman_book_of_maps",
+      "bibliography": {
+        "title": "The Astro*Carto*Graphy Book of Maps: The Astrology of Relocation — How 136 Famous People Found Their Places",
+        "authors": [
+          "Jim Lewis",
+          "Ariel Guttman"
+        ],
+        "year": 1989,
+        "edition": "First edition, first printing",
+        "publisher": "Llewellyn Publications",
+        "isbn": "0-87542-434-1",
+        "metadata_evidence": [
+          {
+            "kind": "local_title_page",
+            "page_id": "acg-src-lewis-guttman-1989.page-0002"
+          },
+          {
+            "kind": "local_copyright_page",
+            "page_id": "acg-src-lewis-guttman-1989.page-0003"
+          }
+        ]
+      },
+      "role": "Foundational doctrine and historical case-study atlas",
+      "preferred_use": "Use first for canonical line, angle, crossing, natal-condition, and remote-activation doctrine. Treat retrospective cases as illustrations, not independent validation.",
+      "authority": {
+        "tier": "tier-1-canonical-doctrine",
+        "rank": 1,
+        "rationale": "Jim Lewis originated the named Astro*Carto*Graphy system; this local book is the primary doctrinal source in the corpus."
+      },
+      "default_claim_classification": "direct",
+      "retrieval": {
+        "enabled": true,
+        "scopes": [
+          "astrocartography-doctrine",
+          "historical-case-studies"
+        ],
+        "limitations": "Case narratives are retrospective and sometimes use disputed birth times selected partly by map fit."
+      },
+      "rights": {
+        "status": "copyright-restricted",
+        "redistribution": "not-cleared",
+        "evidence": [
+          "acg-src-lewis-guttman-1989.page-0003"
+        ],
+        "notes": "All rights reserved; repository extraction is retained as an internal research source."
+      },
+      "original": {
+        "file_name": "The AstroCartoGraphy Book of Maps - The Astrology of Relocation How 136 Famous People Found Their Places (Jim Lewis, Arielle Guttman) (z-library.sk, 1lib.sk, z-lib.sk).pdf",
+        "sha256": "b4dabc099d867a091aa9df6e9dd1a21c471aa0b4c61f705d2ba250433e0059ef",
+        "bytes": 23632181,
+        "page_count": 321,
+        "repository_status": "external-local-source-not-committed"
+      },
+      "extracted": {
+        "repo_path": "horary_knowledge/astrocartography_books_text/The_AstroCartoGraphy_Book_of_Maps_-_The_Astrology_of_Relocation_How_136_Famous_People_Found_Their_Places_Jim_Lewis_Arielle_Guttman_z-library.sk_1lib.sk_z-lib.sk.txt",
+        "sha256": "5453158b77dfbd32ea3dd557ff88b148946df300d22dd8ae5026bf737089426f",
+        "bytes": 395305,
+        "characters": 376775,
+        "page_markers": 316,
+        "first_page": 2,
+        "last_page": 321,
+        "missing_pages": [
+          1,
+          109,
+          155,
+          244,
+          297
+        ],
+        "coverage_status": "partial-nonempty-text-pages",
+        "extraction": {
+          "extractor": "pypdf.PdfReader.extract_text",
+          "extractor_version": "6.7.5",
+          "extracted_on": "2026-07-18",
+          "notes": "Re-extracted from the hash-verified local PDF. Missing markers represent pages with no extracted text, not necessarily missing PDF pages."
+        }
+      },
+      "scan_notes": [
+        "Canonical conceptual pages are usable despite noisy multi-column map and appendix extraction.",
+        "Use pages 11–15 for the compact doctrinal overview before consulting retrospective cases.",
+        "Do not use map fit to resolve disputed birth times in validation fixtures."
+      ],
+      "keyword_terms": [
+        "angular positions",
+        "Ascendant",
+        "Descendant",
+        "Midheaven",
+        "IC",
+        "Crossings",
+        "Venus line",
+        "Jupiter line",
+        "Astro*Carto*Graphy"
+      ]
+    },
+    {
+      "source_id": "acg-src-furst-best-places-2015",
+      "key": "dan_furst_best_places",
+      "bibliography": {
+        "title": "Finding Your Best Places: Using Astrocartography to Navigate Your Life",
+        "authors": [
+          "Dan Furst"
+        ],
+        "year": 2015,
+        "edition": "First edition",
+        "publisher": "CreateSpace Independent Publishing Platform",
+        "isbn": "978-1-5118-6119-9",
+        "metadata_evidence": [
+          {
+            "kind": "local_title_page",
+            "page_id": "acg-src-furst-best-places-2015.page-0001"
+          },
+          {
+            "kind": "online_catalog",
+            "url": "https://www.campusbooks.com/books/9781511861199-finding-your-best-places-using-astrocartography-to-navigate-your-life",
+            "accessed_on": "2026-07-18"
+          }
+        ]
+      },
+      "role": "Secondary practical field guide",
+      "preferred_use": "Use for practitioner workflow, explicit technique variants, local-space and relocation distinctions, range sensitivity, and cautionary interpretations.",
+      "authority": {
+        "tier": "tier-2-secondary-practitioner",
+        "rank": 2,
+        "rationale": "A later practitioner synthesis with useful operational detail and bibliography, subordinate to Lewis on canonical Astro*Carto*Graphy doctrine."
+      },
+      "default_claim_classification": "direct",
+      "retrieval": {
+        "enabled": true,
+        "scopes": [
+          "astrocartography-doctrine",
+          "practitioner-variants",
+          "workflow"
+        ],
+        "limitations": "Practice claims and client stories are anecdotal; some terminology differs from Lewis."
+      },
+      "rights": {
+        "status": "copyright-status-unverified-treat-as-restricted",
+        "redistribution": "not-cleared",
+        "evidence": [
+          "No copyright page was captured in the local extraction."
+        ],
+        "notes": "Treat as restricted unless permission is documented."
+      },
+      "original": {
+        "file_name": "Finding Your Best Places Using Astrocartography to Navigate Your Life (Dan Fursts Astrocartography Book 1) (Dan Furst) (z-library.sk, 1lib.sk, z-lib.sk).pdf",
+        "sha256": "56dffa64903e9c8480bb2e944ec6de66ce88cf97c2b092466f4eafbce05133c9",
+        "bytes": 8081446,
+        "page_count": 135,
+        "repository_status": "external-local-source-not-committed"
+      },
+      "extracted": {
+        "repo_path": "horary_knowledge/astrocartography_books_text/Finding_Your_Best_Places_Using_Astrocartography_to_Navigate_Your_Life_Dan_Fursts_Astrocartography_Book_1_Dan_Furst_z-library.sk_1lib.sk_z-lib.sk.txt",
+        "sha256": "17a280021e41335c33ad22feba7f99531a0ae6d7e7912975b5b7510e6b2d5a3b",
+        "bytes": 273934,
+        "characters": 268593,
+        "page_markers": 135,
+        "first_page": 1,
+        "last_page": 135,
+        "missing_pages": [],
+        "coverage_status": "complete-page-marker-coverage",
+        "extraction": {
+          "extractor": "pypdf.PdfReader.extract_text",
+          "extractor_version": "6.7.5",
+          "extracted_on": "2026-07-18",
+          "notes": "Re-extracted from the hash-verified local PDF; all PDF pages yielded text markers."
+        }
+      },
+      "scan_notes": [
+        "Use as the main local source for alternative distance ranges and explicit workflow cautions.",
+        "Keep its use of crossing/paran terminology visible rather than silently normalizing it to Lewis.",
+        "Treat client and celebrity examples as illustrative, not outcome validation."
+      ],
+      "keyword_terms": [
+        "TABLE OF CONTENTS",
+        "Relocation Astrology",
+        "Local Space Astrology",
+        "Astro*Carto*Graphy",
+        "Ascendant",
+        "Descendant",
+        "Midheaven",
+        "Nadir",
+        "parans",
+        "effective range",
+        "If Your Best Lines Aren't Near You"
+      ]
+    },
+    {
+      "source_id": "acg-src-hermes-map-2023",
+      "key": "hermes_map_interpretation",
+      "bibliography": {
+        "title": "Astrocartography Map Interpretation",
+        "authors": [
+          "Hermes Astrology"
+        ],
+        "year": 2023,
+        "edition": "Digital document; no numbered edition stated",
+        "publisher": "Hermes Astrology",
+        "isbn": "not-stated",
+        "metadata_evidence": [
+          {
+            "kind": "local_copyright_page",
+            "page_id": "acg-src-hermes-map-2023.page-0002"
+          }
+        ]
+      },
+      "role": "Tertiary plain-language interpretation encyclopedia",
+      "preferred_use": "Use only for comparison copy and candidate interpretations that are checked against higher-tier sources.",
+      "authority": {
+        "tier": "tier-3-tertiary-explainer",
+        "rank": 3,
+        "rationale": "Recent branded explanatory material with no bibliography or named individual author; useful for contrast but not for canonical doctrine."
+      },
+      "default_claim_classification": "direct",
+      "retrieval": {
+        "enabled": true,
+        "scopes": [
+          "tertiary-comparison"
+        ],
+        "limitations": "Repetitive generic prose and promotional claims; cannot establish comparative rankings or source consensus."
+      },
+      "rights": {
+        "status": "personal-noncommercial-copy-permitted-with-notice",
+        "redistribution": "not-cleared-for-commercial-product",
+        "evidence": [
+          "acg-src-hermes-map-2023.page-0002"
+        ],
+        "notes": "The document permits personal, non-commercial copying if its copyright notice is maintained."
+      },
+      "original": {
+        "file_name": "Astrocartography Map Interpretation (Hermes Astrology) (z-library.sk, 1lib.sk, z-lib.sk).pdf",
+        "sha256": "f51d779f39c7ef36f57e367f1bf7dea89c54b20006acaa579ab9c7df0749ac9b",
+        "bytes": 1859261,
+        "page_count": 142,
+        "repository_status": "external-local-source-not-committed"
+      },
+      "extracted": {
+        "repo_path": "horary_knowledge/astrocartography_books_text/Astrocartography_Map_Interpretation_Hermes_Astrology_z-library.sk_1lib.sk_z-lib.sk.txt",
+        "sha256": "aca4850cdb50c0649ac63c08198fbc17a713a1564a8be6c12a79d2d7916f9dbc",
+        "bytes": 340182,
+        "characters": 335232,
+        "page_markers": 141,
+        "first_page": 2,
+        "last_page": 142,
+        "missing_pages": [
+          1
+        ],
+        "coverage_status": "partial-nonempty-text-pages",
+        "extraction": {
+          "extractor": "pypdf.PdfReader.extract_text",
+          "extractor_version": "6.7.5",
+          "extracted_on": "2026-07-18",
+          "notes": "Re-extracted from the hash-verified local PDF. The absent page marker is an unextracted front page."
+        }
+      },
+      "scan_notes": [
+        "Use for tertiary comparison after Lewis and Furst, not as the first interpretation authority.",
+        "Do not infer comparative pair strength from its repeated pair encyclopedia.",
+        "Treat promotional accuracy language as marketing, not evidence."
+      ],
+      "keyword_terms": [
+        "Sun Line",
+        "Moon Line",
+        "Mercury Line",
+        "Venus Line",
+        "Mars Line",
+        "Jupiter Line",
+        "Saturn Line",
+        "Uranus Line",
+        "Neptune Line",
+        "Pluto Line",
+        "North Node Line",
+        "Chiron Line",
+        "AC LINE",
+        "DC LINE",
+        "MC LINE",
+        "IC LINE",
+        "LINE CROSSINGS"
+      ]
+    },
+    {
+      "source_id": "acg-src-lee-dictionary-1968",
+      "key": "dictionary_of_astrology",
+      "bibliography": {
+        "title": "Dictionary of Astrology",
+        "authors": [
+          "Dal Lee"
+        ],
+        "year": 1968,
+        "edition": "Warner Books edition, first printing",
+        "publisher": "Warner Books",
+        "isbn": "0-446-89336-6",
+        "metadata_evidence": [
+          {
+            "kind": "local_copyright_page",
+            "page_id": "acg-src-lee-dictionary-1968.page-0006"
+          }
+        ]
+      },
+      "role": "Generic astrology terminology reference",
+      "preferred_use": "Use only to define generic astrology vocabulary when an astrocartography source assumes prior knowledge.",
+      "authority": {
+        "tier": "tier-4-terminology-only",
+        "rank": 4,
+        "rationale": "The book predates Jim Lewis's Astro*Carto*Graphy system and supplies vocabulary rather than astrocartography doctrine."
+      },
+      "default_claim_classification": "direct",
+      "retrieval": {
+        "enabled": true,
+        "scopes": [
+          "terminology"
+        ],
+        "limitations": "Do not retrieve it for line meanings, crossings, ranges, relocation policy, or goal scoring."
+      },
+      "rights": {
+        "status": "copyright-restricted",
+        "redistribution": "not-cleared",
+        "evidence": [
+          "acg-src-lee-dictionary-1968.page-0006"
+        ],
+        "notes": "All rights reserved; repository extraction is retained as an internal terminology source."
+      },
+      "original": {
+        "file_name": "Dictionary of Astrology (D. Lee) (z-library.sk, 1lib.sk, z-lib.sk).pdf",
+        "sha256": "04fc5f7ec949df54b29c7c3c4046f8afa666456356c1a0b89e6f6afa5fadc8d1",
+        "bytes": 11923721,
+        "page_count": 260,
+        "repository_status": "external-local-source-not-committed"
+      },
+      "extracted": {
+        "repo_path": "horary_knowledge/astrocartography_books_text/Dictionary_of_Astrology_D._Lee_z-library.sk_1lib.sk_z-lib.sk.txt",
+        "sha256": "1aca3db2a990f0c619a5437c4eac8af96caa77ef6a90ce0b6f1386b3307e6184",
+        "bytes": 454515,
+        "characters": 439375,
+        "page_markers": 258,
+        "first_page": 1,
+        "last_page": 260,
+        "missing_pages": [
+          248,
+          259
+        ],
+        "coverage_status": "partial-nonempty-text-pages",
+        "extraction": {
+          "extractor": "pypdf.PdfReader.extract_text",
+          "extractor_version": "6.7.5",
+          "extracted_on": "2026-07-18",
+          "notes": "Re-extracted from the hash-verified local PDF. Two PDF pages yielded no text."
+        }
+      },
+      "scan_notes": [
+        "Broad terminology source rather than an astrocartography source.",
+        "Use token-bounded searches for short abbreviations such as IC.",
+        "Do not promote generic health, house, or mundane entries into astrocartography doctrine."
+      ],
+      "keyword_terms": [
+        "Ascendant",
+        "Descendant",
+        "Midheaven",
+        "IC",
+        "houses",
+        "mundane",
+        "relocation"
+      ]
+    },
+    {
+      "source_id": "acg-src-houck-death-1994",
+      "key": "astrology_of_death",
+      "bibliography": {
+        "title": "The Astrology of Death",
+        "authors": [
+          "Richard Houck"
+        ],
+        "year": 1994,
+        "edition": "Illustrated edition",
+        "publisher": "Groundswell Press",
+        "isbn": "0-9641612-5-7",
+        "metadata_evidence": [
+          {
+            "kind": "local_title_page",
+            "page_id": "acg-src-houck-death-1994.page-0001"
+          },
+          {
+            "kind": "online_catalog",
+            "url": "https://books.google.com/books/about/The_Astrology_of_Death.html?id=038IAAAACAAJ",
+            "accessed_on": "2026-07-18"
+          }
+        ]
+      },
+      "role": "Out-of-scope natal and predictive mortality text",
+      "preferred_use": "Do not use in astrocartography retrieval, interpretations, risk scoring, or validation.",
+      "authority": {
+        "tier": "tier-5-excluded",
+        "rank": 5,
+        "rationale": "This is not an astrocartography source. Its presence in the original desktop batch does not make mortality doctrine relevant to location lines."
+      },
+      "default_claim_classification": "direct",
+      "retrieval": {
+        "enabled": false,
+        "scopes": [],
+        "exclusion_reason": "Non-astrocartography health/death material can create unsafe and false location-risk inferences."
+      },
+      "rights": {
+        "status": "copyright-status-unverified-treat-as-restricted",
+        "redistribution": "not-cleared",
+        "evidence": [
+          "No copyright page was captured in the local extraction."
+        ],
+        "notes": "Treat as restricted unless permission is documented."
+      },
+      "original": {
+        "file_name": "The Astrology of Death (Richard Houck) (z-library.sk, 1lib.sk, z-lib.sk).pdf",
+        "sha256": "f70e9c75bd9b3086a6ce1d43910f32fbc6cf1ab37b3401001bf1789de4bea555",
+        "bytes": 5085991,
+        "page_count": 363,
+        "repository_status": "external-local-source-not-committed"
+      },
+      "extracted": {
+        "repo_path": "horary_knowledge/astrocartography_books_text/The_Astrology_of_Death_Richard_Houck_z-library.sk_1lib.sk_z-lib.sk.txt",
+        "sha256": "7883116c8d3c6363a71b175e57d8ce7b6937abdbc1e9903f4186cd0feb584396",
+        "bytes": 755355,
+        "characters": 737818,
+        "page_markers": 363,
+        "first_page": 1,
+        "last_page": 363,
+        "missing_pages": [],
+        "coverage_status": "complete-page-marker-coverage",
+        "extraction": {
+          "extractor": "pypdf.PdfReader.extract_text",
+          "extractor_version": "6.7.5",
+          "extracted_on": "2026-07-18",
+          "notes": "Re-extracted from the hash-verified local PDF; all PDF pages yielded text markers."
+        }
+      },
+      "scan_notes": [
+        "Inventory only; excluded from normalized astrocartography books, guides, and chunk retrieval.",
+        "Do not use it to justify health, accident, mortality, or hostile-place line formulas."
+      ],
+      "keyword_terms": []
+    }
+  ]
+}

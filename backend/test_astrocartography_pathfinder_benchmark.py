@@ -3,7 +3,10 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from run_astrocartography_pathfinder_benchmark import summarize_pathfinder_results
+from run_astrocartography_pathfinder_benchmark import (
+    _build_case_result,
+    summarize_pathfinder_results,
+)
 
 
 def test_summarize_pathfinder_results_tracks_prepass_and_final_rank():
@@ -55,3 +58,60 @@ def test_summarize_pathfinder_results_tracks_prepass_and_final_rank():
     assert overall["dropped_before_prepass_count"] == 1
     assert overall["dropped_after_prepass_count"] == 0
     assert by_goal == overall
+
+
+def test_case_result_matches_duplicate_labels_by_exact_coordinates():
+    event_city = {
+        "role": "event",
+        "label": "Springfield",
+        "query": "Springfield",
+        "latitude": 39.7817213,
+        "longitude": -89.6501481,
+        "timezone": "America/Chicago",
+    }
+    control_city = {
+        "role": "control",
+        "label": "Springfield",
+        "query": "Springfield",
+        "latitude": 44.0462362,
+        "longitude": -123.0220289,
+        "timezone": "America/Los_Angeles",
+    }
+    ranking_result = {
+        "shortlist_strategy": "relocation_prepass",
+        "relocation_prepass_count": 2,
+        "shortlisted_count": 2,
+        "viable_count": 2,
+        "ranking": [
+            {**control_city, "rank": 1},
+            {**event_city, "rank": 2},
+        ],
+        "debug": {
+            "initial_ranking": [
+                {**control_city, "rank": 1},
+                {**event_city, "rank": 2},
+            ],
+            "final_scored_ranking": [
+                {**control_city, "rank": 1},
+                {**event_city, "rank": 2},
+            ],
+        },
+    }
+
+    result = _build_case_result(
+        {"case_id": "same-label", "person_id": "person-1"},
+        mode="natal_only",
+        context={"goal_id": "travel_fun"},
+        candidate_pool=[event_city, control_city],
+        ranking_result=ranking_result,
+        control_design={"frozen": True},
+        resolution="standard",
+        limit=2,
+        relocation_limit=2,
+    )
+
+    assert result["event"]["initial_rank"] == 2
+    assert result["event"]["rescored_rank"] == 2
+    assert result["event"]["final_rank"] == 2
+    assert result["candidate_pool"][0]["latitude"] == event_city["latitude"]
+    assert result["candidate_pool"][0]["longitude"] == event_city["longitude"]

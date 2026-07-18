@@ -1,5 +1,11 @@
 # Backend Overview
 
+> [!WARNING]
+> This is a **non-authoritative legacy mirror**. Make backend changes only in
+> the canonical `backend/**` tree. Release builds never import Python source
+> from this directory; only the generated `frontend/backend/runtime/**`
+> staging child is packaged. See `docs/BACKEND_SOURCE_OWNERSHIP.md`.
+
 This backend uses a central taxonomy defined in `taxonomy.py` to manage
 question categories and their defaults. Modules such as
 `question_analyzer`, `category_router` and the horary engine import the

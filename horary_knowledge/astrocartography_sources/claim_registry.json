@@ -1,0 +1,310 @@
+{
+  "schema_version": 1,
+  "registry_id": "vox-stella-astrocartography-claim-registry-v1",
+  "classification_policy": "Every implementation-facing claim must be labeled direct, synthesis, legacy-parity, or experimental. A page locator supports traceability, not scientific validation.",
+  "claims": [
+    {
+      "claim_id": "acg-claim-natal-context-controls-expression",
+      "classification": "direct",
+      "statement": "The natal condition of a planet, including its aspects and natal context, modifies how its angular location line is interpreted.",
+      "status": "approved-doctrine",
+      "source_refs": [
+        {
+          "source_id": "acg-src-lewis-guttman-1989",
+          "page": 11,
+          "page_id": "acg-src-lewis-guttman-1989.page-0011"
+        }
+      ]
+    },
+    {
+      "claim_id": "acg-claim-lewis-planetary-location-baselines",
+      "classification": "direct",
+      "statement": "Lewis gives compact, dual-polarity location baselines for the ten planets, including Sun publicity, Venus relationship and ease, Mars courage and contention, Jupiter prosperity and status, and Saturn endurance and difficulty.",
+      "status": "approved-doctrine",
+      "source_refs": [
+        {
+          "source_id": "acg-src-lewis-guttman-1989",
+          "page": 13,
+          "page_id": "acg-src-lewis-guttman-1989.page-0013"
+        },
+        {
+          "source_id": "acg-src-lewis-guttman-1989",
+          "page": 14,
+          "page_id": "acg-src-lewis-guttman-1989.page-0014"
+        }
+      ]
+    },
+    {
+      "claim_id": "acg-claim-lewis-descendant-externalizes-planets",
+      "classification": "direct",
+      "statement": "Lewis describes Descendant lines as drawing external circumstances, people, and relationships of the planet's nature, with difficult planets capable of strongly polarized external challenge.",
+      "status": "approved-doctrine",
+      "source_refs": [
+        {
+          "source_id": "acg-src-lewis-guttman-1989",
+          "page": 14,
+          "page_id": "acg-src-lewis-guttman-1989.page-0014"
+        }
+      ]
+    },
+    {
+      "claim_id": "acg-claim-four-angles-have-distinct-frames",
+      "classification": "direct",
+      "statement": "MC, ASC, IC, and DSC frame planetary expression through distinct public, personal, foundational, and relational contexts.",
+      "status": "approved-doctrine",
+      "source_refs": [
+        {
+          "source_id": "acg-src-lewis-guttman-1989",
+          "page": 14,
+          "page_id": "acg-src-lewis-guttman-1989.page-0014"
+        },
+        {
+          "source_id": "acg-src-furst-best-places-2015",
+          "page": 18,
+          "page_id": "acg-src-furst-best-places-2015.page-0018"
+        }
+      ]
+    },
+    {
+      "claim_id": "acg-claim-distance-doctrines-differ",
+      "classification": "direct",
+      "statement": "The local corpus does not provide a single agreed line radius: Hermes describes about 250 km, Furst recommends about 500 km as a cautious working range, and Lewis discusses effects extending as far as roughly 1,000 km while still privileging the closest line.",
+      "status": "approved-source-variance",
+      "source_refs": [
+        {
+          "source_id": "acg-src-lewis-guttman-1989",
+          "page": 12,
+          "page_id": "acg-src-lewis-guttman-1989.page-0012"
+        },
+        {
+          "source_id": "acg-src-furst-best-places-2015",
+          "page": 22,
+          "page_id": "acg-src-furst-best-places-2015.page-0022"
+        },
+        {
+          "source_id": "acg-src-hermes-map-2023",
+          "page": 17,
+          "page_id": "acg-src-hermes-map-2023.page-0017"
+        }
+      ]
+    },
+    {
+      "claim_id": "acg-claim-intersections-and-parans-need-separate-labels",
+      "classification": "synthesis",
+      "statement": "A displayed geometric line intersection and a same-latitude or co-angular paran must retain separate technique labels, even where a later practitioner groups them under crossing language.",
+      "status": "approved-product-interpretation",
+      "source_refs": [
+        {
+          "source_id": "acg-src-lewis-guttman-1989",
+          "page": 15,
+          "page_id": "acg-src-lewis-guttman-1989.page-0015"
+        },
+        {
+          "source_id": "acg-src-furst-best-places-2015",
+          "page": 21,
+          "page_id": "acg-src-furst-best-places-2015.page-0021"
+        },
+        {
+          "source_id": "acg-src-furst-best-places-2015",
+          "page": 22,
+          "page_id": "acg-src-furst-best-places-2015.page-0022"
+        }
+      ]
+    },
+    {
+      "claim_id": "acg-claim-remote-activation-does-not-require-moving",
+      "classification": "direct",
+      "statement": "A location relationship may be activated through people, markets, interests, or activity connected with a place; permanent relocation is not required.",
+      "status": "approved-doctrine",
+      "source_refs": [
+        {
+          "source_id": "acg-src-lewis-guttman-1989",
+          "page": 11,
+          "page_id": "acg-src-lewis-guttman-1989.page-0011"
+        },
+        {
+          "source_id": "acg-src-furst-best-places-2015",
+          "page": 24,
+          "page_id": "acg-src-furst-best-places-2015.page-0024"
+        }
+      ]
+    },
+    {
+      "claim_id": "acg-claim-no-universal-good-bad-planets",
+      "classification": "direct",
+      "statement": "Lewis cautions against universal good/bad planet labels and also describes neutral or crowded regions where influences may be weak, mixed, or cancelling.",
+      "status": "approved-doctrine",
+      "source_refs": [
+        {
+          "source_id": "acg-src-lewis-guttman-1989",
+          "page": 12,
+          "page_id": "acg-src-lewis-guttman-1989.page-0012"
+        }
+      ]
+    },
+    {
+      "claim_id": "acg-claim-birth-time-uncertainty-reduces-spatial-precision",
+      "classification": "direct",
+      "statement": "Even modest birth-time uncertainty can materially reduce the spatial precision of a line map.",
+      "status": "approved-tertiary-caution",
+      "source_refs": [
+        {
+          "source_id": "acg-src-hermes-map-2023",
+          "page": 17,
+          "page_id": "acg-src-hermes-map-2023.page-0017"
+        }
+      ]
+    },
+    {
+      "claim_id": "acg-claim-neptune-ic-has-material-cautions",
+      "classification": "direct",
+      "statement": "Furst describes Neptune on the IC as capable of unreliable home or livelihood foundations, false hope, and unclear associates; it is not a uniformly restful placement.",
+      "status": "approved-secondary-variant",
+      "source_refs": [
+        {
+          "source_id": "acg-src-furst-best-places-2015",
+          "page": 55,
+          "page_id": "acg-src-furst-best-places-2015.page-0055"
+        }
+      ]
+    },
+    {
+      "claim_id": "acg-claim-nodes-require-directional-distinction",
+      "classification": "direct",
+      "statement": "Furst treats both lunar nodes and gives the North and South Nodes different developmental and relational meanings.",
+      "status": "approved-secondary-variant",
+      "source_refs": [
+        {
+          "source_id": "acg-src-furst-best-places-2015",
+          "page": 59,
+          "page_id": "acg-src-furst-best-places-2015.page-0059"
+        },
+        {
+          "source_id": "acg-src-furst-best-places-2015",
+          "page": 60,
+          "page_id": "acg-src-furst-best-places-2015.page-0060"
+        }
+      ]
+    },
+    {
+      "claim_id": "acg-claim-gambling-case-is-illustrative-only",
+      "classification": "direct",
+      "statement": "Furst's poker case associates Sun, Jupiter, Venus, Mercury, and selectively Uranus with the player's experience while warning about Neptune and harder Mars, Pluto, and Saturn expressions; the case is an illustration, not a validated scoring formula.",
+      "status": "approved-with-evidence-limit",
+      "source_refs": [
+        {
+          "source_id": "acg-src-furst-best-places-2015",
+          "page": 111,
+          "page_id": "acg-src-furst-best-places-2015.page-0111"
+        },
+        {
+          "source_id": "acg-src-furst-best-places-2015",
+          "page": 115,
+          "page_id": "acg-src-furst-best-places-2015.page-0115"
+        }
+      ]
+    },
+    {
+      "claim_id": "acg-claim-advisory-layered-workflow",
+      "classification": "synthesis",
+      "statement": "The product should compare map lines with natal condition, a relocated chart, technique type, distance sensitivity, and timing instead of declaring one deterministic best place.",
+      "status": "approved-product-synthesis",
+      "source_refs": [
+        {
+          "source_id": "acg-src-lewis-guttman-1989",
+          "page": 11,
+          "page_id": "acg-src-lewis-guttman-1989.page-0011"
+        },
+        {
+          "source_id": "acg-src-furst-best-places-2015",
+          "page": 8,
+          "page_id": "acg-src-furst-best-places-2015.page-0008"
+        },
+        {
+          "source_id": "acg-src-furst-best-places-2015",
+          "page": 24,
+          "page_id": "acg-src-furst-best-places-2015.page-0024"
+        }
+      ]
+    },
+    {
+      "claim_id": "acg-claim-explicit-planet-angle-matrix",
+      "classification": "synthesis",
+      "statement": "Interpretations should preserve explicit planet-by-angle variants and dual polarity rather than mechanically concatenating one generic planet paragraph with one generic angle paragraph.",
+      "status": "approved-product-synthesis",
+      "source_refs": [
+        {
+          "source_id": "acg-src-lewis-guttman-1989",
+          "page": 13,
+          "page_id": "acg-src-lewis-guttman-1989.page-0013"
+        },
+        {
+          "source_id": "acg-src-lewis-guttman-1989",
+          "page": 14,
+          "page_id": "acg-src-lewis-guttman-1989.page-0014"
+        },
+        {
+          "source_id": "acg-src-furst-best-places-2015",
+          "page": 18,
+          "page_id": "acg-src-furst-best-places-2015.page-0018"
+        }
+      ]
+    },
+    {
+      "claim_id": "acg-claim-legacy-artifacts-are-parity-only",
+      "classification": "legacy-parity",
+      "statement": "Recovered Almagest filenames may preserve feature-family names or expected workflow coverage, but they do not recover astrological formulas or validate doctrine.",
+      "status": "approved-limitation",
+      "legacy_artifact_refs": [
+        "PERSONAL.HYP",
+        "CHATTER.HYP",
+        "ENEMIES.HYP",
+        "LOVE.HYP",
+        "PARTNERS.HYP",
+        "MONEY.HYP",
+        "WORK.HYP",
+        "CAREER.HYP",
+        "HOME.HYP"
+      ],
+      "source_refs": []
+    },
+    {
+      "claim_id": "acg-claim-product-radius-policy",
+      "classification": "experimental",
+      "statement": "A 300 km primary radius and 500 km extended radius are Vox Stella display defaults, not a recovered consensus or universal astrological boundary.",
+      "status": "experimental-product-policy",
+      "source_refs": [
+        {
+          "source_id": "acg-src-lewis-guttman-1989",
+          "page": 12,
+          "page_id": "acg-src-lewis-guttman-1989.page-0012"
+        },
+        {
+          "source_id": "acg-src-furst-best-places-2015",
+          "page": 22,
+          "page_id": "acg-src-furst-best-places-2015.page-0022"
+        },
+        {
+          "source_id": "acg-src-hermes-map-2023",
+          "page": 17,
+          "page_id": "acg-src-hermes-map-2023.page-0017"
+        }
+      ],
+      "evidence_limitations": "The sources give materially different working ranges; the selected cutoffs require sensitivity testing and must not imply a hard physical edge."
+    },
+    {
+      "claim_id": "acg-claim-specialist-goal-formulas",
+      "classification": "experimental",
+      "statement": "Specialist gambling, health, accident, hostile-place, erotic, or similar goal scores are Vox Stella hypotheses unless a separate curated doctrine and held-out validation set is provided.",
+      "status": "experimental-research-only",
+      "source_refs": [
+        {
+          "source_id": "acg-src-furst-best-places-2015",
+          "page": 111,
+          "page_id": "acg-src-furst-best-places-2015.page-0111"
+        }
+      ],
+      "evidence_limitations": "Anecdotal examples and generic planet keywords do not establish comparative weights, protective offsets, medical risk, or predictive accuracy. The mortality text is excluded from retrieval."
+    }
+  ]
+}

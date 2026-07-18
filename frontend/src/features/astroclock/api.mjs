@@ -124,6 +124,36 @@ export async function request(path, options = {}) {
     Number.isFinite(timeoutValue) && timeoutValue > 0 ? timeoutValue : 30000;
   const externalSignal = rawOptions.signal;
   if (externalSignal) delete rawOptions.signal;
+  const controller = new AbortController();
+  let timedOut = false;
+  const timeoutId = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, effectiveTimeoutMs);
+  const relayAbort = () => controller.abort();
+  if (externalSignal) {
+    if (externalSignal.aborted) {
+      controller.abort();
+    } else {
+      externalSignal.addEventListener('abort', relayAbort, { once: true });
+    }
+  }
+
+  const createAbortError = () => {
+    const error = new Error('Request aborted');
+    error.name = 'AbortError';
+    return error;
+  };
+  const withCancellation = (promise) => {
+    if (controller.signal.aborted) return Promise.reject(createAbortError());
+    return new Promise((resolve, reject) => {
+      const handleAbort = () => reject(createAbortError());
+      controller.signal.addEventListener('abort', handleAbort, { once: true });
+      Promise.resolve(promise).then(resolve, reject).finally(() => {
+        controller.signal.removeEventListener('abort', handleAbort);
+      });
+    });
+  };
 
   const send = async (token, allowRetry) => {
     const baseHeaders = { ...(rawOptions.headers || {}) };
@@ -134,31 +164,16 @@ export async function request(path, options = {}) {
       if (!('Content-Type' in baseHeaders)) baseHeaders['Content-Type'] = 'application/json';
     }
 
-    const controller = new AbortController();
-    let timedOut = false;
-    const timeoutId = setTimeout(() => {
-      timedOut = true;
-      controller.abort();
-    }, effectiveTimeoutMs);
-    let removeAbortRelay = null;
-    if (externalSignal) {
-      const relayAbort = () => controller.abort();
-      if (externalSignal.aborted) {
-        controller.abort();
-      } else {
-        externalSignal.addEventListener('abort', relayAbort, { once: true });
-        removeAbortRelay = () => externalSignal.removeEventListener('abort', relayAbort);
-      }
-    }
-
     try {
-      const res = await fetch(url, { ...rawOptions, headers: baseHeaders, signal: controller.signal });
+      const res = await withCancellation(
+        fetch(url, { ...rawOptions, headers: baseHeaders, signal: controller.signal })
+      );
       if ((res.status === 402 || res.status === 403) && !skipLicense) {
         AstroClockLicenseTokenProvider.invalidate();
       }
       if (expectedType === 'blob') {
         if (!res.ok) {
-          const errText = await res.text().catch(() => '');
+          const errText = await withCancellation(res.text().catch(() => ''));
           let parsedError = null;
           try {
             parsedError = errText ? JSON.parse(errText) : null;
@@ -174,7 +189,7 @@ export async function request(path, options = {}) {
           throw error;
         }
         return {
-          blob: await res.blob(),
+          blob: await withCancellation(res.blob()),
           contentType: res.headers.get('Content-Type') || res.headers.get('content-type') || '',
           filename: parseFilenameFromDisposition(
             res.headers.get('Content-Disposition') || res.headers.get('content-disposition') || ''
@@ -182,7 +197,7 @@ export async function request(path, options = {}) {
         };
       }
 
-      const data = await res.json().catch(() => ({}));
+      const data = await withCancellation(res.json().catch(() => ({})));
       if (!res.ok) {
         const error = new Error(data?.error || data?.detail || `HTTP ${res.status}`);
         error.status = res.status;
@@ -194,26 +209,34 @@ export async function request(path, options = {}) {
       }
       return data;
     } catch (error) {
-      if (error?.name === 'AbortError' && timedOut) {
-        throw new Error(`Request timed out after ${Math.round(effectiveTimeoutMs / 1000)}s`);
-      }
       if (error?.authFailure) {
-        const retryToken = await AstroClockLicenseTokenProvider.getToken().catch(() => null);
+        const retryToken = await withCancellation(
+          AstroClockLicenseTokenProvider.getToken().catch(() => null)
+        );
         if (retryToken && retryToken !== token) {
           return send(retryToken, false);
         }
       }
       throw error;
-    } finally {
-      clearTimeout(timeoutId);
-      if (removeAbortRelay) {
-        removeAbortRelay();
-      }
     }
   };
 
-  const initialToken = skipLicense ? null : await AstroClockLicenseTokenProvider.getToken().catch(() => null);
-  return send(initialToken, true);
+  try {
+    const initialToken = skipLicense
+      ? null
+      : await withCancellation(AstroClockLicenseTokenProvider.getToken().catch(() => null));
+    return await send(initialToken, true);
+  } catch (error) {
+    if (timedOut && (controller.signal.aborted || error?.name === 'AbortError')) {
+      throw new Error(`Request timed out after ${Math.round(effectiveTimeoutMs / 1000)}s`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+    if (externalSignal) {
+      externalSignal.removeEventListener('abort', relayAbort);
+    }
+  }
 }
 
 const ASTRO_CLOCK_CORE_TIMEOUT_MS = 90000;
@@ -232,6 +255,99 @@ function appendCoordinates(params, opts = {}) {
   if (!(params instanceof URLSearchParams)) return;
   if (opts.latitude != null) params.set('latitude', String(opts.latitude));
   if (opts.longitude != null) params.set('longitude', String(opts.longitude));
+}
+
+function isFiniteCoordinate(value) {
+  if (value == null || String(value).trim() === '') return false;
+  return Number.isFinite(Number(value));
+}
+
+function normalizeAstrocartographyTarget(target, fallbackLocation = '') {
+  const source = target && typeof target === 'object' ? target : {};
+  const location = String(
+    source.query
+    || source.label
+    || source.name
+    || (typeof target === 'string' ? target : fallbackLocation)
+    || ''
+  ).trim();
+  const explicitTargetId = String(
+    source.candidate_id
+    || source.target_id
+    || source.catalog_id
+    || ''
+  ).trim();
+  const rawGeonameId = String(source.geonameid || '').trim();
+  const targetId = explicitTargetId || (
+    rawGeonameId
+      ? (rawGeonameId.startsWith('geonames:') ? rawGeonameId : `geonames:${rawGeonameId}`)
+      : String(source.id || '').trim()
+  );
+  const latitude = source.latitude ?? source.lat;
+  const longitude = source.longitude ?? source.lon ?? source.lng;
+  const coordinateLabel = isFiniteCoordinate(latitude) && isFiniteCoordinate(longitude)
+    ? `Coordinates ${Number(latitude).toFixed(6)}, ${Number(longitude).toFixed(6)}`
+    : '';
+  return {
+    location: location || coordinateLabel,
+    targetId,
+    latitude,
+    longitude,
+  };
+}
+
+function appendAstrocartographyTarget(params, opts = {}) {
+  if (!(params instanceof URLSearchParams)) return;
+  const normalized = normalizeAstrocartographyTarget(
+    opts.target,
+    opts.targetLocation || opts.targetLabel || ''
+  );
+  const targetLatitude = opts.targetLatitude ?? normalized.latitude;
+  const targetLongitude = opts.targetLongitude ?? normalized.longitude;
+  const coordinateLabel = isFiniteCoordinate(targetLatitude) && isFiniteCoordinate(targetLongitude)
+    ? `Coordinates ${Number(targetLatitude).toFixed(6)}, ${Number(targetLongitude).toFixed(6)}`
+    : '';
+  const targetLocation = normalized.location || String(opts.targetLocation || '').trim() || coordinateLabel;
+  const targetId = normalized.targetId || String(opts.targetId || '').trim();
+  if (targetLocation) params.set('target_location', targetLocation);
+  if (targetId) params.set('target_id', targetId);
+  if (isFiniteCoordinate(targetLatitude) && isFiniteCoordinate(targetLongitude)) {
+    params.set('target_latitude', String(Number(targetLatitude)));
+    params.set('target_longitude', String(Number(targetLongitude)));
+  }
+}
+
+function appendAstrocartographyCompareTargets(params, opts = {}) {
+  if (!(params instanceof URLSearchParams)) return;
+  const rawTargets = Array.isArray(opts.targets) && opts.targets.length
+    ? opts.targets
+    : (Array.isArray(opts.targetLocations) ? opts.targetLocations : []);
+  const targets = rawTargets.map((target) => normalizeAstrocartographyTarget(target));
+  if (targets.some((target) => !target.location)) {
+    throw new Error('Every astrocartography compare target must include a label/query or a complete coordinate pair.');
+  }
+  targets.forEach((target) => params.append('target_location', target.location));
+
+  const anyHaveCoordinates = targets.some((target) => (
+    target.latitude != null || target.longitude != null
+  ));
+  const allHaveCoordinates = targets.length > 0 && targets.every((target) => (
+    isFiniteCoordinate(target.latitude) && isFiniteCoordinate(target.longitude)
+  ));
+  if (anyHaveCoordinates && !allHaveCoordinates) {
+    throw new Error('Every astrocartography compare target must include both latitude and longitude when exact coordinates are used.');
+  }
+  if (allHaveCoordinates) {
+    targets.forEach((target) => {
+      params.append('target_latitude', String(Number(target.latitude)));
+      params.append('target_longitude', String(Number(target.longitude)));
+    });
+  }
+
+  const hasAnyTargetIds = targets.some((target) => Boolean(target.targetId));
+  if (hasAnyTargetIds) {
+    targets.forEach((target) => params.append('target_id', target.targetId || ''));
+  }
 }
 
 function appendElectionParams(params, opts = {}) {
@@ -781,7 +897,9 @@ export const AstroClockAPI = {
       });
     }
     const q = p.toString();
-    return request(`/api/astro-clock/astrocartography/map${q ? `?${q}` : ''}`);
+    return request(`/api/astro-clock/astrocartography/map${q ? `?${q}` : ''}`, {
+      signal: opts.signal,
+    });
   },
   getAstrocartographyLocation: (opts = {}) => {
     const p = new URLSearchParams();
@@ -795,7 +913,7 @@ export const AstroClockAPI = {
     if (opts.transitDatetime) p.set('transit_datetime', String(opts.transitDatetime));
     if (opts.transitLocation) p.set('transit_location', String(opts.transitLocation));
     if (opts.transitTimezone) p.set('transit_timezone', String(opts.transitTimezone));
-    if (opts.targetLocation) p.set('target_location', String(opts.targetLocation));
+    appendAstrocartographyTarget(p, opts);
     if (Array.isArray(opts.bodies)) {
       opts.bodies.forEach((body) => {
         if (typeof body === 'string' && body.trim()) p.append('body', body.trim());
@@ -807,9 +925,13 @@ export const AstroClockAPI = {
       });
     }
     const q = p.toString();
-    return request(`/api/astro-clock/astrocartography/location${q ? `?${q}` : ''}`);
+    return request(`/api/astro-clock/astrocartography/location${q ? `?${q}` : ''}`, {
+      signal: opts.signal,
+    });
   },
-  listAstrocartographyGoals: () => request('/api/astro-clock/astrocartography/goals'),
+  listAstrocartographyGoals: (opts = {}) => request('/api/astro-clock/astrocartography/goals', {
+    signal: opts.signal,
+  }),
   searchAstrocartographyAtlas: (opts = {}) => {
     const p = new URLSearchParams();
     if (opts.natalSnapId) p.set('natal_snap_id', String(opts.natalSnapId));
@@ -840,6 +962,7 @@ export const AstroClockAPI = {
     const q = p.toString();
     return request(`/api/astro-clock/astrocartography/atlas-search${q ? `?${q}` : ''}`, {
       timeoutMs: 300000,
+      signal: opts.signal,
     });
   },
   startAstrocartographyAtlasSearch: (opts = {}) => request('/api/astro-clock/astrocartography/atlas-search/start', {
@@ -864,21 +987,27 @@ export const AstroClockAPI = {
       body: Array.isArray(opts.bodies) ? opts.bodies : [],
       angle: Array.isArray(opts.angles) ? opts.angles : [],
     }),
+    signal: opts.signal,
   }),
-  getAstrocartographyAtlasSearchProgress: (sessionId) => {
+  getAstrocartographyAtlasSearchProgress: (sessionId, opts = {}) => {
     const q = new URLSearchParams({ session_id: String(sessionId || '') }).toString();
-    return request(`/api/astro-clock/astrocartography/atlas-search/progress?${q}`);
+    return request(`/api/astro-clock/astrocartography/atlas-search/progress?${q}`, {
+      signal: opts.signal,
+    });
   },
-  getAstrocartographyAtlasSearchResult: (sessionId) => {
+  getAstrocartographyAtlasSearchResult: (sessionId, opts = {}) => {
     const q = new URLSearchParams({ session_id: String(sessionId || '') }).toString();
-    return request(`/api/astro-clock/astrocartography/atlas-search/result?${q}`);
+    return request(`/api/astro-clock/astrocartography/atlas-search/result?${q}`, {
+      signal: opts.signal,
+    });
   },
-  cancelAstrocartographyAtlasSearch: (sessionId) => request('/api/astro-clock/astrocartography/atlas-search/cancel', {
+  cancelAstrocartographyAtlasSearch: (sessionId, opts = {}) => request('/api/astro-clock/astrocartography/atlas-search/cancel', {
     method: 'POST',
     body: JSON.stringify({
       session_id: String(sessionId || ''),
     }),
     timeoutMs: 15000,
+    signal: opts.signal,
   }),
   compareAstrocartographyTargets: (opts = {}) => {
     const p = new URLSearchParams();
@@ -892,11 +1021,7 @@ export const AstroClockAPI = {
     if (opts.transitDatetime) p.set('transit_datetime', String(opts.transitDatetime));
     if (opts.transitLocation) p.set('transit_location', String(opts.transitLocation));
     if (opts.transitTimezone) p.set('transit_timezone', String(opts.transitTimezone));
-    if (Array.isArray(opts.targetLocations)) {
-      opts.targetLocations.forEach((target) => {
-        if (typeof target === 'string' && target.trim()) p.append('target_location', target.trim());
-      });
-    }
+    appendAstrocartographyCompareTargets(p, opts);
     if (Array.isArray(opts.bodies)) {
       opts.bodies.forEach((body) => {
         if (typeof body === 'string' && body.trim()) p.append('body', body.trim());
@@ -908,7 +1033,9 @@ export const AstroClockAPI = {
       });
     }
     const q = p.toString();
-    return request(`/api/astro-clock/astrocartography/compare${q ? `?${q}` : ''}`);
+    return request(`/api/astro-clock/astrocartography/compare${q ? `?${q}` : ''}`, {
+      signal: opts.signal,
+    });
   },
   listMundaneChartTypes: () => request('/api/astro-clock/mundane/chart-types'),
   resolveMundaneContext: (opts = {}) => {

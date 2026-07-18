@@ -1277,6 +1277,156 @@ describe('AstroClockAPI workflow contracts', () => {
     expect(url).toContain('angle=IC');
   });
 
+  it('preserves catalog identity and exact coordinates in astrocartography inspection requests', async () => {
+    fetch.mockResolvedValueOnce(makeJsonResponse(200, { success: true, data: {} }));
+    const externalController = new AbortController();
+
+    await AstroClockAPI.getAstrocartographyLocation({
+      natalSnapId: 'snap-identity',
+      target: {
+        candidate_id: 'geonames:2643743',
+        label: 'London, United Kingdom',
+        query: 'London, United Kingdom',
+        latitude: 51.507351,
+        longitude: -0.127758,
+      },
+      signal: externalController.signal,
+    });
+
+    const url = new URL(fetch.mock.calls[0][0]);
+    expect(url.searchParams.get('target_location')).toBe('London, United Kingdom');
+    expect(url.searchParams.get('target_id')).toBe('geonames:2643743');
+    expect(url.searchParams.get('target_latitude')).toBe('51.507351');
+    expect(url.searchParams.get('target_longitude')).toBe('-0.127758');
+    expect(fetch.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('uses a neutral coordinate label when an astrocartography target has no catalog name', async () => {
+    fetch.mockResolvedValueOnce(makeJsonResponse(200, { success: true, data: {} }));
+
+    await AstroClockAPI.getAstrocartographyLocation({
+      natalSnapId: 'snap-coordinate',
+      target: {
+        latitude: 12.3456784,
+        longitude: 23.4567894,
+      },
+    });
+
+    const url = new URL(fetch.mock.calls[0][0]);
+    expect(url.searchParams.get('target_location')).toBe('Coordinates 12.345678, 23.456789');
+    expect(url.searchParams.get('target_latitude')).toBe('12.3456784');
+    expect(url.searchParams.get('target_longitude')).toBe('23.4567894');
+  });
+
+  it('derives a neutral target label from top-level inspect coordinates', async () => {
+    fetch.mockResolvedValueOnce(makeJsonResponse(200, { success: true, data: {} }));
+
+    await AstroClockAPI.getAstrocartographyLocation({
+      natalSnapId: 'snap-coordinate-options',
+      targetLatitude: 10.125,
+      targetLongitude: -20.25,
+    });
+
+    const url = new URL(fetch.mock.calls[0][0]);
+    expect(url.searchParams.get('target_location')).toBe('Coordinates 10.125000, -20.250000');
+    expect(url.searchParams.get('target_latitude')).toBe('10.125');
+    expect(url.searchParams.get('target_longitude')).toBe('-20.25');
+  });
+
+  it('keeps compare target lists aligned while preserving available catalog ids', async () => {
+    fetch.mockResolvedValueOnce(makeJsonResponse(200, { success: true, data: {} }));
+
+    await AstroClockAPI.compareAstrocartographyTargets({
+      natalSnapId: 'snap-compare',
+      goalId: 'career_public_profile',
+      targets: [
+        {
+          geonameid: 123,
+          label: 'Alpha City',
+          latitude: 10.25,
+          longitude: 20.5,
+        },
+        {
+          label: 'Beta City',
+          latitude: 30.75,
+          longitude: 40.125,
+        },
+      ],
+    });
+
+    const url = new URL(fetch.mock.calls[0][0]);
+    expect(url.searchParams.getAll('target_location')).toEqual(['Alpha City', 'Beta City']);
+    expect(url.searchParams.getAll('target_id')).toEqual(['geonames:123', '']);
+    expect(url.searchParams.getAll('target_latitude')).toEqual(['10.25', '30.75']);
+    expect(url.searchParams.getAll('target_longitude')).toEqual(['20.5', '40.125']);
+  });
+
+  it('rejects mixed-coordinate compare targets instead of silently re-geocoding them', () => {
+    expect(() => AstroClockAPI.compareAstrocartographyTargets({
+      natalSnapId: 'snap-compare',
+      targets: [
+        { label: 'Alpha City', latitude: 10.25, longitude: 20.5 },
+        { label: 'Beta City' },
+      ],
+    })).toThrow('Every astrocartography compare target must include both latitude and longitude');
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('rejects malformed compare targets instead of silently dropping them', () => {
+    expect(() => AstroClockAPI.compareAstrocartographyTargets({
+      natalSnapId: 'snap-compare',
+      targets: [
+        { label: 'Alpha City' },
+        {},
+      ],
+    })).toThrow('Every astrocartography compare target must include a label/query or a complete coordinate pair');
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('relays caller cancellation into astrocartography network requests', async () => {
+    let requestSignal;
+    fetch.mockImplementationOnce((_url, options) => {
+      requestSignal = options.signal;
+      return new Promise((_resolve, reject) => {
+        options.signal.addEventListener('abort', () => {
+          const error = new Error('Aborted');
+          error.name = 'AbortError';
+          reject(error);
+        }, { once: true });
+      });
+    });
+    const externalController = new AbortController();
+    const pendingRequest = AstroClockAPI.getAstrocartographyMap({
+      natalSnapId: 'snap-abort',
+      signal: externalController.signal,
+    });
+
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    externalController.abort();
+
+    await expect(pendingRequest).rejects.toMatchObject({ name: 'AbortError' });
+    expect(requestSignal.aborted).toBe(true);
+  });
+
+  it('can cancel while the license token provider is still pending', async () => {
+    let resolveToken;
+    window.electronAPI.getLicenseToken.mockReturnValueOnce(new Promise((resolve) => {
+      resolveToken = resolve;
+    }));
+    const externalController = new AbortController();
+    const pendingRequest = AstroClockAPI.getAstrocartographyMap({
+      natalSnapId: 'snap-token-abort',
+      signal: externalController.signal,
+    });
+
+    await vi.waitFor(() => expect(window.electronAPI.getLicenseToken).toHaveBeenCalledTimes(1));
+    externalController.abort();
+
+    await expect(pendingRequest).rejects.toMatchObject({ name: 'AbortError' });
+    expect(fetch).not.toHaveBeenCalled();
+    resolveToken?.('late-token');
+  });
+
   it('serializes astrocartography manual natal coordinates', async () => {
     fetch.mockResolvedValueOnce(makeJsonResponse(200, { success: true, data: {} }));
 

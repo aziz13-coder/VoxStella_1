@@ -4,8 +4,12 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tupl
 
 from astrocartography_city_catalog import (
     DEFAULT_ATLAS_RESOLUTION,
+    city_catalog_candidate_matches_identity,
+    city_catalog_candidate_matches_keyword,
     get_country_catalog_meta,
+    get_city_catalog_country_codes_for_alias,
     get_atlas_resolution_settings,
+    parse_city_catalog_identity_query,
     search_city_catalog,
 )
 from astrocartography_goal_engine import (
@@ -102,6 +106,12 @@ def _normalize_target_text(value: Any) -> str:
     return text
 
 
+def _candidate_matches_identity_query(city: Dict[str, Any], query: Optional[str]) -> bool:
+    if not str(query or "").strip():
+        return True
+    return city_catalog_candidate_matches_identity(city, query)
+
+
 def _merge_atlas_candidates(
     catalog_candidates: Sequence[Dict[str, Any]],
     live_candidates: Sequence[Dict[str, Any]],
@@ -123,6 +133,22 @@ def _merge_atlas_candidates(
 
     for city in list(catalog_candidates) + list(live_candidates):
         item = dict(city)
+        if item.get("candidate_id") in (None, ""):
+            if item.get("geonameid") not in (None, ""):
+                item["candidate_id"] = f"geonames:{item.get('geonameid')}"
+            elif item.get("id") not in (None, ""):
+                item["candidate_id"] = str(item.get("id"))
+            else:
+                item["candidate_id"] = (
+                    f"coordinate:{round(float(item.get('latitude') or 0.0), 6)}:"
+                    f"{round(float(item.get('longitude') or 0.0), 6)}"
+                )
+        if not item.get("coordinate_source"):
+            item["coordinate_source"] = (
+                str(item.get("live_source") or "live_geocoder")
+                if item.get("live_source") or str(item.get("feature_code") or "").upper() == "LIVE"
+                else "bundled_geonames_catalog"
+            )
         country_code = str(item.get("country_code") or "").strip().upper()
         meta = country_meta.get(country_code, {})
         if not item.get("country_name") and meta.get("country_name"):
@@ -219,6 +245,44 @@ def describe_goal_search_filters(
     }
 
 
+def _candidate_identity_payload(city: Dict[str, Any]) -> Dict[str, Any]:
+    latitude = float(city.get("latitude") or 0.0)
+    longitude = float(city.get("longitude") or 0.0)
+    candidate_id = (
+        str(city.get("candidate_id"))
+        if city.get("candidate_id") not in (None, "")
+        else (
+            f"geonames:{city.get('geonameid')}"
+            if city.get("geonameid") not in (None, "")
+            else None
+        )
+    )
+    return {
+        "target": {
+            "candidate_id": candidate_id,
+            "label": _normalize_target_text(city.get("label")) or _normalize_target_text(city.get("query")),
+            "query": _normalize_target_text(city.get("query")) or _normalize_target_text(city.get("label")),
+            "latitude": latitude,
+            "longitude": longitude,
+            "coordinate_source": city.get("coordinate_source") or (
+                "bundled_geonames_catalog"
+                if city.get("geonameid") not in (None, "")
+                else "candidate_coordinates"
+            ),
+        },
+        "atlas_city": {
+            "candidate_id": candidate_id,
+            "geonameid": city.get("geonameid"),
+            "country_code": city.get("country_code"),
+            "country_name": city.get("country_name"),
+            "admin1_code": city.get("admin1_code"),
+            "population": int(city.get("population") or 0),
+            "timezone": city.get("timezone"),
+            "feature_code": city.get("feature_code"),
+        },
+    }
+
+
 def _score_candidate(
     city: Dict[str, Any],
     *,
@@ -226,9 +290,11 @@ def _score_candidate(
     natal_lines: Sequence[Dict[str, Any]],
     transit_lines: Optional[Sequence[Dict[str, Any]]] = None,
     relocation_features: Optional[Dict[str, Any]] = None,
+    relocation_status: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    latitude = float(city.get("latitude") or 0.0)
-    longitude = float(city.get("longitude") or 0.0)
+    identity = _candidate_identity_payload(city)
+    latitude = float((identity.get("target") or {}).get("latitude") or 0.0)
+    longitude = float((identity.get("target") or {}).get("longitude") or 0.0)
 
     natal_reading = build_location_reading(
         natal_lines,
@@ -288,20 +354,7 @@ def _score_candidate(
     )
 
     result: Dict[str, Any] = {
-        "target": {
-            "label": _normalize_target_text(city.get("label")) or _normalize_target_text(city.get("query")),
-            "query": _normalize_target_text(city.get("query")) or _normalize_target_text(city.get("label")),
-            "latitude": latitude,
-            "longitude": longitude,
-        },
-        "atlas_city": {
-            "country_code": city.get("country_code"),
-            "country_name": city.get("country_name"),
-            "admin1_code": city.get("admin1_code"),
-            "population": int(city.get("population") or 0),
-            "timezone": city.get("timezone"),
-            "feature_code": city.get("feature_code"),
-        },
+        **identity,
         "natal": {
             "reading": natal_reading,
             "crossings": natal_crossings,
@@ -314,7 +367,22 @@ def _score_candidate(
             "crossings": transit_crossings,
         }
     if relocation_features is not None:
-        result["relocation"] = {"summary": summarize_relocation_features(relocation_features)}
+        result["relocation"] = {
+            "available": True,
+            "relocation_unavailable": False,
+            "summary": summarize_relocation_features(relocation_features),
+            "provenance": (relocation_status or {}).get("provenance") or {},
+            "warnings": (relocation_status or {}).get("warnings") or [],
+        }
+    elif relocation_status:
+        result["relocation"] = {
+            "available": False,
+            "relocation_unavailable": True,
+            "summary": {},
+            "error": relocation_status.get("error"),
+            "provenance": relocation_status.get("provenance") or {},
+            "warnings": relocation_status.get("warnings") or [],
+        }
     return result
 
 
@@ -325,6 +393,8 @@ def _passes_signal_floor(
     score_polarity: str = "higher_is_better",
 ) -> bool:
     score_payload = item.get("location_score") or {}
+    if score_payload.get("ranking_eligible") is False:
+        return False
     if score_polarity == "higher_is_worse":
         return bool(score_payload)
     raw_score = float(score_payload.get("raw_score") or 0.0)
@@ -361,12 +431,17 @@ def _scored_candidate_sort_key(
     item: Dict[str, Any],
     *,
     score_polarity: str = "higher_is_better",
-) -> tuple[float, float, int, str]:
-    return build_location_score_sort_key(
+) -> tuple[float, float, float, int, str]:
+    relocation = item.get("relocation") or {}
+    relocation_unavailable = 1.0 if relocation.get("relocation_unavailable") else 0.0
+    return (
+        relocation_unavailable,
+        *build_location_score_sort_key(
         item.get("location_score") or {},
         label=((item.get("target") or {}).get("label") or ""),
         population=((item.get("atlas_city") or {}).get("population") or 0),
         score_polarity=score_polarity,
+        ),
     )
 
 
@@ -379,15 +454,25 @@ def _build_scored_candidate_ranking(rows: Sequence[Dict[str, Any]]) -> List[Dict
         ranking.append(
             {
                 "rank": index,
+                "candidate_id": target.get("candidate_id"),
                 "label": target.get("label"),
                 "query": target.get("query"),
+                "latitude": target.get("latitude"),
+                "longitude": target.get("longitude"),
+                "coordinate_source": target.get("coordinate_source"),
                 "score": location_score.get("score"),
                 "raw_score": location_score.get("raw_score"),
+                "evidence_strength": location_score.get("evidence_strength"),
+                "interpretation_status": location_score.get("interpretation_status"),
+                "ranking_eligible": location_score.get("ranking_eligible", True),
+                "uncertainty": location_score.get("uncertainty") or {},
+                "rank_stability": location_score.get("rank_stability") or {},
                 "population": atlas_city.get("population"),
                 "country_name": atlas_city.get("country_name"),
                 "lead_line": (((item.get("natal") or {}).get("reading") or {}).get("lead_line") or {}).get("label"),
                 "top_supports": (location_score.get("top_supports") or [])[:2],
                 "top_cautions": (location_score.get("top_cautions") or [])[:2],
+                "relocation_available": not bool((item.get("relocation") or {}).get("relocation_unavailable")),
             }
         )
     return ranking
@@ -417,20 +502,10 @@ def resolve_goal_shortlist_plan(
 
     prepass_limit = max(1, int(relocation_limit))
     if strategy == RELOCATION_PREPASS_SHORTLIST_STRATEGY:
-        configured_limit = int(model.get("atlas_relocation_prepass_limit") or 0)
-        if configured_limit <= 0:
-            configured_limit = max(int(relocation_limit) * 6, 96)
-        exhaustive_relocation_prepass = bool(
-            configured_strategy == RELOCATION_PREPASS_SHORTLIST_STRATEGY
-            or evaluation_strategy in RELOCATION_AWARE_EVALUATION_STRATEGIES
-        )
-        prepass_limit = min(
-            int(candidate_count),
-            int(candidate_count) if exhaustive_relocation_prepass else max(
-                int(relocation_limit),
-                min(configured_limit, MAX_RELOCATION_PREPASS_LIMIT),
-            ),
-        )
+        # A line-only cutoff cannot bound relocation-dependent components.  The
+        # API supplies a lightweight exact-house resolver, so every candidate
+        # participates in this dependency-aware prepass.
+        prepass_limit = int(candidate_count)
 
     return {
         "strategy": strategy,
@@ -440,9 +515,99 @@ def resolve_goal_shortlist_plan(
 
 def _candidate_payload_from_scored_item(item: Dict[str, Any]) -> Dict[str, Any]:
     return {
-        **(item.get("target") or {}),
         **(item.get("atlas_city") or {}),
+        **(item.get("target") or {}),
     }
+
+
+def _ranking_eligible_relocation_chart(chart_data: Dict[str, Any]) -> Dict[str, Any]:
+    if not isinstance(chart_data, dict):
+        return {}
+    out = dict(chart_data)
+    planets = chart_data.get("planets")
+    if isinstance(planets, dict):
+        out["planets"] = {
+            name: payload
+            for name, payload in planets.items()
+            if not isinstance(payload, dict)
+            or (payload.get("calculation_provenance") or {}).get("ranking_eligible", True)
+        }
+    elif isinstance(planets, list):
+        out["planets"] = [
+            payload
+            for payload in planets
+            if not isinstance(payload, dict)
+            or (payload.get("calculation_provenance") or {}).get("ranking_eligible", True)
+        ]
+    return out
+
+
+def _resolve_candidate_relocation(
+    item: Dict[str, Any],
+    resolver: Callable[[Dict[str, Any]], Dict[str, Any]],
+) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
+    try:
+        bundle = resolver(item) or {}
+    except Exception as exc:
+        return None, {
+            "available": False,
+            "relocation_unavailable": True,
+            "error": {
+                "code": "relocation_calculation_failed",
+                "message": str(exc) or "Relocation calculation failed for this candidate.",
+            },
+            "warnings": [
+                "The candidate was retained with line-only evidence; no alternate house system was substituted."
+            ],
+        }
+    if bundle.get("relocation_unavailable") or bundle.get("available") is False:
+        return None, {
+            "available": False,
+            "relocation_unavailable": True,
+            "error": bundle.get("error"),
+            "provenance": bundle.get("provenance") or {},
+            "warnings": bundle.get("warnings") or [],
+        }
+    chart_data = _ranking_eligible_relocation_chart(bundle.get("chart_data") or {})
+    return extract_relocation_features(chart_data), {
+        "available": True,
+        "relocation_unavailable": False,
+        "provenance": bundle.get("provenance") or {},
+        "warnings": bundle.get("warnings") or [],
+    }
+
+
+def _score_candidate_with_relocation(
+    city: Dict[str, Any],
+    *,
+    goal_id: str,
+    natal_lines: Sequence[Dict[str, Any]],
+    transit_lines: Optional[Sequence[Dict[str, Any]]],
+    relocation_features: Optional[Dict[str, Any]],
+    relocation_status: Optional[Dict[str, Any]],
+    relocation_required: bool,
+) -> Dict[str, Any]:
+    kwargs: Dict[str, Any] = {
+        "goal_id": goal_id,
+        "natal_lines": natal_lines,
+        "transit_lines": transit_lines,
+        "relocation_features": relocation_features,
+    }
+    if relocation_status and relocation_status.get("relocation_unavailable"):
+        kwargs["relocation_status"] = relocation_status
+    result = _score_candidate(city, **kwargs)
+    if relocation_required and relocation_status and relocation_status.get("relocation_unavailable"):
+        location_score = result.get("location_score")
+        if isinstance(location_score, dict):
+            location_score["ranking_eligible"] = False
+            reasons = list(location_score.get("ineligible_reasons") or [])
+            if "relocation_unavailable" not in reasons:
+                reasons.append("relocation_unavailable")
+            location_score["ineligible_reasons"] = reasons
+    if relocation_status and relocation_status.get("available") and isinstance(result.get("relocation"), dict):
+        result["relocation"]["provenance"] = relocation_status.get("provenance") or {}
+        result["relocation"]["warnings"] = relocation_status.get("warnings") or []
+    return result
 
 
 def rank_candidate_pool_for_goal(
@@ -473,6 +638,12 @@ def rank_candidate_pool_for_goal(
         candidate_count=initial_total,
     )
     score_polarity = get_goal_score_polarity(goal_id)
+    use_direct_relocation_prepass = bool(
+        shortlist_plan["strategy"] == RELOCATION_PREPASS_SHORTLIST_STRATEGY
+        and relocation_bundle_resolver is not None
+        and shortlist_plan["prepass_limit"] >= initial_total
+        and not include_debug_ranking
+    )
 
     initial_results: List[Dict[str, Any]] = []
     if initial_total == 0:
@@ -484,6 +655,24 @@ def rank_candidate_pool_for_goal(
             done=0,
             total=0,
             candidate_count=0,
+        )
+    elif use_direct_relocation_prepass:
+        for city in candidates:
+            initial_results.append(
+                {
+                    **_candidate_identity_payload(city),
+                    "natal": {"reading": {}},
+                    "location_score": {},
+                }
+            )
+        _emit_progress(
+            progress_callback,
+            stage="prepare_candidates",
+            percent=0.65,
+            message="Candidate identities prepared for exact relocation-aware scoring",
+            done=initial_total,
+            total=initial_total,
+            candidate_count=initial_total,
         )
     else:
         initial_step = max(1, initial_total // 24)
@@ -503,7 +692,8 @@ def rank_candidate_pool_for_goal(
                     total=initial_total,
                     candidate_count=initial_total,
                 )
-    initial_results.sort(key=lambda item: _scored_candidate_sort_key(item, score_polarity=score_polarity))
+    if not use_direct_relocation_prepass:
+        initial_results.sort(key=lambda item: _scored_candidate_sort_key(item, score_polarity=score_polarity))
 
     prepass_candidates = initial_results[: shortlist_plan["prepass_limit"]]
     relocation_prepass_results: List[Dict[str, Any]] = []
@@ -529,15 +719,19 @@ def rank_candidate_pool_for_goal(
         for index, item in enumerate(prepass_candidates, start=1):
             _check_should_continue(should_continue)
             city = _candidate_payload_from_scored_item(item)
-            bundle = relocation_bundle_resolver(item)
-            relocation_features = extract_relocation_features((bundle or {}).get("chart_data") or {})
+            relocation_features, relocation_status = _resolve_candidate_relocation(
+                item,
+                relocation_bundle_resolver,
+            )
             relocation_prepass_results.append(
-                _score_candidate(
+                _score_candidate_with_relocation(
                     city,
                     goal_id=goal_id,
                     natal_lines=natal_lines,
                     transit_lines=transit_lines,
                     relocation_features=relocation_features,
+                    relocation_status=relocation_status,
+                    relocation_required=True,
                 )
             )
             if index == prepass_total or index % prepass_step == 0:
@@ -572,16 +766,21 @@ def rank_candidate_pool_for_goal(
             _check_should_continue(should_continue)
             city = _candidate_payload_from_scored_item(item)
             relocation_features = None
+            relocation_status = None
             if relocation_bundle_resolver is not None:
-                bundle = relocation_bundle_resolver(item)
-                relocation_features = extract_relocation_features((bundle or {}).get("chart_data") or {})
+                relocation_features, relocation_status = _resolve_candidate_relocation(
+                    item,
+                    relocation_bundle_resolver,
+                )
             final_results_source.append(
-                _score_candidate(
+                _score_candidate_with_relocation(
                     city,
                     goal_id=goal_id,
                     natal_lines=natal_lines,
                     transit_lines=transit_lines,
                     relocation_features=relocation_features,
+                    relocation_status=relocation_status,
+                    relocation_required=False,
                 )
             )
             if shortlist_total and (index == shortlist_total or index % shortlist_step == 0):
@@ -634,6 +833,20 @@ def rank_candidate_pool_for_goal(
         "relocation_prepass_count": len(prepass_candidates),
         "shortlisted_count": len(shortlisted),
         "viable_count": len(viable_results),
+        "relocation_unavailable_count": sum(
+            1
+            for item in final_results_source
+            if (item.get("relocation") or {}).get("relocation_unavailable")
+        ),
+        "relocation_unavailable": [
+            {
+                "target": item.get("target") or {},
+                "error": (item.get("relocation") or {}).get("error"),
+                "warnings": (item.get("relocation") or {}).get("warnings") or [],
+            }
+            for item in final_results_source
+            if (item.get("relocation") or {}).get("relocation_unavailable")
+        ],
         "signal_floor_raw_score": MIN_ATLAS_RAW_SCORE,
         "score_polarity": score_polarity,
         "results": final_results,
@@ -683,12 +896,69 @@ def rank_atlas_cities_for_goal(
         message="Collecting atlas candidates",
     )
 
-    catalog_candidates = search_city_catalog(
-        query=query,
+    country_keyword_codes = (
+        get_city_catalog_country_codes_for_alias(query)
+        if query
+        else ()
+    )
+    parsed_identity_query = (
+        parse_city_catalog_identity_query(query)
+        if query and not country_keyword_codes
+        else None
+    )
+    use_exact_identity = bool(
+        parsed_identity_query
+        and parsed_identity_query.get("city_prefix_exact")
+    )
+    catalog_candidate_limit = max(
+        1,
+        int(resolution_settings.get("candidate_limit") or 1),
+    )
+    catalog_candidates_with_sentinel = search_city_catalog(
+        query=(
+            parsed_identity_query.get("city_query")
+            if use_exact_identity
+            else query
+        ),
         country_code=country_code,
         continent_code=continent_code,
+        limit=catalog_candidate_limit + 1,
         resolution=resolution_id,
     )
+    catalog_pool_truncated = (
+        len(catalog_candidates_with_sentinel) > catalog_candidate_limit
+    )
+    catalog_candidates = catalog_candidates_with_sentinel[:catalog_candidate_limit]
+    country_norm = str(country_code or "").strip().upper()
+
+    def _matches_requested_identity(city: Dict[str, Any]) -> bool:
+        city_country_code = str(city.get("country_code") or "").strip().upper()
+        if country_keyword_codes and city_country_code not in country_keyword_codes:
+            return False
+        if (
+            use_exact_identity
+            and not city_catalog_candidate_matches_identity(
+                city,
+                parsed_identity_query,
+            )
+        ):
+            return False
+        if (
+            query
+            and not country_keyword_codes
+            and not use_exact_identity
+            and not city_catalog_candidate_matches_keyword(city, query)
+        ):
+            return False
+        if country_norm and city_country_code != country_norm:
+            return False
+        return True
+
+    catalog_candidates = [
+        city
+        for city in catalog_candidates
+        if _matches_requested_identity(city)
+    ]
     _check_should_continue(should_continue)
     _emit_progress(
         progress_callback,
@@ -701,6 +971,11 @@ def rank_atlas_cities_for_goal(
     )
     _check_should_continue(should_continue)
     live_candidates = search_live_location_candidates(query or "", limit=live_limit) if augment_live_query else []
+    live_candidates = [
+        city
+        for city in live_candidates
+        if _matches_requested_identity(city)
+    ]
     _check_should_continue(should_continue)
     candidates = _merge_atlas_candidates(
         catalog_candidates,
@@ -738,6 +1013,15 @@ def rank_atlas_cities_for_goal(
             "resolution": resolution_id,
         },
         "resolution": resolution_settings,
+        "candidate_pool_policy": {
+            "bounded": True,
+            "candidate_limit": catalog_candidate_limit,
+            "mandatory_feature_codes": ["PPLC", "PPLA"],
+            "mandatory_candidates_preserved": True,
+            "lower_level_fill_order": "population_descending",
+            "truncated": catalog_pool_truncated,
+            "eligible_count_lower_bound": len(catalog_candidates_with_sentinel),
+        },
         "catalog_candidate_count": len(catalog_candidates),
         "live_candidate_count": len(live_candidates),
         "used_live_augmentation": bool(live_candidates),

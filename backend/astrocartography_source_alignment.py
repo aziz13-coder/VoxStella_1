@@ -27,6 +27,54 @@ def _read_jsonl(path: Path) -> Iterable[Tuple[int, Dict[str, Any]]]:
         yield line_number, payload
 
 
+def _validate_case_contract(
+    case: Dict[str, Any],
+    *,
+    path: Path,
+    line_number: int,
+) -> None:
+    prefix = f"{path}:{line_number}"
+    if case.get("fixture_policy") != "minimal_source_signal_v2":
+        raise ValueError(
+            f"{prefix}: source-alignment cases must use minimal_source_signal_v2"
+        )
+    source = case.get("source")
+    if not isinstance(source, dict):
+        raise ValueError(f"{prefix}: source must be an object")
+    for field in ("claim_id", "classification", "claim", "refs", "normalized_file"):
+        if source.get(field) in (None, "", []):
+            raise ValueError(f"{prefix}: source.{field} is required")
+    if source.get("classification") not in {"direct", "synthesis"}:
+        raise ValueError(
+            f"{prefix}: semantic fixtures require direct or synthesis provenance"
+        )
+    refs = source.get("refs")
+    if not isinstance(refs, list):
+        raise ValueError(f"{prefix}: source.refs must be a list")
+    for ref in refs:
+        if not isinstance(ref, dict):
+            raise ValueError(f"{prefix}: source.refs entries must be objects")
+        for field in ("source_id", "page", "page_id", "chunk_id"):
+            if ref.get(field) in (None, ""):
+                raise ValueError(f"{prefix}: source ref missing {field}")
+
+    natal_rows = case.get("natal_rows") or []
+    natal_crossings = case.get("natal_crossings") or []
+    relocation_planets = case.get("relocation_planets") or {}
+    if not isinstance(natal_rows, list) or len(natal_rows) > 1:
+        raise ValueError(
+            f"{prefix}: minimal fixtures may contain at most one natal line"
+        )
+    if natal_crossings:
+        raise ValueError(
+            f"{prefix}: minimal fixtures must not bake in crossing evidence"
+        )
+    if relocation_planets:
+        raise ValueError(
+            f"{prefix}: minimal fixtures must not bake in relocation evidence"
+        )
+
+
 def load_source_alignment_cases(
     dataset_paths: Optional[Sequence[str | Path]] = None,
     *,
@@ -58,6 +106,7 @@ def load_source_alignment_cases(
             case = dict(payload)
             case["_dataset_path"] = str(path)
             case["_line_number"] = line_number
+            _validate_case_contract(case, path=path, line_number=line_number)
             cases.append(case)
     return cases, skipped
 
@@ -183,6 +232,29 @@ def _evaluate_expectations(
                     "detail": f"Expected {expected_lead} to lead but observed {actual_lead}.",
                 }
             )
+        else:
+            lead_raw = float(ranking[0].get("raw_score") or 0.0)
+            runner_raw = max(
+                (
+                    float(item.get("raw_score") or 0.0)
+                    for item in ranking[1:]
+                ),
+                default=float("-inf"),
+            )
+            required_gap = float(case.get("minimum_lead_raw_gap") or 0.0)
+            observed_gap = lead_raw - runner_raw
+            if observed_gap <= 0.0 or observed_gap + 1e-12 < required_gap:
+                failures.append(
+                    {
+                        "case_id": case_id,
+                        "expectation": "strict_expected_lead",
+                        "detail": (
+                            f"Expected {expected_lead} to lead without a raw-score "
+                            f"tie and by at least {required_gap:g}; observed gap "
+                            f"{observed_gap:g}."
+                        ),
+                    }
+                )
 
     for goal_id in case.get("expected_in_top") or []:
         expected_goal = _normalize_text(goal_id).lower()
@@ -225,12 +297,108 @@ def _evaluate_expectations(
                 }
             )
             continue
-        if int(higher_rank.get("rank") or 0) >= int(lower_rank.get("rank") or 0):
+        higher_raw = float(higher_rank.get("raw_score") or 0.0)
+        lower_raw = float(lower_rank.get("raw_score") or 0.0)
+        required_gap = float(relation.get("min_raw_gap") or 0.0)
+        observed_gap = higher_raw - lower_raw
+        if (
+            int(higher_rank.get("rank") or 0) >= int(lower_rank.get("rank") or 0)
+            or observed_gap <= 0.0
+            or observed_gap + 1e-12 < required_gap
+        ):
             failures.append(
                 {
                     "case_id": case_id,
                     "expectation": "expected_above",
-                    "detail": f"Expected {higher} above {lower}, observed ranks {higher_rank.get('rank')} and {lower_rank.get('rank')}.",
+                    "detail": (
+                        f"Expected {higher} strictly above {lower} with raw-score "
+                        f"gap at least {required_gap:g}; observed ranks "
+                        f"{higher_rank.get('rank')} and {lower_rank.get('rank')} "
+                        f"and raw gap {observed_gap:g}."
+                    ),
+                }
+            )
+
+    for expectation in case.get("expected_rank_at_most") or []:
+        if not isinstance(expectation, dict):
+            raise ValueError(
+                f"Case {case_id}: expected_rank_at_most entries must be objects"
+            )
+        goal_id = _normalize_text(expectation.get("goal_id")).lower()
+        maximum_rank = int(expectation.get("rank") or 0)
+        ranked_goal = rank_by_goal.get(goal_id)
+        if (
+            not goal_id
+            or maximum_rank < 1
+            or ranked_goal is None
+            or int(ranked_goal.get("rank") or 0) > maximum_rank
+        ):
+            observed_rank = ranked_goal.get("rank") if ranked_goal else "missing"
+            failures.append(
+                {
+                    "case_id": case_id,
+                    "expectation": "expected_rank_at_most",
+                    "detail": (
+                        f"Expected {goal_id or '<missing>'} at rank "
+                        f"{maximum_rank} or better; observed {observed_rank}."
+                    ),
+                }
+            )
+
+    for expectation in case.get("expected_raw_bounds") or []:
+        if not isinstance(expectation, dict):
+            raise ValueError(
+                f"Case {case_id}: expected_raw_bounds entries must be objects"
+            )
+        goal_id = _normalize_text(expectation.get("goal_id")).lower()
+        ranked_goal = rank_by_goal.get(goal_id)
+        if ranked_goal is None:
+            failures.append(
+                {
+                    "case_id": case_id,
+                    "expectation": "expected_raw_bounds",
+                    "detail": f"Ranking is missing goal {goal_id}.",
+                }
+            )
+            continue
+        raw_score = float(ranked_goal.get("raw_score") or 0.0)
+        minimum = expectation.get("min")
+        maximum = expectation.get("max")
+        if minimum is not None and raw_score < float(minimum):
+            failures.append(
+                {
+                    "case_id": case_id,
+                    "expectation": "expected_raw_bounds",
+                    "detail": (
+                        f"Expected {goal_id} raw score >= {float(minimum):g}; "
+                        f"observed {raw_score:g}."
+                    ),
+                }
+            )
+        if maximum is not None and raw_score > float(maximum):
+            failures.append(
+                {
+                    "case_id": case_id,
+                    "expectation": "expected_raw_bounds",
+                    "detail": (
+                        f"Expected {goal_id} raw score <= {float(maximum):g}; "
+                        f"observed {raw_score:g}."
+                    ),
+                }
+            )
+
+    if case.get("expected_all_raw_zero"):
+        nonzero = [
+            (str(item.get("goal_id") or ""), float(item.get("raw_score") or 0.0))
+            for item in ranking
+            if abs(float(item.get("raw_score") or 0.0)) > 1e-12
+        ]
+        if nonzero:
+            failures.append(
+                {
+                    "case_id": case_id,
+                    "expectation": "expected_all_raw_zero",
+                    "detail": f"Expected a neutral ranking; non-zero goals: {nonzero}.",
                 }
             )
 
@@ -264,9 +432,14 @@ def run_source_alignment_suite(
                 "expected_in_top": case.get("expected_in_top") or [],
                 "disallowed_in_top": case.get("disallowed_in_top") or [],
                 "expected_above": case.get("expected_above") or [],
+                "expected_rank_at_most": case.get("expected_rank_at_most") or [],
+                "expected_raw_bounds": case.get("expected_raw_bounds") or [],
+                "expected_all_raw_zero": bool(case.get("expected_all_raw_zero")),
                 "top_k": int(case.get("top_k") or default_top_k),
                 "top_results": ranking[: int(case.get("top_k") or default_top_k)],
                 "failures": failures,
+                "fixture_type": "synthetic_semantic_claim",
+                "semantic_only": True,
             }
         )
 
@@ -276,7 +449,15 @@ def run_source_alignment_suite(
         "goal_count": len(active_models),
         "cases": report_cases,
         "expectation_failures": expectation_failures,
+        "semantic_gate_passed": not expectation_failures,
         "skipped": skipped,
+        "validation_scope": {
+            "fixture_type": "synthetic_semantic_claims",
+            "semantic_only": True,
+            "outcome_validation": False,
+            "public_specialist_gate": "experimental",
+            "promotion_requirement": "positive held-out lift on person-grouped historical outcomes",
+        },
     }
 
 
@@ -287,6 +468,8 @@ def render_markdown_report(report: Dict[str, Any]) -> str:
     lines.append(f"- Cases: {int(report.get('case_count') or 0)}")
     lines.append(f"- Active goals: {int(report.get('goal_count') or 0)}")
     lines.append(f"- Expectation failures: {len(report.get('expectation_failures') or [])}")
+    lines.append("- Scope: synthetic semantic fixtures only; this is not outcome validation.")
+    lines.append("- Public specialist gate: experimental until positive held-out lift.")
     lines.append("")
     for dataset_path in report.get("dataset_paths") or []:
         lines.append(f"- Dataset: `{dataset_path}`")

@@ -1,11 +1,50 @@
 # Astrocartography Benchmarks
 
+## Validation status
+
+The source-alignment and model-stress fixtures are synthetic semantic checks
+only. They test whether documented concepts map to the intended broad goal
+families; they do not validate real-world outcomes, predictive accuracy, or
+causal claims. Source-alignment fixtures use the
+`minimal_source_signal_v2` policy: exact governed claim/page/chunk references,
+at most one natal line, no baked crossings or relocation evidence, and no
+positive doctrine assertions for experimental models.
+
+The default stress gate evaluates only models whose catalog status is `active`
+and whose composition is `standalone`. It fails public semantic errors and raw
+score-vector cosine overlap at or above `0.92` among that peer population.
+Every other catalog model is listed with its status and exclusion reason.
+
+Active parent/specialist compositions are not independent peers. Comparing
+their full scores with cosine would mostly measure the declared parent
+inheritance, so the stress report replaces that comparison with bounded
+specialist-residual distinctness and lift diagnostics. These diagnostics are a
+separate section and do not silently enter the default standalone peer gate.
+
+Models with `experimental` status are reported in a clearly labeled,
+non-public research section. Deprecated models are inventoried but not scored
+as public peers. Neither synthetic residual diagnostics nor research rankings
+are promotion gates. Public specialist promotion still requires positive lift
+on a deterministic, person-grouped holdout set, with the same frozen,
+exposure-matched control design used for every comparator and uncertainty
+reported with person-clustered bootstrap intervals when the sample permits.
+
+Benchmark summaries use equal case-level weighting by default so people with
+more control cities do not dominate the result. Pooled pair counts are reported
+separately as diagnostic micro-averages. Comparator lift is calculated only on
+the cases shared with the product model.
+
+Older numeric snapshots below that call a parent or existing goal model a
+"baseline" predate this correction. Production-model comparisons are no longer
+treated as independent evidence and must be regenerated with the current
+harness before they are cited.
+
 This folder holds curated benchmark datasets for validating Astrocartography PathFinder models against real event-location cases.
 
 The benchmark runners are:
 
-- [run_astrocartography_benchmark.py](/Users/sabaa/Downloads/codexhorary/backend/run_astrocartography_benchmark.py)
-- [run_astrocartography_pathfinder_benchmark.py](/Users/sabaa/Downloads/codexhorary/backend/run_astrocartography_pathfinder_benchmark.py)
+- `backend/run_astrocartography_benchmark.py`
+- `backend/run_astrocartography_pathfinder_benchmark.py`
 
 Current intended datasets:
 

@@ -1,30 +1,36 @@
+<!-- generated-by: scripts/build_astrocartography_knowledge_base.py -->
+
 # Astrocartography Knowledge Base
 
-This directory is a cleaned, AI-oriented layer built from the raw extracted astrocartography book corpus.
+This directory is a traceable, AI-oriented layer built from the governed local astrocartography corpus. Stable IDs prove where a claim came from; they do not prove astrology or a retrospective case interpretation scientifically valid.
 
 ## Layout
 
-- `normalized_books/`: full-book markdown versions with page headings and flatter paragraphs
-- `guides/`: fast-scan per-book guides with role, relevance, headings, and keyword anchors
-- `reference/`: distilled concept docs for implementation work
-- `catalog.json`: machine-readable summary of the generated corpus
+- `normalized_books/`: governed source books with stable page and paragraph chunk IDs
+- `guides/`: source-specific scan guides with token-bounded keyword anchors
+- `reference/`: classified direct, synthesis, legacy-parity, and experimental notes
+- `catalog.json`: portable source catalog with repository-relative paths
+- `chunk_index.jsonl`: retrieval index keyed by source, page, and chunk IDs
+- `../astrocartography_sources/`: canonical source and claim registries
 
 ## Recommended Reading Order
 
-1. `reference/01_core_concepts.md`
-2. `reference/02_planetary_and_angular_reference.md`
-3. `reference/03_techniques_and_ranges.md`
-4. `reference/05_feature_notes.md`
-5. `guides/hermes_map_interpretation.md`
-6. `guides/dan_furst_best_places.md`
-7. `guides/lewis_guttman_book_of_maps.md`
+1. `reference/00_source_governance.md`
+2. `reference/01_core_concepts.md`
+3. `reference/02_planetary_and_angular_reference.md`
+4. `reference/03_techniques_and_ranges.md`
+5. `guides/lewis_guttman_book_of_maps.md` — canonical doctrine
+6. `guides/dan_furst_best_places.md` — secondary practitioner variants
+7. `guides/hermes_map_interpretation.md` — tertiary comparison only
 
 ## Source Coverage
 
-| Book | Role | Relevance | Best use |
-| --- | --- | --- | --- |
-| Astrocartography Map Interpretation (Hermes Astrology) | Interpretation encyclopedia | high | Use for line meanings, angle meanings, and crossing interpretations. |
-| Finding Your Best Places | Conceptual and practical field guide | high | Use for workflow, line range assumptions, relocation vs. local-space distinctions, and user-facing guidance. |
-| The Astro*Carto*Graphy Book of Maps | Case-study atlas and historical reference | high | Use for evidence patterns, angular framing, and examples of how lines were linked to places and life events. |
-| Dictionary of Astrology | Supporting terminology reference | medium | Use for generic astrology vocabulary when the astrocartography books assume prior knowledge. |
-| The Astrology of Death | Tangential supporting source | low | Treat as lower-priority support; it is not a primary astrocartography book. |
+| Rank | Source ID | Book | Retrieval | Best use |
+| ---: | --- | --- | --- | --- |
+| 1 | `acg-src-lewis-guttman-1989` | The Astro*Carto*Graphy Book of Maps: The Astrology of Relocation — How 136 Famous People Found Their Places | astrocartography-doctrine, historical-case-studies | Use first for canonical line, angle, crossing, natal-condition, and remote-activation doctrine. Treat retrospective cases as illustrations, not independent validation. |
+| 2 | `acg-src-furst-best-places-2015` | Finding Your Best Places: Using Astrocartography to Navigate Your Life | astrocartography-doctrine, practitioner-variants, workflow | Use for practitioner workflow, explicit technique variants, local-space and relocation distinctions, range sensitivity, and cautionary interpretations. |
+| 3 | `acg-src-hermes-map-2023` | Astrocartography Map Interpretation | tertiary-comparison | Use only for comparison copy and candidate interpretations that are checked against higher-tier sources. |
+| 4 | `acg-src-lee-dictionary-1968` | Dictionary of Astrology | terminology | Use only to define generic astrology vocabulary when an astrocartography source assumes prior knowledge. |
+| 5 | `acg-src-houck-death-1994` | The Astrology of Death | excluded — Non-astrocartography health/death material can create unsafe and false location-risk inferences. | Do not use in astrocartography retrieval, interpretations, risk scoring, or validation. |
+
+The Astrology of Death remains inventoried in `catalog.json` but is intentionally absent from normalized books, guides, and retrieval chunks. The dictionary is restricted to the `terminology` scope.

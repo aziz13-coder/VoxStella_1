@@ -21,6 +21,7 @@ import sys
 import logging
 import threading
 import tempfile
+import unicodedata
 from contextlib import contextmanager
 from contextvars import ContextVar
 from collections import Counter
@@ -33,7 +34,7 @@ from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 from flask import Blueprint, jsonify, request, Response, stream_with_context, has_request_context
-from functools import wraps
+from functools import lru_cache, wraps
 
 from astro_clock_engine import AstroClockEngine, AstroClockSettings, ClockMode
 from astro_dispositors import (
@@ -5618,9 +5619,14 @@ def _compute_chart_bundle_for(dt_iso: Optional[str], location: Optional[str], ti
                     timezone_name=resolved_tz,
                     location=resolved_location,
                 )
-            except Exception:
-                custom = None
-                parsed_tz = None
+            except Exception as exc:
+                raise ValueError(
+                    f"Invalid datetime: {dt_iso!r}. An ISO-8601 date and time is required."
+                ) from exc
+            if custom is None:
+                raise ValueError(
+                    f"Invalid datetime: {dt_iso!r}. An ISO-8601 date and time is required."
+                )
         tz = resolved_tz or parsed_tz
         local = AstroClockSettings(
             mode=ClockMode.MANUAL if custom else ClockMode.REALTIME,
@@ -5867,9 +5873,17 @@ def _extend_chart_data_for_synastry(
             swe_key = _SYN_AUGMENT_POINT_IDS.get(name)
             point_id = getattr(_swe, swe_key, None) if swe_key else None
             pos = None
+            returned_flags = None
+            calculation_source = (
+                "swiss-ephemeris-asteroid-file"
+                if name == "Chiron"
+                else "swiss_ephemeris"
+            )
+            calculation_accuracy = "ephemeris"
+            calculation_degraded = False
             if point_id is not None:
                 try:
-                    pos, _ = _swe.calc_ut(jd_ut, point_id, flags)
+                    pos, returned_flags = _swe.calc_ut(jd_ut, point_id, flags)
                 except Exception:
                     pos = None
             if pos is None:
@@ -5885,10 +5899,29 @@ def _extend_chart_data_for_synastry(
                 lon = float(fallback_position.get("longitude") or 0.0) % 360.0
                 lat = float(fallback_position.get("latitude") or 0.0)
                 speed = float(fallback_position.get("speed") or 0.0)
+                calculation_source = "jpl_mean_orbital_elements_fallback"
+                calculation_accuracy = "low_precision_approximation"
+                calculation_degraded = True
             else:
                 lon = float(pos[0]) % 360.0
                 lat = float(pos[1])
                 speed = float(pos[3]) if len(pos) > 3 else 0.0
+            if calculation_degraded:
+                ephemeris_engine = "orbital_elements"
+            elif (
+                returned_flags is not None
+                and int(returned_flags) & int(getattr(_swe, "FLG_MOSEPH", 4))
+            ):
+                calculation_source = "moshier"
+                ephemeris_engine = "moshier"
+            elif (
+                returned_flags is not None
+                and int(returned_flags) & int(getattr(_swe, "FLG_JPLEPH", 1))
+            ):
+                calculation_source = "jpl_ephemeris"
+                ephemeris_engine = "jpl"
+            else:
+                ephemeris_engine = "swiss_ephemeris"
             payload = {
                 'longitude': lon,
                 'latitude': lat,
@@ -5900,6 +5933,14 @@ def _extend_chart_data_for_synastry(
                 'retrograde': speed < 0.0,
                 'speed': speed,
                 'degree_in_sign': lon % 30.0,
+                'calculation_provenance': {
+                    'source': calculation_source,
+                    'ephemeris_engine': ephemeris_engine,
+                    'returned_flags': int(returned_flags) if returned_flags is not None else None,
+                    'accuracy': calculation_accuracy,
+                    'degraded': calculation_degraded,
+                    'ranking_eligible': not calculation_degraded,
+                },
             }
             _upsert(name, payload)
 
@@ -7080,10 +7121,1159 @@ def _weather_bundle_resolver(
     return bundle
 
 
+ASTROCARTOGRAPHY_INTERSECTION_RADIUS_KM = 1200.0
+ASTROCARTOGRAPHY_PARAN_RADIUS_KM = 1200.0
+ASTROCARTOGRAPHY_LOCAL_PARAN_ORB_DEG = 2.0
+ASTROCARTOGRAPHY_GLOBAL_PARAN_ORB_DEG = 1.0
+ASTROCARTOGRAPHY_LOCAL_PARAN_DISPLAY_LIMIT = 12
+ASTROCARTOGRAPHY_GLOBAL_PARAN_DISPLAY_LIMIT = 24
+ASTROCARTOGRAPHY_PARAN_FILTER_SCAN_LIMIT = 10_000
+ASTROCARTOGRAPHY_DISTANCE_POLICY_VERSION = "2026-07-18"
+ASTROCARTOGRAPHY_SUPPORTED_HOUSE_SYSTEM_CODES = frozenset(
+    {"R", "P", "E", "W", "O", "C", "K", "T"}
+)
+
+
+def _validated_astrocartography_house_system_code(
+    value: Any,
+    *,
+    default: Optional[str] = None,
+) -> Optional[str]:
+    if value in (None, ""):
+        return default
+    effective = str(value).strip().upper()
+    try:
+        encoded = effective.encode("ascii")
+    except UnicodeEncodeError as exc:
+        raise ValueError("house_system_code must be a one-character Swiss Ephemeris code") from exc
+    if len(encoded) != 1:
+        raise ValueError("house_system_code must be a one-character Swiss Ephemeris code")
+    if effective not in ASTROCARTOGRAPHY_SUPPORTED_HOUSE_SYSTEM_CODES:
+        supported = ", ".join(sorted(ASTROCARTOGRAPHY_SUPPORTED_HOUSE_SYSTEM_CODES))
+        raise ValueError(
+            f"Unsupported house_system_code {effective!r}; supported codes are {supported}"
+        )
+    return effective
+
+
+def _astrocartography_distance_policy() -> Dict[str, Any]:
+    from astrocartography_service import (
+        EXTENDED_READING_RADIUS_KM,
+        PRIMARY_READING_RADIUS_KM,
+    )
+
+    return {
+        "version": ASTROCARTOGRAPHY_DISTANCE_POLICY_VERSION,
+        "units": "kilometres",
+        "primary_radius_km": float(PRIMARY_READING_RADIUS_KM),
+        "extended_radius_km": float(EXTENDED_READING_RADIUS_KM),
+        "line_primary_radius_km": float(PRIMARY_READING_RADIUS_KM),
+        "line_extended_radius_km": float(EXTENDED_READING_RADIUS_KM),
+        "crossing_radius_km": float(EXTENDED_READING_RADIUS_KM),
+        "intersection_radius_km": float(ASTROCARTOGRAPHY_INTERSECTION_RADIUS_KM),
+        "local_paran_radius_km": float(ASTROCARTOGRAPHY_PARAN_RADIUS_KM),
+        "local_paran_orb_deg": float(ASTROCARTOGRAPHY_LOCAL_PARAN_ORB_DEG),
+        "global_paran_orb_deg": float(ASTROCARTOGRAPHY_GLOBAL_PARAN_ORB_DEG),
+        "policy": "continuous_distance_falloff_with_named_display_bands",
+        "warnings": [
+            "Distance bands are interpretive display ranges, not physical boundaries.",
+            "Birth-time uncertainty can move angular lines across these bands.",
+        ],
+    }
+
+
+def _optional_nonnegative_float(value: Any) -> Optional[float]:
+    if value in (None, "", "null"):
+        return None
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(parsed) or parsed < 0.0:
+        return None
+    return parsed
+
+
+def _datetime_span_minutes(start: Any, end: Any) -> Optional[float]:
+    if not start or not end:
+        return None
+    start_text = str(start).strip()
+    end_text = str(end).strip()
+    if (
+        ":" in start_text
+        and ":" in end_text
+        and all(separator not in start_text for separator in ("T", "t", " "))
+        and all(separator not in end_text for separator in ("T", "t", " "))
+    ):
+        try:
+            start_time = dt_time.fromisoformat(start_text)
+            end_time = dt_time.fromisoformat(end_text)
+            start_minutes = (
+                (start_time.hour * 60.0)
+                + start_time.minute
+                + (start_time.second / 60.0)
+                + (start_time.microsecond / 60_000_000.0)
+            )
+            end_minutes = (
+                (end_time.hour * 60.0)
+                + end_time.minute
+                + (end_time.second / 60.0)
+                + (end_time.microsecond / 60_000_000.0)
+            )
+            return max(0.0, end_minutes - start_minutes)
+        except Exception:
+            return None
+    try:
+        start_dt = _parse_iso_datetime(start)
+        end_dt = _parse_iso_datetime(end)
+        if start_dt.tzinfo is None:
+            start_dt = start_dt.replace(tzinfo=timezone.utc)
+        if end_dt.tzinfo is None:
+            end_dt = end_dt.replace(tzinfo=timezone.utc)
+        return max(0.0, (end_dt.astimezone(timezone.utc) - start_dt.astimezone(timezone.utc)).total_seconds() / 60.0)
+    except Exception:
+        return None
+
+
+def _astrocartography_birth_time_quality(
+    *,
+    certification: Optional[Dict[str, Any]] = None,
+    source_status: Optional[str] = None,
+    uncertainty_minutes: Any = None,
+) -> Dict[str, Any]:
+    certification_payload = _normalize_snap_certification_payload(certification)
+    status = str(
+        (certification_payload or {}).get("status")
+        or source_status
+        or "user_entered_time"
+    ).strip().lower()
+    confidence = str((certification_payload or {}).get("confidence") or "").strip().lower()
+    birth_meta = (certification_payload or {}).get("birth")
+    if not isinstance(birth_meta, dict):
+        birth_meta = {}
+    source_time_status = str(
+        source_status
+        or birth_meta.get("source_time_status")
+        or ""
+    ).strip().lower()
+    explicit_uncertainty = _optional_nonnegative_float(uncertainty_minutes)
+    search_meta = (certification_payload or {}).get("search")
+    if not isinstance(search_meta, dict):
+        search_meta = {}
+    search_window_minutes = _datetime_span_minutes(
+        search_meta.get("start_time"),
+        search_meta.get("end_time"),
+    )
+    certified_tokens = {"aa", "record", "certificate", "family_exact", "certified", "certified_source"}
+    unknown_tokens = {
+        "unknown",
+        "time_unknown",
+        "unknown_time",
+        "unresolved",
+        "unresolved_rectification",
+        "insufficient_data",
+    }
+    approximate_tokens = {"approximate", "estimated", "rounded", "low", "none"}
+    certified_time = status in certified_tokens or source_time_status in certified_tokens
+    # A rectification search range describes what was tested; it is not an
+    # error band around the selected candidate. Only a declared uncertainty
+    # may reduce ranking resolution.
+    effective_uncertainty = explicit_uncertainty
+
+    warnings: List[str] = []
+
+    if certified_time:
+        ranking_eligible = True
+        ranking_eligibility = "confirmed"
+        confidence = confidence or "high"
+    elif status == "rectified_candidate":
+        ranking_eligible = effective_uncertainty is None or effective_uncertainty <= 5.0
+        ranking_eligibility = "provisional" if ranking_eligible else "regional_only"
+        confidence = confidence or "medium"
+        warnings.append(
+            "The selected time is a rectified candidate rather than an externally certified birth time."
+        )
+    elif status in unknown_tokens or source_time_status in unknown_tokens:
+        ranking_eligible = False
+        ranking_eligibility = "ineligible_unknown_time"
+        confidence = confidence or "none"
+        warnings.append(
+            "City ranking is unavailable because the birth time is unknown or unresolved."
+        )
+    elif (
+        status in approximate_tokens
+        or source_time_status in approximate_tokens
+        or (effective_uncertainty is not None and effective_uncertainty > 5.0)
+    ):
+        ranking_eligible = bool(effective_uncertainty is not None and effective_uncertainty <= 5.0)
+        ranking_eligibility = "provisional" if ranking_eligible else "regional_only"
+        confidence = confidence or "low"
+        warnings.append(
+            "The declared birth-time uncertainty is too wide for stable city-level ranking."
+            if not ranking_eligible
+            else "The ranking remains provisional because the birth time is approximate."
+        )
+    else:
+        ranking_eligible = True
+        ranking_eligibility = "provisional"
+        confidence = confidence or "user_entered"
+        warnings.append(
+            "The birth time has not been externally certified; city ranks are provisional."
+        )
+
+    if (
+        effective_uncertainty is not None
+        and effective_uncertainty > 15.0
+        and ranking_eligibility != "ineligible_unknown_time"
+    ):
+        ranking_eligible = False
+        ranking_eligibility = "ineligible_low_resolution"
+        warnings.append(
+            "Birth-time uncertainty exceeds 15 minutes, so only broad regional map review is appropriate."
+        )
+
+    payload: Dict[str, Any] = {
+        "kind": "birth_time_quality",
+        "status": status,
+        "confidence": confidence,
+        "source_time_status": source_time_status or None,
+        "uncertainty_minutes": (
+            round(float(explicit_uncertainty), 3)
+            if explicit_uncertainty is not None
+            else None
+        ),
+        "effective_uncertainty_minutes": (
+            round(float(effective_uncertainty), 3)
+            if effective_uncertainty is not None
+            else None
+        ),
+        "search_window_minutes": (
+            round(float(search_window_minutes), 3)
+            if search_window_minutes is not None
+            else None
+        ),
+        "ranking_eligible": bool(ranking_eligible),
+        "ranking_eligibility": ranking_eligibility,
+        "warnings": list(dict.fromkeys(warnings)),
+    }
+    if certification_payload:
+        payload["certification"] = _snap_certification_summary(certification_payload)
+    return payload
+
+
+def _attach_astrocartography_birth_time_quality(
+    bundle: Dict[str, Any],
+    *,
+    certification: Optional[Dict[str, Any]] = None,
+    source_status: Optional[str] = None,
+    uncertainty_minutes: Any = None,
+) -> Dict[str, Any]:
+    quality = _astrocartography_birth_time_quality(
+        certification=certification,
+        source_status=source_status,
+        uncertainty_minutes=uncertainty_minutes,
+    )
+    meta = dict(bundle.get("meta") or {})
+    meta["birth_time"] = quality
+    bundle["meta"] = meta
+    bundle["birth_time"] = quality
+    if certification:
+        bundle["certification"] = copy.deepcopy(certification)
+    return bundle
+
+
+def _astrocartography_filter_selection(args: Any) -> Tuple[Optional[List[str]], Optional[List[str]], Dict[str, Any]]:
+    from astrocartography_service import DEFAULT_ANGLES, DEFAULT_BODIES
+
+    def _raw_values(singular: str, plural: str) -> List[str]:
+        if hasattr(args, "getlist"):
+            values = list(args.getlist(singular))
+            if not values:
+                values = list(args.getlist(plural))
+        elif isinstance(args, dict):
+            raw = args.get(singular)
+            if raw in (None, "", []):
+                raw = args.get(plural)
+            values = list(raw) if isinstance(raw, (list, tuple, set)) else ([raw] if raw not in (None, "") else [])
+        else:
+            values = []
+        out: List[str] = []
+        for value in values:
+            if isinstance(value, str) and "," in value:
+                out.extend(part.strip() for part in value.split(",") if part.strip())
+            elif value not in (None, ""):
+                out.append(str(value))
+        return out
+
+    raw_bodies = _raw_values("body", "bodies")
+    raw_angles = _raw_values("angle", "angles")
+    body_lookup = {str(name).strip().lower(): str(name) for name in DEFAULT_BODIES}
+    angle_lookup = {str(name).strip().upper(): str(name).strip().upper() for name in DEFAULT_ANGLES}
+
+    bodies: List[str] = []
+    invalid_bodies: List[str] = []
+    for raw in raw_bodies:
+        token = str(raw or "").strip()
+        canonical = body_lookup.get(token.lower())
+        if canonical is None:
+            invalid_bodies.append(token)
+        elif canonical not in bodies:
+            bodies.append(canonical)
+
+    angles: List[str] = []
+    invalid_angles: List[str] = []
+    for raw in raw_angles:
+        token = str(raw or "").strip().upper()
+        canonical = angle_lookup.get(token)
+        if canonical is None:
+            invalid_angles.append(str(raw or "").strip())
+        elif canonical not in angles:
+            angles.append(canonical)
+
+    if invalid_bodies:
+        raise ValueError(f"Unsupported astrocartography body filter: {', '.join(invalid_bodies)}")
+    if invalid_angles:
+        raise ValueError(f"Unsupported astrocartography angle filter: {', '.join(invalid_angles)}")
+
+    effective_bodies = bodies or None
+    effective_angles = angles or None
+    return effective_bodies, effective_angles, {
+        "requested_bodies": raw_bodies,
+        "requested_angles": raw_angles,
+        "effective_bodies": bodies or list(DEFAULT_BODIES),
+        "effective_angles": angles or list(DEFAULT_ANGLES),
+        "paran_angle_policy": "both_angular_events_must_match_the_effective_angle_filter",
+    }
+
+
+def _filter_astrocartography_parans(
+    payload: Dict[str, Any],
+    *,
+    angles: Optional[Iterable[str]],
+    limit: Optional[int] = None,
+) -> Dict[str, Any]:
+    if not isinstance(payload, dict):
+        return payload
+    allowed = {str(value or "").strip().upper() for value in (angles or []) if str(value or "").strip()}
+    out = copy.deepcopy(payload)
+    if not allowed:
+        out["angle_filter"] = {"effective_angles": ["MC", "IC", "ASC", "DSC"], "applied": False}
+        return out
+
+    collection_key = "tracks" if isinstance(out.get("tracks"), list) else "items"
+    rows = out.get(collection_key) or []
+    filtered = [
+        row
+        for row in rows
+        if isinstance(row, dict)
+        and str(row.get("angle_a") or "").upper() in allowed
+        and str(row.get("angle_b") or "").upper() in allowed
+    ]
+    matched_count = len(filtered)
+    if limit is not None:
+        filtered = filtered[: max(1, int(limit))]
+    out[collection_key] = filtered
+    count_key = "track_count" if collection_key == "tracks" else "count"
+    lead_key = "lead_track" if collection_key == "tracks" else "lead_paran"
+    out[count_key] = matched_count
+    out["returned_count"] = len(filtered)
+    out[lead_key] = filtered[0] if filtered else None
+    out["angle_filter"] = {
+        "effective_angles": sorted(allowed),
+        "applied": True,
+        "policy": "both_angular_events_must_match",
+    }
+    if filtered:
+        label = str(filtered[0].get("label") or "The lead paran")
+        out["headline"] = (
+            f"{label} is the clearest global paran corridor in the active map."
+            if collection_key == "tracks"
+            else f"{label} is the clearest nearby paran."
+        )
+    else:
+        out["headline"] = "No parans match the active body and angle filters."
+    return out
+
+
+def _astrocartography_angular_event_registry(
+    *,
+    crossings: Any,
+    intersections: Any,
+    parans: Any,
+) -> Dict[str, Any]:
+    intersection_rows: List[Any] = []
+    if isinstance(intersections, dict):
+        if isinstance(intersections.get("items"), list):
+            intersection_rows.extend(intersections.get("items") or [])
+        else:
+            intersection_rows.extend(intersections.get("primary_crossings") or [])
+            intersection_rows.extend(intersections.get("blend_candidates") or [])
+    elif isinstance(intersections, list):
+        intersection_rows.extend(intersections)
+
+    sections = {
+        "crossings": crossings if isinstance(crossings, list) else [],
+        "intersections": intersection_rows,
+        "parans": (
+            (parans or {}).get("items") or []
+            if isinstance(parans, dict)
+            else (parans if isinstance(parans, list) else [])
+        ),
+    }
+    registry: Dict[str, Dict[str, Any]] = {}
+    for section, rows in sections.items():
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            canonical_id = str(row.get("canonical_event_id") or "").strip()
+            if not canonical_id:
+                continue
+            event = registry.setdefault(
+                canonical_id,
+                {
+                    "canonical_event_id": canonical_id,
+                    "presentations": [],
+                },
+            )
+            event["presentations"].append(
+                {
+                    "section": section,
+                    "id": row.get("id"),
+                    "event_kind": row.get("event_kind") or row.get("kind"),
+                    "label": row.get("label"),
+                }
+            )
+    events = sorted(registry.values(), key=lambda item: str(item.get("canonical_event_id") or ""))
+    return {
+        "policy": "canonical_event_id_is_counted_once; presentations_remain_available_for_display",
+        "event_count": len(events),
+        "duplicate_presentation_count": sum(max(0, len(item["presentations"]) - 1) for item in events),
+        "events": events,
+    }
+
+
+def _astrocartography_ephemeris_provenance(
+    timestamp_iso: str,
+    *,
+    bodies: Optional[Iterable[str]],
+) -> Dict[str, Any]:
+    selected_bodies = [str(value or "").strip() for value in (bodies or []) if str(value or "").strip()]
+    payload: Dict[str, Any] = {
+        "engine": "Swiss Ephemeris",
+        "frame": "geocentric_equatorial",
+        "degraded": False,
+        "body_sources": {},
+        "warnings": [],
+    }
+    for body in selected_bodies:
+        payload["body_sources"][body] = {
+            "source": "swiss_ephemeris",
+            "accuracy": "ephemeris",
+            "degraded": False,
+        }
+    if "Chiron" not in selected_bodies:
+        return payload
+
+    try:
+        _swe = require_swisseph()
+        dt = _parse_iso_datetime(timestamp_iso)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.astimezone(timezone.utc)
+        hour = dt.hour + (dt.minute / 60.0) + (dt.second / 3600.0) + (dt.microsecond / 3_600_000_000.0)
+        jd_ut = _swe.julday(dt.year, dt.month, dt.day, hour, _swe.GREG_CAL)
+        flags = _swe.FLG_SWIEPH | _swe.FLG_EQUATORIAL
+        with _configure_synastry_ephemeris_path(_swe):
+            with swisseph_lock():
+                _swe.calc_ut(jd_ut, _swe.CHIRON, flags)
+    except Exception:
+        payload["degraded"] = True
+        payload["body_sources"]["Chiron"] = {
+            "source": "jpl_mean_orbital_elements_fallback",
+            "accuracy": "low_precision_approximation",
+            "degraded": True,
+            "ranking_eligible": False,
+        }
+        payload["warnings"].append(
+            "Chiron used a low-precision orbital approximation because its Swiss Ephemeris file was unavailable; Chiron is excluded from ranking eligibility."
+        )
+    return payload
+
+
+def _astrocartography_calculation_metadata(
+    lines_payload: Dict[str, Any],
+    *,
+    timestamp_iso: str,
+) -> Dict[str, Any]:
+    geometry = copy.deepcopy(lines_payload.get("calculation") or {})
+    service_bodies = geometry.get("bodies") if isinstance(geometry, dict) else None
+    if isinstance(service_bodies, dict) and service_bodies:
+        body_sources = {
+            str(body): {
+                "source": record.get("position_source") or record.get("ephemeris_engine"),
+                "ephemeris_engine": record.get("ephemeris_engine"),
+                "returned_flags": record.get("returned_flags"),
+                "accuracy": record.get("accuracy") or "ephemeris",
+                "degraded": bool(record.get("degraded")),
+                "ranking_eligible": bool(
+                    record.get("ranking_eligible", not bool(record.get("degraded")))
+                ),
+            }
+            for body, record in service_bodies.items()
+            if isinstance(record, dict)
+        }
+        ephemeris = {
+            "engine": "Swiss Ephemeris",
+            "frame": geometry.get("coordinate_frame") or "geocentric_equatorial",
+            "degraded": any(bool(record.get("degraded")) for record in body_sources.values()),
+            "body_sources": body_sources,
+            "warnings": list(geometry.get("warnings") or []),
+        }
+    else:
+        ephemeris = _astrocartography_ephemeris_provenance(
+            timestamp_iso,
+            bodies=lines_payload.get("bodies") or [],
+        )
+    geometry_warnings = list(geometry.get("warnings") or []) if isinstance(geometry, dict) else []
+    return {
+        **ephemeris,
+        "geometry": geometry,
+        "degraded": bool(ephemeris.get("degraded") or (geometry or {}).get("degraded")),
+        "warnings": list(dict.fromkeys(
+            list(ephemeris.get("warnings") or []) + geometry_warnings
+        )),
+    }
+
+
+def _ranking_eligible_astrocartography_lines(lines_payload: Dict[str, Any]) -> List[Dict[str, Any]]:
+    provenance = lines_payload.get("provenance") or {}
+    body_sources = provenance.get("body_sources") or {}
+    return [
+        line
+        for line in (lines_payload.get("lines") or [])
+        if (body_sources.get(line.get("body")) or {}).get("ranking_eligible", True)
+    ]
+
+
+def _ranking_eligible_relocation_chart(chart_data: Dict[str, Any]) -> Dict[str, Any]:
+    out = copy.deepcopy(chart_data if isinstance(chart_data, dict) else {})
+    planets = out.get("planets")
+    if isinstance(planets, dict):
+        out["planets"] = {
+            name: payload
+            for name, payload in planets.items()
+            if not isinstance(payload, dict)
+            or (payload.get("calculation_provenance") or {}).get("ranking_eligible", True)
+        }
+    elif isinstance(planets, list):
+        out["planets"] = [
+            payload
+            for payload in planets
+            if not isinstance(payload, dict)
+            or (payload.get("calculation_provenance") or {}).get("ranking_eligible", True)
+        ]
+    return out
+
+
+def _target_candidate_id(payload: Dict[str, Any]) -> Optional[str]:
+    for key in ("candidate_id", "id", "geonameid"):
+        value = payload.get(key)
+        if value not in (None, ""):
+            if key == "geonameid":
+                return f"geonames:{value}"
+            return str(value)
+    return None
+
+
+def _validated_target_coordinates(latitude: Any, longitude: Any) -> Tuple[float, float]:
+    if latitude in (None, "") or longitude in (None, ""):
+        raise LocationError("target_latitude and target_longitude must be provided together")
+    try:
+        lat = float(latitude)
+    except (TypeError, ValueError) as exc:
+        raise LocationError("Invalid target_latitude") from exc
+    try:
+        lon = float(longitude)
+    except (TypeError, ValueError) as exc:
+        raise LocationError("Invalid target_longitude") from exc
+    if not math.isfinite(lat) or not -90.0 <= lat <= 90.0:
+        raise LocationError("Invalid target_latitude")
+    if not math.isfinite(lon) or not -180.0 <= lon <= 180.0:
+        raise LocationError("Invalid target_longitude")
+    return lat, lon
+
+
+def _target_coordinate_distance_km(
+    latitude_a: float,
+    longitude_a: float,
+    latitude_b: float,
+    longitude_b: float,
+) -> float:
+    lat_a = math.radians(float(latitude_a))
+    lat_b = math.radians(float(latitude_b))
+    delta_lat = lat_b - lat_a
+    delta_lon = math.radians(float(longitude_b) - float(longitude_a))
+    haversine = (
+        math.sin(delta_lat / 2.0) ** 2
+        + math.cos(lat_a) * math.cos(lat_b) * math.sin(delta_lon / 2.0) ** 2
+    )
+    return 6371.0088 * 2.0 * math.asin(min(1.0, math.sqrt(haversine)))
+
+
+def _normalized_location_identity_text(value: Any) -> str:
+    decomposed = unicodedata.normalize("NFKD", str(value or "").casefold())
+    return " ".join(
+        "".join(
+            character if character.isalnum() else " "
+            for character in decomposed
+            if not unicodedata.combining(character)
+        ).split()
+    )
+
+
+def _normalized_astrocartography_target_id(
+    value: Any,
+    *,
+    allow_custom: bool,
+) -> Optional[str]:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    if text.isdigit():
+        return f"geonames:{int(text)}"
+    if text.casefold().startswith("geonames:"):
+        geonameid = text.split(":", 1)[1].strip()
+        if not geonameid.isdigit():
+            raise LocationError("Invalid GeoNames target_id")
+        return f"geonames:{int(geonameid)}"
+    if allow_custom:
+        return text
+    raise LocationError(
+        "A non-GeoNames target_id requires exact target_latitude and target_longitude."
+    )
+
+
+def _astrocartography_catalog_target(
+    target_location: str,
+    *,
+    target_id: Any = None,
+) -> Optional[Dict[str, Any]]:
+    from astrocartography_city_catalog import (
+        city_catalog_candidate_matches_identity,
+        find_exact_city_catalog_entries,
+        get_city_catalog_entry_by_geonameid,
+        parse_city_catalog_identity_query,
+    )
+
+    text = str(target_location or "").strip()
+    if not text:
+        return None
+
+    parsed = parse_city_catalog_identity_query(text)
+    normalized_target_id = _normalized_astrocartography_target_id(
+        target_id,
+        allow_custom=False,
+    )
+    if normalized_target_id:
+        city = get_city_catalog_entry_by_geonameid(normalized_target_id)
+        if city is None:
+            raise LocationError(
+                f"GeoNames target_id '{normalized_target_id}' is not present in the bundled city catalog."
+            )
+        if not city_catalog_candidate_matches_identity(city, parsed):
+            raise LocationError(
+                f"Location '{text}' does not match GeoNames target_id '{normalized_target_id}'."
+            )
+        exact_candidates = [city]
+        identity_status = "id_exact"
+        ambiguity: Dict[str, Any] = {
+            "candidate_count": 1,
+            "auto_selected": False,
+        }
+    else:
+        exact_candidates = [
+            city
+            for city in find_exact_city_catalog_entries(parsed.get("city_query"))
+            if city_catalog_candidate_matches_identity(city, parsed)
+        ]
+        exact_candidates.sort(
+            key=lambda city: (
+                -int(city.get("population") or 0),
+                str(city.get("country_code") or ""),
+                str(city.get("admin1_code") or ""),
+                int(city.get("geonameid") or 0),
+            )
+        )
+        if not exact_candidates:
+            if parsed.get("has_explicit_qualifiers") or parsed.get("city_prefix_exact"):
+                raise LocationError(
+                    f"Location qualifiers do not match a bundled city catalog record: '{text}'."
+                )
+            return None
+
+        identity_status = (
+            "qualified_exact"
+            if parsed.get("has_explicit_qualifiers")
+            else "unqualified_exact"
+        )
+        ambiguity = {
+            "candidate_count": len(exact_candidates),
+            "auto_selected": False,
+        }
+        if len(exact_candidates) > 1:
+            top_population = max(0, int(exact_candidates[0].get("population") or 0))
+            second_population = max(0, int(exact_candidates[1].get("population") or 0))
+            dominance_ratio = (
+                float("inf")
+                if top_population > 0 and second_population == 0
+                else (
+                    float(top_population) / float(second_population)
+                    if second_population > 0
+                    else 0.0
+                )
+            )
+            ambiguity["dominance_ratio"] = (
+                None if not math.isfinite(dominance_ratio) else round(dominance_ratio, 3)
+            )
+            if dominance_ratio < 5.0:
+                raise LocationError(
+                    f"Location '{text}' is ambiguous in the bundled city catalog; "
+                    "provide a country/region, a GeoNames target_id, or exact coordinates."
+                )
+            identity_status = "population_dominant"
+            ambiguity["auto_selected"] = True
+            ambiguity["policy_threshold_ratio"] = 5.0
+
+        city = exact_candidates[0]
+
+    try:
+        latitude = float(city.get("latitude"))
+        longitude = float(city.get("longitude"))
+    except (TypeError, ValueError):
+        return None
+    return {
+        "candidate_id": _target_candidate_id(city),
+        "query": text,
+        "label": str(
+            city.get("label")
+            or city.get("query")
+            or parsed.get("city_query")
+        ),
+        "latitude": latitude,
+        "longitude": longitude,
+        "coordinate_source": "bundled_geonames_catalog",
+        "identity": {
+            "status": identity_status,
+            "policy": "exact_city_and_structured_qualifier_match",
+            "city_query": parsed.get("city_query"),
+            "qualifiers": list(parsed.get("qualifiers") or []),
+            "country_code": str(city.get("country_code") or ""),
+            "country_name": str(city.get("country_name") or ""),
+            "admin1_code": str(city.get("admin1_code") or ""),
+            "admin1_name": str(city.get("admin1_name") or ""),
+            "admin1_aliases": [
+                str(alias)
+                for alias in (city.get("admin1_aliases") or [])
+                if str(alias).strip()
+            ],
+            "ambiguity": ambiguity,
+        },
+    }
+
+
+def _resolve_astrocartography_target(
+    target_location: str,
+    *,
+    target_id: Any = None,
+    target_latitude: Any = None,
+    target_longitude: Any = None,
+) -> Dict[str, Any]:
+    has_lat = target_latitude not in (None, "")
+    has_lon = target_longitude not in (None, "")
+    if has_lat or has_lon:
+        latitude, longitude = _validated_target_coordinates(target_latitude, target_longitude)
+        candidate_id = _normalized_astrocartography_target_id(
+            target_id,
+            allow_custom=True,
+        )
+        identity_status = "request_coordinates"
+        identity_policy = "caller_supplied_exact_coordinates"
+        identity_validation: Dict[str, Any] = {}
+        if candidate_id and candidate_id.startswith("geonames:"):
+            from astrocartography_city_catalog import (
+                city_catalog_candidate_matches_identity,
+                get_city_catalog_entry_by_geonameid,
+                parse_city_catalog_identity_query,
+            )
+
+            catalog_city = get_city_catalog_entry_by_geonameid(candidate_id)
+            if catalog_city is None:
+                raise LocationError(
+                    f"GeoNames target_id '{candidate_id}' is not present in the bundled city catalog."
+                )
+            parsed = parse_city_catalog_identity_query(target_location)
+            if not city_catalog_candidate_matches_identity(catalog_city, parsed):
+                raise LocationError(
+                    f"Location '{target_location}' does not match GeoNames target_id '{candidate_id}'."
+                )
+            coordinate_distance_km = _target_coordinate_distance_km(
+                latitude,
+                longitude,
+                float(catalog_city.get("latitude")),
+                float(catalog_city.get("longitude")),
+            )
+            coordinate_tolerance_km = 2.0
+            if coordinate_distance_km > coordinate_tolerance_km:
+                raise LocationError(
+                    f"Coordinates for GeoNames target_id '{candidate_id}' differ from the bundled "
+                    f"catalog by {coordinate_distance_km:.1f} km; provide matching coordinates "
+                    "or use a custom target_id."
+                )
+            identity_status = "request_coordinates_id_validated"
+            identity_policy = "caller_coordinates_with_geonames_identity_validation"
+            identity_validation = {
+                "geonames_coordinate_distance_km": round(coordinate_distance_km, 3),
+                "geonames_coordinate_tolerance_km": coordinate_tolerance_km,
+            }
+        return {
+            "candidate_id": candidate_id,
+            "query": target_location,
+            "label": target_location,
+            "latitude": latitude,
+            "longitude": longitude,
+            "coordinate_source": "atlas_candidate" if candidate_id else "request_coordinates",
+            "identity": {
+                "status": identity_status,
+                "policy": identity_policy,
+                "ambiguity": {
+                    "candidate_count": 1,
+                    "auto_selected": False,
+                },
+                **identity_validation,
+            },
+        }
+    catalog_target = _astrocartography_catalog_target(
+        target_location,
+        target_id=target_id,
+    )
+    if catalog_target:
+        return catalog_target
+
+    from astrocartography_city_catalog import parse_city_catalog_identity_query
+
+    parsed = parse_city_catalog_identity_query(target_location)
+    if parsed.get("has_explicit_qualifiers"):
+        raise LocationError(
+            f"Location qualifiers could not be validated for '{target_location}'; provide exact coordinates."
+        )
+    latitude, longitude, resolved_name = safe_geocode(target_location)
+    query_primary = _normalized_location_identity_text(
+        parsed.get("city_query")
+    )
+    resolved_primary = _normalized_location_identity_text(
+        str(resolved_name or "").split(",", 1)[0]
+    )
+    if (
+        query_primary
+        and resolved_primary
+        and resolved_primary not in {
+            query_primary,
+            f"{query_primary} city",
+            f"city of {query_primary}",
+        }
+    ):
+        raise LocationError(
+            f"Location '{target_location}' resolved to an unrelated catalog city ('{resolved_name}'); provide a country or exact coordinates."
+        )
+    return {
+        "candidate_id": None,
+        "query": target_location,
+        "label": resolved_name or target_location,
+        "latitude": float(latitude),
+        "longitude": float(longitude),
+        "coordinate_source": "geocoder",
+        "identity": {
+            "status": "geocoder_exact",
+            "policy": "exact_primary_city_match",
+            "ambiguity": {
+                "candidate_count": 1,
+                "auto_selected": False,
+            },
+        },
+    }
+
+
+_RELOCATION_SIGN_RULERS = (
+    "Mars",
+    "Venus",
+    "Mercury",
+    "Moon",
+    "Sun",
+    "Mercury",
+    "Venus",
+    "Mars",
+    "Jupiter",
+    "Saturn",
+    "Saturn",
+    "Jupiter",
+)
+
+
+def _relocation_house_for_longitude(longitude: Any, cusps: List[float]) -> Optional[int]:
+    try:
+        point = float(longitude) % 360.0
+    except (TypeError, ValueError):
+        return None
+    if len(cusps) < 12:
+        return None
+    for index in range(12):
+        start = float(cusps[index]) % 360.0
+        end = float(cusps[(index + 1) % 12]) % 360.0
+        if start <= end:
+            matched = start <= point < end
+        else:
+            matched = point >= start or point < end
+        if matched:
+            return index + 1
+    return None
+
+
+def _relocation_failure_payload(
+    exc: Exception,
+    *,
+    latitude: float,
+    longitude: float,
+    house_system_code: str,
+    coordinate_source: Optional[str] = None,
+) -> Dict[str, Any]:
+    messages: List[str] = []
+    current: Optional[BaseException] = exc
+    while current is not None and len(messages) < 8:
+        message = str(current).strip()
+        if message:
+            messages.append(message)
+        current = current.__cause__ or current.__context__
+    house_failure = any("house" in message.lower() for message in messages)
+    return {
+        "available": False,
+        "relocation_unavailable": True,
+        "chart_data": {},
+        "meta": {
+            "latitude": float(latitude),
+            "longitude": float(longitude),
+            "house_system_code": house_system_code,
+        },
+        "error": {
+            "code": "polar_house_calculation_unavailable" if house_failure else "relocation_calculation_failed",
+            "message": (
+                f"The requested {house_system_code} house system is unavailable at this latitude."
+                if house_failure
+                else "The relocated chart could not be calculated for this candidate."
+            ),
+        },
+        "provenance": {
+            "engine": "Swiss Ephemeris",
+            "calculation": "relocated_houses_from_natal_planet_positions",
+            "house_system_code": house_system_code,
+            "house_system_substituted": False,
+            "coordinate_source": coordinate_source,
+            "degraded": True,
+        },
+        "warnings": [
+            "No alternate house system was substituted; line evidence remains available, but relocation-dependent scoring is unavailable."
+        ],
+    }
+
+
+def _compute_relocation_chart_bundle(
+    *,
+    natal_chart_data: Dict[str, Any],
+    natal_meta: Dict[str, Any],
+    target_label: str,
+    latitude: float,
+    longitude: float,
+    timezone_name: Optional[str],
+    house_system_code: Optional[str],
+    coordinate_source: str,
+) -> Dict[str, Any]:
+    timestamp = str(natal_meta.get("timestamp") or "").strip()
+    if not timestamp:
+        raise ValueError("A valid natal datetime is required for a relocated chart")
+    dt = _parse_iso_datetime(timestamp)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    dt = dt.astimezone(timezone.utc)
+
+    effective_house_system = _validated_astrocartography_house_system_code(
+        house_system_code or natal_chart_data.get("house_system_code"),
+        default="R",
+    )
+    assert effective_house_system is not None
+    encoded_house_system = effective_house_system.encode("ascii")
+
+    try:
+        _swe = require_swisseph()
+        hour = dt.hour + (dt.minute / 60.0) + (dt.second / 3600.0) + (dt.microsecond / 3_600_000_000.0)
+        jd_ut = _swe.julday(dt.year, dt.month, dt.day, hour, _swe.GREG_CAL)
+        with swisseph_lock():
+            house_values, ascmc = _swe.houses(
+                jd_ut,
+                float(latitude),
+                float(longitude),
+                encoded_house_system,
+            )
+        cusps = [float(value) % 360.0 for value in house_values]
+        if len(cusps) != 12 or len(ascmc) < 2:
+            raise RuntimeError("Swiss Ephemeris returned incomplete house data")
+    except Exception as exc:
+        return _relocation_failure_payload(
+            exc,
+            latitude=float(latitude),
+            longitude=float(longitude),
+            house_system_code=effective_house_system,
+            coordinate_source=coordinate_source,
+        )
+
+    relocated = _extend_chart_data_for_synastry(
+        copy.deepcopy(natal_chart_data if isinstance(natal_chart_data, dict) else {}),
+        natal_meta,
+        include_modern=True,
+        include_chiron=True,
+    )
+    planets = relocated.get("planets")
+    if isinstance(planets, dict):
+        for payload in planets.values():
+            if not isinstance(payload, dict):
+                continue
+            house = _relocation_house_for_longitude(payload.get("longitude"), cusps)
+            if house is not None:
+                payload["house"] = house
+    elif isinstance(planets, list):
+        for payload in planets:
+            if not isinstance(payload, dict):
+                continue
+            house = _relocation_house_for_longitude(payload.get("longitude"), cusps)
+            if house is not None:
+                payload["house"] = house
+
+    house_rulers = {
+        str(index + 1): _RELOCATION_SIGN_RULERS[int(float(cusp) // 30.0) % 12]
+        for index, cusp in enumerate(cusps)
+    }
+    relocated["houses"] = cusps
+    relocated["house_cusps"] = list(cusps)
+    relocated["ascendant"] = float(ascmc[0]) % 360.0
+    relocated["midheaven"] = float(ascmc[1]) % 360.0
+    relocated["house_rulers"] = house_rulers
+    relocated["house_system_code"] = effective_house_system
+    birth_time_quality = natal_meta.get("birth_time") or {}
+    declared_uncertainty = birth_time_quality.get("uncertainty_minutes")
+    if declared_uncertainty is None:
+        declared_uncertainty = birth_time_quality.get("effective_uncertainty_minutes")
+    if declared_uncertainty is not None:
+        relocated["birth_time_uncertainty_minutes"] = declared_uncertainty
+    else:
+        eligibility = str(birth_time_quality.get("ranking_eligibility") or "").strip().lower()
+        confidence_label = str(birth_time_quality.get("confidence") or "").strip().lower()
+        if eligibility.startswith("ineligible"):
+            relocated["birth_time_confidence"] = 0.2
+        elif eligibility == "confirmed":
+            relocated["birth_time_confidence"] = 1.0 if confidence_label == "high" else 0.95
+        elif eligibility == "regional_only":
+            relocated["birth_time_confidence"] = 0.55
+        else:
+            relocated["birth_time_confidence"] = 0.8
+    relocated["birth_time_accuracy"] = birth_time_quality.get("status")
+    relocated["birth_time_unknown"] = not bool(birth_time_quality.get("ranking_eligible", True))
+    tz_info = dict(relocated.get("timezone_info") or {})
+    tz_info["timezone"] = timezone_name
+    tz_info["coordinates"] = {
+        "latitude": float(latitude),
+        "longitude": float(longitude),
+    }
+    relocated["timezone_info"] = tz_info
+    planet_sources: Dict[str, Dict[str, Any]] = {}
+    if isinstance(planets, dict):
+        planet_rows = planets.items()
+    elif isinstance(planets, list):
+        planet_rows = (
+            (
+                str(payload.get("planet") or payload.get("name") or "").strip(),
+                payload,
+            )
+            for payload in planets
+            if isinstance(payload, dict)
+        )
+    else:
+        planet_rows = []
+    for name, payload in planet_rows:
+        calculation = payload.get("calculation_provenance") if isinstance(payload, dict) else None
+        if name and isinstance(calculation, dict):
+            planet_sources[str(name)] = copy.deepcopy(calculation)
+
+    calculation_degraded = any(
+        bool(source.get("degraded"))
+        for source in planet_sources.values()
+    )
+    relocation_warnings: List[str] = []
+    if not timezone_name:
+        relocation_warnings.append(
+            "The target timezone could not be resolved; relocated houses still use the exact natal UTC instant and target coordinates."
+        )
+    if calculation_degraded:
+        relocation_warnings.append(
+            "Low-precision supplemental planet positions remain visible with provenance but are excluded from relocation ranking."
+        )
+    meta = {
+        "timestamp": timestamp,
+        "location": target_label,
+        "timezone": timezone_name,
+        "latitude": float(latitude),
+        "longitude": float(longitude),
+        "coordinate_source": coordinate_source,
+        "house_system_code": effective_house_system,
+    }
+    provenance = {
+        "engine": "Swiss Ephemeris",
+        "calculation": "relocated_houses_from_natal_planet_positions",
+        "house_system_code": effective_house_system,
+        "house_system_substituted": False,
+        "coordinate_source": coordinate_source,
+        "degraded": calculation_degraded,
+        "planet_sources": planet_sources,
+        "warnings": relocation_warnings,
+    }
+    return {
+        "available": True,
+        "relocation_unavailable": False,
+        "chart_data": relocated,
+        "meta": meta,
+        "provenance": provenance,
+        "warnings": relocation_warnings,
+    }
+
+
 def _natal_from_query(args) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     """Resolve natal chart_data from query params: use snap if provided, else use natal_* params."""
     bundle = _natal_bundle_from_query(args)
     return bundle.get('chart_data') or {}, bundle.get('meta') or {}
+
+
+def _require_astrocartography_datetime_with_time(value: Any, *, field_name: str) -> None:
+    if isinstance(value, datetime):
+        return
+    text = str(value or "").strip()
+    has_iso_time = (
+        len(text) >= 16
+        and text[10] in {"T", "t", " "}
+        and text[11:13].isdigit()
+        and text[13] == ":"
+        and text[14:16].isdigit()
+    )
+    if not has_iso_time:
+        raise ValueError(
+            f"{field_name} must include an ISO-8601 date and explicit time (YYYY-MM-DDTHH:MM)"
+        )
 
 
 def _bundle_from_snap_id(
@@ -7098,7 +8288,15 @@ def _bundle_from_snap_id(
     dt = snap.get('effective_datetime')
     loc = snap.get('location')
     tz = snap.get('timezone')
-    return _compute_chart_bundle_for(
+    if not dt:
+        raise ValueError("Natal snap is missing a valid birth datetime")
+    if not loc:
+        raise ValueError("Natal snap is missing a birth location")
+    _require_astrocartography_datetime_with_time(
+        dt,
+        field_name="Natal snap birth datetime",
+    )
+    bundle = _compute_chart_bundle_for(
         dt,
         loc,
         tz,
@@ -7106,28 +8304,72 @@ def _bundle_from_snap_id(
         latitude=snap.get('latitude'),
         longitude=snap.get('longitude'),
     )
+    meta = dict(bundle.get("meta") or {})
+    meta["coordinate_source"] = (
+        "saved_snap"
+        if snap.get("latitude") is not None and snap.get("longitude") is not None
+        else "resolved_saved_location"
+    )
+    bundle["meta"] = meta
+    certification = _normalize_snap_certification_payload(
+        snap.get("certification")
+        or ((snap.get("dashboard") or {}).get("certification") if isinstance(snap.get("dashboard"), dict) else None)
+    )
+    source_status = None
+    if isinstance(certification, dict):
+        birth_meta = certification.get("birth")
+        if isinstance(birth_meta, dict):
+            source_status = birth_meta.get("source_time_status")
+    return _attach_astrocartography_birth_time_quality(
+        bundle,
+        certification=certification,
+        source_status=source_status,
+        uncertainty_minutes=snap.get("birth_time_uncertainty_minutes"),
+    )
 
 
 def _natal_bundle_from_query(args) -> Dict[str, Any]:
     """Resolve an internal natal chart bundle from query params."""
     snap_id = args.get('natal_snap_id')
     if snap_id:
-        house = args.get('house_system_code') or None
+        house = _validated_astrocartography_house_system_code(
+            args.get('house_system_code'),
+        )
         return _bundle_from_snap_id(snap_id, house_system_code=house, missing_error='Natal snap not found')
     nat_dt = args.get('natal_datetime')
     nat_loc = args.get('natal_location')
     nat_tz = args.get('natal_timezone')
-    house = args.get('house_system_code') or None
+    house = _validated_astrocartography_house_system_code(
+        args.get('house_system_code'),
+    )
     if not nat_dt or not nat_loc:
         raise ValueError('natal_datetime and natal_location required')
+    _require_astrocartography_datetime_with_time(
+        nat_dt,
+        field_name="natal_datetime",
+    )
     coords = _coords_from_request_args(args)
-    return _compute_chart_bundle_for(
+    bundle = _compute_chart_bundle_for(
         nat_dt,
         nat_loc,
         nat_tz,
         house_system_code=house,
         latitude=(coords[0] if coords else None),
         longitude=(coords[1] if coords else None),
+    )
+    meta = dict(bundle.get("meta") or {})
+    meta["coordinate_source"] = "request_coordinates" if coords else "geocoder"
+    bundle["meta"] = meta
+    uncertainty_value = args.get("natal_time_uncertainty_minutes")
+    if uncertainty_value in (None, ""):
+        uncertainty_value = args.get("natal_time_accuracy_minutes")
+    return _attach_astrocartography_birth_time_quality(
+        bundle,
+        source_status=(
+            args.get("natal_time_status")
+            or args.get("natal_source_time_status")
+        ),
+        uncertainty_minutes=uncertainty_value,
     )
 
 
@@ -7171,6 +8413,11 @@ def _astrocartography_target_analysis(
     natal_meta: Dict[str, Any],
     natal_lines_payload: Dict[str, Any],
     house_system_code: Optional[str],
+    natal_chart_data: Optional[Dict[str, Any]] = None,
+    target_id: Optional[str] = None,
+    coordinate_source: str = "geocoder",
+    target_identity: Optional[Dict[str, Any]] = None,
+    target_timezone: Optional[str] = None,
     goal_id: Optional[str] = None,
     transit_lines_payload: Optional[Dict[str, Any]] = None,
     transit_meta: Optional[Dict[str, Any]] = None,
@@ -7195,11 +8442,16 @@ def _astrocartography_target_analysis(
     from astrocartography_goal_models import get_goal_model
 
     target_payload = {
+        'candidate_id': target_id,
         'label': resolved_name or target_location,
         'query': target_location,
         'latitude': round(float(latitude), 6),
         'longitude': round(float(longitude), 6),
+        'coordinate_source': coordinate_source,
     }
+    if target_identity:
+        target_payload["identity"] = copy.deepcopy(target_identity)
+    distance_policy = _astrocartography_distance_policy()
     natal_reading = build_location_reading(
         natal_lines_payload.get('lines') or [],
         float(latitude),
@@ -7219,23 +8471,68 @@ def _astrocartography_target_analysis(
         float(latitude),
         float(longitude),
         nearest_rows=natal_reading.get('nearest_lines') or [],
-        max_distance_km=1200.0,
+        max_distance_km=distance_policy["intersection_radius_km"],
     )
-    natal_local_space = build_local_space_workspace(
-        str(natal_meta.get('timestamp') or ''),
-        float(latitude),
-        float(longitude),
-        bodies=natal_lines_payload.get('bodies') or None,
-    )
+    natal_origin_lat = natal_meta.get("latitude")
+    natal_origin_lon = natal_meta.get("longitude")
+    natal_local_space: Dict[str, Any]
+    try:
+        natal_origin_lat = float(natal_origin_lat)
+        natal_origin_lon = float(natal_origin_lon)
+        natal_local_space = build_local_space_workspace(
+            str(natal_meta.get('timestamp') or ''),
+            natal_origin_lat,
+            natal_origin_lon,
+            bodies=natal_lines_payload.get('bodies') or None,
+        )
+        natal_local_space = {
+            **(natal_local_space or {}),
+            "origin": {
+                "kind": "birthplace",
+                "label": natal_meta.get("location"),
+                "latitude": natal_origin_lat,
+                "longitude": natal_origin_lon,
+                "coordinate_source": natal_meta.get("coordinate_source"),
+            },
+            "origin_kind": "birthplace",
+            "degraded": False,
+        }
+    except Exception as exc:
+        natal_local_space = {
+            "available": False,
+            "origin_kind": "birthplace",
+            "degraded": True,
+            "error": "Natal Local Space is unavailable because birthplace coordinates were not resolved.",
+            "warnings": [str(exc)] if str(exc) else [],
+        }
     natal_parans = build_paran_candidates_for_point(
         str(natal_meta.get('timestamp') or ''),
         float(latitude),
         float(longitude),
         bodies=natal_lines_payload.get('bodies') or None,
+        limit=ASTROCARTOGRAPHY_PARAN_FILTER_SCAN_LIMIT,
+        max_distance_km=distance_policy["local_paran_radius_km"],
+        orb_deg=distance_policy["local_paran_orb_deg"],
+    )
+    natal_parans = _filter_astrocartography_parans(
+        natal_parans,
+        angles=natal_lines_payload.get("angles"),
+        limit=ASTROCARTOGRAPHY_LOCAL_PARAN_DISPLAY_LIMIT,
+    )
+    natal_provenance = natal_lines_payload.get("provenance") or _astrocartography_ephemeris_provenance(
+        str(natal_meta.get("timestamp") or ""),
+        bodies=natal_lines_payload.get("bodies") or [],
     )
 
     result: Dict[str, Any] = {
         'target': target_payload,
+        'birth_time': natal_meta.get("birth_time"),
+        'distance_policy': distance_policy,
+        'calculation': {
+            "natal": natal_provenance,
+            "degraded": bool((natal_provenance or {}).get("degraded")),
+            "warnings": list((natal_provenance or {}).get("warnings") or []),
+        },
         'natal': {
             'meta': natal_meta,
             'nearest_lines': natal_reading.get('nearest_lines') or [],
@@ -7244,8 +8541,16 @@ def _astrocartography_target_analysis(
             'intersections': natal_intersections,
             'parans': natal_parans,
             'local_space': natal_local_space,
+            'angular_events': _astrocartography_angular_event_registry(
+                crossings=natal_crossings,
+                intersections=natal_intersections,
+                parans=natal_parans,
+            ),
         },
     }
+    if target_identity:
+        result["calculation"]["target_resolution"] = copy.deepcopy(target_identity)
+    result["provenance"] = result["calculation"]
 
     transit_reading = None
     transit_scoring = None
@@ -7273,7 +8578,7 @@ def _astrocartography_target_analysis(
             float(latitude),
             float(longitude),
             nearest_rows=transit_reading.get('nearest_lines') or [],
-            max_distance_km=1200.0,
+            max_distance_km=distance_policy["intersection_radius_km"],
         )
         transit_local_space = build_local_space_workspace(
             str(transit_meta.get('timestamp') or ''),
@@ -7281,11 +8586,30 @@ def _astrocartography_target_analysis(
             float(longitude),
             bodies=transit_lines_payload.get('bodies') or None,
         )
+        transit_local_space = {
+            **(transit_local_space or {}),
+            "origin": {
+                "kind": "transit_target",
+                "label": resolved_name or target_location,
+                "latitude": float(latitude),
+                "longitude": float(longitude),
+                "coordinate_source": coordinate_source,
+            },
+            "origin_kind": "transit_target",
+        }
         transit_parans = build_paran_candidates_for_point(
             str(transit_meta.get('timestamp') or ''),
             float(latitude),
             float(longitude),
             bodies=transit_lines_payload.get('bodies') or None,
+            limit=ASTROCARTOGRAPHY_PARAN_FILTER_SCAN_LIMIT,
+            max_distance_km=distance_policy["local_paran_radius_km"],
+            orb_deg=distance_policy["local_paran_orb_deg"],
+        )
+        transit_parans = _filter_astrocartography_parans(
+            transit_parans,
+            angles=transit_lines_payload.get("angles"),
+            limit=ASTROCARTOGRAPHY_LOCAL_PARAN_DISPLAY_LIMIT,
         )
         result['transit'] = {
             'meta': transit_meta,
@@ -7295,29 +8619,143 @@ def _astrocartography_target_analysis(
             'intersections': transit_intersections,
             'parans': transit_parans,
             'local_space': transit_local_space,
+            'angular_events': _astrocartography_angular_event_registry(
+                crossings=transit_crossings,
+                intersections=transit_intersections,
+                parans=transit_parans,
+            ),
+        }
+        transit_provenance = (
+            transit_lines_payload.get("provenance")
+            or _astrocartography_ephemeris_provenance(
+                str(transit_meta.get("timestamp") or ""),
+                bodies=transit_lines_payload.get("bodies") or [],
+            )
+        )
+        result["calculation"]["transit"] = transit_provenance
+        result["calculation"]["degraded"] = bool(
+            result["calculation"].get("degraded")
+            or transit_provenance.get("degraded")
+        )
+        result["calculation"]["warnings"] = list(dict.fromkeys(
+            list(result["calculation"].get("warnings") or [])
+            + list(transit_provenance.get("warnings") or [])
+        ))
+
+    if isinstance(natal_chart_data, dict) and natal_chart_data:
+        relocation_bundle = _compute_relocation_chart_bundle(
+            natal_chart_data=natal_chart_data,
+            natal_meta=natal_meta,
+            target_label=resolved_name or target_location,
+            latitude=float(latitude),
+            longitude=float(longitude),
+            timezone_name=target_timezone,
+            house_system_code=house_system_code,
+            coordinate_source=coordinate_source,
+        )
+    else:
+        try:
+            fallback_bundle = _compute_chart_bundle_for(
+                str(natal_meta.get('timestamp') or ''),
+                resolved_name or target_location,
+                target_timezone,
+                house_system_code=house_system_code,
+                latitude=float(latitude),
+                longitude=float(longitude),
+                include_modern=True,
+                include_chiron=True,
+            )
+            relocation_bundle = {
+                **fallback_bundle,
+                "available": True,
+                "relocation_unavailable": False,
+                "provenance": {
+                    "engine": "full_chart_engine",
+                    "calculation": "relocated_chart",
+                    "house_system_code": house_system_code,
+                    "house_system_substituted": False,
+                    "coordinate_source": coordinate_source,
+                    "degraded": False,
+                    "warnings": [],
+                },
+                "warnings": [],
+            }
+        except Exception as exc:
+            relocation_bundle = _relocation_failure_payload(
+                exc,
+                latitude=float(latitude),
+                longitude=float(longitude),
+                house_system_code=str(house_system_code or "R"),
+                coordinate_source=coordinate_source,
+            )
+
+    relocated_local_space = build_local_space_workspace(
+        str(natal_meta.get('timestamp') or ''),
+        float(latitude),
+        float(longitude),
+        bodies=natal_lines_payload.get('bodies') or None,
+    )
+    relocated_local_space = {
+        **(relocated_local_space or {}),
+        "origin": {
+            "kind": "relocated_target",
+            "label": resolved_name or target_location,
+            "latitude": float(latitude),
+            "longitude": float(longitude),
+            "coordinate_source": coordinate_source,
+        },
+        "origin_kind": "relocated_target",
+    }
+    if relocation_bundle.get("available") is False:
+        relocation_features = {
+            "planet_houses": {},
+            "planet_angles": {},
+            "house_occupancy": {},
+            "metrics": {},
+        }
+        relocation_summary: Dict[str, Any] = {}
+        result['relocation'] = {
+            "available": False,
+            "relocation_unavailable": True,
+            'meta': relocation_bundle.get('meta') or {},
+            "error": relocation_bundle.get("error"),
+            "warnings": relocation_bundle.get("warnings") or [],
+            "provenance": relocation_bundle.get("provenance") or {},
+            "local_space": relocated_local_space,
+        }
+    else:
+        relocation_features = extract_relocation_features(
+            _ranking_eligible_relocation_chart(relocation_bundle.get('chart_data') or {})
+        )
+        relocation_summary = summarize_relocation_features(relocation_features)
+        result['relocation'] = {
+            "available": True,
+            "relocation_unavailable": False,
+            'meta': relocation_bundle.get('meta') or {},
+            "chart": relocation_bundle.get("chart_data") or {},
+            'summary': relocation_summary,
+            "provenance": relocation_bundle.get("provenance") or {},
+            "warnings": relocation_bundle.get("warnings") or [],
+            "local_space": relocated_local_space,
         }
 
-    relocation_bundle = _compute_chart_bundle_for(
-        str(natal_meta.get('timestamp') or ''),
-        resolved_name or target_location,
-        None,
-        house_system_code=house_system_code,
-        latitude=float(latitude),
-        longitude=float(longitude),
-        include_modern=True,
-        include_chiron=True,
+    relocation_provenance = relocation_bundle.get("provenance") or {}
+    result["calculation"]["relocation"] = relocation_provenance
+    result["calculation"]["degraded"] = bool(
+        result["calculation"].get("degraded")
+        or relocation_provenance.get("degraded")
+        or relocation_bundle.get("available") is False
     )
-    relocation_features = extract_relocation_features(relocation_bundle.get('chart_data') or {})
-    relocation_summary = summarize_relocation_features(relocation_features)
-    result['relocation'] = {
-        'meta': relocation_bundle.get('meta') or {},
-        'summary': relocation_summary,
-    }
+    result["calculation"]["warnings"] = list(dict.fromkeys(
+        list(result["calculation"].get("warnings") or [])
+        + list(relocation_provenance.get("warnings") or [])
+        + list(relocation_bundle.get("warnings") or [])
+    ))
 
     goal_eval = None
     if goal_id:
         natal_scoring = build_goal_scoring_context(
-            natal_lines_payload.get('lines') or [],
+            _ranking_eligible_astrocartography_lines(natal_lines_payload),
             float(latitude),
             float(longitude),
             primary_radius_km=PRIMARY_READING_RADIUS_KM,
@@ -7325,7 +8763,7 @@ def _astrocartography_target_analysis(
         )
         if transit_lines_payload and transit_meta:
             transit_scoring = build_goal_scoring_context(
-                transit_lines_payload.get('lines') or [],
+                _ranking_eligible_astrocartography_lines(transit_lines_payload),
                 float(latitude),
                 float(longitude),
                 primary_radius_km=PRIMARY_READING_RADIUS_KM,
@@ -7340,6 +8778,18 @@ def _astrocartography_target_analysis(
             transit_rows=(transit_scoring.get('nearest_lines') or []) if transit_scoring else None,
             transit_crossings=(transit_scoring.get('crossings') or []) if transit_scoring else None,
         )
+        goal_eval["ranking_eligible"] = bool(
+            goal_eval.get("ranking_eligible", True)
+            and
+            (natal_meta.get("birth_time") or {}).get("ranking_eligible", True)
+            and relocation_bundle.get("available", True)
+        )
+        goal_eval["ranking_warnings"] = list(dict.fromkeys(
+            list(goal_eval.get("ranking_warnings") or [])
+            + list((natal_meta.get("birth_time") or {}).get("warnings") or [])
+            + list((natal_provenance or {}).get("warnings") or [])
+            + list(relocation_bundle.get("warnings") or [])
+        ))
         result['goal'] = {
             'id': goal_model.get('id'),
             'label': goal_model.get('label'),
@@ -7377,9 +8827,17 @@ def astrocartography_map():
 
     bundle = _natal_bundle_from_query(request.args)
     natal_meta = bundle.get('meta') or {}
-    bodies = request.args.getlist('body') or None
-    angles = request.args.getlist('angle') or None
+    bodies, angles, filter_policy = _astrocartography_filter_selection(request.args)
     natal_lines = build_astrocartography_lines(str(natal_meta.get('timestamp') or ''), bodies=bodies, angles=angles)
+    natal_provenance = _astrocartography_calculation_metadata(
+        natal_lines,
+        timestamp_iso=str(natal_meta.get("timestamp") or ""),
+    )
+    natal_lines["provenance"] = natal_provenance
+    for line in natal_lines.get("lines") or []:
+        body_provenance = (natal_provenance.get("body_sources") or {}).get(line.get("body"))
+        if body_provenance:
+            line["calculation_provenance"] = body_provenance
     empty_global_parans = {
         'headline': 'Global paran corridors are unavailable in the current runtime.',
         'orb_deg': 1.0,
@@ -7392,24 +8850,39 @@ def astrocartography_map():
 
     response: Dict[str, Any] = {
         'natal': natal_meta,
+        'birth_time': natal_meta.get("birth_time"),
+        'calculation': {
+            "natal": natal_provenance,
+            "degraded": bool(natal_provenance.get("degraded")),
+            "warnings": natal_provenance.get("warnings") or [],
+        },
         'filters': {
             'bodies': natal_lines.get('bodies') or [],
             'angles': natal_lines.get('angles') or [],
+            'policy': filter_policy,
         },
         'map': {
             'natal_lines': natal_lines.get('lines') or [],
-            'global_parans': _safe_astrocartography_optional_payload(
-                'natal_global_parans',
-                lambda: build_global_paran_tracks(
-                    str(natal_meta.get('timestamp') or ''),
-                    bodies=natal_lines.get('bodies') or None,
+            'global_parans': _filter_astrocartography_parans(
+                _safe_astrocartography_optional_payload(
+                    'natal_global_parans',
+                    lambda: build_global_paran_tracks(
+                        str(natal_meta.get('timestamp') or ''),
+                        bodies=natal_lines.get('bodies') or None,
+                        orb_deg=ASTROCARTOGRAPHY_GLOBAL_PARAN_ORB_DEG,
+                        limit=ASTROCARTOGRAPHY_PARAN_FILTER_SCAN_LIMIT,
+                    ),
+                    empty_global_parans,
                 ),
-                empty_global_parans,
+                angles=natal_lines.get("angles"),
+                limit=ASTROCARTOGRAPHY_GLOBAL_PARAN_DISPLAY_LIMIT,
             ),
         },
+        'distance_policy': _astrocartography_distance_policy(),
         'defaults': {
             'primary_radius_km': int(PRIMARY_READING_RADIUS_KM),
             'extended_radius_km': int(EXTENDED_READING_RADIUS_KM),
+            'distance_policy_version': ASTROCARTOGRAPHY_DISTANCE_POLICY_VERSION,
         },
     }
 
@@ -7417,17 +8890,40 @@ def astrocartography_map():
     if transit_bundle:
         transit_meta = transit_bundle.get('meta') or {}
         transit_lines = build_astrocartography_lines(str(transit_meta.get('timestamp') or ''), bodies=bodies, angles=angles)
+        transit_provenance = _astrocartography_calculation_metadata(
+            transit_lines,
+            timestamp_iso=str(transit_meta.get("timestamp") or ""),
+        )
+        for line in transit_lines.get("lines") or []:
+            body_provenance = (transit_provenance.get("body_sources") or {}).get(line.get("body"))
+            if body_provenance:
+                line["calculation_provenance"] = body_provenance
         response['transit'] = transit_meta
+        response['calculation']['transit'] = transit_provenance
+        response['calculation']['degraded'] = bool(
+            response['calculation']['degraded'] or transit_provenance.get("degraded")
+        )
+        response['calculation']['warnings'] = list(dict.fromkeys(
+            list(response['calculation']['warnings'])
+            + list(transit_provenance.get("warnings") or [])
+        ))
         response['map']['transit_lines'] = transit_lines.get('lines') or []
-        response['map']['transit_global_parans'] = _safe_astrocartography_optional_payload(
-            'transit_global_parans',
-            lambda: build_global_paran_tracks(
-                str(transit_meta.get('timestamp') or ''),
-                bodies=transit_lines.get('bodies') or None,
+        response['map']['transit_global_parans'] = _filter_astrocartography_parans(
+            _safe_astrocartography_optional_payload(
+                'transit_global_parans',
+                lambda: build_global_paran_tracks(
+                    str(transit_meta.get('timestamp') or ''),
+                    bodies=transit_lines.get('bodies') or None,
+                    orb_deg=ASTROCARTOGRAPHY_GLOBAL_PARAN_ORB_DEG,
+                    limit=ASTROCARTOGRAPHY_PARAN_FILTER_SCAN_LIMIT,
+                ),
+                empty_global_parans,
             ),
-            empty_global_parans,
+            angles=transit_lines.get("angles"),
+            limit=ASTROCARTOGRAPHY_GLOBAL_PARAN_DISPLAY_LIMIT,
         )
 
+    response["provenance"] = response["calculation"]
     return _json_ok(response)
 
 
@@ -7437,6 +8933,16 @@ def _validate_astrocartography_goal_filters(
     bodies: Optional[List[str]],
     angles: Optional[List[str]],
 ) -> None:
+    from astrocartography_service import DEFAULT_ANGLES, DEFAULT_BODIES
+
+    supported_bodies = set(DEFAULT_BODIES)
+    supported_angles = set(DEFAULT_ANGLES)
+    invalid_bodies = [str(value) for value in (bodies or []) if str(value) not in supported_bodies]
+    invalid_angles = [str(value) for value in (angles or []) if str(value).upper() not in supported_angles]
+    if invalid_bodies:
+        raise ValueError(f"Unsupported astrocartography body filter: {', '.join(invalid_bodies)}")
+    if invalid_angles:
+        raise ValueError(f"Unsupported astrocartography angle filter: {', '.join(invalid_angles)}")
     if not goal_id:
         return
     from astrocartography_atlas_engine import describe_goal_search_filters
@@ -7450,57 +8956,109 @@ def _validate_astrocartography_goal_filters(
         raise ValueError("Current body/angle filters exclude the selected goal model's atlas signature")
 
 
-@astro_clock_bp.route('/astrocartography/location', methods=['GET'])
-@_error_handler
-def astrocartography_location():
+def _build_astrocartography_location_payload(args: Any) -> Dict[str, Any]:
     from astrocartography_service import (
-        PRIMARY_READING_RADIUS_KM,
-        EXTENDED_READING_RADIUS_KM,
         build_astrocartography_lines,
     )
 
-    target_location = str(request.args.get('target_location') or '').strip()
+    target_location = str(args.get('target_location') or '').strip()
     if not target_location:
         raise ValueError('target_location is required')
 
-    lat, lon, resolved_name = safe_geocode(target_location)
-    bundle = _natal_bundle_from_query(request.args)
+    bodies, angles, filter_policy = _astrocartography_filter_selection(args)
+    target = _resolve_astrocartography_target(
+        target_location,
+        target_id=args.get("target_id"),
+        target_latitude=args.get("target_latitude"),
+        target_longitude=args.get("target_longitude"),
+    )
+    target_timezone = (
+        args.get("target_timezone")
+        or _resolve_timezone_for_context(
+            None,
+            str(target.get("label") or target_location),
+            coords=(float(target["latitude"]), float(target["longitude"])),
+            lookup_coords=False,
+        )
+    )
+    bundle = _natal_bundle_from_query(args)
     natal_meta = bundle.get('meta') or {}
-    bodies = request.args.getlist('body') or None
-    angles = request.args.getlist('angle') or None
-    house_system_code = request.args.get('house_system_code') or None
-    goal_id = str(request.args.get('goal_id') or '').strip().lower() or None
+    house_system_code = _validated_astrocartography_house_system_code(
+        args.get('house_system_code'),
+    )
+    goal_id = str(args.get('goal_id') or '').strip().lower() or None
     _validate_astrocartography_goal_filters(goal_id, bodies=bodies, angles=angles)
     natal_lines = build_astrocartography_lines(str(natal_meta.get('timestamp') or ''), bodies=bodies, angles=angles)
+    natal_lines["provenance"] = _astrocartography_calculation_metadata(
+        natal_lines,
+        timestamp_iso=str(natal_meta.get("timestamp") or ""),
+    )
 
     response: Dict[str, Any] = {
-        'distance_policy': {
-            'primary_radius_km': int(PRIMARY_READING_RADIUS_KM),
-            'extended_radius_km': int(EXTENDED_READING_RADIUS_KM),
+        'birth_time': natal_meta.get("birth_time"),
+        'distance_policy': _astrocartography_distance_policy(),
+        'filters': {
+            "bodies": natal_lines.get("bodies") or [],
+            "angles": natal_lines.get("angles") or [],
+            "policy": filter_policy,
         },
     }
 
-    transit_bundle = _transit_bundle_from_query(request.args, natal_meta=natal_meta)
+    transit_bundle = _transit_bundle_from_query(args, natal_meta=natal_meta)
     transit_meta = (transit_bundle.get('meta') or {}) if transit_bundle else None
     transit_lines = (
         build_astrocartography_lines(str(transit_meta.get('timestamp') or ''), bodies=bodies, angles=angles)
         if transit_meta else None
     )
+    if transit_lines and transit_meta:
+        transit_lines["provenance"] = _astrocartography_calculation_metadata(
+            transit_lines,
+            timestamp_iso=str(transit_meta.get("timestamp") or ""),
+        )
     response.update(
         _astrocartography_target_analysis(
             target_location=target_location,
-            resolved_name=resolved_name or target_location,
-            latitude=float(lat),
-            longitude=float(lon),
+            resolved_name=str(target.get("label") or target_location),
+            latitude=float(target["latitude"]),
+            longitude=float(target["longitude"]),
             natal_meta=natal_meta,
             natal_lines_payload=natal_lines,
             house_system_code=house_system_code,
+            natal_chart_data=bundle.get("chart_data") or {},
+            target_id=target.get("candidate_id"),
+            coordinate_source=str(target.get("coordinate_source") or "geocoder"),
+            target_identity=target.get("identity"),
+            target_timezone=target_timezone or None,
             goal_id=goal_id,
             transit_lines_payload=transit_lines,
             transit_meta=transit_meta,
         )
     )
+    return response
 
+
+@astro_clock_bp.route('/astrocartography/location', methods=['GET'])
+@_error_handler
+def astrocartography_location():
+    return _json_ok(_build_astrocartography_location_payload(request.args))
+
+
+@astro_clock_bp.route('/astrocartography/relocation', methods=['GET'])
+@_error_handler
+def astrocartography_relocation():
+    payload = _build_astrocartography_location_payload(request.args)
+    response: Dict[str, Any] = {
+        "target": payload.get("target"),
+        "birth_time": payload.get("birth_time"),
+        "distance_policy": payload.get("distance_policy"),
+        "calculation": payload.get("calculation"),
+        "relocation": payload.get("relocation"),
+    }
+    if payload.get("goal"):
+        response["goal"] = payload.get("goal")
+    if payload.get("location_score"):
+        response["location_score"] = payload.get("location_score")
+    response["provenance"] = response["calculation"]
     return _json_ok(response)
 
 
@@ -7517,11 +9075,7 @@ def astrocartography_goals():
 def astrocartography_compare():
     from astrocartography_atlas_engine import build_location_score_sort_key
     from astrocartography_goal_engine import get_goal_score_polarity
-    from astrocartography_service import (
-        PRIMARY_READING_RADIUS_KM,
-        EXTENDED_READING_RADIUS_KM,
-        build_astrocartography_lines,
-    )
+    from astrocartography_service import build_astrocartography_lines
 
     target_locations = [str(value or '').strip() for value in request.args.getlist('target_location') if str(value or '').strip()]
     if len(target_locations) < 2:
@@ -7531,49 +9085,113 @@ def astrocartography_compare():
 
     bundle = _natal_bundle_from_query(request.args)
     natal_meta = bundle.get('meta') or {}
-    bodies = request.args.getlist('body') or None
-    angles = request.args.getlist('angle') or None
-    house_system_code = request.args.get('house_system_code') or None
+    bodies, angles, filter_policy = _astrocartography_filter_selection(request.args)
+    house_system_code = _validated_astrocartography_house_system_code(
+        request.args.get('house_system_code'),
+    )
     goal_id = str(request.args.get('goal_id') or '').strip().lower() or None
     _validate_astrocartography_goal_filters(goal_id, bodies=bodies, angles=angles)
     score_polarity = get_goal_score_polarity(goal_id) if goal_id else 'higher_is_better'
 
     natal_lines = build_astrocartography_lines(str(natal_meta.get('timestamp') or ''), bodies=bodies, angles=angles)
+    natal_lines["provenance"] = _astrocartography_calculation_metadata(
+        natal_lines,
+        timestamp_iso=str(natal_meta.get("timestamp") or ""),
+    )
     transit_bundle = _transit_bundle_from_query(request.args, natal_meta=natal_meta)
     transit_meta = (transit_bundle.get('meta') or {}) if transit_bundle else None
     transit_lines = (
         build_astrocartography_lines(str(transit_meta.get('timestamp') or ''), bodies=bodies, angles=angles)
         if transit_meta else None
     )
+    if transit_lines and transit_meta:
+        transit_lines["provenance"] = _astrocartography_calculation_metadata(
+            transit_lines,
+            timestamp_iso=str(transit_meta.get("timestamp") or ""),
+        )
+
+    target_ids = request.args.getlist("target_id")
+    target_latitudes = request.args.getlist("target_latitude")
+    target_longitudes = request.args.getlist("target_longitude")
+    target_timezones = request.args.getlist("target_timezone")
+    has_coordinates = bool(target_latitudes or target_longitudes)
+    if has_coordinates and (
+        len(target_latitudes) != len(target_locations)
+        or len(target_longitudes) != len(target_locations)
+    ):
+        raise ValueError(
+            "Compare coordinates must include one target_latitude and target_longitude for every target_location"
+        )
+    for label, values in (
+        ("target_id", target_ids),
+        ("target_timezone", target_timezones),
+    ):
+        if values and len(values) != len(target_locations):
+            raise ValueError(f"Compare {label} values must align with every target_location")
 
     targets: List[Dict[str, Any]] = []
-    for target_location in target_locations:
-        lat, lon, resolved_name = safe_geocode(target_location)
+    for index, target_location in enumerate(target_locations):
+        target = _resolve_astrocartography_target(
+            target_location,
+            target_id=(target_ids[index] if target_ids else None),
+            target_latitude=(target_latitudes[index] if has_coordinates else None),
+            target_longitude=(target_longitudes[index] if has_coordinates else None),
+        )
+        target_timezone = (
+            target_timezones[index]
+            if target_timezones
+            else _resolve_timezone_for_context(
+                None,
+                str(target.get("label") or target_location),
+                coords=(float(target["latitude"]), float(target["longitude"])),
+                lookup_coords=False,
+            )
+        )
         analysis = _astrocartography_target_analysis(
             target_location=target_location,
-            resolved_name=resolved_name or target_location,
-            latitude=float(lat),
-            longitude=float(lon),
+            resolved_name=str(target.get("label") or target_location),
+            latitude=float(target["latitude"]),
+            longitude=float(target["longitude"]),
             natal_meta=natal_meta,
             natal_lines_payload=natal_lines,
             house_system_code=house_system_code,
+            natal_chart_data=bundle.get("chart_data") or {},
+            target_id=target.get("candidate_id"),
+            coordinate_source=str(target.get("coordinate_source") or "geocoder"),
+            target_identity=target.get("identity"),
+            target_timezone=target_timezone or None,
             goal_id=goal_id,
             transit_lines_payload=transit_lines,
             transit_meta=transit_meta,
         )
         targets.append(analysis)
 
+    birth_time_quality = natal_meta.get("birth_time") or {}
+    ranking_candidates = [
+        item
+        for item in targets
+        if (item.get("location_score") or {}).get("ranking_eligible", True)
+    ]
     ranking = sorted(
         [
             {
+                'candidate_id': (item.get('target') or {}).get('candidate_id'),
                 'label': (item.get('target') or {}).get('label'),
                 'query': (item.get('target') or {}).get('query'),
+                'latitude': (item.get('target') or {}).get('latitude'),
+                'longitude': (item.get('target') or {}).get('longitude'),
+                'coordinate_source': (item.get('target') or {}).get('coordinate_source'),
                 'score': ((item.get('location_score') or {}).get('score')),
                 'raw_score': ((item.get('location_score') or {}).get('raw_score')),
+                'evidence_strength': ((item.get('location_score') or {}).get('evidence_strength')),
+                'interpretation_status': ((item.get('location_score') or {}).get('interpretation_status')),
+                'ranking_eligible': ((item.get('location_score') or {}).get('ranking_eligible', True)),
+                'uncertainty': ((item.get('location_score') or {}).get('uncertainty') or {}),
+                'rank_stability': ((item.get('location_score') or {}).get('rank_stability') or {}),
                 'top_supports': ((item.get('location_score') or {}).get('top_supports') or [])[:2],
                 'top_cautions': ((item.get('location_score') or {}).get('top_cautions') or [])[:2],
             }
-            for item in targets
+            for item in ranking_candidates
         ],
         key=lambda item: build_location_score_sort_key(
             {
@@ -7588,15 +9206,32 @@ def astrocartography_compare():
         item['rank'] = idx
 
     response: Dict[str, Any] = {
-        'distance_policy': {
-            'primary_radius_km': int(PRIMARY_READING_RADIUS_KM),
-            'extended_radius_km': int(EXTENDED_READING_RADIUS_KM),
+        'birth_time': birth_time_quality,
+        'ranking_eligible': bool(birth_time_quality.get("ranking_eligible", True)),
+        'calculation': {
+            "natal": natal_lines.get("provenance") or {},
+            "transit": (transit_lines or {}).get("provenance") if transit_lines else None,
+            "degraded": bool(
+                (natal_lines.get("provenance") or {}).get("degraded")
+                or ((transit_lines or {}).get("provenance") or {}).get("degraded")
+            ),
+            "warnings": list(dict.fromkeys(
+                list((natal_lines.get("provenance") or {}).get("warnings") or [])
+                + list(((transit_lines or {}).get("provenance") or {}).get("warnings") or [])
+            )),
+        },
+        'distance_policy': _astrocartography_distance_policy(),
+        'filters': {
+            "bodies": natal_lines.get("bodies") or [],
+            "angles": natal_lines.get("angles") or [],
+            "policy": filter_policy,
         },
         'targets': targets,
-        'ranking': ranking,
+        'ranking': ranking if birth_time_quality.get("ranking_eligible", True) else [],
     }
     if goal_id and targets:
         response['goal'] = targets[0].get('goal')
+    response["provenance"] = response["calculation"]
     return _json_ok(response)
 
 
@@ -7742,11 +9377,7 @@ def _update_atlas_search_session(session_id: str, **updates: Any) -> None:
 def _run_astrocartography_atlas_search(params: Any, *, progress_callback=None, should_continue=None) -> Dict[str, Any]:
     from astrocartography_atlas_engine import describe_goal_search_filters, rank_atlas_cities_for_goal
     from astrocartography_goal_models import get_goal_model
-    from astrocartography_service import (
-        PRIMARY_READING_RADIUS_KM,
-        EXTENDED_READING_RADIUS_KM,
-        build_astrocartography_lines,
-    )
+    from astrocartography_service import build_astrocartography_lines
 
     def _check_should_continue() -> None:
         if should_continue is None:
@@ -7777,9 +9408,15 @@ def _run_astrocartography_atlas_search(params: Any, *, progress_callback=None, s
 
     bundle = _natal_bundle_from_query(params)
     natal_meta = bundle.get('meta') or {}
-    selected_bodies = _astrocartography_param_list(params, 'body', 'bodies') or None
-    selected_angles = _astrocartography_param_list(params, 'angle', 'angles') or None
-    house_system_code = params.get('house_system_code') or None
+    birth_time_quality = natal_meta.get("birth_time") or {}
+    if not birth_time_quality.get("ranking_eligible", True):
+        raise ValueError(
+            "City ranking is unavailable for this birth-time quality; provide a certified, rectified, or sufficiently precise birth time."
+        )
+    selected_bodies, selected_angles, selection_policy = _astrocartography_filter_selection(params)
+    house_system_code = _validated_astrocartography_house_system_code(
+        params.get('house_system_code'),
+    )
     filter_meta = describe_goal_search_filters(
         goal_id,
         selected_bodies=selected_bodies,
@@ -7805,6 +9442,11 @@ def _run_astrocartography_atlas_search(params: Any, *, progress_callback=None, s
         bodies=relevant_bodies,
         angles=relevant_angles,
     )
+    natal_provenance = _astrocartography_calculation_metadata(
+        natal_lines,
+        timestamp_iso=str(natal_meta.get("timestamp") or ""),
+    )
+    natal_lines["provenance"] = natal_provenance
 
     _check_should_continue()
     transit_bundle = _transit_bundle_from_query(params, natal_meta=natal_meta)
@@ -7823,6 +9465,17 @@ def _run_astrocartography_atlas_search(params: Any, *, progress_callback=None, s
             bodies=relevant_bodies,
             angles=relevant_angles,
         )
+        transit_lines["provenance"] = _astrocartography_calculation_metadata(
+            transit_lines,
+            timestamp_iso=str(transit_meta.get("timestamp") or ""),
+        )
+
+    relocation_natal_chart_data = _extend_chart_data_for_synastry(
+        bundle.get("chart_data") or {},
+        natal_meta,
+        include_modern=True,
+        include_chiron=True,
+    )
 
     def _resolve_relocation_bundle(item: Dict[str, Any]) -> Dict[str, Any]:
         target = item.get('target') or {}
@@ -7833,15 +9486,26 @@ def _run_astrocartography_atlas_search(params: Any, *, progress_callback=None, s
         except Exception:
             target_lat = None
             target_lon = None
-        return _compute_chart_bundle_for(
-            str(natal_meta.get('timestamp') or ''),
-            str(target.get('query') or target.get('label') or ''),
-            atlas_city.get('timezone') or None,
-            house_system_code=house_system_code,
+        if target_lat is None or target_lon is None:
+            return {
+                "available": False,
+                "relocation_unavailable": True,
+                "chart_data": {},
+                "error": {
+                    "code": "candidate_coordinates_missing",
+                    "message": "Exact atlas candidate coordinates are missing.",
+                },
+                "warnings": ["The candidate was retained with line-only evidence."],
+            }
+        return _compute_relocation_chart_bundle(
+            natal_chart_data=relocation_natal_chart_data,
+            natal_meta=natal_meta,
+            target_label=str(target.get('label') or target.get('query') or ''),
             latitude=target_lat,
             longitude=target_lon,
-            include_modern=True,
-            include_chiron=True,
+            timezone_name=atlas_city.get('timezone') or None,
+            house_system_code=house_system_code,
+            coordinate_source=str(target.get("coordinate_source") or "atlas_candidate"),
         )
 
     def _atlas_progress(payload: Dict[str, Any]) -> None:
@@ -7856,8 +9520,11 @@ def _run_astrocartography_atlas_search(params: Any, *, progress_callback=None, s
     _check_should_continue()
     search_result = rank_atlas_cities_for_goal(
         goal_id=goal_id,
-        natal_lines=natal_lines.get('lines') or [],
-        transit_lines=(transit_lines.get('lines') or []) if transit_lines else None,
+        natal_lines=_ranking_eligible_astrocartography_lines(natal_lines),
+        transit_lines=(
+            _ranking_eligible_astrocartography_lines(transit_lines)
+            if transit_lines else None
+        ),
         query=query_text or None,
         country_code=country_code or None,
         continent_code=continent_code or None,
@@ -7888,14 +9555,26 @@ def _run_astrocartography_atlas_search(params: Any, *, progress_callback=None, s
             'score_polarity': search_result.get('score_polarity') or 'higher_is_better',
         },
         'natal': natal_meta,
+        'birth_time': birth_time_quality,
+        'ranking_eligible': True,
+        'calculation': {
+            "natal": natal_provenance,
+            "transit": (transit_lines or {}).get("provenance") if transit_lines else None,
+            "degraded": bool(
+                natal_provenance.get("degraded")
+                or ((transit_lines or {}).get("provenance") or {}).get("degraded")
+            ),
+            "warnings": list(dict.fromkeys(
+                list(natal_provenance.get("warnings") or [])
+                + list(((transit_lines or {}).get("provenance") or {}).get("warnings") or [])
+            )),
+        },
         'filters': {
             'bodies': relevant_bodies,
             'angles': relevant_angles,
+            'policy': selection_policy,
         },
-        'distance_policy': {
-            'primary_radius_km': int(PRIMARY_READING_RADIUS_KM),
-            'extended_radius_km': int(EXTENDED_READING_RADIUS_KM),
-        },
+        'distance_policy': _astrocartography_distance_policy(),
         'atlas': {
             'query': search_result.get('query') or {},
             'resolution': search_result.get('resolution') or {},
@@ -7907,12 +9586,17 @@ def _run_astrocartography_atlas_search(params: Any, *, progress_callback=None, s
             'viable_count': search_result.get('viable_count'),
             'signal_floor_raw_score': search_result.get('signal_floor_raw_score'),
             'score_polarity': search_result.get('score_polarity') or 'higher_is_better',
+            'shortlist_strategy': search_result.get('shortlist_strategy'),
+            'relocation_unavailable_count': search_result.get('relocation_unavailable_count', 0),
+            'relocation_unavailable': search_result.get('relocation_unavailable') or [],
+            'ranking_eligibility': birth_time_quality.get("ranking_eligibility"),
         },
         'results': search_result.get('results') or [],
         'ranking': search_result.get('ranking') or [],
     }
     if transit_meta:
         response['transit'] = transit_meta
+    response["provenance"] = response["calculation"]
     _check_should_continue()
     return response
 

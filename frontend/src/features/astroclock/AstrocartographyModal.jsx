@@ -127,10 +127,32 @@ const SPECIALIST_GOAL_IDS = new Set([
   'home_retreat',
   'health_risk',
 ]);
-const HIDDEN_FRONTEND_GOAL_IDS = new Set([
-  'travel_fun',
-  'travel_relax',
-]);
+const EXPERIMENTAL_GOAL_META = {
+  health_risk: {
+    label: 'Experimental health-pressure interpretation',
+    caveat: 'Interpretive research only. It is not medical guidance or a prediction of illness.',
+  },
+  accident_prone: {
+    label: 'Experimental accident-pressure interpretation',
+    caveat: 'Interpretive research only. It is not a safety forecast or a substitute for practical risk assessment.',
+  },
+  gambling_luck: {
+    label: 'Experimental speculation interpretation',
+    caveat: 'Interpretive research only. It does not predict winnings and is not financial or gambling advice.',
+  },
+  travel_fun: {
+    label: 'Experimental travel interpretation',
+    caveat: 'Interpretive research only. Use practical safety, budget, and travel information when choosing a destination.',
+  },
+  travel_relax: {
+    label: 'Experimental travel interpretation',
+    caveat: 'Interpretive research only. Use practical safety, health, budget, and travel information when choosing a destination.',
+  },
+};
+const LOCAL_SPACE_OPTIONS = [
+  { id: 'relocated', label: 'Relocated' },
+  { id: 'natal', label: 'Natal' },
+];
 const GOAL_GROUP_LABELS = {
   broad: 'Core Goals',
   specialist: 'Specialist Variants',
@@ -150,7 +172,10 @@ let astrocartographyGoalOptionsPromise = null;
 
 function filterFrontendGoalOptions(goals) {
   if (!Array.isArray(goals)) return [];
-  return goals.filter((goal) => !HIDDEN_FRONTEND_GOAL_IDS.has(String(goal?.id || '').trim().toLowerCase()));
+  return goals.filter((goal) => {
+    const status = String(goal?.status || 'active').trim().toLowerCase();
+    return status === 'active' || status === 'experimental';
+  });
 }
 
 function getGoalVariantTier(goal) {
@@ -408,7 +433,7 @@ function DynamicLineLabels({ lines, placement = 'north', variant = 'natal' }) {
 
 function TargetPin({ target }) {
   if (!target || typeof target.latitude !== 'number' || typeof target.longitude !== 'number') return null;
-  const label = getAstrocartographyTargetLabel(target) || 'Selected location';
+  const label = getTargetDisplayLabel(target, 'Selected location');
   return (
     <CircleMarker
       center={[target.latitude, target.longitude]}
@@ -453,19 +478,186 @@ function describeAstrocartographyError(error, fallbackMessage) {
   return `${message} [incident ${incidentId}]`;
 }
 
+function formatServiceError(value, fallbackMessage) {
+  if (typeof value === 'string' && value.trim()) return value.trim();
+  if (value && typeof value === 'object') {
+    const message = [
+      value.message,
+      value.detail,
+      value.error,
+    ].find((item) => typeof item === 'string' && item.trim());
+    const code = String(value.code || value.error_code || '').trim();
+    if (message) return code ? `${code}: ${message.trim()}` : message.trim();
+    if (code) return code;
+  }
+  return fallbackMessage;
+}
+
 function getAtlasProgressPercent(progress) {
   const value = Number(progress?.percent);
   if (!Number.isFinite(value)) return 0;
   return Math.max(0, Math.min(100, Math.round(value * 100)));
 }
 
+function getTargetCatalogId(target) {
+  if (!target || typeof target !== 'object') return '';
+  const explicitId = String(
+    target.candidate_id
+    || target.target_id
+    || target.catalog_id
+    || ''
+  ).trim();
+  if (explicitId) return explicitId;
+  const geonameId = String(target.geonameid || '').trim();
+  if (geonameId) {
+    return geonameId.startsWith('geonames:') ? geonameId : `geonames:${geonameId}`;
+  }
+  return String(target.id || '').trim();
+}
+
+function getTargetDisplayLabel(target, fallback = 'Selected target') {
+  const label = getAstrocartographyTargetLabel(target);
+  if (label) return label;
+  const latitude = Number(target?.latitude);
+  const longitude = Number(target?.longitude);
+  if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+    return `Coordinates ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+  }
+  return fallback;
+}
+
 function buildCompareKey(target) {
   if (!target) return '';
+  const catalogId = getTargetCatalogId(target);
+  if (catalogId) return `catalog:${catalogId}`;
   return [
-    getAstrocartographyTargetLabel(target),
     target.latitude,
     target.longitude,
+    getTargetDisplayLabel(target, ''),
   ].map((value) => String(value ?? '')).join('|');
+}
+
+function buildRankingTarget(entry) {
+  const source = entry?.target && typeof entry.target === 'object' ? entry.target : (entry || {});
+  const catalogId = getTargetCatalogId(source)
+    || getTargetCatalogId(entry)
+    || getTargetCatalogId(entry?.atlas_city);
+  return {
+    ...source,
+    ...(catalogId ? { candidate_id: catalogId } : {}),
+    label: getTargetDisplayLabel(source, String(entry?.label || entry?.query || 'Selected coordinates')),
+    query: getAstrocartographyTargetQuery(source) || String(entry?.query || entry?.label || '').trim(),
+    latitude: source.latitude ?? entry?.latitude,
+    longitude: source.longitude ?? entry?.longitude,
+  };
+}
+
+function resolveCompareRankingIdentity(entry, compareResult, compareEntries) {
+  const directTarget = buildRankingTarget(entry);
+  const hasDirectIdentity = Boolean(
+    getTargetCatalogId(directTarget)
+    || (
+      Number.isFinite(Number(directTarget.latitude))
+      && Number.isFinite(Number(directTarget.longitude))
+    )
+  );
+  if (hasDirectIdentity) return { target: directTarget, ambiguous: false };
+
+  const entryQuery = String(entry?.query || entry?.label || '').trim();
+  const entryScoreRaw = entry?.location_score?.score ?? entry?.score;
+  const entryScore = entryScoreRaw == null || String(entryScoreRaw).trim() === ''
+    ? Number.NaN
+    : Number(entryScoreRaw);
+  const responseMatches = (Array.isArray(compareResult?.targets) ? compareResult.targets : [])
+    .filter((candidate) => {
+      const candidateTarget = candidate?.target || candidate;
+      const candidateQuery = getAstrocartographyTargetQuery(candidateTarget)
+        || getTargetDisplayLabel(candidateTarget, '');
+      if (!entryQuery || candidateQuery !== entryQuery) return false;
+      const candidateScoreRaw = candidate?.location_score?.score ?? candidate?.score;
+      const candidateScore = candidateScoreRaw == null || String(candidateScoreRaw).trim() === ''
+        ? Number.NaN
+        : Number(candidateScoreRaw);
+      return !Number.isFinite(entryScore)
+        || !Number.isFinite(candidateScore)
+        || candidateScore === entryScore;
+    });
+  if (responseMatches.length === 1) {
+    return {
+      target: buildRankingTarget(responseMatches[0]),
+      ambiguous: false,
+    };
+  }
+
+  const savedMatches = (Array.isArray(compareEntries) ? compareEntries : [])
+    .filter((candidate) => {
+      const candidateTarget = candidate?.target || {};
+      const candidateQuery = getAstrocartographyTargetQuery(candidateTarget)
+        || getTargetDisplayLabel(candidateTarget, '');
+      return Boolean(entryQuery && candidateQuery === entryQuery);
+    });
+  if (savedMatches.length === 1) {
+    return {
+      target: buildRankingTarget(savedMatches[0]),
+      ambiguous: false,
+    };
+  }
+
+  return {
+    target: directTarget,
+    ambiguous: responseMatches.length > 1 || savedMatches.length > 1,
+  };
+}
+
+function targetsReferToSameLocation(left, right) {
+  const leftId = getTargetCatalogId(left);
+  const rightId = getTargetCatalogId(right);
+  if (leftId && rightId) return leftId === rightId;
+
+  const leftLatitude = Number(left?.latitude);
+  const leftLongitude = Number(left?.longitude);
+  const rightLatitude = Number(right?.latitude);
+  const rightLongitude = Number(right?.longitude);
+  if ([leftLatitude, leftLongitude, rightLatitude, rightLongitude].every(Number.isFinite)) {
+    return Math.abs(leftLatitude - rightLatitude) < 1e-8
+      && Math.abs(leftLongitude - rightLongitude) < 1e-8;
+  }
+
+  const leftQuery = getAstrocartographyTargetQuery(left) || getTargetDisplayLabel(left, '');
+  const rightQuery = getAstrocartographyTargetQuery(right) || getTargetDisplayLabel(right, '');
+  return Boolean(leftQuery && rightQuery && leftQuery === rightQuery);
+}
+
+function dedupeCanonicalEvidence(items) {
+  if (!Array.isArray(items)) return [];
+  const seen = new Set();
+  return items.filter((item, index) => {
+    const canonicalId = String(item?.canonical_event_id || item?.id || `row-${index}`);
+    const eventKind = String(item?.event_kind || item?.kind || 'unspecified');
+    const key = `${canonicalId}::${eventKind}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function getEvidenceKindLabel(item, fallback) {
+  const token = String(item?.event_kind || '').trim().toLowerCase();
+  return {
+    'angular-line-crossing': 'Line crossing',
+    'angular-line-proximity-blend': 'Proximity blend',
+    'paran-crossing-point': 'Paran point',
+    'paran-latitude-corridor': 'Paran corridor',
+  }[token] || fallback;
+}
+
+function firstNonEmptyObject(...values) {
+  return values.find((value) => (
+    value
+    && typeof value === 'object'
+    && !Array.isArray(value)
+    && Object.keys(value).length > 0
+  )) || {};
 }
 
 function getZoneBadgeCls(zone) {
@@ -478,20 +670,232 @@ function getZoneBadgeCls(zone) {
   return 'border-zinc-300/80 bg-zinc-50 text-zinc-700 dark:border-zinc-600 dark:bg-zinc-700/30 dark:text-zinc-200';
 }
 
-function getSignalBadgeCls(score) {
+function getSignalBadgeCls(score, higherIsWorse = false) {
   if (score >= 70) {
-    return 'border-emerald-300/80 bg-emerald-50 text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-200';
+    return higherIsWorse
+      ? 'border-rose-300/80 bg-rose-50 text-rose-700 dark:border-rose-500/40 dark:bg-rose-500/10 dark:text-rose-200'
+      : 'border-emerald-300/80 bg-emerald-50 text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-200';
   }
-  if (score >= 40) {
+  if (score >= 35) {
     return 'border-amber-300/80 bg-amber-50 text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200';
   }
-  return 'border-zinc-300/80 bg-zinc-50 text-zinc-700 dark:border-zinc-600 dark:bg-zinc-700/30 dark:text-zinc-200';
+  return higherIsWorse
+    ? 'border-emerald-300/80 bg-emerald-50 text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-200'
+    : 'border-zinc-300/80 bg-zinc-50 text-zinc-700 dark:border-zinc-600 dark:bg-zinc-700/30 dark:text-zinc-200';
 }
 
-function getCompareSignal(entry) {
-  const natalScore = Number(entry?.natal?.reading?.signal_score || 0);
-  const transitScore = Number(entry?.transit?.reading?.signal_score || 0);
-  return Math.round(natalScore + (transitScore * 0.35));
+function getMapScoreColors(score, higherIsWorse = false) {
+  if (higherIsWorse) {
+    if (score >= 70) return { color: '#be123c', fillColor: '#fb7185' };
+    if (score >= 35) return { color: '#b45309', fillColor: '#f59e0b' };
+    return { color: '#047857', fillColor: '#34d399' };
+  }
+  if (score >= 70) return { color: '#047857', fillColor: '#34d399' };
+  if (score >= 35) return { color: '#b45309', fillColor: '#f59e0b' };
+  return { color: '#475569', fillColor: '#94a3b8' };
+}
+
+function getSignalMetricTone(score, higherIsWorse = false) {
+  if (score >= 70) return higherIsWorse ? 'danger' : 'success';
+  if (score >= 35) return 'warning';
+  return higherIsWorse ? 'success' : 'default';
+}
+
+function normalizeOrdinalLabel(value) {
+  const token = String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+  if (token.includes('insufficient') || token === 'none' || token === 'unavailable') return 'Insufficient';
+  if (token.includes('weak') || token === 'low') return 'Weak';
+  if (token.includes('mixed') || token === 'moderate' || token === 'medium') return 'Mixed';
+  if (token.includes('strong') || token === 'high') return 'Strong';
+  return '';
+}
+
+export function getAstrocartographyOrdinal(payload, { rankingEligible } = {}) {
+  if (rankingEligible === false) return 'Insufficient';
+  const source = payload && typeof payload === 'object' ? payload : {};
+  const explicit = [
+    source.ordinal_strength,
+    source.strength_ordinal,
+    source.evidence_strength,
+    source.signal_strength,
+    source.strength?.label,
+    source.evidence?.ordinal,
+    source.location_score?.ordinal_strength,
+  ].map(normalizeOrdinalLabel).find(Boolean);
+  if (explicit) return explicit;
+
+  const scoreValue = source.score
+    ?? source.location_score?.score
+    ?? source.reading?.signal_score
+    ?? (typeof payload === 'number' ? payload : null);
+  if (scoreValue == null || !Number.isFinite(Number(scoreValue))) return 'Insufficient';
+  const score = Number(scoreValue);
+  if (score <= 0) return 'Insufficient';
+  if (score < 35) return 'Weak';
+  if (score < 70) return 'Mixed';
+  return 'Strong';
+}
+
+export function getAstrocartographyRankStability(payload) {
+  const source = payload && typeof payload === 'object' ? payload : {};
+  const value = source.rank_stability ?? source.ranking_stability ?? source.stability;
+  if (value == null) return { label: 'Not assessed', detail: '' };
+  if (typeof value === 'boolean') {
+    return {
+      label: value ? 'Stable' : 'Unstable',
+      detail: value ? 'Rank held across reported checks.' : 'Rank changed across reported checks.',
+    };
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    const normalized = value > 1 ? value / 100 : value;
+    return {
+      label: normalized >= 0.75 ? 'Stable' : (normalized >= 0.45 ? 'Mixed' : 'Unstable'),
+      detail: `${Math.round(Math.max(0, Math.min(1, normalized)) * 100)}% reported stability`,
+    };
+  }
+  if (typeof value === 'string') {
+    const label = value.trim().replace(/[_-]+/g, ' ');
+    return { label: label ? label.charAt(0).toUpperCase() + label.slice(1) : 'Not assessed', detail: '' };
+  }
+  const labelValue = value.label || value.status || value.ordinal || value.classification;
+  const label = String(labelValue || 'Not assessed').trim().replace(/[_-]+/g, ' ');
+  const rankRange = Array.isArray(value.rank_range) ? value.rank_range.join('–') : '';
+  const detail = String(
+    value.detail
+    || value.reason
+    || value.summary
+    || (rankRange ? `Reported rank range ${rankRange}` : '')
+  ).trim();
+  return {
+    label: label ? label.charAt(0).toUpperCase() + label.slice(1) : 'Not assessed',
+    detail,
+  };
+}
+
+function formatStatusLabel(value, fallback = '') {
+  const text = String(value || fallback || '').trim().replace(/[_-]+/g, ' ');
+  if (!text) return '';
+  return text.replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+export function getAstrocartographyBirthTimeAssessment(...sources) {
+  const candidates = [];
+  sources.filter(Boolean).forEach((source) => {
+    if (!source || typeof source !== 'object') return;
+    candidates.push(
+      source.birth_time,
+      source.birth_time_accuracy,
+      source.calculation?.birth_time,
+      source.provenance?.birth_time,
+      source.summary?.certification,
+      source.certification,
+    );
+    if (
+      typeof source.ranking_eligible === 'boolean'
+      || source.ranking_eligibility
+      || source.uncertainty_minutes != null
+    ) {
+      candidates.push(source);
+    }
+  });
+  const payload = candidates.find((item) => (
+    item
+    && typeof item === 'object'
+    && (
+      typeof item.ranking_eligible === 'boolean'
+      || typeof item.eligible_for_ranking === 'boolean'
+      || item.ranking_eligibility
+    )
+  )) || candidates.find((item) => item && typeof item === 'object') || null;
+  if (!payload) {
+    return {
+      status: 'not_reported',
+      accuracyLabel: 'Not reported',
+      confidenceLabel: 'Unknown uncertainty',
+      uncertaintyLabel: '',
+      rankingEligible: null,
+      rankingLabel: 'Eligibility not reported',
+      reason: 'This snap does not report a birth-time accuracy assessment.',
+      warnings: [],
+    };
+  }
+
+  const status = String(payload.status || payload.accuracy_status || 'not_reported').trim().toLowerCase();
+  const confidence = String(payload.confidence || payload.accuracy || '').trim().toLowerCase();
+  const eligibilityValue = payload.ranking_eligible ?? payload.eligible_for_ranking;
+  const eligibilityText = String(payload.ranking_eligibility || '').trim().toLowerCase();
+  let rankingEligible = typeof eligibilityValue === 'boolean' ? eligibilityValue : null;
+  if (rankingEligible == null && eligibilityText) {
+    if (['eligible', 'allowed', 'rankable', 'confirmed', 'provisional'].includes(eligibilityText)) rankingEligible = true;
+    if (
+      ['ineligible', 'blocked', 'not_eligible', 'inspection_only', 'regional_only'].includes(eligibilityText)
+      || eligibilityText.startsWith('ineligible_')
+    ) {
+      rankingEligible = false;
+    }
+  }
+  if (rankingEligible == null && ['certified_source', 'certificate', 'certified', 'aa', 'record', 'family_exact'].includes(status)) {
+    rankingEligible = true;
+  }
+  if (rankingEligible == null && ['insufficient_data', 'unresolved_rectification', 'unknown'].includes(status)) {
+    rankingEligible = false;
+  }
+
+  const uncertaintyRaw = payload.uncertainty_minutes;
+  const uncertaintyMinutes = uncertaintyRaw != null && String(uncertaintyRaw).trim() !== ''
+    ? Number(uncertaintyRaw)
+    : Number.NaN;
+  const searchWindowRaw = payload.search_window_minutes;
+  const searchWindowMinutes = searchWindowRaw != null && String(searchWindowRaw).trim() !== ''
+    ? Number(searchWindowRaw)
+    : Number.NaN;
+  if (rankingEligible == null && status === 'approximate') {
+    rankingEligible = Number.isFinite(uncertaintyMinutes) ? uncertaintyMinutes <= 5 : false;
+  }
+  if (rankingEligible == null && status === 'rectified_candidate') {
+    rankingEligible = Number.isFinite(uncertaintyMinutes) ? uncertaintyMinutes <= 5 : true;
+  }
+  const warnings = Array.isArray(payload.warnings)
+    ? payload.warnings.map((item) => String(item || '').trim()).filter(Boolean)
+    : [];
+  return {
+    status,
+    accuracyLabel: String(payload.label || payload.accuracy_label || formatStatusLabel(status, 'Not reported')),
+    confidenceLabel: confidence ? `${formatStatusLabel(confidence)} confidence` : 'Confidence not reported',
+    uncertaintyLabel: Number.isFinite(uncertaintyMinutes)
+      ? `±${Math.max(0, uncertaintyMinutes)} min`
+      : (
+        String(payload.uncertainty || '').trim()
+        || (Number.isFinite(searchWindowMinutes)
+          ? `${Math.max(0, searchWindowMinutes)} min search window`
+          : '')
+      ),
+    rankingEligible,
+    rankingLabel: rankingEligible === true
+      ? 'Ranking eligible'
+      : (rankingEligible === false ? 'Inspection only · ranking unavailable' : 'Eligibility not reported'),
+    reason: String(
+      payload.reason
+      || payload.ranking_reason
+      || (payload.ranking_eligibility
+        ? `Ranking policy: ${formatStatusLabel(payload.ranking_eligibility)}`
+        : '')
+    ).trim(),
+    warnings,
+  };
+}
+
+function getLocalSpaceOrigin(localSpace, fallbackTarget = null) {
+  const origin = localSpace?.origin || {};
+  const latitude = Number(origin.latitude ?? localSpace?.origin_latitude ?? fallbackTarget?.latitude);
+  const longitude = Number(origin.longitude ?? localSpace?.origin_longitude ?? fallbackTarget?.longitude);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  return {
+    ...(fallbackTarget || {}),
+    label: String(origin.label || localSpace?.origin_label || fallbackTarget?.label || 'Local Space origin'),
+    latitude,
+    longitude,
+  };
 }
 
 function getToneCls(tone) {
@@ -533,6 +937,7 @@ function MetricChip({ label, value, tone = 'default' }) {
     accent: 'border-zinc-300 bg-zinc-50 text-zinc-800 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100',
     success: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200',
     warning: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200',
+    danger: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200',
   }[tone] || 'border-zinc-200 bg-white text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900/40 dark:text-zinc-200';
 
   return (
@@ -576,6 +981,7 @@ function SelectedCitySummaryCard({
   viewMode,
   onAddToCompare,
   actionButtonCls,
+  rankingEligible,
 }) {
   if (!target) {
     return (
@@ -585,16 +991,23 @@ function SelectedCitySummaryCard({
     );
   }
 
-  const targetLabel = getAstrocartographyTargetLabel(target) || 'Selected location';
+  const targetLabel = getTargetDisplayLabel(target, 'Selected location');
   const activeMode = viewMode === 'transit' && targetResult?.transit ? 'Transit overlay' : 'Natal baseline';
   const locationScore = Number(targetResult?.location_score?.score || 0);
   const natalSignal = Number(targetResult?.natal?.reading?.signal_score || 0);
   const transitSignal = Number(targetResult?.transit?.reading?.signal_score || 0);
-  const leadSupport =
-    targetResult?.location_score?.top_supports?.[0]?.label
+  const higherIsWorse = selectedGoal?.score_polarity === 'higher_is_worse';
+  const leadFactor =
+    (higherIsWorse ? targetResult?.location_score?.top_cautions?.[0]?.label : '')
+    || targetResult?.location_score?.top_supports?.[0]?.label
     || targetResult?.natal?.reading?.lead_line?.label
     || '';
-  const scoreLabel = selectedGoal?.score_polarity === 'higher_is_worse' ? 'Risk score' : 'Goal score';
+  const scoreLabel = higherIsWorse ? 'Modeled pressure' : 'Model signal';
+  const scoreOrdinal = getAstrocartographyOrdinal(targetResult?.location_score, { rankingEligible });
+  const rankStability = getAstrocartographyRankStability(targetResult?.location_score);
+  const experimentalMeta = EXPERIMENTAL_GOAL_META[String(selectedGoal?.id || '').toLowerCase()] || null;
+  const latitude = Number(target.latitude);
+  const longitude = Number(target.longitude);
 
   return (
     <div className={`${astroSectionCardCls} space-y-3`}>
@@ -602,29 +1015,50 @@ function SelectedCitySummaryCard({
         <div className="min-w-0">
           <ConsoleBracketEyebrow module="astrocartography">selected city</ConsoleBracketEyebrow>
           <div className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{targetLabel}</div>
-          <div className="mt-1 text-[12px] text-zinc-600 dark:text-zinc-300">
-            {target.latitude.toFixed(4)}, {target.longitude.toFixed(4)}
-          </div>
+          {Number.isFinite(latitude) && Number.isFinite(longitude) ? (
+            <div className="mt-1 text-[12px] text-zinc-600 dark:text-zinc-300">
+              {latitude.toFixed(4)}, {longitude.toFixed(4)}
+            </div>
+          ) : null}
         </div>
-        <button type="button" className={actionButtonCls} onClick={onAddToCompare}>
+        <button
+          type="button"
+          className={actionButtonCls}
+          onClick={onAddToCompare}
+          disabled={rankingEligible === false}
+          title={rankingEligible === false ? 'Birth-time uncertainty makes this chart inspection-only.' : undefined}
+        >
           Add To Compare
         </button>
       </div>
-      {leadSupport ? (
+      {leadFactor ? (
         <div className={astroBandCls}>
-          <div className={astroSectionLabelCls}>Lead support</div>
-          <p className="mt-2 text-sm leading-6 text-zinc-700 dark:text-zinc-200">{leadSupport}</p>
+          <div className={astroSectionLabelCls}>Lead factor</div>
+          <p className="mt-2 text-sm leading-6 text-zinc-700 dark:text-zinc-200">{leadFactor}</p>
         </div>
       ) : null}
       <div className="grid grid-cols-2 gap-2 xl:grid-cols-3">
         <MetricChip label="Mode" value={activeMode} tone="default" />
         {selectedGoal?.label ? <MetricChip label="Goal" value={selectedGoal.label} tone="accent" /> : null}
-        <MetricChip label="Natal" value={natalSignal} tone="success" />
+        <MetricChip label="Natal signal" value={getAstrocartographyOrdinal({ score: natalSignal })} tone="default" />
         {viewMode === 'transit' && targetResult?.transit?.reading?.signal_score != null ? (
-          <MetricChip label="Transit" value={transitSignal} tone="accent" />
+          <MetricChip label="Transit signal" value={getAstrocartographyOrdinal({ score: transitSignal })} tone="accent" />
         ) : null}
-        {targetResult?.location_score?.score != null ? <MetricChip label={scoreLabel} value={locationScore} tone="warning" /> : null}
+        {targetResult?.location_score?.score != null ? (
+          <MetricChip
+            label={scoreLabel}
+            value={`${scoreOrdinal} · index ${locationScore}`}
+            tone={getSignalMetricTone(locationScore, higherIsWorse)}
+          />
+        ) : null}
+        <MetricChip label="Rank stability" value={rankStability.label} tone="default" />
       </div>
+      {experimentalMeta ? (
+        <div className="rounded-[4px] border border-amber-200 bg-amber-50/80 p-3 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
+          <div className={astroSectionLabelCls}>{experimentalMeta.label}</div>
+          <p className="mt-2 text-[12px] leading-6">{experimentalMeta.caveat}</p>
+        </div>
+      ) : null}
       <div className={astroNestedCardCls}>
         <div className={astroSectionLabelCls}>Current scope</div>
         <p className="mt-2 text-[12px] leading-6 text-zinc-600 dark:text-zinc-300">
@@ -703,15 +1137,20 @@ function ReadingLineCard({ row }) {
   );
 }
 
-function ReadingPanel({ title, reading, emptyText }) {
+function ReadingPanel({ title, reading, emptyText, higherIsWorse = false }) {
+  const signalScore = Number(reading?.signal_score || 0);
+  const signalOrdinal = getAstrocartographyOrdinal({ score: signalScore });
   return (
     <ConsoleRailSection
       title={title}
       eyebrow="reading"
       module="astrocartography"
       headerRight={reading?.signal_score != null ? (
-        <span className={`px-2 py-0.5 rounded-full border text-[10px] uppercase tracking-wide ${getSignalBadgeCls(Number(reading.signal_score) || 0)}`}>
-          Signal {reading.signal_score}
+        <span
+          className={`px-2 py-0.5 rounded-full border text-[10px] uppercase tracking-wide ${getSignalBadgeCls(signalScore, higherIsWorse)}`}
+          title={`Model index ${signalScore}`}
+        >
+          Signal {signalOrdinal}
         </span>
       ) : null}
       bodyClassName="mt-3 space-y-3"
@@ -737,6 +1176,192 @@ function ReadingPanel({ title, reading, emptyText }) {
   );
 }
 
+function BirthTimeAssessmentPanel({ assessment }) {
+  const meta = assessment || getAstrocartographyBirthTimeAssessment();
+  const statusCls = meta.rankingEligible === true
+    ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-100'
+    : (meta.rankingEligible === false
+      ? 'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-100'
+      : 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100');
+  return (
+    <ConsoleRailSection title="Birth-time accuracy" eyebrow="eligibility" module="astrocartography" bodyClassName="mt-3 space-y-2">
+      <div className={`rounded-[4px] border p-3 ${statusCls}`}>
+        <div className="text-sm font-medium">{meta.accuracyLabel}</div>
+        <div className="mt-1 text-[11px] leading-5">
+          {[meta.confidenceLabel, meta.uncertaintyLabel].filter(Boolean).join(' · ')}
+        </div>
+        <div className="mt-2 font-mono text-[10px] font-semibold uppercase tracking-[0.12em]">
+          {meta.rankingLabel}
+        </div>
+      </div>
+      {meta.reason ? <p className={astroMetaTextCls}>{meta.reason}</p> : null}
+      {meta.warnings?.length ? (
+        <ul className="space-y-1 text-[11px] leading-5 text-amber-700 dark:text-amber-200">
+          {meta.warnings.slice(0, 3).map((warning) => <li key={warning}>{warning}</li>)}
+        </ul>
+      ) : null}
+    </ConsoleRailSection>
+  );
+}
+
+function MethodologyPanel({
+  targetResult,
+  mapData,
+  atlasResults,
+  compareResult,
+  activeParans,
+}) {
+  const calculation = firstNonEmptyObject(
+    targetResult?.calculation,
+    atlasResults?.calculation,
+    compareResult?.calculation,
+    mapData?.calculation,
+  );
+  const provenance = firstNonEmptyObject(
+    targetResult?.provenance,
+    atlasResults?.provenance,
+    compareResult?.provenance,
+    mapData?.provenance,
+  );
+  const distancePolicy = firstNonEmptyObject(
+    targetResult?.distance_policy,
+    atlasResults?.distance_policy,
+    compareResult?.distance_policy,
+    mapData?.distance_policy,
+  );
+  const warnings = Array.from(new Set([
+    ...(Array.isArray(calculation?.warnings) ? calculation.warnings : []),
+    ...(Array.isArray(provenance?.warnings) ? provenance.warnings : []),
+    ...(Array.isArray(distancePolicy?.warnings) ? distancePolicy.warnings : []),
+    ...(Array.isArray(activeParans?.warnings) ? activeParans.warnings : []),
+    ...(Array.isArray(targetResult?.relocation?.warnings) ? targetResult.relocation.warnings : []),
+  ].map((item) => String(item || '').trim()).filter(Boolean)));
+  const degraded = Boolean(
+    calculation?.degraded
+    || String(calculation?.status || '').toLowerCase() === 'degraded'
+    || provenance?.degraded
+    || String(provenance?.status || '').toLowerCase() === 'degraded'
+    || mapData?.map?.global_parans?.degraded
+    || mapData?.map?.transit_global_parans?.degraded
+    || activeParans?.degraded
+  );
+  const hasMethodMetadata = Boolean(
+    Object.keys(calculation || {}).length
+    || Object.keys(provenance || {}).length
+    || Object.keys(distancePolicy || {}).length
+    || Object.keys(activeParans || {}).length
+  );
+  const scalarPolicyEntries = Object.entries(distancePolicy)
+    .filter(([, value]) => ['string', 'number', 'boolean'].includes(typeof value))
+    .slice(0, 8);
+  const paranAngleFilter = firstNonEmptyObject(
+    activeParans?.angle_filter,
+    targetResult?.filters?.policy,
+    atlasResults?.filters?.policy,
+    compareResult?.filters?.policy,
+    mapData?.filters?.policy,
+  );
+  const effectiveParanAngles = Array.isArray(paranAngleFilter?.effective_angles)
+    ? paranAngleFilter.effective_angles
+    : [];
+  const primaryCalculation = firstNonEmptyObject(
+    provenance?.natal,
+    calculation?.natal,
+    provenance?.transit,
+    calculation?.transit,
+    provenance,
+    calculation,
+  );
+  const provenanceLabel = String(
+    provenance?.label
+    || provenance?.source
+    || provenance?.engine
+    || primaryCalculation?.label
+    || primaryCalculation?.source
+    || primaryCalculation?.engine
+    || calculation?.method
+    || calculation?.engine
+    || 'Not reported'
+  );
+  const versionLabel = String(
+    provenance?.version
+    || calculation?.version
+    || primaryCalculation?.version
+    || primaryCalculation?.geometry?.version
+    || ''
+  );
+  const frameLabel = String(
+    primaryCalculation?.frame
+    || primaryCalculation?.geometry?.coordinate_frame
+    || ''
+  );
+  return (
+    <ConsoleRailSection
+      title="Method / provenance"
+      eyebrow="policy"
+      module="astrocartography"
+      headerRight={(
+        <span className={`rounded-full border px-2 py-0.5 font-mono text-[9px] font-semibold uppercase tracking-[0.12em] ${
+          degraded
+            ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200'
+            : 'border-zinc-300 bg-zinc-50 text-zinc-600 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200'
+        }`}>
+          {degraded ? 'Degraded' : (hasMethodMetadata ? 'Reported' : 'Not reported')}
+        </span>
+      )}
+      bodyClassName="mt-3 space-y-2"
+    >
+      <div className={astroNestedCardCls}>
+        <div className={astroSectionLabelCls}>Calculation source</div>
+        <p className="mt-2 text-[12px] leading-5 text-zinc-700 dark:text-zinc-200">
+          {provenanceLabel}{versionLabel ? ` · ${versionLabel}` : ''}
+        </p>
+        {frameLabel ? <p className={`mt-1 ${astroMetaTextCls}`}>Frame: {formatStatusLabel(frameLabel)}</p> : null}
+      </div>
+      <div className={astroNestedCardCls}>
+        <div className={astroSectionLabelCls}>Paran policy</div>
+        <p className="mt-2 text-[12px] leading-5 text-zinc-600 dark:text-zinc-300">
+          {activeParans?.orb_deg != null
+            ? `Orb ≤ ${activeParans.orb_deg}°`
+            : (distancePolicy?.local_paran_orb_deg != null
+              ? `Local orb ≤ ${distancePolicy.local_paran_orb_deg}°`
+              : 'Orb not reported')}
+          {activeParans?.max_distance_km != null
+            ? ` · distance ≤ ${activeParans.max_distance_km} km`
+            : (distancePolicy?.local_paran_radius_km != null
+              ? ` · local radius ${distancePolicy.local_paran_radius_km} km`
+              : '')}
+          {distancePolicy?.global_paran_orb_deg != null
+            ? ` · global orb ≤ ${distancePolicy.global_paran_orb_deg}°`
+            : ''}
+        </p>
+        {effectiveParanAngles.length ? (
+          <p className={`mt-1 ${astroMetaTextCls}`}>
+            Both angular events must match: {effectiveParanAngles.join(', ')}
+          </p>
+        ) : null}
+      </div>
+      {scalarPolicyEntries.length ? (
+        <div className={astroNestedCardCls}>
+          <div className={astroSectionLabelCls}>Distance policy</div>
+          <div className="mt-2 space-y-1 text-[11px] leading-5 text-zinc-600 dark:text-zinc-300">
+            {scalarPolicyEntries.map(([key, value]) => (
+              <div key={key}>{formatStatusLabel(key)}: {String(value)}</div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <p className={astroMetaTextCls}>Distance thresholds were not reported by this response.</p>
+      )}
+      {warnings.length ? (
+        <div className="rounded-[4px] border border-amber-200 bg-amber-50/80 p-3 text-[11px] leading-5 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
+          {warnings.slice(0, 4).map((warning) => <div key={warning}>{warning}</div>)}
+        </div>
+      ) : null}
+    </ConsoleRailSection>
+  );
+}
+
 function buildRealtimeTransitSeed(seed) {
   return {
     transitDatetime: new Date().toISOString(),
@@ -752,6 +1377,26 @@ function buildManualTransitSeed({ date, time, location, timezone }) {
     transitLocation: location || '',
     transitTimezone: timezone || '',
   };
+}
+
+function beginAbortableRequest(ref) {
+  ref.current.controller?.abort();
+  const controller = new AbortController();
+  const runId = Number(ref.current.runId || 0) + 1;
+  ref.current = { runId, controller };
+  return { runId, controller };
+}
+
+function abortTrackedRequest(ref) {
+  ref.current.controller?.abort();
+  ref.current = {
+    runId: Number(ref.current.runId || 0) + 1,
+    controller: null,
+  };
+}
+
+function isAbortError(error) {
+  return error?.name === 'AbortError' || error?.code === 'ABORT_ERR';
 }
 
 export default function AstrocartographyModal({
@@ -780,6 +1425,7 @@ export default function AstrocartographyModal({
   const [showGoalsLoading, setShowGoalsLoading] = useState(false);
   const [selectedGoalId, setSelectedGoalId] = useState('');
   const [workspaceTab, setWorkspaceTab] = useState('map');
+  const [localSpaceMode, setLocalSpaceMode] = useState('relocated');
   const [selectedSnapId, setSelectedSnapId] = useState(() => String(activeSnapId || snaps?.[0]?.id || ''));
   const [viewMode, setViewMode] = useState('natal');
   const [transitMode, setTransitMode] = useState('realtime');
@@ -814,18 +1460,34 @@ export default function AstrocartographyModal({
   const [showAtlasPins, setShowAtlasPins] = useState(true);
   const mountedRef = useRef(true);
   const atlasRunIdRef = useRef(0);
+  const atlasAbortControllerRef = useRef(null);
   const atlasSessionIdRef = useRef('');
+  const mapRequestRef = useRef({ runId: 0, controller: null });
+  const targetRequestRef = useRef({ runId: 0, controller: null });
+  const compareRequestRef = useRef({ runId: 0, controller: null });
 
 const actionButtonCls = 'rounded-[3px] border border-zinc-300 bg-white px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-700 shadow-none hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900/45 dark:text-zinc-100 dark:hover:bg-zinc-900/70';
 const primaryActionButtonCls = 'rounded-[3px] border border-zinc-900 bg-zinc-900 px-4 py-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200';
 const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:border-zinc-700/90 dark:bg-zinc-900/88 backdrop-blur-xl shadow-none';
   const beginAtlasRun = useCallback(() => {
+    atlasAbortControllerRef.current?.abort();
+    atlasAbortControllerRef.current = new AbortController();
     atlasRunIdRef.current += 1;
     return atlasRunIdRef.current;
+  }, []);
+  const abortAtlasRun = useCallback(() => {
+    atlasAbortControllerRef.current?.abort();
+    atlasAbortControllerRef.current = null;
+    atlasRunIdRef.current += 1;
   }, []);
   const isAtlasRunActive = useCallback((runId) => (
     mountedRef.current && atlasRunIdRef.current === runId
   ), []);
+  const abortFrontendRequests = useCallback(() => {
+    abortTrackedRequest(mapRequestRef);
+    abortTrackedRequest(targetRequestRef);
+    abortTrackedRequest(compareRequestRef);
+  }, []);
   const setTrackedAtlasSessionId = useCallback((value) => {
     const sessionId = String(value || '');
     atlasSessionIdRef.current = sessionId;
@@ -841,37 +1503,46 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
   }, []);
   const handleClose = useCallback(() => {
     const activeSessionId = atlasSessionIdRef.current;
-    atlasRunIdRef.current += 1;
+    abortAtlasRun();
+    abortFrontendRequests();
+    setLoadingMap(false);
+    setLoadingTarget(false);
     setLoadingAtlas(false);
+    setLoadingCompare(false);
     setTrackedAtlasSessionId('');
     if (activeSessionId) {
       void cancelAtlasSearchSession(activeSessionId);
     }
     onClose?.();
-  }, [cancelAtlasSearchSession, onClose, setTrackedAtlasSessionId]);
+  }, [abortAtlasRun, abortFrontendRequests, cancelAtlasSearchSession, onClose, setTrackedAtlasSessionId]);
 
   useEffect(() => () => {
     const activeSessionId = atlasSessionIdRef.current;
     mountedRef.current = false;
-    atlasRunIdRef.current += 1;
+    abortAtlasRun();
+    abortFrontendRequests();
     atlasSessionIdRef.current = '';
     if (activeSessionId) {
       void cancelAtlasSearchSession(activeSessionId);
     }
-  }, [cancelAtlasSearchSession]);
+  }, [abortAtlasRun, abortFrontendRequests, cancelAtlasSearchSession]);
 
   useEffect(() => {
     if (open) return;
     const activeSessionId = atlasSessionIdRef.current;
-    atlasRunIdRef.current += 1;
+    abortAtlasRun();
+    abortFrontendRequests();
+    setLoadingMap(false);
+    setLoadingTarget(false);
     setLoadingAtlas(false);
+    setLoadingCompare(false);
     setTrackedAtlasSessionId('');
     setCreatingSnap(false);
     setCreateSnapError('');
     if (activeSessionId) {
       void cancelAtlasSearchSession(activeSessionId);
     }
-  }, [cancelAtlasSearchSession, open, setTrackedAtlasSessionId]);
+  }, [abortAtlasRun, abortFrontendRequests, cancelAtlasSearchSession, open, setTrackedAtlasSessionId]);
 
   useEffect(() => {
     if (!open) return;
@@ -890,14 +1561,19 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
 
   useEffect(() => {
     if (!open) return;
-    atlasRunIdRef.current += 1;
+    abortAtlasRun();
+    abortFrontendRequests();
+    setLoadingMap(false);
+    setLoadingTarget(false);
     setLoadingAtlas(false);
+    setLoadingCompare(false);
     const seed = initialTransitContext || {};
     setSelectedSnapId(String(activeSnapId || seed.snapId || ''));
     setViewMode('natal');
     setTransitMode('realtime');
     setSelectedGoalId('');
     setWorkspaceTab('map');
+    setLocalSpaceMode('relocated');
     setTransitDate(typeof seed.date === 'string' ? seed.date : '');
     setTransitTime(typeof seed.time === 'string' ? seed.time : '');
     setTransitLocation(typeof seed.location === 'string' ? seed.location : '');
@@ -922,7 +1598,7 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
     setCreateSnapError('');
     setSnapLoadError('');
     setGoalLoadError('');
-  }, [open, initialTransitContext, activeSnapId, setTrackedAtlasSessionId]);
+  }, [abortAtlasRun, abortFrontendRequests, open, initialTransitContext, activeSnapId, setTrackedAtlasSessionId]);
 
   const loadSnaps = useCallback(async () => {
     setLoadingSnaps(true);
@@ -1043,6 +1719,12 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
       setMapError('Choose a saved natal snap to load the map.');
       return;
     }
+    const { runId, controller } = beginAbortableRequest(mapRequestRef);
+    const isActive = () => (
+      mountedRef.current
+      && mapRequestRef.current.runId === runId
+      && !controller.signal.aborted
+    );
     setLoadingMap(true);
     setMapError('');
     try {
@@ -1051,17 +1733,19 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
         houseSystem,
         bodies: selectedBodies,
         angles: selectedAngles,
+        signal: controller.signal,
         ...(activeTransitRequest || {}),
       });
       if (!res?.success) {
         throw new Error('Failed to load astrocartography map.');
       }
-      setMapData(res.data || null);
+      if (isActive()) setMapData(res.data || null);
     } catch (error) {
+      if (isAbortError(error) || !isActive()) return;
       setMapData(null);
       setMapError(describeAstrocartographyError(error, 'Failed to load astrocartography map.'));
     } finally {
-      setLoadingMap(false);
+      if (isActive()) setLoadingMap(false);
     }
   }, [activeTransitRequest, houseSystem, selectedAngles, selectedBodies, selectedSnapId]);
 
@@ -1073,8 +1757,12 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
   useEffect(() => {
     if (!open) return;
     const activeSessionId = atlasSessionIdRef.current;
-    atlasRunIdRef.current += 1;
+    abortAtlasRun();
+    abortTrackedRequest(targetRequestRef);
+    abortTrackedRequest(compareRequestRef);
+    setLoadingTarget(false);
     setLoadingAtlas(false);
+    setLoadingCompare(false);
     setTargetResult(null);
     setTargetError('');
     setAtlasResults(null);
@@ -1087,7 +1775,7 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
     if (activeSessionId) {
       void cancelAtlasSearchSession(activeSessionId);
     }
-  }, [cancelAtlasSearchSession, filterSignature, open, selectedSnapId, setTrackedAtlasSessionId]);
+  }, [abortAtlasRun, cancelAtlasSearchSession, filterSignature, open, selectedSnapId, setTrackedAtlasSessionId]);
 
   const handleApplyTransit = useCallback(() => {
     if (transitMode === 'realtime') {
@@ -1109,7 +1797,28 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
   }, [transitDate, transitLocation, transitMode, transitTime, transitTimezone]);
 
   const handleInspectTarget = useCallback(async (queryOverride = '') => {
-    const nextQuery = resolveAstrocartographyTargetQuery(queryOverride, targetQuery);
+    const isStructuredTarget = (
+      queryOverride
+      && typeof queryOverride === 'object'
+      && (
+        (
+          Number.isFinite(Number(queryOverride.latitude))
+          && Number.isFinite(Number(queryOverride.longitude))
+        )
+        || Boolean(getTargetCatalogId(queryOverride))
+        || Boolean(getAstrocartographyTargetQuery(queryOverride))
+      )
+    );
+    const structuredTarget = isStructuredTarget ? queryOverride : null;
+    const nextQuery = structuredTarget
+      ? (
+        getAstrocartographyTargetQuery(structuredTarget)
+        || getTargetDisplayLabel(
+          structuredTarget,
+          getTargetCatalogId(structuredTarget) ? `Catalog target ${getTargetCatalogId(structuredTarget)}` : 'Selected target'
+        )
+      )
+      : resolveAstrocartographyTargetQuery(queryOverride, targetQuery);
     if (!selectedSnapId) {
       setTargetError('Choose a saved natal snap first.');
       return;
@@ -1118,6 +1827,12 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
       setTargetError('Enter a city or location to inspect.');
       return;
     }
+    const { runId, controller } = beginAbortableRequest(targetRequestRef);
+    const isActive = () => (
+      mountedRef.current
+      && targetRequestRef.current.runId === runId
+      && !controller.signal.aborted
+    );
     setLoadingTarget(true);
     setTargetError('');
     try {
@@ -1128,18 +1843,23 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
         bodies: selectedBodies,
         angles: selectedAngles,
         targetLocation: nextQuery,
+        target: structuredTarget,
+        signal: controller.signal,
         ...(activeTransitRequest || {}),
       });
       if (!res?.success) {
         throw new Error('Failed to inspect location.');
       }
-      setTargetResult(res.data || null);
-      setTargetQuery(nextQuery);
+      if (isActive()) {
+        setTargetResult(res.data || null);
+        setTargetQuery(nextQuery);
+      }
     } catch (error) {
+      if (isAbortError(error) || !isActive()) return;
       setTargetResult(null);
-      setTargetError(error?.message || 'Failed to inspect location.');
+      setTargetError(describeAstrocartographyError(error, 'Failed to inspect location.'));
     } finally {
-      setLoadingTarget(false);
+      if (isActive()) setLoadingTarget(false);
     }
   }, [activeTransitRequest, houseSystem, selectedAngles, selectedBodies, selectedGoalId, selectedSnapId, targetQuery]);
 
@@ -1180,10 +1900,14 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
 
   const addTargetToCompare = useCallback((payload) => {
     if (!payload?.target) return;
+    const catalogId = getTargetCatalogId(payload.target)
+      || getTargetCatalogId(payload?.atlas_city);
+    const displayLabel = getTargetDisplayLabel(payload.target);
     const normalizedTarget = {
       ...payload.target,
-      label: getAstrocartographyTargetLabel(payload.target),
-      query: getAstrocartographyTargetQuery(payload.target),
+      ...(catalogId ? { candidate_id: catalogId } : {}),
+      label: displayLabel,
+      query: getAstrocartographyTargetQuery(payload.target) || displayLabel,
     };
     const compareKey = buildCompareKey(normalizedTarget);
     const nextEntry = {
@@ -1215,7 +1939,19 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
       setAtlasError('Choose a saved natal snap first.');
       return;
     }
+    const selectedSnap = (Array.isArray(snapOptions) ? snapOptions : [])
+      .find((item) => String(item?.id || '') === String(selectedSnapId || ''));
+    const birthTimeAssessment = getAstrocartographyBirthTimeAssessment(
+      mapData,
+      targetResult,
+      selectedSnap,
+    );
+    if (birthTimeAssessment.rankingEligible === false) {
+      setAtlasError('This chart is inspection-only because its reported birth-time uncertainty is not eligible for ranking.');
+      return;
+    }
     const runId = beginAtlasRun();
+    const controller = atlasAbortControllerRef.current;
     setLoadingAtlas(true);
     setAtlasError('');
     setAtlasResults(null);
@@ -1241,6 +1977,7 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
         limit: 8,
         bodies: selectedBodies,
         angles: selectedAngles,
+        signal: controller?.signal,
         ...(activeTransitRequest || {}),
       });
       const sessionId = String(start?.data?.session_id || '');
@@ -1259,7 +1996,9 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
         ? initialProgress
         : await pollAsyncSession({
           fetchProgress: async () => {
-            const progressRes = await AstroClockAPI.getAstrocartographyAtlasSearchProgress(sessionId);
+            const progressRes = await AstroClockAPI.getAstrocartographyAtlasSearchProgress(sessionId, {
+              signal: controller?.signal,
+            });
             return progressRes?.data || {};
           },
           onProgress: (nextProgress) => {
@@ -1276,7 +2015,9 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
       if (!isAtlasRunActive(runId)) return;
       setAtlasProgress(readyProgress);
 
-      const resultRes = await AstroClockAPI.getAstrocartographyAtlasSearchResult(sessionId);
+      const resultRes = await AstroClockAPI.getAstrocartographyAtlasSearchResult(sessionId, {
+        signal: controller?.signal,
+      });
       if (!isAtlasRunActive(runId)) return;
       if (resultRes?.data?.failed) {
         throw new Error(resultRes.data.error || 'Atlas search failed.');
@@ -1286,20 +2027,27 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
       }
       setAtlasResults(resultRes.data.result || null);
     } catch (error) {
-      if (!isAtlasRunActive(runId)) return;
+      if (isAbortError(error) || !isAtlasRunActive(runId)) return;
       setAtlasResults(null);
       setAtlasError(describeAstrocartographyError(error, 'Failed to search atlas candidates.'));
     } finally {
       if (isAtlasRunActive(runId)) {
         setLoadingAtlas(false);
+        if (atlasAbortControllerRef.current === controller) {
+          atlasAbortControllerRef.current = null;
+        }
       }
     }
-  }, [activeTransitRequest, atlasContinentCode, atlasCountryCode, atlasQuery, atlasResolution, beginAtlasRun, cancelAtlasSearchSession, houseSystem, isAtlasRunActive, selectedAngles, selectedBodies, selectedGoalId, selectedSnapId, setTrackedAtlasSessionId]);
+  }, [activeTransitRequest, atlasContinentCode, atlasCountryCode, atlasQuery, atlasResolution, beginAtlasRun, cancelAtlasSearchSession, houseSystem, isAtlasRunActive, mapData, selectedAngles, selectedBodies, selectedGoalId, selectedSnapId, setTrackedAtlasSessionId, snapOptions, targetResult]);
 
   const natalLines = mapData?.map?.natal_lines || [];
   const transitLines = mapData?.map?.transit_lines || [];
-  const globalParanTracks = Array.isArray(mapData?.map?.global_parans?.tracks) ? mapData.map.global_parans.tracks : [];
-  const transitGlobalParanTracks = Array.isArray(mapData?.map?.transit_global_parans?.tracks) ? mapData.map.transit_global_parans.tracks : [];
+  const globalParanTracks = dedupeCanonicalEvidence(
+    Array.isArray(mapData?.map?.global_parans?.tracks) ? mapData.map.global_parans.tracks : []
+  );
+  const transitGlobalParanTracks = dedupeCanonicalEvidence(
+    Array.isArray(mapData?.map?.transit_global_parans?.tracks) ? mapData.map.transit_global_parans.tracks : []
+  );
   const selectedTarget = targetResult?.target || null;
   const hasSavedSnaps = Array.isArray(snapOptions) && snapOptions.length > 0;
 
@@ -1337,9 +2085,19 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
   const selectedGoalTierLabel = selectedGoalTier ? GOAL_GROUP_LABELS[selectedGoalTier] : '';
   const selectedGoalFamilyLabel = selectedGoal?.goal_family ? formatGoalFamilyLabel(selectedGoal.goal_family) : '';
   const selectedGoalHigherIsWorse = selectedGoal?.score_polarity === 'higher_is_worse';
-  const atlasPinsLabel = selectedGoalHigherIsWorse ? 'Lowest-risk pins' : 'Best-match pins';
-  const atlasSearchLabel = selectedGoalHigherIsWorse ? 'Search Lowest Risk' : 'Search Best Cities';
-  const atlasScoreLabel = selectedGoalHigherIsWorse ? 'Risk score' : 'Goal score';
+  const selectedGoalExperimentalMeta = EXPERIMENTAL_GOAL_META[String(selectedGoal?.id || '').toLowerCase()] || null;
+  const atlasPinsLabel = selectedGoalHigherIsWorse ? 'Lower-pressure candidates' : 'Ranked candidates';
+  const atlasSearchLabel = selectedGoalHigherIsWorse ? 'Rank Lower Pressure' : 'Rank Candidate Cities';
+  const atlasScoreLabel = selectedGoalHigherIsWorse ? 'Modeled pressure' : 'Model signal';
+  const birthTimeAssessment = useMemo(() => getAstrocartographyBirthTimeAssessment(
+    targetResult,
+    atlasResults,
+    compareResult,
+    mapData,
+    snapSummary,
+  ), [atlasResults, compareResult, mapData, snapSummary, targetResult]);
+  const rankingIneligible = birthTimeAssessment.rankingEligible === false;
+  const rankingEligibilityPending = loadingMap && birthTimeAssessment.rankingEligible == null;
 
   const selectedAtlasResolution = useMemo(() => {
     return ATLAS_RESOLUTION_OPTIONS.find((item) => item.id === atlasResolution) || ATLAS_RESOLUTION_OPTIONS[1];
@@ -1355,20 +2113,17 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
   const activeParans = activeTargetMode === 'transit'
     ? targetResult?.transit?.parans || targetResult?.natal?.parans || null
     : targetResult?.natal?.parans || null;
-  const activeLocalSpace = activeTargetMode === 'transit'
-    ? targetResult?.transit?.local_space || targetResult?.natal?.local_space || null
-    : targetResult?.natal?.local_space || null;
+  const natalLocalSpace = targetResult?.natal?.local_space || null;
+  const relocatedLocalSpace = targetResult?.relocation?.local_space || null;
+  const activeLocalSpace = localSpaceMode === 'natal' ? natalLocalSpace : relocatedLocalSpace;
+  const activeLocalSpaceOrigin = getLocalSpaceOrigin(
+    activeLocalSpace,
+    localSpaceMode === 'relocated' ? selectedTarget : null,
+  );
   const reportPayload = targetResult?.report || null;
 
-  const compareEntries = useMemo(() => {
-    return [...compareTargets].sort((left, right) => {
-      const rightScore = getCompareSignal(right);
-      const leftScore = getCompareSignal(left);
-      if (rightScore !== leftScore) return rightScore - leftScore;
-      return getAstrocartographyTargetLabel(left?.target).localeCompare(getAstrocartographyTargetLabel(right?.target));
-    });
-  }, [compareTargets]);
-  const selectedTargetLabel = getAstrocartographyTargetLabel(selectedTarget) || '';
+  const compareEntries = compareTargets;
+  const selectedTargetLabel = selectedTarget ? getTargetDisplayLabel(selectedTarget, '') : '';
   const mapTopStatus = [
     { id: 'natal-lines', label: `Natal ${natalLines.length}` },
     viewMode === 'transit' ? { id: 'transit-lines', label: `Transit ${transitLines.length}` } : null,
@@ -1388,42 +2143,61 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
 
   const fetchCompare = useCallback(async () => {
     if (!selectedGoalId || !selectedSnapId || compareTargets.length < 2) {
+      abortTrackedRequest(compareRequestRef);
       setCompareResult(null);
       setCompareError('');
+      setLoadingCompare(false);
       return;
     }
+    if (rankingIneligible) {
+      abortTrackedRequest(compareRequestRef);
+      setCompareResult(null);
+      setCompareError('Birth-time uncertainty makes this chart inspection-only; ranked comparison is unavailable.');
+      setLoadingCompare(false);
+      return;
+    }
+    const { runId, controller } = beginAbortableRequest(compareRequestRef);
+    const isActive = () => (
+      mountedRef.current
+      && compareRequestRef.current.runId === runId
+      && !controller.signal.aborted
+    );
     setLoadingCompare(true);
     setCompareError('');
     try {
-      const targetLocations = compareTargets
-        .map((entry) => getAstrocartographyTargetQuery(entry?.target) || getAstrocartographyTargetLabel(entry?.target))
-        .filter((value) => typeof value === 'string' && value.trim());
+      const targets = compareTargets
+        .map((entry) => entry?.target)
+        .filter(Boolean);
       const res = await AstroClockAPI.compareAstrocartographyTargets({
         natalSnapId: selectedSnapId,
         houseSystem,
         goalId: selectedGoalId,
         bodies: selectedBodies,
         angles: selectedAngles,
-        targetLocations,
+        targets,
+        signal: controller.signal,
         ...(activeTransitRequest || {}),
       });
       if (!res?.success) {
         throw new Error('Failed to compare locations.');
       }
-      setCompareResult(res.data || null);
+      if (isActive()) setCompareResult(res.data || null);
     } catch (error) {
+      if (isAbortError(error) || !isActive()) return;
       setCompareResult(null);
-      setCompareError(error?.message || 'Failed to compare locations.');
+      setCompareError(describeAstrocartographyError(error, 'Failed to compare locations.'));
     } finally {
-      setLoadingCompare(false);
+      if (isActive()) setLoadingCompare(false);
     }
-  }, [activeTransitRequest, compareTargets, houseSystem, selectedAngles, selectedBodies, selectedGoalId, selectedSnapId]);
+  }, [activeTransitRequest, compareTargets, houseSystem, rankingIneligible, selectedAngles, selectedBodies, selectedGoalId, selectedSnapId]);
 
   useEffect(() => {
     if (!open || analysisMode !== 'astrocartography') return;
     if (!selectedGoalId || compareTargets.length < 2) {
+      abortTrackedRequest(compareRequestRef);
       setCompareResult(null);
       setCompareError('');
+      setLoadingCompare(false);
       return;
     }
     fetchCompare();
@@ -1431,6 +2205,10 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
 
   useEffect(() => {
     if (!open) return;
+    abortTrackedRequest(targetRequestRef);
+    abortTrackedRequest(compareRequestRef);
+    setLoadingTarget(false);
+    setLoadingCompare(false);
     setTargetResult(null);
     setTargetError('');
     setCompareTargets([]);
@@ -1441,7 +2219,7 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
   useEffect(() => {
     if (!open) return;
     const activeSessionId = atlasSessionIdRef.current;
-    atlasRunIdRef.current += 1;
+    abortAtlasRun();
     setLoadingAtlas(false);
     setAtlasResults(null);
     setAtlasError('');
@@ -1450,13 +2228,17 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
     if (activeSessionId) {
       void cancelAtlasSearchSession(activeSessionId);
     }
-  }, [atlasResolution, cancelAtlasSearchSession, open, selectedGoalId, setTrackedAtlasSessionId]);
+  }, [abortAtlasRun, atlasResolution, cancelAtlasSearchSession, open, selectedGoalId, setTrackedAtlasSessionId]);
 
   useEffect(() => {
     if (!open || analysisMode === 'astrocartography') return;
     const activeSessionId = atlasSessionIdRef.current;
-    atlasRunIdRef.current += 1;
+    abortAtlasRun();
+    abortFrontendRequests();
+    setLoadingMap(false);
+    setLoadingTarget(false);
     setLoadingAtlas(false);
+    setLoadingCompare(false);
     setAtlasResults(null);
     setAtlasError('');
     setTrackedAtlasSessionId('');
@@ -1464,10 +2246,18 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
     if (activeSessionId) {
       void cancelAtlasSearchSession(activeSessionId);
     }
-  }, [analysisMode, cancelAtlasSearchSession, open, setTrackedAtlasSessionId]);
+  }, [abortAtlasRun, abortFrontendRequests, analysisMode, cancelAtlasSearchSession, open, setTrackedAtlasSessionId]);
 
-  const activeIntersectionPoints = Array.isArray(activeIntersections?.geometry_points) ? activeIntersections.geometry_points : [];
-  const activeParanPoints = Array.isArray(activeParans?.items) ? activeParans.items.filter((item) => item?.point) : [];
+  const activeIntersectionPoints = dedupeCanonicalEvidence(
+    Array.isArray(activeIntersections?.geometry_points) ? activeIntersections.geometry_points : []
+  );
+  const activeParanItems = dedupeCanonicalEvidence(
+    Array.isArray(activeParans?.items) ? activeParans.items : []
+  );
+  const activeParanPoints = activeParanItems.filter((item) => item?.point);
+  const activePrimaryCrossings = dedupeCanonicalEvidence(
+    Array.isArray(activeIntersections?.primary_crossings) ? activeIntersections.primary_crossings : []
+  );
   const reportCards = Array.isArray(reportPayload?.cards) ? reportPayload.cards : [];
   const reportSections = Array.isArray(reportPayload?.sections) ? reportPayload.sections : [];
   const activeLocalSpaceRays = Array.isArray(activeLocalSpace?.rays) ? activeLocalSpace.rays : [];
@@ -1557,19 +2347,24 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
           ))}
           {showAtlasPins && atlasMapPoints.map((item, index) => {
             const target = item?.target || {};
-            const targetLabel = getAstrocartographyTargetLabel(target) || `Match ${index + 1}`;
+            const targetLabel = getTargetDisplayLabel(target, `Candidate ${index + 1}`);
+            const score = Number(item?.location_score?.score || 0);
+            const scoreColors = getMapScoreColors(score, selectedGoalHigherIsWorse);
+            const ordinal = getAstrocartographyOrdinal(item?.location_score, {
+              rankingEligible: birthTimeAssessment.rankingEligible,
+            });
             if (typeof target.latitude !== 'number' || typeof target.longitude !== 'number') return null;
             return (
               <CircleMarker
-                key={`atlas-pin-${targetLabel || index}`}
+                key={`atlas-pin-${getTargetCatalogId(target) || targetLabel || index}`}
                 center={[target.latitude, target.longitude]}
                 radius={Math.max(4, 8 - index)}
-                pathOptions={{ color: '#0f766e', weight: 2, fillColor: '#10b981', fillOpacity: 0.55 }}
+                pathOptions={{ ...scoreColors, weight: 2, fillOpacity: 0.55 }}
               >
                 <Popup>
                   <div className="text-sm">
                     <div className="font-medium">{targetLabel}</div>
-                    <div>Rank {index + 1} | {atlasScoreLabel} {item?.location_score?.score ?? 'n/a'}</div>
+                    <div>Rank {index + 1} | {atlasScoreLabel}: {ordinal}</div>
                   </div>
                 </Popup>
               </CircleMarker>
@@ -1653,7 +2448,7 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
                 {activeIntersectionPoints.map((item) => (
                   item.point ? (
                     <CircleMarker
-                      key={item.id}
+                      key={`${item.canonical_event_id || item.id}-${item.event_kind || 'intersection'}`}
                       center={item.point}
                       radius={6}
                       pathOptions={{ color: '#f59e0b', weight: 2, fillOpacity: 0.75 }}
@@ -1670,7 +2465,7 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
                 {activeParanPoints.map((item) => (
                   item.point ? (
                     <CircleMarker
-                      key={`${item.id}-paran`}
+                      key={`${item.canonical_event_id || item.id}-${item.event_kind || 'paran'}`}
                       center={item.point}
                       radius={5}
                       pathOptions={{ color: '#7c3aed', weight: 2, fillOpacity: 0.75 }}
@@ -1712,54 +2507,82 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
           <>
             <WorkspaceHeader
               eyebrow="Workspace"
-              title="Local Space"
+              title={`${localSpaceMode === 'natal' ? 'Natal' : 'Relocated'} Local Space`}
+              description={localSpaceMode === 'natal'
+                ? 'Directions originate at the recorded birthplace.'
+                : 'Directions are recalculated from the inspected location.'}
               metrics={[
                 { label: 'Visible', value: activeLocalSpace?.visible_count || 0, tone: 'success' },
                 { label: 'Hidden', value: activeLocalSpace?.hidden_count || 0 },
                 { label: 'Sectors', value: activeLocalSpace?.dominant_sectors?.length || 0, tone: 'accent' },
               ]}
             />
-            <div className="relative h-[70vh] overflow-hidden rounded-[4px] border border-zinc-200 dark:border-zinc-700" style={{ background: MAP_THEME.water }}>
-              <MapContainer
-                center={[selectedTarget.latitude, selectedTarget.longitude]}
-                zoom={4}
-                style={{ height: '100%', width: '100%', background: MAP_THEME.water }}
-                scrollWheelZoom
-                attributionControl={false}
-                maxBounds={WORLD_BOUNDS}
-                maxBoundsViscosity={1}
-                minZoom={2}
-                worldCopyJump={false}
-              >
-                <NeutralWorldBaseMap />
-                <MapViewport target={selectedTarget} />
-                {(activeLocalSpace?.range_rings_km || []).map((radiusKm) => (
-                  <Circle
-                    key={`local-space-ring-${radiusKm}`}
-                    center={[selectedTarget.latitude, selectedTarget.longitude]}
-                    radius={Number(radiusKm) * 1000}
-                    pathOptions={{ color: '#94a3b8', weight: 1, opacity: 0.3, dashArray: '4 10' }}
-                  />
-                ))}
-                {activeLocalSpaceRays.map((ray) => (
-                  (ray.segments || []).map((segment, idx) => (
-                    <Polyline
-                      key={`local-space-${ray.id}-${idx}`}
-                      positions={segment}
-                      pathOptions={{ color: ray.color || '#64748b', weight: 2.2, opacity: ray.above_horizon ? 0.92 : 0.35, dashArray: ray.above_horizon ? undefined : '6 8' }}
+            <div className={`${astroBandCls} flex flex-wrap items-center justify-between gap-3`}>
+              <div>
+                <div className={astroSectionLabelCls}>Origin</div>
+                <p className="mt-1 text-[12px] text-zinc-600 dark:text-zinc-300">
+                  {activeLocalSpaceOrigin ? getTargetDisplayLabel(activeLocalSpaceOrigin, 'Coordinates') : 'Unavailable'}
+                </p>
+              </div>
+              <ConsoleModeTabs options={LOCAL_SPACE_OPTIONS} value={localSpaceMode} onChange={setLocalSpaceMode} />
+            </div>
+            {activeLocalSpace && activeLocalSpaceOrigin ? (
+              <div className="relative h-[70vh] overflow-hidden rounded-[4px] border border-zinc-200 dark:border-zinc-700" style={{ background: MAP_THEME.water }}>
+                <MapContainer
+                  center={[activeLocalSpaceOrigin.latitude, activeLocalSpaceOrigin.longitude]}
+                  zoom={4}
+                  style={{ height: '100%', width: '100%', background: MAP_THEME.water }}
+                  scrollWheelZoom
+                  attributionControl={false}
+                  maxBounds={WORLD_BOUNDS}
+                  maxBoundsViscosity={1}
+                  minZoom={2}
+                  worldCopyJump={false}
+                >
+                  <NeutralWorldBaseMap />
+                  <MapViewport target={activeLocalSpaceOrigin} />
+                  {(activeLocalSpace?.range_rings_km || []).map((radiusKm) => (
+                    <Circle
+                      key={`local-space-${localSpaceMode}-ring-${radiusKm}`}
+                      center={[activeLocalSpaceOrigin.latitude, activeLocalSpaceOrigin.longitude]}
+                      radius={Number(radiusKm) * 1000}
+                      pathOptions={{ color: '#94a3b8', weight: 1, opacity: 0.3, dashArray: '4 10' }}
                     />
-                  ))
-                ))}
-                <TargetPin target={selectedTarget} />
-              </MapContainer>
-            </div>
-            <div className="flex flex-wrap gap-3 text-xs text-zinc-600 dark:text-zinc-300">
-              <span>Visible rays: {activeLocalSpace?.visible_count || 0}</span>
-              <span>Below horizon: {activeLocalSpace?.hidden_count || 0}</span>
-              <span>Dominant sectors: {activeLocalSpace?.dominant_sectors?.length || 0}</span>
-              <span>Mode: {activeTargetMode}</span>
-            </div>
-            <p className="text-sm text-zinc-600 dark:text-zinc-300">{activeLocalSpace?.headline || 'No Local Space ray set yet.'}</p>
+                  ))}
+                  {activeLocalSpaceRays.map((ray) => (
+                    (ray.segments || []).map((segment, idx) => (
+                      <Polyline
+                        key={`local-space-${localSpaceMode}-${ray.id}-${idx}`}
+                        positions={segment}
+                        pathOptions={{ color: ray.color || '#64748b', weight: 2.2, opacity: ray.above_horizon ? 0.92 : 0.35, dashArray: ray.above_horizon ? undefined : '6 8' }}
+                      />
+                    ))
+                  ))}
+                  <TargetPin target={activeLocalSpaceOrigin} />
+                </MapContainer>
+              </div>
+            ) : (
+              <WorkspaceEmptyState
+                title={`${localSpaceMode === 'natal' ? 'Natal' : 'Relocated'} Local Space is unavailable for this calculation.`}
+                detail={localSpaceMode === 'relocated'
+                  ? formatServiceError(
+                    targetResult?.relocation?.error || targetResult?.relocation?.warnings?.[0],
+                    'The service did not return a relocated Local Space calculation.'
+                  )
+                  : 'The service did not return a birthplace-origin Local Space calculation.'}
+              />
+            )}
+            {activeLocalSpace ? (
+              <>
+                <div className="flex flex-wrap gap-3 text-xs text-zinc-600 dark:text-zinc-300">
+                  <span>Visible rays: {activeLocalSpace.visible_count || 0}</span>
+                  <span>Below horizon: {activeLocalSpace.hidden_count || 0}</span>
+                  <span>Dominant sectors: {activeLocalSpace.dominant_sectors?.length || 0}</span>
+                  <span>Origin: {formatStatusLabel(activeLocalSpace.origin_kind, localSpaceMode)}</span>
+                </div>
+                <p className="text-sm text-zinc-600 dark:text-zinc-300">{activeLocalSpace.headline || 'No Local Space summary was returned.'}</p>
+              </>
+            ) : null}
             {Array.isArray(activeLocalSpace?.dominant_sectors) && activeLocalSpace.dominant_sectors.length > 0 ? (
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
                 {activeLocalSpace.dominant_sectors.slice(0, 4).map((sector) => (
@@ -2078,7 +2901,7 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
                     <optgroup key={group.id} label={group.label}>
                       {group.items.map((goal) => (
                         <option key={goal.id} value={goal.id}>
-                          {goal.label}
+                          {goal.label}{String(goal?.status || '').toLowerCase() === 'experimental' || EXPERIMENTAL_GOAL_META[String(goal?.id || '').toLowerCase()] ? ' (Experimental)' : ''}
                         </option>
                       ))}
                     </optgroup>
@@ -2089,7 +2912,7 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
                 ) : (
                   !selectedGoalId ? (
                     <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                      General inspection keeps the workspace neutral. Choose a PathFinder goal to enable Search Best Cities.
+                      General inspection keeps the workspace neutral. Choose a PathFinder goal to rank candidate cities.
                     </p>
                   ) : null
                 )}
@@ -2106,7 +2929,18 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
                           {selectedGoalFamilyLabel}
                         </span>
                       ) : null}
+                      {String(selectedGoal?.status || '').toLowerCase() === 'experimental' || selectedGoalExperimentalMeta ? (
+                        <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
+                          Experimental
+                        </span>
+                      ) : null}
                     </div>
+                    {selectedGoalExperimentalMeta ? (
+                      <div className="mt-2 text-amber-800 dark:text-amber-200">
+                        <div className={astroSectionLabelCls}>{selectedGoalExperimentalMeta.label}</div>
+                        <p className="mt-1 text-[11px] leading-5">{selectedGoalExperimentalMeta.caveat}</p>
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
               </ConsoleRailSection>
@@ -2173,9 +3007,24 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
                     ))}
                   </select>
                 </div>
-                <button type="button" className={actionButtonCls} onClick={handleSearchAtlas} disabled={loadingAtlas || !selectedGoalId}>
-                  {loadingAtlas ? 'Calculating...' : atlasSearchLabel}
+                <button
+                  type="button"
+                  className={actionButtonCls}
+                  onClick={handleSearchAtlas}
+                  disabled={loadingAtlas || !selectedGoalId || rankingIneligible || rankingEligibilityPending}
+                  title={rankingIneligible ? 'Birth-time uncertainty makes this chart inspection-only.' : undefined}
+                >
+                  {loadingAtlas
+                    ? 'Calculating...'
+                    : (rankingIneligible
+                      ? 'Inspection Only'
+                      : (rankingEligibilityPending ? 'Checking Accuracy' : atlasSearchLabel))}
                 </button>
+                {rankingIneligible ? (
+                  <div className="rounded-[4px] border border-rose-200 bg-rose-50/80 p-3 text-[11px] leading-5 text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-100">
+                    Ranked search is unavailable for this snap because the reported birth-time uncertainty is not ranking-eligible. City inspection remains available.
+                  </div>
+                ) : null}
                 {loadingAtlas && atlasProgress && (
                   <div className={`${astroMutedPanelCls} space-y-2`}>
                     <div className="flex items-center justify-between gap-3 text-[11px]">
@@ -2238,14 +3087,18 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
                   viewMode={viewMode}
                   onAddToCompare={handleAddToCompare}
                   actionButtonCls={actionButtonCls}
+                  rankingEligible={birthTimeAssessment.rankingEligible}
                 />
               </ConsoleRailSection>
+
+              <BirthTimeAssessmentPanel assessment={birthTimeAssessment} />
 
               {showInspectorDetails ? (
                 <ReadingPanel
                   title="Natal Baseline"
                   reading={targetResult?.natal?.reading || null}
                   emptyText="No inspected natal lines yet."
+                  higherIsWorse={selectedGoalHigherIsWorse}
                 />
               ) : null}
 
@@ -2254,19 +3107,20 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
                   title="Transit Activation"
                   reading={targetResult?.transit?.reading || null}
                   emptyText="Apply a transit context to inspect current activation lines."
+                  higherIsWorse={selectedGoalHigherIsWorse}
                 />
               )}
 
               {showInspectorDetails ? (
               <ConsoleRailSection title="Parans / Intersections" eyebrow="research" module="astrocartography" bodyClassName="mt-3 space-y-2">
-                {(activeParans?.items?.length || activeIntersections?.primary_crossings?.length) ? (
+                {(activeParanItems.length || activePrimaryCrossings.length) ? (
                   <div className="space-y-2">
-                    {Array.isArray(activeParans?.items) && activeParans.items.slice(0, 2).map((item) => (
-                      <div key={item.id} className={astroNestedCardCls}>
+                    {activeParanItems.slice(0, 2).map((item) => (
+                      <div key={`${item.canonical_event_id || item.id}-${item.event_kind || 'paran'}`} className={astroNestedCardCls}>
                         <div className="flex items-start justify-between gap-2">
                           <div className="text-sm font-medium">{item.label}</div>
                           <span className="px-2 py-0.5 rounded-full border text-[10px] uppercase tracking-wide border-violet-300/80 bg-violet-50 text-violet-700 dark:border-violet-500/40 dark:bg-violet-500/10 dark:text-violet-200">
-                            paran
+                            {getEvidenceKindLabel(item, 'Paran')}
                           </span>
                         </div>
                         <div className="mt-1 text-[12px] leading-6 text-zinc-600 dark:text-zinc-300">
@@ -2274,29 +3128,45 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
                         </div>
                       </div>
                     ))}
-                    {activeIntersections?.primary_crossings?.slice(0, 2).map((item) => (
-                      <div key={item.id} className={astroNestedCardCls}>
+                    {activePrimaryCrossings.slice(0, 2).map((item) => (
+                      <div key={`${item.canonical_event_id || item.id}-${item.event_kind || 'crossing'}`} className={astroNestedCardCls}>
                         <div className="flex items-start justify-between gap-2">
                           <div className="text-sm font-medium">{item.label}</div>
                           <span className={`px-2 py-0.5 rounded-full border text-[10px] uppercase tracking-wide ${getZoneBadgeCls(item.zone)}`}>
-                            geometry
+                            {getEvidenceKindLabel(item, 'Geometry')}
                           </span>
                         </div>
                         <div className="mt-1 text-[12px] leading-6 text-zinc-600 dark:text-zinc-300">
-                          {item.distance_km} km away{item.point ? ` | ${item.point[0].toFixed(2)}, ${item.point[1].toFixed(2)}` : ''}
+                          {item.distance_km} km away{
+                            Array.isArray(item.point)
+                            && Number.isFinite(Number(item.point[0]))
+                            && Number.isFinite(Number(item.point[1]))
+                              ? ` | ${Number(item.point[0]).toFixed(2)}, ${Number(item.point[1]).toFixed(2)}`
+                              : ''
+                          }
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className={astroBodyTextCls}>No strong nearby parans or intersections surfaced for the current filter set.</p>
+                  <p className={astroBodyTextCls}>No nearby parans or intersections were returned for the current filter set.</p>
                 )}
               </ConsoleRailSection>
               ) : null}
 
               {showInspectorDetails ? (
               <ConsoleRailSection title="Relocation" eyebrow="research" module="astrocartography" bodyClassName="mt-3 space-y-2">
-                {targetResult?.relocation?.summary ? (
+                {targetResult?.relocation?.available === false || targetResult?.relocation?.relocation_unavailable ? (
+                  <div className="rounded-[4px] border border-amber-200 bg-amber-50/80 p-3 text-[11px] leading-5 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
+                    <div className={astroSectionLabelCls}>Relocation unavailable</div>
+                    <p className="mt-2">
+                      {formatServiceError(
+                        targetResult?.relocation?.error || targetResult?.relocation?.warnings?.[0],
+                        'The service did not return a relocated chart for this target.'
+                      )}
+                    </p>
+                  </div>
+                ) : targetResult?.relocation?.summary ? (
                   <div className="space-y-2">
                     {targetResult.relocation.summary.headline && (
                       <div className={astroBandCls}>
@@ -2347,17 +3217,25 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
                     )}
                   </div>
                 ) : (
-                  <p className={astroBodyTextCls}>No goal selected.</p>
+                  <p className={astroBodyTextCls}>No relocation summary was returned for this target.</p>
                 )}
               </ConsoleRailSection>
               ) : null}
 
               {showInspectorDetails ? (
-              <ConsoleRailSection title="Local Space" eyebrow="research" module="astrocartography" bodyClassName="mt-3 space-y-2">
+              <ConsoleRailSection
+                title={`${localSpaceMode === 'natal' ? 'Natal' : 'Relocated'} Local Space`}
+                eyebrow="research"
+                module="astrocartography"
+                bodyClassName="mt-3 space-y-2"
+              >
                 {activeLocalSpace?.rays?.length ? (
                   <div className="space-y-2">
                     <div className={astroBandCls}>
                       <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{activeLocalSpace.headline}</p>
+                      <p className={`mt-1 ${astroMetaTextCls}`}>
+                        Origin: {formatStatusLabel(activeLocalSpace.origin_kind, localSpaceMode)}
+                      </p>
                     </div>
                     {Array.isArray(activeLocalSpace?.dominant_sectors) && activeLocalSpace.dominant_sectors.slice(0, 2).map((sector) => (
                       <div key={`sector-${sector.sector}`} className={astroNestedCardCls}>
@@ -2386,32 +3264,47 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
                     ))}
                   </div>
                 ) : (
-                  <p className={astroBodyTextCls}>Inspect a city to derive Local Space rays.</p>
+                  <p className={astroBodyTextCls}>
+                    {localSpaceMode === 'relocated'
+                      ? formatServiceError(
+                        targetResult?.relocation?.error,
+                        'No relocated Local Space rays were returned for this target.'
+                      )
+                      : 'No birthplace-origin Local Space rays were returned for this chart.'}
+                  </p>
                 )}
               </ConsoleRailSection>
               ) : null}
 
               {showAtlasSummary ? (
               <ConsoleRailSection
-                title="Best Matches"
+                title={selectedGoalHigherIsWorse ? 'Lower-pressure candidates' : 'Ranked candidates'}
                 eyebrow="atlas"
                 module="astrocartography"
                 detail={atlasResults?.atlas ? `${atlasResults.atlas.resolution?.label || selectedAtlasResolution.label}${atlasResults.atlas.shortlisted_count != null ? ` / shortlist ${atlasResults.atlas.shortlisted_count}` : ''}${atlasResults.atlas.used_live_augmentation ? ' / live match expansion' : ''}` : ''}
                 bodyClassName="mt-3 space-y-2"
               >
                 {loadingAtlas ? (
-                  <p className={astroBodyTextCls}>Searching atlas...</p>
+                  <p className={astroBodyTextCls}>Ranking atlas candidates...</p>
                 ) : Array.isArray(atlasResults?.results) && atlasResults.results.length > 0 ? (
                   <div className="space-y-2">
                     {atlasResults.results.map((item, index) => {
                       const city = item?.atlas_city || {};
-                      const target = item?.target || {};
-                      const targetLabel = getAstrocartographyTargetLabel(target) || `Match ${index + 1}`;
+                      const target = buildRankingTarget(item);
+                      const targetLabel = getTargetDisplayLabel(target, `Candidate ${index + 1}`);
                       const targetQuery = getAstrocartographyTargetQuery(target);
                       const score = Number(item?.location_score?.score || 0);
-                      const leadSupport = item?.location_score?.top_supports?.[0]?.label || item?.natal?.reading?.lead_line?.label || 'No clear lead support';
+                      const ordinal = getAstrocartographyOrdinal(item?.location_score, {
+                        rankingEligible: birthTimeAssessment.rankingEligible,
+                      });
+                      const stability = getAstrocartographyRankStability(item?.location_score || item);
+                      const leadFactor = (
+                        selectedGoalHigherIsWorse
+                          ? item?.location_score?.top_cautions?.[0]?.label
+                          : item?.location_score?.top_supports?.[0]?.label
+                      ) || item?.natal?.reading?.lead_line?.label || 'No lead factor was reported';
                       return (
-                        <div key={`${targetQuery || targetLabel}-${index}`} className={astroNestedCardCls}>
+                        <div key={buildCompareKey(target) || `${targetQuery || targetLabel}-${index}`} className={astroNestedCardCls}>
                           <div className="flex items-start justify-between gap-2">
                             <div>
                               <div className="text-sm font-medium">{index + 1}. {targetLabel}</div>
@@ -2419,21 +3312,26 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
                                 {city.country_name}{city.population ? ` | Pop ${Number(city.population).toLocaleString()}` : ''}
                               </div>
                             </div>
-                            <span className={`px-2 py-0.5 rounded-full border text-[10px] uppercase tracking-wide ${getSignalBadgeCls(score)}`}>
-                              Score {score}
-                            </span>
+                            <div className="text-right">
+                              <span className={`inline-flex px-2 py-0.5 rounded-full border text-[10px] uppercase tracking-wide ${getSignalBadgeCls(score, selectedGoalHigherIsWorse)}`}>
+                                {atlasScoreLabel} {ordinal}
+                              </span>
+                              <div className={`mt-1 ${astroMetaTextCls}`}>Model index {score}</div>
+                            </div>
                           </div>
                           <p className="mt-2 text-[12px] leading-6 text-zinc-600 dark:text-zinc-300">
-                            Lead support: {leadSupport}
+                            Lead factor: {leadFactor}
+                          </p>
+                          <p className={astroMetaTextCls} title={stability.detail || undefined}>
+                            Rank stability: {stability.label}{stability.detail ? ` · ${stability.detail}` : ''}
                           </p>
                           <div className="mt-2 flex items-center gap-2">
                             <button
                               type="button"
                               className={actionButtonCls}
                               onClick={() => {
-                                const nextTargetQuery = targetQuery || targetLabel;
-                                setTargetQuery(nextTargetQuery);
-                                handleInspectTarget(nextTargetQuery);
+                                setTargetQuery(targetQuery || targetLabel);
+                                handleInspectTarget(target);
                               }}
                             >
                               Inspect
@@ -2442,6 +3340,7 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
                               type="button"
                               className={actionButtonCls}
                               onClick={() => addTargetToCompare(item)}
+                              disabled={rankingIneligible}
                             >
                               Add
                             </button>
@@ -2452,10 +3351,10 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
                   </div>
                 ) : atlasResults?.atlas?.candidate_count > 0 ? (
                   <p className={astroBodyTextCls}>
-                    No cities crossed the current signal floor for {selectedGoal?.label || 'this goal'}. Expand the region, raise the resolution, or inspect a city directly.
+                    No ranked candidates were returned for the current goal and region filters. Adjust the filters or inspect a city directly.
                   </p>
                 ) : (
-                  <p className={astroBodyTextCls}>No atlas results.</p>
+                  <p className={astroBodyTextCls}>No atlas candidates were returned.</p>
                 )}
               </ConsoleRailSection>
               ) : null}
@@ -2474,7 +3373,7 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
               >
                 {selectedGoal && compareEntries.length > 0 && (
                   <p className={astroMetaTextCls}>
-                    Ranking active for {selectedGoal.label}.
+                    {selectedGoalHigherIsWorse ? 'Lower modeled pressure ranks first' : 'Higher model signal ranks first'} for {selectedGoal.label}. Rank stability is reported when available.
                   </p>
                 )}
                 {loadingCompare ? (
@@ -2483,50 +3382,76 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
                   <p className="text-sm text-red-600">{compareError}</p>
                 ) : selectedGoal && compareResult?.ranking?.length ? (
                   <div className="space-y-2">
-                    {compareResult.ranking.map((entry) => (
-                      <div key={entry.query || entry.label} className={astroNestedCardCls}>
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <div className="text-sm font-medium">{entry.rank}. {entry.label}</div>
-                            {entry.top_supports?.[0]?.label && (
-                              <div className="mt-1 text-[12px] leading-6 text-zinc-600 dark:text-zinc-300">
-                                Lead support: {entry.top_supports[0].label}
+                    {compareResult.ranking.map((entry, index) => {
+                      const rankingIdentity = resolveCompareRankingIdentity(
+                        entry,
+                        compareResult,
+                        compareEntries,
+                      );
+                      const rankingTarget = rankingIdentity.target;
+                      const entryScore = Number(entry?.location_score?.score ?? entry?.score ?? 0);
+                      const entryOrdinal = getAstrocartographyOrdinal(entry?.location_score || entry, {
+                        rankingEligible: birthTimeAssessment.rankingEligible,
+                      });
+                      const entryStability = getAstrocartographyRankStability(entry?.location_score || entry);
+                      const entryLeadFactor = (
+                        selectedGoalHigherIsWorse
+                          ? entry?.top_cautions?.[0]?.label
+                          : entry?.top_supports?.[0]?.label
+                      ) || entry?.top_supports?.[0]?.label || entry?.top_cautions?.[0]?.label || '';
+                      return (
+                        <div
+                          key={`${buildCompareKey(rankingTarget) || entry.query || entry.label || 'ranking'}-${entry.rank || index + 1}`}
+                          className={astroNestedCardCls}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <div className="text-sm font-medium">{entry.rank || index + 1}. {getTargetDisplayLabel(rankingTarget, `Candidate ${index + 1}`)}</div>
+                              {entryLeadFactor ? (
+                                <div className="mt-1 text-[12px] leading-6 text-zinc-600 dark:text-zinc-300">
+                                  Lead factor: {entryLeadFactor}
+                                </div>
+                              ) : null}
+                              <div className={`mt-1 ${astroMetaTextCls}`} title={entryStability.detail || undefined}>
+                                Rank stability: {entryStability.label}{entryStability.detail ? ` · ${entryStability.detail}` : ''}
                               </div>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className={`px-2 py-0.5 rounded-full border text-[10px] uppercase tracking-wide ${getSignalBadgeCls(Number(entry.score) || 0)}`}>
-                              Score {entry.score}
-                            </span>
-                            <button
-                              type="button"
-                              className="rounded-[3px] border border-zinc-300 px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-700/70"
-                              onClick={() => {
-                                setCompareTargets((prev) => prev.filter((item) => {
-                                  const query = getAstrocartographyTargetQuery(item?.target) || getAstrocartographyTargetLabel(item?.target);
-                                  return query !== (entry.query || entry.label);
-                                }));
-                              }}
-                            >
-                              Remove
-                            </button>
+                            </div>
+                            <div className="flex items-start gap-2">
+                              <div className="text-right">
+                                <span className={`inline-flex px-2 py-0.5 rounded-full border text-[10px] uppercase tracking-wide ${getSignalBadgeCls(entryScore, selectedGoalHigherIsWorse)}`}>
+                                  {atlasScoreLabel} {entryOrdinal}
+                                </span>
+                                <div className={`mt-1 ${astroMetaTextCls}`}>Model index {entryScore}</div>
+                              </div>
+                              <button
+                                type="button"
+                                className="rounded-[3px] border border-zinc-300 px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-700/70"
+                                disabled={rankingIdentity.ambiguous}
+                                title={rankingIdentity.ambiguous
+                                  ? 'This response did not return enough identity metadata to remove this same-named target safely.'
+                                  : undefined}
+                                onClick={() => {
+                                  setCompareTargets((prev) => prev.filter((item) => (
+                                    !targetsReferToSameLocation(item?.target, rankingTarget)
+                                  )));
+                                }}
+                              >
+                                {rankingIdentity.ambiguous ? 'Identity ambiguous' : 'Remove'}
+                              </button>
+                            </div>
                           </div>
                         </div>
-                        {entry.top_cautions?.[0]?.label && (
-                          <p className={`mt-2 ${astroMetaTextCls}`}>
-                            Main caution: {entry.top_cautions[0].label}
-                          </p>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : compareEntries.length ? (
                   <div className="space-y-2">
                     {compareEntries.map((entry, index) => {
-                      const compareScore = getCompareSignal(entry);
+                      const natalScore = Number(entry?.natal?.reading?.signal_score || 0);
+                      const transitScore = Number(entry?.transit?.reading?.signal_score || 0);
                       const leadNatal = entry?.natal?.reading?.lead_line?.label || 'No natal lead line';
                       const leadTransit = entry?.transit?.reading?.lead_line?.label || '';
-                      const targetLabel = getAstrocartographyTargetLabel(entry?.target) || `Saved target ${index + 1}`;
+                      const targetLabel = getTargetDisplayLabel(entry?.target, `Saved target ${index + 1}`);
                       return (
                         <div key={entry.compareKey} className={astroNestedCardCls}>
                           <div className="flex items-start justify-between gap-2">
@@ -2535,9 +3460,6 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
                               <div className="mt-1 text-[12px] leading-6 text-zinc-600 dark:text-zinc-300">{leadNatal}</div>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className={`px-2 py-0.5 rounded-full border text-[10px] uppercase tracking-wide ${getSignalBadgeCls(compareScore)}`}>
-                                Index {compareScore}
-                              </span>
                               <button
                                 type="button"
                                 className="rounded-[3px] border border-zinc-300 px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-700/70"
@@ -2547,32 +3469,56 @@ const railCardCls = 'rounded-[4px] border border-zinc-200/90 bg-white/96 dark:bo
                               </button>
                             </div>
                           </div>
-                          <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-zinc-600 dark:text-zinc-300">
-                            <span>Natal {entry?.natal?.reading?.signal_score || 0}</span>
-                            {entry?.transit?.reading?.signal_score != null && <span>Transit {entry.transit.reading.signal_score}</span>}
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            <span
+                              className={`px-2 py-0.5 rounded-full border text-[10px] uppercase tracking-wide ${getSignalBadgeCls(natalScore, selectedGoalHigherIsWorse)}`}
+                              title={`Natal model index ${natalScore}`}
+                            >
+                              Natal {getAstrocartographyOrdinal({ score: natalScore })}
+                            </span>
+                            {entry?.transit?.reading?.signal_score != null ? (
+                              <span
+                                className={`px-2 py-0.5 rounded-full border text-[10px] uppercase tracking-wide ${getSignalBadgeCls(transitScore, selectedGoalHigherIsWorse)}`}
+                                title={`Transit model index ${transitScore}`}
+                              >
+                                Transit {getAstrocartographyOrdinal({ score: transitScore })}
+                              </span>
+                            ) : null}
                           </div>
                           {leadTransit && (
                             <p className={`mt-2 ${astroMetaTextCls}`}>Transit lead: {leadTransit}</p>
                           )}
+                          <p className={`mt-2 ${astroMetaTextCls}`}>
+                            Natal and transit signals remain separate until the server returns a goal-specific ranking.
+                          </p>
                         </div>
                       );
                     })}
                   </div>
                 ) : (
                   <p className={astroBodyTextCls}>
-                    Save inspected cities here to compare their current natal and transit signal balance.
+                    Save inspected cities here to compare their reported natal and transit signals.
                   </p>
                 )}
               </ConsoleRailSection>
               ) : null}
 
+              <MethodologyPanel
+                targetResult={targetResult}
+                mapData={mapData}
+                atlasResults={atlasResults}
+                compareResult={compareResult}
+                activeParans={activeParans}
+              />
+
               <ConsoleRailSection title="Rules" eyebrow="guide" module="astrocartography" bodyClassName="mt-3">
                 <ul className="space-y-2 text-[12px] leading-6 text-zinc-600 dark:text-zinc-300">
                   <li>A saved natal snap is required.</li>
-                  <li>Transit mode overlays the natal base and does not replace it.</li>
-                  <li>Primary reading radius: 300 km.</li>
-                  <li>Extended reading radius: 500 km.</li>
-                  <li>Compare tray is scoped to the current line and transit configuration.</li>
+                  <li>Birth-time eligibility is taken from returned accuracy metadata; ineligible charts remain inspection-only.</li>
+                  <li>Transit and natal signals are displayed separately. The client does not apply a fixed natal/transit blend.</li>
+                  <li>Goal-specific ranking order and any transit strategy come from the server response.</li>
+                  <li>Distance and paran thresholds come from the returned policy metadata shown above.</li>
+                  <li>The compare tray is scoped to the current body, angle, goal, and transit configuration.</li>
                 </ul>
               </ConsoleRailSection>
             </aside>

@@ -1,89 +1,38 @@
+<!-- generated-by: scripts/build_astrocartography_knowledge_base.py -->
+<!-- document-id: acg-ref-extended-goals-v2 -->
+<!-- claim-classification: experimental -->
+<!-- claim-ids: acg-claim-gambling-case-is-illustrative-only, acg-claim-legacy-artifacts-are-parity-only, acg-claim-specialist-goal-formulas -->
+
 # Extended Goal Domains
 
-## Purpose
+## Governance Status
 
-This note documents two advanced astrocartography goal extensions that are not part of the original four visible PathFinder presets:
+Gambling, health, accident, hostile-place, erotic, and similar specialist scores are `experimental` Vox Stella extensions. Legacy Almagest filenames are `legacy-parity` evidence for feature-family coverage only; they do not recover weights or doctrine.
 
-- speculative or gambling-oriented place scanning
-- warning-oriented health and injury hotspot scanning
+These extensions must not be described as source-backed formulas merely because generic planet keywords can be assembled into a plausible story.
 
-These are not direct recovered Almagest formulas. They are Vox Stella goal models built from the existing source base already present in the repo.
+## Gambling / Speculation
 
-## Gambling / Speculation Domain
+Furst presents a retrospective poker-player case on pages 111–115. It associates Sun, Jupiter, Venus, Mercury, and selectively Uranus with parts of that case and warns about Neptune plus difficult Mars, Pluto, or Saturn expressions.
 
-### House logic
+That case is a useful `direct` illustration (`acg-claim-gambling-case-is-illustrative-only`). It does not establish universal weights, a guaranteed luck line, electional timing logic, or superiority over a general money/opportunity model.
 
-From the current Morin knowledge map:
+A gambling model may be researched only when it has:
 
-- the `5th house` explicitly includes `speculation` and `gambling`
-- the `2nd`, `8th`, and `11th` remain relevant supporting money and gains contexts
+- independently curated doctrine rather than generic keyword assembly;
+- page-exact fixtures that do not bake unrelated expected signals into the input;
+- held-out repeated-player or repeated-event data;
+- explicit no-bet and uncertainty behavior;
+- a benchmark that must beat simple opportunity and popularity baselines without accepting ties as proof.
 
-This makes a speculation model meaningfully different from a general money model:
+## Health, Injury, And Accident
 
-- `money` is broader and can be earned through career, trade, or stable income
-- `gambling / speculation` is narrower and should lean harder on `5th-house` risk and pleasure signatures
+The local astrocartography books contain difficult planet and angle interpretations, but they do not establish a validated medical or accident-risk formula.
 
-### Planet logic
+The Astrology of Death is not an astrocartography source and is excluded from normalized books, guides, and retrieval chunks. Generic Morin, house, or mortality doctrine must not be imported into location risk scoring and then labeled astrocartography evidence.
 
-From the astrocartography planetary baseline reference:
+Claims such as Mars equals inflammation, Neptune equals weakened immunity, Chiron predicts accidents, or Jupiter/Venus lower accident risk remain `experimental` unless independently curated and validated. They must not produce medical advice or safety assurances.
 
-- `Jupiter` = luck, opportunity, expansion
-- `Venus` = ease, attraction, social flow
-- `Mercury` = trade, calculation, quick judgment
-- `Sun` = confidence, boldness, visible participation
+## Release Gate
 
-Main caution factors:
-
-- `Neptune` can distort judgment through glamour, fantasy, or leakage
-- `Saturn` can flatten or constrict speculative flow
-
-## Health / Injury Risk Domain
-
-### Angle logic
-
-From the astrocartography angular reference:
-
-- `ASC` interprets a planet through `selfhood, body, projection, personal identity`
-
-That makes the ASC the clearest map-first bodily axis for a risk-oriented location model.
-
-### House logic
-
-From the current Morin knowledge map:
-
-- the `6th house` explicitly includes `health, illness, service, work, daily routines`
-- malefics in the `6th` are explicitly marked as `illness-prone`
-- the broader engine already treats `1st`, `6th`, `8th`, and `12th` as the strongest bodily-risk and danger cluster
-
-This supports a warning-oriented model that scans for:
-
-- bodily strain
-- accident exposure
-- chronic depletion
-- illness pressure
-
-### Planet logic
-
-From the astrocartography planetary baseline reference:
-
-- `Mars` = heat, haste, cuts, irritation, conflict
-- `Saturn` = heaviness, depletion, chronic burden
-- `Uranus` = shock, instability, sudden disruption
-- `Neptune` = confusion, lowered clarity, diffuse weakening
-- `Pluto` = crisis, compulsion, extreme pressure
-
-Protective or lowering factors:
-
-- `Jupiter` can provide protection, resilience, and recovery support
-- `Venus` can soften environmental harshness
-
-## Product rule
-
-The `health_risk` model is not a positive destination goal.
-
-Its score means:
-
-- higher score = harsher / riskier place
-- lower score = less risk-signaled place
-
-Any UI surface that uses this model should present it as a warning-oriented ranking, not as an aspirational “best city” recommendation.
+Specialist models remain research-only until their own held-out benchmarks beat their parent and simple baselines, their claims have independent doctrine fixtures, and the UI clearly communicates uncertainty and non-medical scope.

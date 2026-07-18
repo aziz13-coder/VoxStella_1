@@ -1,10 +1,18 @@
 from pathlib import Path
 import sys
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import astrocartography_atlas_engine as atlas_engine
-from astrocartography_city_catalog import search_city_catalog
+from astrocartography_city_catalog import (
+    ATLAS_SEARCH_RESOLUTIONS,
+    find_exact_city_catalog_entries,
+    get_city_catalog_entry_by_geonameid,
+    list_city_catalog_entries,
+    search_city_catalog,
+)
 
 
 def test_city_catalog_query_returns_major_city():
@@ -21,6 +29,209 @@ def test_city_catalog_resolution_expands_candidate_pool():
 
     assert coarse
     assert len(coarse) <= len(standard) <= len(fine) <= len(ultra)
+    assert len(coarse) <= ATLAS_SEARCH_RESOLUTIONS["coarse"]["candidate_limit"]
+    assert len(standard) <= ATLAS_SEARCH_RESOLUTIONS["standard"]["candidate_limit"]
+    assert len(fine) <= ATLAS_SEARCH_RESOLUTIONS["fine"]["candidate_limit"]
+    assert len(ultra) <= ATLAS_SEARCH_RESOLUTIONS["ultra"]["candidate_limit"]
+
+
+def test_city_catalog_global_resolution_pools_are_bounded_near_prior_scale():
+    pool_sizes = {
+        resolution: len(search_city_catalog(resolution=resolution))
+        for resolution in ("coarse", "standard", "fine", "ultra")
+    }
+
+    assert pool_sizes == {
+        "coarse": 3200,
+        "standard": 4000,
+        "fine": 6500,
+        "ultra": 22000,
+    }
+    mandatory_ids = {
+        int(city["geonameid"])
+        for city in list_city_catalog_entries()
+        if str(city.get("feature_code") or "").upper() in {"PPLC", "PPLA"}
+    }
+    assert mandatory_ids
+    for resolution in ("coarse", "standard", "fine", "ultra"):
+        returned_ids = {
+            int(city["geonameid"])
+            for city in search_city_catalog(resolution=resolution)
+        }
+        assert mandatory_ids <= returned_ids
+
+
+@pytest.mark.parametrize(
+    ("query", "candidate_id"),
+    [
+        ("London UK", "geonames:2643743"),
+        ("London, U.K.", "geonames:2643743"),
+        ("Cambridge CA", "geonames:5913695"),
+        ("San Jose CA", "geonames:5392171"),
+        ("Springfield Illinois", "geonames:4250542"),
+        ("Victoria BC", "geonames:6174041"),
+        ("New York, NY, USA", "geonames:5128581"),
+        ("México City", "geonames:3530597"),
+    ],
+)
+def test_city_catalog_structured_queries_return_only_exact_identity(query, candidate_id):
+    results = search_city_catalog(query=query, resolution="ultra", limit=10)
+
+    assert [f"geonames:{item['geonameid']}" for item in results] == [candidate_id]
+
+
+@pytest.mark.parametrize(
+    ("name", "country_code", "candidate_id"),
+    [
+        ("Manchester", "GB", "geonames:2643123"),
+        ("Cambridge", "GB", "geonames:2653941"),
+        ("Oxford", "GB", "geonames:2640729"),
+    ],
+)
+def test_city_catalog_includes_secondary_uk_admin_centers(
+    name,
+    country_code,
+    candidate_id,
+):
+    matches = [
+        city
+        for city in find_exact_city_catalog_entries(name)
+        if city.get("country_code") == country_code
+    ]
+
+    assert [f"geonames:{item['geonameid']}" for item in matches] == [candidate_id]
+    assert matches[0]["admin1_name"] == "England"
+
+
+@pytest.mark.parametrize(
+    ("query", "candidate_id"),
+    [
+        ("London UK", "geonames:2643743"),
+        ("Springfield Illinois", "geonames:4250542"),
+        ("Victoria BC", "geonames:6174041"),
+        ("Cambridge CA", "geonames:5913695"),
+        ("San Jose CA", "geonames:5392171"),
+    ],
+)
+def test_actual_atlas_query_uses_structured_city_identity(query, candidate_id):
+    city = get_city_catalog_entry_by_geonameid(candidate_id)
+    assert city is not None
+    latitude = float(city["latitude"])
+    longitude = float(city["longitude"])
+    result = atlas_engine.rank_atlas_cities_for_goal(
+        goal_id="love",
+        natal_lines=[
+            {
+                "id": "Venus:DSC",
+                "body": "Venus",
+                "angle": "DSC",
+                "label": "Venus DSC",
+                "segments": [
+                    [
+                        [max(-89.0, latitude - 1.0), longitude],
+                        [min(89.0, latitude + 1.0), longitude],
+                    ]
+                ],
+            }
+        ],
+        query=query,
+        resolution="fine",
+        limit=1,
+    )
+
+    assert result["catalog_candidate_count"] == 1
+    assert result["candidate_count"] == 1
+    assert result["results"][0]["target"]["candidate_id"] == candidate_id
+
+
+@pytest.mark.parametrize(
+    ("query", "field", "expected"),
+    [
+        ("France", "country_code", "FR"),
+        ("UK", "country_code", "GB"),
+        ("Mexico", "country_code", "MX"),
+        ("Europe", "continent_code", "EU"),
+    ],
+)
+def test_actual_atlas_keyword_query_preserves_broad_filter_semantics(
+    monkeypatch,
+    query,
+    field,
+    expected,
+):
+    captured = {}
+
+    def _capture_candidates(*, candidates, **_kwargs):
+        captured["candidates"] = candidates
+        return {
+            "candidate_count": len(candidates),
+            "shortlisted_count": 0,
+            "viable_count": 0,
+            "results": [],
+            "ranking": [],
+        }
+
+    monkeypatch.setattr(
+        atlas_engine,
+        "rank_candidate_pool_for_goal",
+        _capture_candidates,
+    )
+
+    result = atlas_engine.rank_atlas_cities_for_goal(
+        goal_id="love",
+        natal_lines=[],
+        query=query,
+        resolution="coarse",
+        limit=1,
+    )
+
+    candidates = captured["candidates"]
+    assert candidates
+    assert all(str(city.get(field) or "") == expected for city in candidates)
+    assert result["candidate_pool_policy"]["mandatory_candidates_preserved"] is True
+
+
+def test_actual_atlas_prefix_keyword_excludes_timezone_substring_false_positives(
+    monkeypatch,
+):
+    captured = {}
+
+    def _capture_candidates(*, candidates, **_kwargs):
+        captured["candidates"] = candidates
+        return {
+            "candidate_count": len(candidates),
+            "shortlisted_count": 0,
+            "viable_count": 0,
+            "results": [],
+            "ranking": [],
+        }
+
+    monkeypatch.setattr(
+        atlas_engine,
+        "rank_candidate_pool_for_goal",
+        _capture_candidates,
+    )
+
+    atlas_engine.rank_atlas_cities_for_goal(
+        goal_id="love",
+        natal_lines=[],
+        query="Lond",
+        resolution="fine",
+        limit=1,
+    )
+
+    candidates = captured["candidates"]
+    assert candidates
+    assert all(
+        any(
+            token.startswith("lond")
+            for token in str(
+                city.get("ascii_name") or city.get("name") or ""
+            ).lower().split()
+        )
+        for city in candidates
+    )
+    assert all(str(city.get("ascii_name") or "") != "Dukinfield" for city in candidates)
 
 
 def test_city_catalog_continent_filter_limits_results():
@@ -30,33 +241,22 @@ def test_city_catalog_continent_filter_limits_results():
     assert all(str(item.get("continent_code") or "") == "EU" for item in results)
 
 
-def test_derive_goal_search_filters_uses_explicit_atlas_signature_for_gambling():
+def test_derive_goal_search_filters_does_not_invent_signature_for_experimental_residual():
     bodies, angles = atlas_engine.derive_goal_search_filters("gambling_luck")
 
-    assert set(bodies) == {
-        "Sun",
-        "Moon",
-        "Mercury",
-        "Venus",
-        "Mars",
-        "Jupiter",
-        "Saturn",
-        "Uranus",
-        "Neptune",
-        "Pluto",
-    }
-    assert set(angles) == {"ASC", "DSC", "MC", "IC"}
+    assert bodies == []
+    assert angles == []
 
 
-def test_derive_goal_search_filters_respects_excluding_user_filters():
+def test_derive_goal_search_filters_keeps_signatureless_experimental_model_out_of_atlas():
     filter_meta = atlas_engine.describe_goal_search_filters(
         "gambling_luck",
         selected_bodies=["Chiron"],
         selected_angles=["NADIR"],
     )
 
-    assert filter_meta["goal_has_signature"] is True
-    assert filter_meta["excluded_by_filters"] is True
+    assert filter_meta["goal_has_signature"] is False
+    assert filter_meta["excluded_by_filters"] is False
     assert filter_meta["bodies"] == []
     assert filter_meta["angles"] == []
 
@@ -226,7 +426,7 @@ def test_rank_atlas_cities_for_goal_prefers_stronger_supported_city(monkeypatch)
     assert result["viable_count"] == 1
     assert result["ranking"][0]["label"] == "Heart City, United Kingdom"
     assert len(result["ranking"]) == 1
-    assert result["results"][0]["relocation"]["summary"]["angular_planets"]
+    assert result["results"][0]["relocation"]["summary"]["prominent_houses"]
 
 
 def test_rank_atlas_cities_for_goal_merges_live_query_candidates(monkeypatch):
@@ -650,3 +850,251 @@ def test_rank_candidate_pool_for_goal_scores_all_candidates_for_explicit_relocat
     assert result["relocation_prepass_count"] == len(fake_cities)
     assert result["ranking"][0]["label"] == "Relocation Gem"
     assert "Relocation Gem" in result["debug"]["prepass_labels"]
+
+
+def test_relocation_dependent_plan_never_uses_line_only_candidate_cutoff():
+    plan = atlas_engine.resolve_goal_shortlist_plan(
+        "love",
+        relocation_limit=18,
+        candidate_count=1250,
+    )
+
+    assert plan["strategy"] == atlas_engine.RELOCATION_PREPASS_SHORTLIST_STRATEGY
+    assert plan["prepass_limit"] == 1250
+
+
+def test_rank_candidate_pool_recovers_when_one_candidate_has_polar_house_failure(monkeypatch):
+    candidates = [
+        {
+            "candidate_id": "geonames:1",
+            "label": "Temperate City",
+            "query": "Temperate City",
+            "latitude": 40.0,
+            "longitude": 2.0,
+            "population": 100000,
+        },
+        {
+            "candidate_id": "geonames:2",
+            "label": "Polar City",
+            "query": "Polar City",
+            "latitude": 78.0,
+            "longitude": 15.0,
+            "population": 50000,
+        },
+    ]
+
+    monkeypatch.setattr(
+        atlas_engine,
+        "resolve_goal_shortlist_plan",
+        lambda *_args, **_kwargs: {
+            "strategy": atlas_engine.RELOCATION_PREPASS_SHORTLIST_STRATEGY,
+            "prepass_limit": 2,
+        },
+    )
+
+    def fake_score_candidate(
+        city,
+        *,
+        goal_id,
+        natal_lines,
+        transit_lines=None,
+        relocation_features=None,
+        relocation_status=None,
+    ):
+        unavailable = bool((relocation_status or {}).get("relocation_unavailable"))
+        return {
+            "target": {
+                "candidate_id": city.get("candidate_id"),
+                "label": city["label"],
+                "query": city["query"],
+                "latitude": city["latitude"],
+                "longitude": city["longitude"],
+                "coordinate_source": "atlas_candidate",
+            },
+            "atlas_city": {"population": city["population"]},
+            "natal": {"reading": {"lead_line": {"label": "Mock"}}},
+            "location_score": {
+                "raw_score": 2.0,
+                "score": 60,
+                "top_supports": [{"score": 2.0}],
+                "top_cautions": [],
+            },
+            "relocation": {
+                "available": not unavailable,
+                "relocation_unavailable": unavailable,
+                "error": (relocation_status or {}).get("error"),
+            },
+        }
+
+    monkeypatch.setattr(atlas_engine, "_score_candidate", fake_score_candidate)
+
+    def resolver(item):
+        if (item.get("target") or {}).get("candidate_id") == "geonames:2":
+            raise RuntimeError("Unable to calculate astrological houses")
+        return {"available": True, "chart_data": {"planets": {"Venus": {"house": 7}}}}
+
+    result = atlas_engine.rank_candidate_pool_for_goal(
+        goal_id="love",
+        candidates=candidates,
+        natal_lines=[],
+        limit=2,
+        relocation_limit=2,
+        relocation_bundle_resolver=resolver,
+    )
+
+    assert result["relocation_unavailable_count"] == 1
+    assert result["results"][0]["target"]["candidate_id"] == "geonames:1"
+    assert all(item["target"]["candidate_id"] != "geonames:2" for item in result["results"])
+    polar = result["relocation_unavailable"][0]
+    assert polar["target"]["candidate_id"] == "geonames:2"
+    assert polar["error"]["code"] == "relocation_calculation_failed"
+
+
+def test_score_candidate_preserves_exact_catalog_identity_and_coordinate_source():
+    result = atlas_engine._score_candidate(
+        {
+            "candidate_id": "geonames:2988507",
+            "geonameid": 2988507,
+            "label": "Paris, France",
+            "query": "Paris, France",
+            "latitude": 48.8566,
+            "longitude": 2.3522,
+            "coordinate_source": "bundled_geonames_catalog",
+        },
+        goal_id="love",
+        natal_lines=[],
+    )
+
+    assert result["target"] == {
+        "candidate_id": "geonames:2988507",
+        "label": "Paris, France",
+        "query": "Paris, France",
+        "latitude": 48.8566,
+        "longitude": 2.3522,
+        "coordinate_source": "bundled_geonames_catalog",
+    }
+    assert result["atlas_city"]["geonameid"] == 2988507
+
+
+def test_exact_relocation_prepass_scores_each_candidate_once_without_debug(monkeypatch):
+    candidates = [
+        {
+            "label": f"City {index}",
+            "query": f"City {index}",
+            "latitude": float(index),
+            "longitude": float(index),
+        }
+        for index in range(3)
+    ]
+    monkeypatch.setattr(
+        atlas_engine,
+        "resolve_goal_shortlist_plan",
+        lambda *_args, **_kwargs: {
+            "strategy": atlas_engine.RELOCATION_PREPASS_SHORTLIST_STRATEGY,
+            "prepass_limit": len(candidates),
+        },
+    )
+    calls = []
+
+    def fake_score_candidate(city, **kwargs):
+        calls.append((city["label"], kwargs.get("relocation_features") is not None))
+        return {
+            **atlas_engine._candidate_identity_payload(city),
+            "natal": {"reading": {}},
+            "location_score": {
+                "raw_score": 1.0,
+                "score": 50,
+                "ranking_eligible": True,
+                "top_supports": [{"score": 1.0}],
+                "top_cautions": [],
+            },
+            "relocation": {"available": True, "relocation_unavailable": False},
+        }
+
+    monkeypatch.setattr(atlas_engine, "_score_candidate", fake_score_candidate)
+
+    result = atlas_engine.rank_candidate_pool_for_goal(
+        goal_id="love",
+        candidates=candidates,
+        natal_lines=[],
+        limit=3,
+        relocation_limit=3,
+        relocation_bundle_resolver=lambda _item: {
+            "available": True,
+            "chart_data": {"planets": {"Venus": {"house": 7}}},
+        },
+    )
+
+    assert len(calls) == len(candidates)
+    assert all(has_relocation for _label, has_relocation in calls)
+    assert len(result["results"]) == len(candidates)
+
+
+def test_atlas_query_does_not_match_unrelated_city_only_through_timezone(monkeypatch):
+    fake_cities = [
+        {
+            "geonameid": 2643743,
+            "name": "London",
+            "ascii_name": "London",
+            "label": "London, United Kingdom",
+            "query": "London, United Kingdom",
+            "country_code": "GB",
+            "country_name": "United Kingdom",
+            "latitude": 51.5074,
+            "longitude": -0.1278,
+            "timezone": "Europe/London",
+        },
+        {
+            "geonameid": 2655984,
+            "name": "Belfast",
+            "ascii_name": "Belfast",
+            "label": "Belfast, United Kingdom",
+            "query": "Belfast, United Kingdom",
+            "country_code": "GB",
+            "country_name": "United Kingdom",
+            "latitude": 54.5968,
+            "longitude": -5.9254,
+            "timezone": "Europe/London",
+        },
+        {
+            "geonameid": 6058560,
+            "name": "London",
+            "ascii_name": "London",
+            "label": "London, Canada",
+            "query": "London, Canada",
+            "country_code": "CA",
+            "country_name": "Canada",
+            "latitude": 42.9834,
+            "longitude": -81.233,
+            "timezone": "America/Toronto",
+        },
+    ]
+    monkeypatch.setattr(atlas_engine, "search_city_catalog", lambda **_kwargs: fake_cities)
+    monkeypatch.setattr(
+        atlas_engine,
+        "search_live_location_candidates",
+        lambda *_args, **_kwargs: fake_cities,
+    )
+    monkeypatch.setattr(
+        atlas_engine,
+        "rank_candidate_pool_for_goal",
+        lambda **kwargs: {
+            "candidate_count": len(kwargs["candidates"]),
+            "results": [],
+            "ranking": [],
+        },
+    )
+
+    result = atlas_engine.rank_atlas_cities_for_goal(
+        goal_id="love",
+        natal_lines=[],
+        query="London",
+        country_code="GB",
+        resolution="ultra",
+    )
+
+    assert result["catalog_candidate_count"] == 1
+    assert result["live_candidate_count"] == 1
+    assert result["candidate_count"] == 1
+    assert atlas_engine._candidate_matches_identity_query(fake_cities[0], "London UK") is True
+    assert atlas_engine._candidate_matches_identity_query(fake_cities[1], "London UK") is False

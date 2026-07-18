@@ -1,11 +1,230 @@
 [
   {
-    "title": "Astrocartography Map Interpretation (Hermes Astrology)",
+    "source_id": "acg-src-lewis-guttman-1989",
+    "title": "The Astro*Carto*Graphy Book of Maps: The Astrology of Relocation — How 136 Famous People Found Their Places",
+    "authors": [
+      "Jim Lewis",
+      "Ariel Guttman"
+    ],
+    "year": 1989,
+    "edition": "First edition, first printing",
+    "publisher": "Llewellyn Publications",
+    "source_name": "The_AstroCartoGraphy_Book_of_Maps_-_The_Astrology_of_Relocation_How_136_Famous_People_Found_Their_Places_Jim_Lewis_Arielle_Guttman_z-library.sk_1lib.sk_z-lib.sk.txt",
+    "source_path": "horary_knowledge/astrocartography_books_text/The_AstroCartoGraphy_Book_of_Maps_-_The_Astrology_of_Relocation_How_136_Famous_People_Found_Their_Places_Jim_Lewis_Arielle_Guttman_z-library.sk_1lib.sk_z-lib.sk.txt",
+    "role": "Foundational doctrine and historical case-study atlas",
+    "preferred_use": "Use first for canonical line, angle, crossing, natal-condition, and remote-activation doctrine. Treat retrospective cases as illustrations, not independent validation.",
+    "authority": {
+      "tier": "tier-1-canonical-doctrine",
+      "rank": 1,
+      "rationale": "Jim Lewis originated the named Astro*Carto*Graphy system; this local book is the primary doctrinal source in the corpus."
+    },
+    "default_claim_classification": "direct",
+    "retrieval": {
+      "enabled": true,
+      "scopes": [
+        "astrocartography-doctrine",
+        "historical-case-studies"
+      ],
+      "exclusion_reason": "",
+      "limitations": "Case narratives are retrospective and sometimes use disputed birth times selected partly by map fit."
+    },
+    "rights": {
+      "status": "copyright-restricted",
+      "redistribution": "not-cleared",
+      "evidence": [
+        "acg-src-lewis-guttman-1989.page-0003"
+      ],
+      "notes": "All rights reserved; repository extraction is retained as an internal research source."
+    },
+    "original": {
+      "file_name": "The AstroCartoGraphy Book of Maps - The Astrology of Relocation How 136 Famous People Found Their Places (Jim Lewis, Arielle Guttman) (z-library.sk, 1lib.sk, z-lib.sk).pdf",
+      "sha256": "b4dabc099d867a091aa9df6e9dd1a21c471aa0b4c61f705d2ba250433e0059ef",
+      "bytes": 23632181,
+      "page_count": 321,
+      "repository_status": "external-local-source-not-committed"
+    },
+    "extracted": {
+      "repo_path": "horary_knowledge/astrocartography_books_text/The_AstroCartoGraphy_Book_of_Maps_-_The_Astrology_of_Relocation_How_136_Famous_People_Found_Their_Places_Jim_Lewis_Arielle_Guttman_z-library.sk_1lib.sk_z-lib.sk.txt",
+      "sha256": "5453158b77dfbd32ea3dd557ff88b148946df300d22dd8ae5026bf737089426f",
+      "bytes": 395305,
+      "characters": 376775,
+      "page_markers": 316,
+      "first_page": 2,
+      "last_page": 321,
+      "missing_pages": [
+        1,
+        109,
+        155,
+        244,
+        297
+      ],
+      "coverage_status": "partial-nonempty-text-pages",
+      "extraction": {
+        "extractor": "pypdf.PdfReader.extract_text",
+        "extractor_version": "unrecorded-legacy",
+        "extracted_on": "2026-04-04",
+        "notes": "Legacy extraction did not record the installed pypdf version. Missing markers represent pages with no extracted text, not necessarily missing PDF pages."
+      }
+    },
+    "guide_path": "guides/lewis_guttman_book_of_maps.md",
+    "heading_count": 81,
+    "keyword_hits": {
+      "angular positions": 1,
+      "Ascendant": 4,
+      "Descendant": 4,
+      "Midheaven": 4,
+      "IC": 4,
+      "Crossings": 4,
+      "Venus line": 1,
+      "Jupiter line": 1,
+      "Astro*Carto*Graphy": 4
+    },
+    "normalized_book_path": "normalized_books/lewis_guttman_book_of_maps.md",
+    "source_chars": 376775,
+    "chunk_count": 814
+  },
+  {
+    "source_id": "acg-src-furst-best-places-2015",
+    "title": "Finding Your Best Places: Using Astrocartography to Navigate Your Life",
+    "authors": [
+      "Dan Furst"
+    ],
+    "year": 2015,
+    "edition": "First edition",
+    "publisher": "CreateSpace Independent Publishing Platform",
+    "source_name": "Finding_Your_Best_Places_Using_Astrocartography_to_Navigate_Your_Life_Dan_Fursts_Astrocartography_Book_1_Dan_Furst_z-library.sk_1lib.sk_z-lib.sk.txt",
+    "source_path": "horary_knowledge/astrocartography_books_text/Finding_Your_Best_Places_Using_Astrocartography_to_Navigate_Your_Life_Dan_Fursts_Astrocartography_Book_1_Dan_Furst_z-library.sk_1lib.sk_z-lib.sk.txt",
+    "role": "Secondary practical field guide",
+    "preferred_use": "Use for practitioner workflow, explicit technique variants, local-space and relocation distinctions, range sensitivity, and cautionary interpretations.",
+    "authority": {
+      "tier": "tier-2-secondary-practitioner",
+      "rank": 2,
+      "rationale": "A later practitioner synthesis with useful operational detail and bibliography, subordinate to Lewis on canonical Astro*Carto*Graphy doctrine."
+    },
+    "default_claim_classification": "direct",
+    "retrieval": {
+      "enabled": true,
+      "scopes": [
+        "astrocartography-doctrine",
+        "practitioner-variants",
+        "workflow"
+      ],
+      "exclusion_reason": "",
+      "limitations": "Practice claims and client stories are anecdotal; some terminology differs from Lewis."
+    },
+    "rights": {
+      "status": "copyright-status-unverified-treat-as-restricted",
+      "redistribution": "not-cleared",
+      "evidence": [
+        "No copyright page was captured in the local extraction."
+      ],
+      "notes": "Treat as restricted unless permission is documented."
+    },
+    "original": {
+      "file_name": "Finding Your Best Places Using Astrocartography to Navigate Your Life (Dan Fursts Astrocartography Book 1) (Dan Furst) (z-library.sk, 1lib.sk, z-lib.sk).pdf",
+      "sha256": "56dffa64903e9c8480bb2e944ec6de66ce88cf97c2b092466f4eafbce05133c9",
+      "bytes": 8081446,
+      "page_count": 135,
+      "repository_status": "external-local-source-not-committed"
+    },
+    "extracted": {
+      "repo_path": "horary_knowledge/astrocartography_books_text/Finding_Your_Best_Places_Using_Astrocartography_to_Navigate_Your_Life_Dan_Fursts_Astrocartography_Book_1_Dan_Furst_z-library.sk_1lib.sk_z-lib.sk.txt",
+      "sha256": "17a280021e41335c33ad22feba7f99531a0ae6d7e7912975b5b7510e6b2d5a3b",
+      "bytes": 273934,
+      "characters": 268593,
+      "page_markers": 135,
+      "first_page": 1,
+      "last_page": 135,
+      "missing_pages": [],
+      "coverage_status": "complete-page-marker-coverage",
+      "extraction": {
+        "extractor": "pypdf.PdfReader.extract_text",
+        "extractor_version": "unrecorded-legacy",
+        "extracted_on": "2026-04-04",
+        "notes": "Legacy extraction did not record the installed pypdf version."
+      }
+    },
+    "guide_path": "guides/dan_furst_best_places.md",
+    "heading_count": 61,
+    "keyword_hits": {
+      "TABLE OF CONTENTS": 1,
+      "Relocation Astrology": 4,
+      "Local Space Astrology": 4,
+      "Astro*Carto*Graphy": 4,
+      "Ascendant": 4,
+      "Descendant": 4,
+      "Midheaven": 4,
+      "Nadir": 4,
+      "parans": 4,
+      "effective range": 3,
+      "If Your Best Lines Aren't Near You": 1
+    },
+    "normalized_book_path": "normalized_books/dan_furst_best_places.md",
+    "source_chars": 268593,
+    "chunk_count": 174
+  },
+  {
+    "source_id": "acg-src-hermes-map-2023",
+    "title": "Astrocartography Map Interpretation",
+    "authors": [
+      "Hermes Astrology"
+    ],
+    "year": 2023,
+    "edition": "Digital document; no numbered edition stated",
+    "publisher": "Hermes Astrology",
     "source_name": "Astrocartography_Map_Interpretation_Hermes_Astrology_z-library.sk_1lib.sk_z-lib.sk.txt",
-    "role": "Interpretation encyclopedia",
-    "relevance": "high",
-    "preferred_use": "Use for line meanings, angle meanings, and crossing interpretations.",
-    "guide_path": "C:\\Users\\sabaa\\Downloads\\codexhorary\\horary_knowledge\\astrocartography_knowledge_base\\guides\\hermes_map_interpretation.md",
+    "source_path": "horary_knowledge/astrocartography_books_text/Astrocartography_Map_Interpretation_Hermes_Astrology_z-library.sk_1lib.sk_z-lib.sk.txt",
+    "role": "Tertiary plain-language interpretation encyclopedia",
+    "preferred_use": "Use only for comparison copy and candidate interpretations that are checked against higher-tier sources.",
+    "authority": {
+      "tier": "tier-3-tertiary-explainer",
+      "rank": 3,
+      "rationale": "Recent branded explanatory material with no bibliography or named individual author; useful for contrast but not for canonical doctrine."
+    },
+    "default_claim_classification": "direct",
+    "retrieval": {
+      "enabled": true,
+      "scopes": [
+        "tertiary-comparison"
+      ],
+      "exclusion_reason": "",
+      "limitations": "Repetitive generic prose and promotional claims; cannot establish comparative rankings or source consensus."
+    },
+    "rights": {
+      "status": "personal-noncommercial-copy-permitted-with-notice",
+      "redistribution": "not-cleared-for-commercial-product",
+      "evidence": [
+        "acg-src-hermes-map-2023.page-0002"
+      ],
+      "notes": "The document permits personal, non-commercial copying if its copyright notice is maintained."
+    },
+    "original": {
+      "file_name": "Astrocartography Map Interpretation (Hermes Astrology) (z-library.sk, 1lib.sk, z-lib.sk).pdf",
+      "sha256": "f51d779f39c7ef36f57e367f1bf7dea89c54b20006acaa579ab9c7df0749ac9b",
+      "bytes": 1859261,
+      "page_count": 142,
+      "repository_status": "external-local-source-not-committed"
+    },
+    "extracted": {
+      "repo_path": "horary_knowledge/astrocartography_books_text/Astrocartography_Map_Interpretation_Hermes_Astrology_z-library.sk_1lib.sk_z-lib.sk.txt",
+      "sha256": "aca4850cdb50c0649ac63c08198fbc17a713a1564a8be6c12a79d2d7916f9dbc",
+      "bytes": 340182,
+      "characters": 335232,
+      "page_markers": 141,
+      "first_page": 2,
+      "last_page": 142,
+      "missing_pages": [
+        1
+      ],
+      "coverage_status": "partial-nonempty-text-pages",
+      "extraction": {
+        "extractor": "pypdf.PdfReader.extract_text",
+        "extractor_version": "unrecorded-legacy",
+        "extracted_on": "2026-04-04",
+        "notes": "Legacy extraction did not record the installed pypdf version. The absent page marker is an unextracted front page."
+      }
+    },
+    "guide_path": "guides/hermes_map_interpretation.md",
     "heading_count": 80,
     "keyword_hits": {
       "Sun Line": 4,
@@ -26,90 +245,146 @@
       "IC LINE": 4,
       "LINE CROSSINGS": 4
     },
-    "normalized_book_path": "C:\\Users\\sabaa\\Downloads\\codexhorary\\horary_knowledge\\astrocartography_knowledge_base\\normalized_books\\hermes_map_interpretation.md",
-    "source_chars": 335232
+    "normalized_book_path": "normalized_books/hermes_map_interpretation.md",
+    "source_chars": 335232,
+    "chunk_count": 199
   },
   {
-    "title": "Finding Your Best Places",
-    "source_name": "Finding_Your_Best_Places_Using_Astrocartography_to_Navigate_Your_Life_Dan_Fursts_Astrocartography_Book_1_Dan_Furst_z-library.sk_1lib.sk_z-lib.sk.txt",
-    "role": "Conceptual and practical field guide",
-    "relevance": "high",
-    "preferred_use": "Use for workflow, line range assumptions, relocation vs. local-space distinctions, and user-facing guidance.",
-    "guide_path": "C:\\Users\\sabaa\\Downloads\\codexhorary\\horary_knowledge\\astrocartography_knowledge_base\\guides\\dan_furst_best_places.md",
-    "heading_count": 61,
-    "keyword_hits": {
-      "TABLE OF CONTENTS": 1,
-      "Relocation Astrology": 4,
-      "Local Space Astrology": 4,
-      "Astro*Carto*Graphy": 4,
-      "Ascendant": 4,
-      "Descendant": 4,
-      "Midheaven": 4,
-      "Nadir": 4,
-      "parans": 4,
-      "effective range": 3,
-      "If Your Best Lines Aren't Near You": 1
-    },
-    "normalized_book_path": "C:\\Users\\sabaa\\Downloads\\codexhorary\\horary_knowledge\\astrocartography_knowledge_base\\normalized_books\\dan_furst_best_places.md",
-    "source_chars": 268593
-  },
-  {
-    "title": "The Astro*Carto*Graphy Book of Maps",
-    "source_name": "The_AstroCartoGraphy_Book_of_Maps_-_The_Astrology_of_Relocation_How_136_Famous_People_Found_Their_Places_Jim_Lewis_Arielle_Guttman_z-library.sk_1lib.sk_z-lib.sk.txt",
-    "role": "Case-study atlas and historical reference",
-    "relevance": "high",
-    "preferred_use": "Use for evidence patterns, angular framing, and examples of how lines were linked to places and life events.",
-    "guide_path": "C:\\Users\\sabaa\\Downloads\\codexhorary\\horary_knowledge\\astrocartography_knowledge_base\\guides\\lewis_guttman_book_of_maps.md",
-    "heading_count": 81,
-    "keyword_hits": {
-      "angular positions": 1,
-      "Ascendant": 4,
-      "Descendant": 4,
-      "Midheaven": 4,
-      "IC": 4,
-      "Crossings": 4,
-      "Venus line": 3,
-      "Jupiter line": 2,
-      "Astro*Carto*Graphy": 4
-    },
-    "normalized_book_path": "C:\\Users\\sabaa\\Downloads\\codexhorary\\horary_knowledge\\astrocartography_knowledge_base\\normalized_books\\lewis_guttman_book_of_maps.md",
-    "source_chars": 376775
-  },
-  {
+    "source_id": "acg-src-lee-dictionary-1968",
     "title": "Dictionary of Astrology",
+    "authors": [
+      "Dal Lee"
+    ],
+    "year": 1968,
+    "edition": "Warner Books edition, first printing",
+    "publisher": "Warner Books",
     "source_name": "Dictionary_of_Astrology_D._Lee_z-library.sk_1lib.sk_z-lib.sk.txt",
-    "role": "Supporting terminology reference",
-    "relevance": "medium",
-    "preferred_use": "Use for generic astrology vocabulary when the astrocartography books assume prior knowledge.",
-    "guide_path": "C:\\Users\\sabaa\\Downloads\\codexhorary\\horary_knowledge\\astrocartography_knowledge_base\\guides\\dictionary_of_astrology.md",
+    "source_path": "horary_knowledge/astrocartography_books_text/Dictionary_of_Astrology_D._Lee_z-library.sk_1lib.sk_z-lib.sk.txt",
+    "role": "Generic astrology terminology reference",
+    "preferred_use": "Use only to define generic astrology vocabulary when an astrocartography source assumes prior knowledge.",
+    "authority": {
+      "tier": "tier-4-terminology-only",
+      "rank": 4,
+      "rationale": "The book predates Jim Lewis's Astro*Carto*Graphy system and supplies vocabulary rather than astrocartography doctrine."
+    },
+    "default_claim_classification": "direct",
+    "retrieval": {
+      "enabled": true,
+      "scopes": [
+        "terminology"
+      ],
+      "exclusion_reason": "",
+      "limitations": "Do not retrieve it for line meanings, crossings, ranges, relocation policy, or goal scoring."
+    },
+    "rights": {
+      "status": "copyright-restricted",
+      "redistribution": "not-cleared",
+      "evidence": [
+        "acg-src-lee-dictionary-1968.page-0006"
+      ],
+      "notes": "All rights reserved; repository extraction is retained as an internal terminology source."
+    },
+    "original": {
+      "file_name": "Dictionary of Astrology (D. Lee) (z-library.sk, 1lib.sk, z-lib.sk).pdf",
+      "sha256": "04fc5f7ec949df54b29c7c3c4046f8afa666456356c1a0b89e6f6afa5fadc8d1",
+      "bytes": 11923721,
+      "page_count": 260,
+      "repository_status": "external-local-source-not-committed"
+    },
+    "extracted": {
+      "repo_path": "horary_knowledge/astrocartography_books_text/Dictionary_of_Astrology_D._Lee_z-library.sk_1lib.sk_z-lib.sk.txt",
+      "sha256": "1aca3db2a990f0c619a5437c4eac8af96caa77ef6a90ce0b6f1386b3307e6184",
+      "bytes": 454515,
+      "characters": 439375,
+      "page_markers": 258,
+      "first_page": 1,
+      "last_page": 260,
+      "missing_pages": [
+        248,
+        259
+      ],
+      "coverage_status": "partial-nonempty-text-pages",
+      "extraction": {
+        "extractor": "pypdf.PdfReader.extract_text",
+        "extractor_version": "unrecorded-legacy",
+        "extracted_on": "2026-04-04",
+        "notes": "Legacy extraction did not record the installed pypdf version. Two PDF pages yielded no text."
+      }
+    },
+    "guide_path": "guides/dictionary_of_astrology.md",
     "heading_count": 80,
     "keyword_hits": {
       "Ascendant": 4,
       "Descendant": 4,
       "Midheaven": 4,
-      "IC": 4,
+      "IC": 3,
       "houses": 4,
       "mundane": 4,
       "relocation": 0
     },
-    "normalized_book_path": "C:\\Users\\sabaa\\Downloads\\codexhorary\\horary_knowledge\\astrocartography_knowledge_base\\normalized_books\\dictionary_of_astrology.md",
-    "source_chars": 439375
+    "normalized_book_path": "normalized_books/dictionary_of_astrology.md",
+    "source_chars": 439375,
+    "chunk_count": 440
   },
   {
+    "source_id": "acg-src-houck-death-1994",
     "title": "The Astrology of Death",
+    "authors": [
+      "Richard Houck"
+    ],
+    "year": 1994,
+    "edition": "Illustrated edition",
+    "publisher": "Groundswell Press",
     "source_name": "The_Astrology_of_Death_Richard_Houck_z-library.sk_1lib.sk_z-lib.sk.txt",
-    "role": "Tangential supporting source",
-    "relevance": "low",
-    "preferred_use": "Treat as lower-priority support; it is not a primary astrocartography book.",
-    "guide_path": "C:\\Users\\sabaa\\Downloads\\codexhorary\\horary_knowledge\\astrocartography_knowledge_base\\guides\\astrology_of_death.md",
-    "heading_count": 80,
-    "keyword_hits": {
-      "TABLE OF CONTENTS": 1,
-      "Introduction": 4,
-      "Theory": 4,
-      "Application": 3
+    "source_path": "horary_knowledge/astrocartography_books_text/The_Astrology_of_Death_Richard_Houck_z-library.sk_1lib.sk_z-lib.sk.txt",
+    "role": "Out-of-scope natal and predictive mortality text",
+    "preferred_use": "Do not use in astrocartography retrieval, interpretations, risk scoring, or validation.",
+    "authority": {
+      "tier": "tier-5-excluded",
+      "rank": 5,
+      "rationale": "This is not an astrocartography source. Its presence in the original desktop batch does not make mortality doctrine relevant to location lines."
     },
-    "normalized_book_path": "C:\\Users\\sabaa\\Downloads\\codexhorary\\horary_knowledge\\astrocartography_knowledge_base\\normalized_books\\astrology_of_death.md",
-    "source_chars": 737818
+    "default_claim_classification": "direct",
+    "retrieval": {
+      "enabled": false,
+      "scopes": [],
+      "exclusion_reason": "Non-astrocartography health/death material can create unsafe and false location-risk inferences.",
+      "limitations": ""
+    },
+    "rights": {
+      "status": "copyright-status-unverified-treat-as-restricted",
+      "redistribution": "not-cleared",
+      "evidence": [
+        "No copyright page was captured in the local extraction."
+      ],
+      "notes": "Treat as restricted unless permission is documented."
+    },
+    "original": {
+      "file_name": "The Astrology of Death (Richard Houck) (z-library.sk, 1lib.sk, z-lib.sk).pdf",
+      "sha256": "f70e9c75bd9b3086a6ce1d43910f32fbc6cf1ab37b3401001bf1789de4bea555",
+      "bytes": 5085991,
+      "page_count": 363,
+      "repository_status": "external-local-source-not-committed"
+    },
+    "extracted": {
+      "repo_path": "horary_knowledge/astrocartography_books_text/The_Astrology_of_Death_Richard_Houck_z-library.sk_1lib.sk_z-lib.sk.txt",
+      "sha256": "7883116c8d3c6363a71b175e57d8ce7b6937abdbc1e9903f4186cd0feb584396",
+      "bytes": 755355,
+      "characters": 737818,
+      "page_markers": 363,
+      "first_page": 1,
+      "last_page": 363,
+      "missing_pages": [],
+      "coverage_status": "complete-page-marker-coverage",
+      "extraction": {
+        "extractor": "pypdf.PdfReader.extract_text",
+        "extractor_version": "unrecorded-legacy",
+        "extracted_on": "2026-04-04",
+        "notes": "Legacy extraction did not record the installed pypdf version."
+      }
+    },
+    "normalized_book_path": null,
+    "guide_path": null,
+    "chunk_count": 0
   }
 ]

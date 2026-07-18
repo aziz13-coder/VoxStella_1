@@ -1,8 +1,12 @@
+import math
 from pathlib import Path
 import sys
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import astrocartography_service
 from astrocartography_assets import load_astrocartography_assets
 from astrocartography_service import (
     build_delineation_report,
@@ -47,6 +51,107 @@ def test_build_lines_returns_rising_and_setting_curves():
     assert "Sun:DSC" in ids
 
 
+def test_generated_meridian_distance_is_spherical_at_high_latitude():
+    payload = build_astrocartography_lines(
+        "2024-01-01T00:00:00Z",
+        bodies=["Sun"],
+        angles=["MC"],
+    )
+    mc_line = payload["lines"][0]
+    line_longitude = float(mc_line["geometry"]["substellar_longitude_deg"])
+    query_longitude = ((line_longitude + 4.0 + 180.0) % 360.0) - 180.0
+
+    reading = build_location_reading(
+        [mc_line],
+        latitude=80.0,
+        longitude=query_longitude,
+        limit=1,
+    )
+
+    assert reading["nearest_lines"][0]["distance_km"] == pytest.approx(77.2, abs=0.2)
+    assert reading["nearest_lines"][0]["zone"] == "primary"
+    assert reading["nearest_lines"][0]["signal_score"] == 92
+
+
+def test_rising_curve_includes_and_scores_exact_circumpolar_tangent():
+    payload = build_astrocartography_lines(
+        "2024-01-01T00:00:00Z",
+        bodies=["Sun"],
+        angles=["ASC"],
+    )
+    asc_line = payload["lines"][0]
+    geometry = asc_line["geometry"]
+    northern_tangent = max(geometry["endpoints"], key=lambda point: point[0])
+
+    assert northern_tangent[0] == pytest.approx(
+        90.0 - abs(float(geometry["dec_deg"])),
+        abs=1e-9,
+    )
+    assert northern_tangent[0] == pytest.approx(66.9415303549, abs=1e-8)
+    assert northern_tangent[1] == pytest.approx(-179.2302958368, abs=1e-8)
+    assert any(
+        abs(float(point[0]) - northern_tangent[0]) < 1e-5
+        and abs(float(point[1]) - northern_tangent[1]) < 1e-5
+        for segment in asc_line["segments"]
+        for point in segment
+    )
+
+    reading = build_location_reading(
+        [asc_line],
+        latitude=northern_tangent[0],
+        longitude=northern_tangent[1],
+        limit=1,
+    )
+    assert reading["nearest_lines"][0]["distance_km"] == 0.0
+    assert reading["nearest_lines"][0]["zone"] == "primary"
+    assert reading["nearest_lines"][0]["signal_score"] == 100
+
+
+def test_setting_curve_inserts_paired_antimeridian_endpoints():
+    payload = build_astrocartography_lines(
+        "2024-01-01T00:00:00Z",
+        bodies=["Moon"],
+        angles=["DSC"],
+    )
+    dsc_line = payload["lines"][0]
+    seam_points = [
+        point
+        for segment in dsc_line["segments"]
+        for point in segment
+        if abs(abs(float(point[1])) - 180.0) < 1e-9
+    ]
+
+    assert len(seam_points) == 2
+    assert {float(point[1]) for point in seam_points} == {-180.0, 180.0}
+    assert seam_points[0][0] == pytest.approx(66.5117520643, abs=1e-6)
+    assert seam_points[1][0] == pytest.approx(seam_points[0][0], abs=1e-9)
+
+
+def test_adaptive_display_polyline_stays_on_authoritative_half_arc():
+    payload = build_astrocartography_lines(
+        "2024-01-01T00:00:00Z",
+        bodies=["Sun"],
+        angles=["ASC"],
+    )
+    line = payload["lines"][0]
+    normal = line["geometry"]["normal"]
+    midpoint = line["geometry"]["midpoint"]
+
+    for segment in line["segments"]:
+        vectors = [
+            astrocartography_service._latlon_to_unit(point[0], point[1])
+            for point in segment
+        ]
+        for vector in vectors:
+            assert abs(astrocartography_service._vector_dot(vector, normal)) < 2e-8
+            assert astrocartography_service._vector_dot(vector, midpoint) >= -1e-8
+        for start, end in zip(vectors, vectors[1:]):
+            step_deg = math.degrees(
+                astrocartography_service._angular_distance_rad(start, end)
+            )
+            assert step_deg <= 12.01
+
+
 def test_build_lines_supports_chiron_filter_without_default_broadening():
     payload = build_astrocartography_lines(
         "2024-01-01T00:00:00Z",
@@ -56,6 +161,58 @@ def test_build_lines_supports_chiron_filter_without_default_broadening():
 
     assert payload["bodies"] == ["Chiron"]
     assert {line["id"] for line in payload["lines"]} == {"Chiron:MC"}
+    assert payload["calculation"]["degraded"] is False
+    calculation = payload["calculation"]["bodies"]["Chiron"]
+    assert calculation["returned_flags"] & astrocartography_service.swe.FLG_MOSEPH
+    assert calculation["position_source"] == "moshier"
+    assert calculation["position_source"] == calculation["ephemeris_engine"]
+    assert calculation["position_source"] == astrocartography_service._ephemeris_engine_from_flags(
+        calculation["returned_flags"]
+    )
+    assert calculation["orbital_data_source"] == "swiss-ephemeris-asteroid-file"
+
+
+@pytest.mark.parametrize(
+    ("year", "expected_ra_deg"),
+    [
+        (1900, 258.341695),
+        (1950, 255.056557),
+        (2024, 13.713121),
+    ],
+)
+def test_chiron_lines_use_bundled_ephemeris_across_natal_dates(year, expected_ra_deg):
+    payload = build_astrocartography_lines(
+        f"{year:04d}-01-01T00:00:00Z",
+        bodies=["Chiron"],
+        angles=["MC"],
+    )
+    line = payload["lines"][0]
+
+    assert float(line["geometry"]["ra_deg"]) == pytest.approx(expected_ra_deg, abs=1e-5)
+    assert line["calculation"]["degraded"] is False
+    assert line["calculation"]["accuracy"] == "ephemeris"
+    assert line["calculation"]["ranking_eligible"] is True
+
+
+def test_chiron_fallback_is_explicitly_marked_degraded(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        astrocartography_service,
+        "_resolve_astrocartography_ephemeris_path",
+        lambda: str(tmp_path),
+    )
+
+    payload = build_astrocartography_lines(
+        "2024-01-01T00:00:00Z",
+        bodies=["Chiron"],
+        angles=["MC"],
+    )
+    calculation = payload["calculation"]["bodies"]["Chiron"]
+
+    assert payload["calculation"]["degraded"] is True
+    assert calculation["degraded"] is True
+    assert calculation["accuracy"] == "low"
+    assert calculation["ranking_eligible"] is False
+    assert calculation["position_source"] == "jpl-elements-two-body-fallback"
 
 
 def test_build_lines_does_not_broaden_invalid_body_filter():
@@ -209,6 +366,42 @@ def test_crossing_candidates_for_point_detects_exact_intersection():
     assert set(crossings[0]["planets"]) == {"Sun", "Venus"}
 
 
+def test_generated_crossing_is_exact_and_dateline_safe():
+    timestamp = "2024-01-01T00:00:00Z"
+    expected_point = [66.9689294751, -179.2302958368]
+    payload = build_astrocartography_lines(
+        timestamp,
+        bodies=["Sun", "Moon"],
+        angles=["MC", "DSC"],
+    )
+    nearest = nearest_lines_for_point(
+        payload["lines"],
+        latitude=expected_point[0],
+        longitude=expected_point[1],
+        limit=8,
+    )
+
+    crossings = crossing_candidates_for_point(
+        payload["lines"],
+        latitude=expected_point[0],
+        longitude=expected_point[1],
+        nearest_rows=nearest,
+        limit=8,
+        max_distance_km=1200.0,
+    )
+    crossing = next(
+        item
+        for item in crossings
+        if item["canonical_event_id"] == "angular-event:Moon:DSC|Sun:MC"
+    )
+
+    assert crossing["kind"] == "crossing"
+    assert crossing["event_kind"] == "angular-line-crossing"
+    assert crossing["distance_km"] == 0.0
+    assert crossing["point"][0] == pytest.approx(expected_point[0], abs=1e-6)
+    assert crossing["point"][1] == pytest.approx(expected_point[1], abs=1e-6)
+
+
 def test_build_intersection_workspace_surfaces_geometry_points():
     lines = [
         {
@@ -232,6 +425,8 @@ def test_build_intersection_workspace_surfaces_geometry_points():
     assert workspace["exact_count"] >= 1
     assert workspace["geometry_points"]
     assert set(workspace["primary_crossings"][0]["planets"]) == {"Sun", "Venus"}
+    assert workspace["geometry_points"][0]["canonical_event_id"] == "angular-event:Sun:MC|Venus:ASC"
+    assert workspace["geometry_points"][0]["event_kind"] == "angular-line-crossing"
 
 
 def test_build_local_space_rays_returns_visible_and_hidden_sets():
@@ -287,6 +482,31 @@ def test_build_paran_candidates_for_point_detects_matching_event_pair():
         assert {"ASC", "DSC", "MC", "IC"} >= {payload["items"][0]["angle_a"], payload["items"][0]["angle_b"]}
 
 
+def test_point_paran_uses_exact_root_and_canonical_crossing_identity():
+    expected_point = [66.9689294751, -179.2302958368]
+    payload = build_paran_candidates_for_point(
+        "2024-01-01T00:00:00Z",
+        latitude=expected_point[0],
+        longitude=expected_point[1],
+        bodies=["Moon", "Sun"],
+        limit=8,
+        max_distance_km=1200.0,
+        orb_deg=0.01,
+    )
+    paran = next(
+        item
+        for item in payload["items"]
+        if item["canonical_event_id"] == "angular-event:Moon:DSC|Sun:MC"
+    )
+
+    assert payload["calculation_mode"] == "analytic-spherical-root"
+    assert paran["event_kind"] == "paran-crossing-point"
+    assert paran["root_residual_deg"] < 1e-7
+    assert paran["distance_km"] == 0.0
+    assert paran["point"][0] == pytest.approx(expected_point[0], abs=1e-6)
+    assert paran["point"][1] == pytest.approx(expected_point[1], abs=1e-6)
+
+
 def test_build_global_paran_tracks_returns_track_payload():
     payload = build_global_paran_tracks(
         "2024-01-01T00:00:00Z",
@@ -301,6 +521,34 @@ def test_build_global_paran_tracks_returns_track_payload():
     if payload["tracks"]:
         assert payload["tracks"][0]["kind"] == "global-paran"
         assert payload["tracks"][0]["segments"]
+
+
+def test_global_parans_are_exact_latitude_roots_not_sample_bands():
+    payload = build_global_paran_tracks(
+        "2024-01-01T00:00:00Z",
+        bodies=["Sun", "Moon"],
+        orb_deg=0.01,
+        limit=20,
+        min_points=999,
+    )
+    track = next(
+        item
+        for item in payload["tracks"]
+        if item["canonical_event_id"] == "angular-event:Moon:DSC|Sun:MC"
+    )
+
+    assert payload["calculation_mode"] == "analytic-spherical-root"
+    assert payload["latitude_step_deg"] == 0
+    assert payload["track_count"] == 4
+    assert track["event_kind"] == "paran-latitude-corridor"
+    assert track["root_residual_deg"] < 1e-7
+    assert track["root_point"][0] == pytest.approx(66.9689294751, abs=1e-6)
+    assert track["root_point"][1] == pytest.approx(-179.2302958368, abs=1e-6)
+    assert all(
+        float(point[0]) == pytest.approx(66.9689294751, abs=1e-6)
+        for segment in track["segments"]
+        for point in segment
+    )
 
 
 def test_build_delineation_report_returns_cards_and_sections():
