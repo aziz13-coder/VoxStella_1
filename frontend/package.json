@@ -1,7 +1,7 @@
 {
   "name": "vox-stella",
   "private": true,
-  "version": "3.1.3",
+  "version": "3.1.4",
   "packageManager": "npm@10.9.8",
   "homepage": "./",
   "description": "Vox Stella - Traditional Horary Astrology Application",
@@ -194,6 +194,6 @@
     "compression": "normal",
     "buildDependenciesFromSource": false,
     "nodeGypRebuild": false,
-    "buildVersion": "3.1.3"
+    "buildVersion": "3.1.4"
   }
 }
