@@ -8,7 +8,7 @@
       "version": "2.0.0",
       "status": "active",
       "summary": "Ranks places for study, teaching, research, and disciplined skill-building.",
-      "description": "Reworked to stay distinct from beliefs and communication: stronger Mercury/Saturn study logic, lower dependence on spiritual meaning or public profile, and clearer emphasis on structured learning.",
+      "description": "Reworked around Mercury/Jupiter learning and MC/Saturn structure, with explicitly experimental 9th-house corroboration, so formal education remains distinct from everyday communication.",
       "goal_family": "education",
       "legacy_refs": [
         {
@@ -27,26 +27,31 @@
           "kind": "line",
           "planet": "Mercury",
           "angles": [
-            "ASC",
             "MC"
           ],
           "distance": {
             "max_km": 300.0,
             "falloff": "linear"
           },
-          "weight": 6.2,
+          "weight": 5.2,
           "polarity": "support",
           "source_status": "synthesis",
           "evidence_role": "local",
-          "rationale": "Mercury remains the clearest study, language, and technical learning signature.",
-          "component_id": "education.line.01",
-          "evidence_refs": []
+          "evidence_refs": [
+            "acg-claim-lewis-planetary-location-baselines",
+            "acg-claim-four-angles-have-distinct-frames",
+            "acg-claim-explicit-planet-angle-matrix",
+            "acg-src-lewis-guttman-1989.page-0013.chunk-001",
+            "acg-src-lewis-guttman-1989.page-0014.chunk-002",
+            "acg-src-furst-best-places-2015.page-0034.chunk-001"
+          ],
+          "rationale": "Mercury MC supports formal study, teaching, technical learning, and the public use of acquired knowledge.",
+          "component_id": "education.line.01"
         },
         {
           "kind": "line",
           "planet": "Jupiter",
           "angles": [
-            "ASC",
             "MC"
           ],
           "distance": {
@@ -57,65 +62,65 @@
           "polarity": "support",
           "source_status": "synthesis",
           "evidence_role": "local",
-          "rationale": "Jupiter supports teaching, breadth, and academic expansion without defining the whole model.",
-          "component_id": "education.line.02",
-          "evidence_refs": []
+          "evidence_refs": [
+            "acg-claim-lewis-planetary-location-baselines",
+            "acg-claim-four-angles-have-distinct-frames",
+            "acg-claim-explicit-planet-angle-matrix",
+            "acg-src-lewis-guttman-1989.page-0013.chunk-001",
+            "acg-src-lewis-guttman-1989.page-0014.chunk-002",
+            "acg-src-furst-best-places-2015.page-0042.chunk-001"
+          ],
+          "rationale": "Jupiter MC supports academic breadth, teaching, and public educational authority.",
+          "component_id": "education.line.02"
         },
         {
           "kind": "line",
           "planet": "Saturn",
           "angles": [
-            "MC",
-            "ASC"
-          ],
-          "distance": {
-            "max_km": 300.0,
-            "falloff": "linear"
-          },
-          "weight": 2.6,
-          "polarity": "support",
-          "source_status": "synthesis",
-          "evidence_role": "local",
-          "rationale": "Saturn adds discipline, persistence, and serious mastery.",
-          "component_id": "education.line.03",
-          "evidence_refs": []
-        },
-        {
-          "kind": "line",
-          "planet": "Moon",
-          "angles": [
-            "IC"
-          ],
-          "distance": {
-            "max_km": 300.0,
-            "falloff": "linear"
-          },
-          "weight": 1.0,
-          "polarity": "support",
-          "source_status": "synthesis",
-          "evidence_role": "local",
-          "rationale": "Moon IC can stabilize the domestic base needed for long-form study.",
-          "component_id": "education.line.04",
-          "evidence_refs": []
-        },
-        {
-          "kind": "line",
-          "planet": "Neptune",
-          "angles": [
-            "ASC",
             "MC"
           ],
           "distance": {
             "max_km": 300.0,
             "falloff": "linear"
           },
-          "weight": -4.0,
+          "weight": 2.8,
+          "polarity": "support",
+          "source_status": "synthesis",
+          "evidence_role": "local",
+          "evidence_refs": [
+            "acg-claim-lewis-planetary-location-baselines",
+            "acg-claim-four-angles-have-distinct-frames",
+            "acg-claim-explicit-planet-angle-matrix",
+            "acg-src-lewis-guttman-1989.page-0013.chunk-001",
+            "acg-src-lewis-guttman-1989.page-0014.chunk-002",
+            "acg-src-furst-best-places-2015.page-0045.chunk-001"
+          ],
+          "rationale": "Saturn MC adds discipline, persistence, formal structure, and serious mastery.",
+          "component_id": "education.line.03"
+        },
+        {
+          "kind": "line",
+          "planet": "Neptune",
+          "angles": [
+            "MC"
+          ],
+          "distance": {
+            "max_km": 300.0,
+            "falloff": "linear"
+          },
+          "weight": -3.5,
           "polarity": "caution",
           "source_status": "synthesis",
           "evidence_role": "local",
-          "rationale": "Neptune is a caution factor for confusion, glamour, and scattered judgment.",
-          "component_id": "education.line.05",
-          "evidence_refs": []
+          "evidence_refs": [
+            "acg-claim-lewis-planetary-location-baselines",
+            "acg-claim-four-angles-have-distinct-frames",
+            "acg-claim-explicit-planet-angle-matrix",
+            "acg-src-lewis-guttman-1989.page-0013.chunk-001",
+            "acg-src-lewis-guttman-1989.page-0014.chunk-002"
+          ],
+          "rationale": "Neptune MC is a caution for ambiguity in public or educational direction.",
+          "component_id": "education.line.04"
         },
         {
           "kind": "crossing",
@@ -127,33 +132,41 @@
             "max_km": 300.0,
             "falloff": "linear"
           },
-          "weight": 4.0,
+          "weight": 5.0,
           "interaction_scale": 0.5,
           "polarity": "support",
-          "source_status": "synthesis",
+          "source_status": "experimental",
           "evidence_role": "local",
-          "rationale": "Mercury/Jupiter crossings remain strong for learning, publishing, and intellectual expansion.",
-          "component_id": "education.crossing.06",
-          "evidence_refs": []
+          "evidence_refs": [
+            "acg-claim-intersections-and-parans-need-separate-labels",
+            "acg-src-furst-best-places-2015.page-0034.chunk-001",
+            "acg-src-hermes-map-2023.page-0122.chunk-002"
+          ],
+          "rationale": "Mercury/Jupiter is an experimental interaction for broad study and philosophical exchange.",
+          "component_id": "education.crossing.05"
         },
         {
           "kind": "crossing",
           "pair": [
             "Mercury",
-            "Uranus"
+            "Saturn"
           ],
           "distance": {
             "max_km": 300.0,
             "falloff": "linear"
           },
-          "weight": 2.2,
+          "weight": 3.4,
           "interaction_scale": 0.5,
           "polarity": "support",
-          "source_status": "synthesis",
+          "source_status": "experimental",
           "evidence_role": "local",
-          "rationale": "Mercury/Uranus sharpens invention, breakthrough thinking, and modern research.",
-          "component_id": "education.crossing.07",
-          "evidence_refs": []
+          "evidence_refs": [
+            "acg-claim-intersections-and-parans-need-separate-labels",
+            "acg-src-furst-best-places-2015.page-0034.chunk-001",
+            "acg-src-hermes-map-2023.page-0130.chunk-002"
+          ],
+          "rationale": "Mercury/Saturn is an experimental interaction for concentration, method, and disciplined learning.",
+          "component_id": "education.crossing.06"
         },
         {
           "kind": "crossing",
@@ -165,14 +178,18 @@
             "max_km": 300.0,
             "falloff": "linear"
           },
-          "weight": -3.0,
+          "weight": -2.5,
           "interaction_scale": 0.5,
           "polarity": "caution",
-          "source_status": "synthesis",
+          "source_status": "experimental",
           "evidence_role": "local",
+          "evidence_refs": [
+            "acg-claim-intersections-and-parans-need-separate-labels",
+            "acg-src-lewis-guttman-1989.page-0013.chunk-001",
+            "acg-src-lewis-guttman-1989.page-0014.chunk-001"
+          ],
           "rationale": "Mercury/Neptune can blur precision and make study less grounded.",
-          "component_id": "education.crossing.08",
-          "evidence_refs": []
+          "component_id": "education.crossing.07"
         },
         {
           "kind": "relocation",
@@ -182,57 +199,60 @@
             "Saturn"
           ],
           "houses": [
-            3,
-            9,
-            10
+            9
           ],
           "angles": [],
-          "weight": 4.2,
-          "source_status": "synthesis",
+          "weight": 4.8,
+          "source_status": "experimental",
           "evidence_role": "local",
-          "rationale": "Relocated charts are favorable when learning planets land in study, doctrine, and disciplined public-development houses.",
-          "component_id": "education.relocation.09",
-          "evidence_refs": []
-        },
-        {
-          "kind": "modifier",
-          "metric": "mobility",
-          "weight": 2.4,
-          "source_status": "synthesis",
-          "evidence_role": "local",
-          "rationale": "Education improves when the relocated chart stays mentally active, exploratory, and curious.",
-          "component_id": "education.modifier.10",
-          "evidence_refs": []
+          "evidence_refs": [
+            "acg-claim-advisory-layered-workflow",
+            "acg-claim-legacy-artifacts-are-parity-only",
+            "acg-src-furst-best-places-2015.page-0066.chunk-001",
+            "acg-src-furst-best-places-2015.page-0067.chunk-001"
+          ],
+          "rationale": "Vox Stella uses an experimental 9th-house relocation emphasis as study corroboration; it is not a recovered Mercury/Jupiter/Saturn formula.",
+          "component_id": "education.relocation.08"
         },
         {
           "kind": "modifier",
           "metric": "stability",
-          "weight": 1.6,
-          "source_status": "synthesis",
+          "weight": 2.4,
+          "source_status": "experimental",
           "evidence_role": "local",
+          "evidence_refs": [
+            "acg-claim-advisory-layered-workflow",
+            "acg-claim-legacy-artifacts-are-parity-only",
+            "acg-src-furst-best-places-2015.page-0045.chunk-001"
+          ],
           "rationale": "Sustained study benefits from enough structure to keep progress coherent.",
-          "component_id": "education.modifier.11",
-          "evidence_refs": []
+          "component_id": "education.modifier.09"
         },
         {
           "kind": "modifier",
           "metric": "visibility",
-          "weight": 0.8,
-          "source_status": "synthesis",
+          "weight": 0.5,
+          "source_status": "experimental",
           "evidence_role": "local",
-          "rationale": "Some public visibility helps education turn into teaching or publication, but it is secondary.",
-          "component_id": "education.modifier.12",
-          "evidence_refs": []
+          "evidence_refs": [
+            "acg-claim-four-angles-have-distinct-frames",
+            "acg-claim-advisory-layered-workflow"
+          ],
+          "rationale": "Some public visibility helps education turn into teaching or publication, but it is secondary to study and structure.",
+          "component_id": "education.modifier.10"
         },
         {
           "kind": "modifier",
           "metric": "uncertainty",
-          "weight": -2.6,
-          "source_status": "synthesis",
+          "weight": -2.4,
+          "source_status": "experimental",
           "evidence_role": "local",
+          "evidence_refs": [
+            "acg-claim-no-universal-good-bad-planets",
+            "acg-claim-advisory-layered-workflow"
+          ],
           "rationale": "High uncertainty weakens focus, retention, and coherent educational progress.",
-          "component_id": "education.modifier.13",
-          "evidence_refs": []
+          "component_id": "education.modifier.11"
         },
         {
           "kind": "constraint",
@@ -240,12 +260,16 @@
           "operator": "gte",
           "threshold": 0.2,
           "polarity": "support",
-          "source_status": "synthesis",
+          "source_status": "experimental",
           "evidence_role": "local",
+          "evidence_refs": [
+            "acg-claim-advisory-layered-workflow",
+            "acg-claim-legacy-artifacts-are-parity-only",
+            "acg-src-furst-best-places-2015.page-0045.chunk-001"
+          ],
           "rationale": "Structured environments deserve a modest study bonus.",
           "multiplier": 1.05,
-          "component_id": "education.constraint.14",
-          "evidence_refs": []
+          "component_id": "education.constraint.12"
         }
       ],
       "normalization": {
@@ -3351,8 +3375,8 @@
       "label": "Communication",
       "version": "2.0.0",
       "status": "active",
-      "summary": "Ranks places for writing, teaching, messaging, networking, sales, and intellectually social work.",
-      "description": "Built from the corpus' Mercury-forward communication themes and aligned with the recovered CHATTER.HYP legacy family.",
+      "summary": "Ranks places for writing, messaging, negotiation, networking, sales, and exchange-heavy work.",
+      "description": "Built from Mercury-forward contact, writing, and exchange themes, with a clearly labeled experimental 3rd/7th/11th relocation layer distinct from structured education.",
       "goal_family": "communication",
       "legacy_refs": [
         {
@@ -3377,9 +3401,36 @@
           "kind": "line",
           "planet": "Mercury",
           "angles": [
-            "ASC",
-            "MC",
             "DSC"
+          ],
+          "distance": {
+            "max_km": 300.0,
+            "falloff": "linear"
+          },
+          "weight": 7.0,
+          "polarity": "support",
+          "source_status": "synthesis",
+          "evidence_role": "local",
+          "evidence_refs": [
+            "acg-claim-lewis-planetary-location-baselines",
+            "acg-claim-four-angles-have-distinct-frames",
+            "acg-claim-explicit-planet-angle-matrix",
+            "acg-src-lewis-guttman-1989.page-0013.chunk-001",
+            "acg-src-lewis-guttman-1989.page-0014.chunk-002",
+            "acg-claim-lewis-descendant-externalizes-planets",
+            "acg-src-lewis-guttman-1989.page-0014.chunk-005",
+            "acg-src-furst-best-places-2015.page-0034.chunk-001",
+            "acg-src-hermes-map-2023.page-0037.chunk-001"
+          ],
+          "rationale": "Mercury DSC is the clearest direct-conversation, negotiation, trade, and person-to-person exchange signature in the corpus.",
+          "component_id": "communication.line.01"
+        },
+        {
+          "kind": "line",
+          "planet": "Mercury",
+          "angles": [
+            "ASC",
+            "MC"
           ],
           "distance": {
             "max_km": 300.0,
@@ -3389,16 +3440,22 @@
           "polarity": "support",
           "source_status": "synthesis",
           "evidence_role": "local",
-          "rationale": "Mercury is the clearest language, trade, writing, and exchange signature in the corpus.",
-          "component_id": "communication.line.01",
-          "evidence_refs": []
+          "evidence_refs": [
+            "acg-claim-lewis-planetary-location-baselines",
+            "acg-claim-four-angles-have-distinct-frames",
+            "acg-claim-explicit-planet-angle-matrix",
+            "acg-src-lewis-guttman-1989.page-0013.chunk-001",
+            "acg-src-lewis-guttman-1989.page-0014.chunk-002",
+            "acg-src-furst-best-places-2015.page-0034.chunk-001"
+          ],
+          "rationale": "Mercury ASC or MC supports writing and outward messaging, while remaining distinct from a broader academic model.",
+          "component_id": "communication.line.02"
         },
         {
           "kind": "line",
-          "planet": "Jupiter",
+          "planet": "Venus",
           "angles": [
-            "ASC",
-            "MC"
+            "DSC"
           ],
           "distance": {
             "max_km": 300.0,
@@ -3408,34 +3465,22 @@
           "polarity": "support",
           "source_status": "synthesis",
           "evidence_role": "local",
-          "rationale": "Jupiter broadens reach, teaching, publication, and meaningful exchange.",
-          "component_id": "communication.line.02",
-          "evidence_refs": []
-        },
-        {
-          "kind": "line",
-          "planet": "Venus",
-          "angles": [
-            "ASC",
-            "DSC"
+          "evidence_refs": [
+            "acg-claim-lewis-planetary-location-baselines",
+            "acg-claim-four-angles-have-distinct-frames",
+            "acg-claim-explicit-planet-angle-matrix",
+            "acg-src-lewis-guttman-1989.page-0013.chunk-001",
+            "acg-src-lewis-guttman-1989.page-0014.chunk-002",
+            "acg-claim-lewis-descendant-externalizes-planets",
+            "acg-src-lewis-guttman-1989.page-0014.chunk-005"
           ],
-          "distance": {
-            "max_km": 300.0,
-            "falloff": "linear"
-          },
-          "weight": 2.8,
-          "polarity": "support",
-          "source_status": "synthesis",
-          "evidence_role": "local",
-          "rationale": "Venus smooths diplomacy, social ease, and pleasing communication.",
-          "component_id": "communication.line.03",
-          "evidence_refs": []
+          "rationale": "Venus DSC smooths diplomacy, negotiation, and person-to-person exchange.",
+          "component_id": "communication.line.03"
         },
         {
           "kind": "line",
           "planet": "Moon",
           "angles": [
-            "IC",
             "DSC"
           ],
           "distance": {
@@ -3446,66 +3491,43 @@
           "polarity": "support",
           "source_status": "synthesis",
           "evidence_role": "local",
-          "rationale": "Moon adds emotional receptivity and audience feel.",
-          "component_id": "communication.line.04",
-          "evidence_refs": []
+          "evidence_refs": [
+            "acg-claim-lewis-planetary-location-baselines",
+            "acg-claim-four-angles-have-distinct-frames",
+            "acg-claim-explicit-planet-angle-matrix",
+            "acg-src-lewis-guttman-1989.page-0013.chunk-001",
+            "acg-src-lewis-guttman-1989.page-0014.chunk-002",
+            "acg-claim-lewis-descendant-externalizes-planets",
+            "acg-src-lewis-guttman-1989.page-0014.chunk-005"
+          ],
+          "rationale": "Moon DSC adds receptivity and audience awareness in direct exchange.",
+          "component_id": "communication.line.04"
         },
         {
           "kind": "line",
           "planet": "Uranus",
           "angles": [
             "ASC",
-            "MC"
+            "DSC"
           ],
           "distance": {
             "max_km": 300.0,
             "falloff": "linear"
           },
-          "weight": 2.4,
+          "weight": 2.2,
           "polarity": "support",
           "source_status": "synthesis",
           "evidence_role": "local",
-          "rationale": "Uranus sharpens originality and modern messaging.",
-          "component_id": "communication.line.05",
-          "evidence_refs": []
-        },
-        {
-          "kind": "line",
-          "planet": "Neptune",
-          "angles": [
-            "ASC",
-            "MC"
+          "evidence_refs": [
+            "acg-claim-lewis-planetary-location-baselines",
+            "acg-claim-four-angles-have-distinct-frames",
+            "acg-claim-explicit-planet-angle-matrix",
+            "acg-src-lewis-guttman-1989.page-0013.chunk-001",
+            "acg-src-lewis-guttman-1989.page-0014.chunk-002",
+            "acg-src-furst-best-places-2015.page-0034.chunk-001"
           ],
-          "distance": {
-            "max_km": 300.0,
-            "falloff": "linear"
-          },
-          "weight": -3.0,
-          "polarity": "caution",
-          "source_status": "synthesis",
-          "evidence_role": "local",
-          "rationale": "Neptune can weaken precision and clean signal flow.",
-          "component_id": "communication.line.06",
-          "evidence_refs": []
-        },
-        {
-          "kind": "crossing",
-          "pair": [
-            "Mercury",
-            "Jupiter"
-          ],
-          "distance": {
-            "max_km": 300.0,
-            "falloff": "linear"
-          },
-          "weight": 4.0,
-          "interaction_scale": 0.5,
-          "polarity": "support",
-          "source_status": "synthesis",
-          "evidence_role": "local",
-          "rationale": "Mercury/Jupiter is strong for teaching, publishing, and big-idea communication.",
-          "component_id": "communication.crossing.07",
-          "evidence_refs": []
+          "rationale": "Uranus on contact axes supports fast, inventive, and modern messaging.",
+          "component_id": "communication.line.05"
         },
         {
           "kind": "crossing",
@@ -3517,14 +3539,18 @@
             "max_km": 300.0,
             "falloff": "linear"
           },
-          "weight": 3.0,
+          "weight": 3.6,
           "interaction_scale": 0.5,
           "polarity": "support",
-          "source_status": "synthesis",
+          "source_status": "experimental",
           "evidence_role": "local",
+          "evidence_refs": [
+            "acg-claim-intersections-and-parans-need-separate-labels",
+            "acg-src-hermes-map-2023.page-0124.chunk-002",
+            "acg-src-furst-best-places-2015.page-0123.chunk-001"
+          ],
           "rationale": "Mercury/Venus helps language sound attractive, persuasive, and relational.",
-          "component_id": "communication.crossing.08",
-          "evidence_refs": []
+          "component_id": "communication.crossing.06"
         },
         {
           "kind": "crossing",
@@ -3536,14 +3562,18 @@
             "max_km": 300.0,
             "falloff": "linear"
           },
-          "weight": 2.7,
+          "weight": 3.0,
           "interaction_scale": 0.5,
           "polarity": "support",
-          "source_status": "synthesis",
+          "source_status": "experimental",
           "evidence_role": "local",
-          "rationale": "Mercury/Uranus supports inventive, fast, and modern communication.",
-          "component_id": "communication.crossing.09",
-          "evidence_refs": []
+          "evidence_refs": [
+            "acg-claim-intersections-and-parans-need-separate-labels",
+            "acg-src-furst-best-places-2015.page-0034.chunk-001",
+            "acg-src-hermes-map-2023.page-0123.chunk-001"
+          ],
+          "rationale": "Mercury/Uranus supports inventive, rapid, and networked communication.",
+          "component_id": "communication.crossing.07"
         },
         {
           "kind": "crossing",
@@ -3555,66 +3585,84 @@
             "max_km": 300.0,
             "falloff": "linear"
           },
-          "weight": -3.0,
+          "weight": -2.8,
           "interaction_scale": 0.5,
           "polarity": "caution",
-          "source_status": "synthesis",
+          "source_status": "experimental",
           "evidence_role": "local",
-          "rationale": "Mercury/Neptune can create glamour and ambiguity instead of clarity.",
-          "component_id": "communication.crossing.10",
-          "evidence_refs": []
+          "evidence_refs": [
+            "acg-claim-intersections-and-parans-need-separate-labels",
+            "acg-src-lewis-guttman-1989.page-0013.chunk-001",
+            "acg-src-lewis-guttman-1989.page-0014.chunk-001"
+          ],
+          "rationale": "Mercury/Neptune can replace precise exchange with glamour or ambiguity.",
+          "component_id": "communication.crossing.08"
         },
         {
           "kind": "relocation",
           "planets": [
             "Mercury",
             "Venus",
-            "Jupiter",
             "Moon"
           ],
           "houses": [
             3,
             7,
-            9,
             11
           ],
           "angles": [],
-          "weight": 4.0,
-          "source_status": "synthesis",
+          "weight": 4.5,
+          "source_status": "experimental",
           "evidence_role": "local",
-          "rationale": "Relocated charts are stronger when communication planets land in exchange, outreach, and audience houses.",
-          "component_id": "communication.relocation.11",
-          "evidence_refs": []
+          "evidence_refs": [
+            "acg-claim-advisory-layered-workflow",
+            "acg-claim-legacy-artifacts-are-parity-only",
+            "acg-src-furst-best-places-2015.page-0018.chunk-001",
+            "acg-src-hermes-map-2023.page-0037.chunk-001"
+          ],
+          "rationale": "Vox Stella uses an experimental 3rd/7th/11th-house relocation emphasis to test contact, exchange, and audience themes; it is not a recovered source formula.",
+          "component_id": "communication.relocation.09"
         },
         {
           "kind": "modifier",
           "metric": "communication",
-          "weight": 3.2,
-          "source_status": "synthesis",
+          "weight": 3.8,
+          "source_status": "experimental",
           "evidence_role": "local",
-          "rationale": "Communication-heavy relocated charts are the clearest support for this goal.",
-          "component_id": "communication.modifier.12",
-          "evidence_refs": []
+          "evidence_refs": [
+            "acg-claim-advisory-layered-workflow",
+            "acg-claim-legacy-artifacts-are-parity-only",
+            "acg-src-furst-best-places-2015.page-0034.chunk-001"
+          ],
+          "rationale": "Communication-heavy relocated charts are the clearest direct support for this goal.",
+          "component_id": "communication.modifier.10"
         },
         {
           "kind": "modifier",
           "metric": "community",
-          "weight": 2.0,
-          "source_status": "synthesis",
+          "weight": 1.8,
+          "source_status": "experimental",
           "evidence_role": "local",
-          "rationale": "Community support helps messaging find listeners and collaborators.",
-          "component_id": "communication.modifier.13",
-          "evidence_refs": []
+          "evidence_refs": [
+            "acg-claim-advisory-layered-workflow",
+            "acg-claim-legacy-artifacts-are-parity-only",
+            "acg-src-furst-best-places-2015.page-0034.chunk-001"
+          ],
+          "rationale": "Community support helps messages reach listeners and collaborators without turning communication into an education proxy.",
+          "component_id": "communication.modifier.11"
         },
         {
           "kind": "modifier",
           "metric": "uncertainty",
-          "weight": -2.5,
-          "source_status": "synthesis",
+          "weight": -2.3,
+          "source_status": "experimental",
           "evidence_role": "local",
+          "evidence_refs": [
+            "acg-claim-no-universal-good-bad-planets",
+            "acg-claim-advisory-layered-workflow"
+          ],
           "rationale": "Unclear or unstable chart signatures reduce reliability in communication work.",
-          "component_id": "communication.modifier.14",
-          "evidence_refs": []
+          "component_id": "communication.modifier.12"
         }
       ],
       "normalization": {

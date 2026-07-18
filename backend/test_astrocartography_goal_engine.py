@@ -60,6 +60,58 @@ def test_goal_model_schema_covers_runtime_extensions():
     assert runtime_modifier_metrics <= schema_modifier_metrics
 
 
+def test_communication_and_education_keep_distinct_doctrinal_anchors():
+    communication = get_goal_model("communication")
+    education = get_goal_model("education")
+    communication_components = communication["score_components"]
+    education_components = education["score_components"]
+
+    assert any(
+        component.get("kind") == "line"
+        and component.get("planet") == "Mercury"
+        and component.get("angles") == ["DSC"]
+        for component in communication_components
+    )
+    assert any(
+        component.get("kind") == "relocation"
+        and set(component.get("houses") or []) == {3, 7, 11}
+        for component in communication_components
+    )
+    assert not any(
+        component.get("kind") in {"line", "crossing"}
+        and (
+            component.get("planet") == "Jupiter"
+            or set(component.get("pair") or []) == {"Mercury", "Jupiter"}
+        )
+        for component in communication_components
+    )
+
+    assert {
+        component.get("planet")
+        for component in education_components
+        if component.get("kind") == "line" and component.get("angles") == ["MC"]
+    } >= {"Mercury", "Jupiter"}
+    assert any(
+        component.get("kind") == "crossing"
+        and set(component.get("pair") or []) == {"Mercury", "Jupiter"}
+        for component in education_components
+    )
+    assert any(
+        component.get("kind") == "relocation"
+        and set(component.get("houses") or []) == {9}
+        for component in education_components
+    )
+    assert communication.get("legacy_refs")
+    assert education.get("legacy_refs")
+    assert all(component.get("evidence_refs") for component in communication_components)
+    assert all(component.get("evidence_refs") for component in education_components)
+    assert all(
+        component.get("source_status") == "experimental"
+        for component in communication_components + education_components
+        if component.get("kind") in {"crossing", "relocation"}
+    )
+
+
 def test_extract_relocation_features_separates_angular_houses_from_real_angle_proximity():
     chart_data = {
         "ascendant": 0.0,
@@ -1043,12 +1095,12 @@ def test_empty_evidence_returns_no_activation_instead_of_a_baseline_score():
 
 def test_natal_condition_modulates_local_evidence_without_creating_evidence():
     good_relocation = extract_relocation_features(
-        {"planets": {"Mercury": {"house": 3, "dignity_score": 6}}}
+        {"planets": {"Mercury": {"house": 9, "dignity_score": 6}}}
     )
     poor_relocation = extract_relocation_features(
-        {"planets": {"Mercury": {"house": 3, "dignity_score": -6, "retrograde": True}}}
+        {"planets": {"Mercury": {"house": 9, "dignity_score": -6, "retrograde": True}}}
     )
-    line = [{"id": "Mercury:ASC", "body": "Mercury", "angle": "ASC", "distance_km": 30.0}]
+    line = [{"id": "Mercury:MC", "body": "Mercury", "angle": "MC", "distance_km": 30.0}]
 
     good = evaluate_goal_model(
         "education",

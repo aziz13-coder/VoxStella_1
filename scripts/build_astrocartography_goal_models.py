@@ -88,6 +88,66 @@ DEFAULT_EVIDENCE_POLICY = {
     },
 }
 SPECIALIST_PARENT_WEIGHT = 0.95
+LEWIS_PLANET_ANGLE_EVIDENCE = [
+    "acg-claim-lewis-planetary-location-baselines",
+    "acg-claim-four-angles-have-distinct-frames",
+    "acg-claim-explicit-planet-angle-matrix",
+    "acg-src-lewis-guttman-1989.page-0013.chunk-001",
+    "acg-src-lewis-guttman-1989.page-0014.chunk-002",
+]
+LEWIS_DSC_EVIDENCE = [
+    *LEWIS_PLANET_ANGLE_EVIDENCE,
+    "acg-claim-lewis-descendant-externalizes-planets",
+    "acg-src-lewis-guttman-1989.page-0014.chunk-005",
+]
+FURST_MERCURY_EVIDENCE = [
+    "acg-src-furst-best-places-2015.page-0034.chunk-001",
+]
+FURST_JUPITER_EDUCATION_EVIDENCE = [
+    "acg-src-furst-best-places-2015.page-0042.chunk-001",
+]
+FURST_SATURN_STUDY_EVIDENCE = [
+    "acg-src-furst-best-places-2015.page-0045.chunk-001",
+]
+PRODUCT_RELOCATION_EVIDENCE = [
+    "acg-claim-advisory-layered-workflow",
+    "acg-claim-legacy-artifacts-are-parity-only",
+]
+EXPERIMENTAL_COMMUNICATION_HOUSE_EVIDENCE = [
+    *PRODUCT_RELOCATION_EVIDENCE,
+    "acg-src-furst-best-places-2015.page-0018.chunk-001",
+    "acg-src-hermes-map-2023.page-0037.chunk-001",
+]
+EXPERIMENTAL_EDUCATION_HOUSE_EVIDENCE = [
+    *PRODUCT_RELOCATION_EVIDENCE,
+    "acg-src-furst-best-places-2015.page-0066.chunk-001",
+    "acg-src-furst-best-places-2015.page-0067.chunk-001",
+]
+HERMES_MERCURY_VENUS_EVIDENCE = [
+    "acg-claim-intersections-and-parans-need-separate-labels",
+    "acg-src-hermes-map-2023.page-0124.chunk-002",
+    "acg-src-furst-best-places-2015.page-0123.chunk-001",
+]
+MERCURY_URANUS_EVIDENCE = [
+    "acg-claim-intersections-and-parans-need-separate-labels",
+    "acg-src-furst-best-places-2015.page-0034.chunk-001",
+    "acg-src-hermes-map-2023.page-0123.chunk-001",
+]
+MERCURY_NEPTUNE_CAUTION_EVIDENCE = [
+    "acg-claim-intersections-and-parans-need-separate-labels",
+    "acg-src-lewis-guttman-1989.page-0013.chunk-001",
+    "acg-src-lewis-guttman-1989.page-0014.chunk-001",
+]
+MERCURY_JUPITER_EVIDENCE = [
+    "acg-claim-intersections-and-parans-need-separate-labels",
+    "acg-src-furst-best-places-2015.page-0034.chunk-001",
+    "acg-src-hermes-map-2023.page-0122.chunk-002",
+]
+MERCURY_SATURN_EVIDENCE = [
+    "acg-claim-intersections-and-parans-need-separate-labels",
+    "acg-src-furst-best-places-2015.page-0034.chunk-001",
+    "acg-src-hermes-map-2023.page-0130.chunk-002",
+]
 
 
 def _distance(max_km: float = 300.0, falloff: str = "linear") -> Dict[str, Any]:
@@ -105,6 +165,7 @@ def line_component(
     polarity: str = "support",
     source_status: str = "synthesis",
     evidence_role: str = "local",
+    evidence_refs: List[str] | None = None,
 ) -> Dict[str, Any]:
     return {
         "kind": "line",
@@ -115,6 +176,7 @@ def line_component(
         "polarity": polarity,
         "source_status": source_status,
         "evidence_role": evidence_role,
+        **({"evidence_refs": list(evidence_refs)} if evidence_refs is not None else {}),
         "rationale": rationale,
     }
 
@@ -130,6 +192,7 @@ def crossing_component(
     source_status: str = "synthesis",
     evidence_role: str = "local",
     interaction_scale: float = 0.5,
+    evidence_refs: List[str] | None = None,
 ) -> Dict[str, Any]:
     return {
         "kind": "crossing",
@@ -140,6 +203,7 @@ def crossing_component(
         "polarity": polarity,
         "source_status": source_status,
         "evidence_role": evidence_role,
+        **({"evidence_refs": list(evidence_refs)} if evidence_refs is not None else {}),
         "rationale": rationale,
     }
 
@@ -153,6 +217,7 @@ def relocation_component(
     angles: List[str] | None = None,
     source_status: str = "synthesis",
     evidence_role: str = "local",
+    evidence_refs: List[str] | None = None,
 ) -> Dict[str, Any]:
     return {
         "kind": "relocation",
@@ -162,6 +227,7 @@ def relocation_component(
         "weight": weight,
         "source_status": source_status,
         "evidence_role": evidence_role,
+        **({"evidence_refs": list(evidence_refs)} if evidence_refs is not None else {}),
         "rationale": rationale,
     }
 
@@ -173,6 +239,7 @@ def modifier_component(
     *,
     source_status: str = "synthesis",
     evidence_role: str = "local",
+    evidence_refs: List[str] | None = None,
 ) -> Dict[str, Any]:
     return {
         "kind": "modifier",
@@ -180,6 +247,7 @@ def modifier_component(
         "weight": weight,
         "source_status": source_status,
         "evidence_role": evidence_role,
+        **({"evidence_refs": list(evidence_refs)} if evidence_refs is not None else {}),
         "rationale": rationale,
     }
 
@@ -195,6 +263,7 @@ def constraint_component(
     cap_score: float | None = None,
     polarity: str = "neutral",
     source_status: str = "synthesis",
+    evidence_refs: List[str] | None = None,
 ) -> Dict[str, Any]:
     component: Dict[str, Any] = {
         "kind": "constraint",
@@ -204,6 +273,7 @@ def constraint_component(
         "polarity": polarity,
         "source_status": source_status,
         "evidence_role": "local",
+        **({"evidence_refs": list(evidence_refs)} if evidence_refs is not None else {}),
         "rationale": rationale,
     }
     if multiplier is not None:
@@ -403,28 +473,86 @@ def _new_models() -> List[Dict[str, Any]]:
             "label": "Communication",
             "version": "1.0.0",
             "status": "active",
-            "summary": "Ranks places for writing, teaching, messaging, networking, sales, and intellectually social work.",
-            "description": "Built from the corpus' Mercury-forward communication themes and aligned with the recovered CHATTER.HYP legacy family.",
+            "summary": "Ranks places for writing, messaging, negotiation, networking, sales, and exchange-heavy work.",
+            "description": "Built from Mercury-forward contact, writing, and exchange themes, with a clearly labeled experimental 3rd/7th/11th relocation layer distinct from structured education.",
             "goal_family": "communication",
             "legacy_refs": [
                 legacy_ref("CHATTER.HYP", "hyp", notes=["Likely legacy rule family for conversation, messaging, and exchange-heavy environments."]),
                 legacy_ref("COMMUNICATION_BROTHER_SISTER.HYP", "hyp", notes=["External communication sibling/3rd-house variant reviewed on 2026-04-05."]),
             ],
             "score_components": [
-                line_component("Mercury", ["ASC", "MC", "DSC"], 6.5, "Mercury is the clearest language, trade, writing, and exchange signature in the corpus."),
-                line_component("Jupiter", ["ASC", "MC"], 3.4, "Jupiter broadens reach, teaching, publication, and meaningful exchange."),
-                line_component("Venus", ["ASC", "DSC"], 2.8, "Venus smooths diplomacy, social ease, and pleasing communication."),
-                line_component("Moon", ["IC", "DSC"], 2.0, "Moon adds emotional receptivity and audience feel."),
-                line_component("Uranus", ["ASC", "MC"], 2.4, "Uranus sharpens originality and modern messaging."),
-                line_component("Neptune", ["ASC", "MC"], -3.0, "Neptune can weaken precision and clean signal flow.", polarity="caution"),
-                crossing_component(["Mercury", "Jupiter"], 4.0, "Mercury/Jupiter is strong for teaching, publishing, and big-idea communication."),
-                crossing_component(["Mercury", "Venus"], 3.0, "Mercury/Venus helps language sound attractive, persuasive, and relational."),
-                crossing_component(["Mercury", "Uranus"], 2.7, "Mercury/Uranus supports inventive, fast, and modern communication."),
-                crossing_component(["Mercury", "Neptune"], -3.0, "Mercury/Neptune can create glamour and ambiguity instead of clarity.", polarity="caution"),
-                relocation_component(["Mercury", "Venus", "Jupiter", "Moon"], [3, 7, 9, 11], 4.0, "Relocated charts are stronger when communication planets land in exchange, outreach, and audience houses."),
-                modifier_component("communication", 3.2, "Communication-heavy relocated charts are the clearest support for this goal."),
-                modifier_component("community", 2.0, "Community support helps messaging find listeners and collaborators."),
-                modifier_component("uncertainty", -2.5, "Unclear or unstable chart signatures reduce reliability in communication work."),
+                line_component(
+                    "Mercury", ["DSC"], 7.0,
+                    "Mercury DSC is the clearest direct-conversation, negotiation, trade, and person-to-person exchange signature in the corpus.",
+                    evidence_refs=[
+                        *LEWIS_DSC_EVIDENCE,
+                        *FURST_MERCURY_EVIDENCE,
+                        "acg-src-hermes-map-2023.page-0037.chunk-001",
+                    ],
+                ),
+                line_component(
+                    "Mercury", ["ASC", "MC"], 6.5,
+                    "Mercury ASC or MC supports writing and outward messaging, while remaining distinct from a broader academic model.",
+                    evidence_refs=[*LEWIS_PLANET_ANGLE_EVIDENCE, *FURST_MERCURY_EVIDENCE],
+                ),
+                line_component(
+                    "Venus", ["DSC"], 3.4,
+                    "Venus DSC smooths diplomacy, negotiation, and person-to-person exchange.",
+                    evidence_refs=LEWIS_DSC_EVIDENCE,
+                ),
+                line_component(
+                    "Moon", ["DSC"], 2.0,
+                    "Moon DSC adds receptivity and audience awareness in direct exchange.",
+                    evidence_refs=LEWIS_DSC_EVIDENCE,
+                ),
+                line_component(
+                    "Uranus", ["ASC", "DSC"], 2.2,
+                    "Uranus on contact axes supports fast, inventive, and modern messaging.",
+                    evidence_refs=[*LEWIS_PLANET_ANGLE_EVIDENCE, *FURST_MERCURY_EVIDENCE],
+                ),
+                crossing_component(
+                    ["Mercury", "Venus"], 3.6,
+                    "Mercury/Venus helps language sound attractive, persuasive, and relational.",
+                    source_status="experimental",
+                    evidence_refs=HERMES_MERCURY_VENUS_EVIDENCE,
+                ),
+                crossing_component(
+                    ["Mercury", "Uranus"], 3.0,
+                    "Mercury/Uranus supports inventive, rapid, and networked communication.",
+                    source_status="experimental",
+                    evidence_refs=MERCURY_URANUS_EVIDENCE,
+                ),
+                crossing_component(
+                    ["Mercury", "Neptune"], -2.8,
+                    "Mercury/Neptune can replace precise exchange with glamour or ambiguity.",
+                    polarity="caution",
+                    source_status="experimental",
+                    evidence_refs=MERCURY_NEPTUNE_CAUTION_EVIDENCE,
+                ),
+                relocation_component(
+                    ["Mercury", "Venus", "Moon"], [3, 7, 11], 4.5,
+                    "Vox Stella uses an experimental 3rd/7th/11th-house relocation emphasis to test contact, exchange, and audience themes; it is not a recovered source formula.",
+                    source_status="experimental",
+                    evidence_refs=EXPERIMENTAL_COMMUNICATION_HOUSE_EVIDENCE,
+                ),
+                modifier_component(
+                    "communication", 3.8,
+                    "Communication-heavy relocated charts are the clearest direct support for this goal.",
+                    source_status="experimental",
+                    evidence_refs=[*PRODUCT_RELOCATION_EVIDENCE, *FURST_MERCURY_EVIDENCE],
+                ),
+                modifier_component(
+                    "community", 1.8,
+                    "Community support helps messages reach listeners and collaborators without turning communication into an education proxy.",
+                    source_status="experimental",
+                    evidence_refs=[*PRODUCT_RELOCATION_EVIDENCE, *FURST_MERCURY_EVIDENCE],
+                ),
+                modifier_component(
+                    "uncertainty", -2.3,
+                    "Unclear or unstable chart signatures reduce reliability in communication work.",
+                    source_status="experimental",
+                    evidence_refs=["acg-claim-no-universal-good-bad-planets", "acg-claim-advisory-layered-workflow"],
+                ),
             ],
             "normalization": {"method": "bounded_linear", "min_score": -10, "max_score": 24},
         },
@@ -904,24 +1032,82 @@ def _patched_core_models(existing: Dict[str, Dict[str, Any]]) -> List[Dict[str, 
             "version": "1.1.0",
             "status": "active",
             "summary": "Ranks places for study, teaching, research, and disciplined skill-building.",
-            "description": "Reworked to stay distinct from beliefs and communication: stronger Mercury/Saturn study logic, lower dependence on spiritual meaning or public profile, and clearer emphasis on structured learning.",
+            "description": "Reworked around Mercury/Jupiter learning and MC/Saturn structure, with explicitly experimental 9th-house corroboration, so formal education remains distinct from everyday communication.",
             "goal_family": "education",
             "legacy_refs": education_legacy,
             "score_components": [
-                line_component("Mercury", ["ASC", "MC"], 6.2, "Mercury remains the clearest study, language, and technical learning signature."),
-                line_component("Jupiter", ["ASC", "MC"], 4.6, "Jupiter supports teaching, breadth, and academic expansion without defining the whole model."),
-                line_component("Saturn", ["MC", "ASC"], 2.6, "Saturn adds discipline, persistence, and serious mastery."),
-                line_component("Moon", ["IC"], 1.0, "Moon IC can stabilize the domestic base needed for long-form study."),
-                line_component("Neptune", ["ASC", "MC"], -4.0, "Neptune is a caution factor for confusion, glamour, and scattered judgment.", polarity="caution"),
-                crossing_component(["Mercury", "Jupiter"], 4.0, "Mercury/Jupiter crossings remain strong for learning, publishing, and intellectual expansion."),
-                crossing_component(["Mercury", "Uranus"], 2.2, "Mercury/Uranus sharpens invention, breakthrough thinking, and modern research."),
-                crossing_component(["Mercury", "Neptune"], -3.0, "Mercury/Neptune can blur precision and make study less grounded.", polarity="caution"),
-                relocation_component(["Mercury", "Jupiter", "Saturn"], [3, 9, 10], 4.2, "Relocated charts are favorable when learning planets land in study, doctrine, and disciplined public-development houses."),
-                modifier_component("mobility", 2.4, "Education improves when the relocated chart stays mentally active, exploratory, and curious."),
-                modifier_component("stability", 1.6, "Sustained study benefits from enough structure to keep progress coherent."),
-                modifier_component("visibility", 0.8, "Some public visibility helps education turn into teaching or publication, but it is secondary."),
-                modifier_component("uncertainty", -2.6, "High uncertainty weakens focus, retention, and coherent educational progress."),
-                constraint_component("stability", "gte", 0.2, "Structured environments deserve a modest study bonus.", multiplier=1.05, polarity="support"),
+                line_component(
+                    "Mercury", ["MC"], 5.2,
+                    "Mercury MC supports formal study, teaching, technical learning, and the public use of acquired knowledge.",
+                    evidence_refs=[*LEWIS_PLANET_ANGLE_EVIDENCE, *FURST_MERCURY_EVIDENCE],
+                ),
+                line_component(
+                    "Jupiter", ["MC"], 4.6,
+                    "Jupiter MC supports academic breadth, teaching, and public educational authority.",
+                    evidence_refs=[*LEWIS_PLANET_ANGLE_EVIDENCE, *FURST_JUPITER_EDUCATION_EVIDENCE],
+                ),
+                line_component(
+                    "Saturn", ["MC"], 2.8,
+                    "Saturn MC adds discipline, persistence, formal structure, and serious mastery.",
+                    evidence_refs=[*LEWIS_PLANET_ANGLE_EVIDENCE, *FURST_SATURN_STUDY_EVIDENCE],
+                ),
+                line_component(
+                    "Neptune", ["MC"], -3.5,
+                    "Neptune MC is a caution for ambiguity in public or educational direction.",
+                    polarity="caution",
+                    evidence_refs=LEWIS_PLANET_ANGLE_EVIDENCE,
+                ),
+                crossing_component(
+                    ["Mercury", "Jupiter"], 5.0,
+                    "Mercury/Jupiter is an experimental interaction for broad study and philosophical exchange.",
+                    source_status="experimental",
+                    evidence_refs=MERCURY_JUPITER_EVIDENCE,
+                ),
+                crossing_component(
+                    ["Mercury", "Saturn"], 3.4,
+                    "Mercury/Saturn is an experimental interaction for concentration, method, and disciplined learning.",
+                    source_status="experimental",
+                    evidence_refs=MERCURY_SATURN_EVIDENCE,
+                ),
+                crossing_component(
+                    ["Mercury", "Neptune"], -2.5,
+                    "Mercury/Neptune can blur precision and make study less grounded.",
+                    polarity="caution",
+                    source_status="experimental",
+                    evidence_refs=MERCURY_NEPTUNE_CAUTION_EVIDENCE,
+                ),
+                relocation_component(
+                    ["Mercury", "Jupiter", "Saturn"], [9], 4.8,
+                    "Vox Stella uses an experimental 9th-house relocation emphasis as study corroboration; it is not a recovered Mercury/Jupiter/Saturn formula.",
+                    source_status="experimental",
+                    evidence_refs=EXPERIMENTAL_EDUCATION_HOUSE_EVIDENCE,
+                ),
+                modifier_component(
+                    "stability", 2.4,
+                    "Sustained study benefits from enough structure to keep progress coherent.",
+                    source_status="experimental",
+                    evidence_refs=[*PRODUCT_RELOCATION_EVIDENCE, *FURST_SATURN_STUDY_EVIDENCE],
+                ),
+                modifier_component(
+                    "visibility", 0.5,
+                    "Some public visibility helps education turn into teaching or publication, but it is secondary to study and structure.",
+                    source_status="experimental",
+                    evidence_refs=["acg-claim-four-angles-have-distinct-frames", "acg-claim-advisory-layered-workflow"],
+                ),
+                modifier_component(
+                    "uncertainty", -2.4,
+                    "High uncertainty weakens focus, retention, and coherent educational progress.",
+                    source_status="experimental",
+                    evidence_refs=["acg-claim-no-universal-good-bad-planets", "acg-claim-advisory-layered-workflow"],
+                ),
+                constraint_component(
+                    "stability", "gte", 0.2,
+                    "Structured environments deserve a modest study bonus.",
+                    multiplier=1.05,
+                    polarity="support",
+                    source_status="experimental",
+                    evidence_refs=[*PRODUCT_RELOCATION_EVIDENCE, *FURST_SATURN_STUDY_EVIDENCE],
+                ),
             ],
             "normalization": {"method": "bounded_linear", "min_score": -10, "max_score": 24},
         },
