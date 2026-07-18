@@ -10,17 +10,10 @@ Altitude: degrees above the horizon (negative if below).
 """
 from __future__ import annotations
 
-import threading
 from typing import Dict, Any, Iterable
 from math import sin, cos, asin, atan2, radians, degrees
 
-try:
-    import swisseph as swe  # type: ignore
-except Exception:  # pragma: no cover - runtime safety
-    swe = None  # type: ignore
-
-
-_SWE_TOPO_LOCK = threading.RLock()
+from swisseph_state import swisseph as swe, swisseph_topocentric
 
 
 # Map simple names to Swiss Ephemeris IDs
@@ -112,11 +105,7 @@ def compute_local_space(timestamp_iso: str, lat: float, lon: float, planets: Ite
     if swe is None:
         raise RuntimeError("pyswisseph not available")
     out: Dict[str, Dict[str, float]] = {}
-    with _SWE_TOPO_LOCK:
-        try:
-            swe.set_topo(lon, lat, 0.0)
-        except Exception:
-            pass
+    with swisseph_topocentric(lon, lat, swe_module=swe):
         jd_ut = _jd_ut_from_iso(timestamp_iso)
         lst_h = _lst_hours(jd_ut, lon)
         # Swiss Ephemeris flags (canonical names with fallback)
@@ -136,7 +125,12 @@ def compute_local_space(timestamp_iso: str, lat: float, lon: float, planets: Ite
                 ra_deg = float(pos[0])
                 ra_hours = ra_deg / 15.0
                 dec_deg = float(pos[1])
-                out[name] = _az_alt_from_ra_dec(ra_hours, dec_deg, float(lat), lst_h)
+                horizontal = _az_alt_from_ra_dec(ra_hours, dec_deg, float(lat), lst_h)
+                out[name] = {
+                    **horizontal,
+                    'right_ascension_deg': ra_deg,
+                    'declination_deg': dec_deg,
+                }
             except Exception:
                 continue
     return out
@@ -169,11 +163,7 @@ def compute_local_space_diag(timestamp_iso: str, lat: float, lon: float, planets
     if swe is None:
         raise RuntimeError("pyswisseph not available")
     out: Dict[str, Dict[str, float]] = {}
-    with _SWE_TOPO_LOCK:
-        try:
-            swe.set_topo(lon, lat, 0.0)
-        except Exception:
-            pass
+    with swisseph_topocentric(lon, lat, swe_module=swe):
         jd_ut = _jd_ut_from_iso(timestamp_iso)
         lst_h = _lst_hours(jd_ut, lon)
         FLAGS = (

@@ -6191,6 +6191,28 @@ def _data_for_optional_confirmed_snap(
     return data, settings
 
 
+def _directional_chart_data_for_scope(
+    chart_data: Any,
+    timestamp: Any,
+    *,
+    include_modern: bool,
+) -> Dict[str, Any]:
+    source = chart_data if isinstance(chart_data, dict) else {}
+    if not include_modern:
+        return source
+    timestamp_iso = _directional_timestamp_iso(
+        timestamp,
+        label='Directional modern-body extension',
+    )
+    extended = _extend_chart_data_for_synastry(
+        source,
+        {'timestamp': timestamp_iso},
+        include_modern=True,
+        include_chiron=False,
+    )
+    return extended if isinstance(extended, dict) else source
+
+
 @astro_clock_bp.route('/compass', methods=['GET'])
 @_error_handler
 def get_compass():
@@ -6204,6 +6226,11 @@ def get_compass():
         chart = {}
     cd = chart.get('chart_data', {}) if isinstance(chart, dict) else {}
     try:
+        cd = _directional_chart_data_for_scope(
+            cd,
+            getattr(data, 'timestamp', None),
+            include_modern=include_modern,
+        )
         payload = _build_local_space_compass_payload(
             cd,
             getattr(data, 'timestamp', None),
@@ -6231,6 +6258,11 @@ def get_directional_3d():
         chart = {}
     cd = chart.get('chart_data', {}) if isinstance(chart, dict) else {}
     try:
+        cd = _directional_chart_data_for_scope(
+            cd,
+            getattr(data, 'timestamp', None),
+            include_modern=include_modern,
+        )
         payload = _build_directional_3d_payload(
             cd,
             getattr(data, 'timestamp', None),
@@ -6980,9 +7012,9 @@ def _select_compass_planets(
     chart_data: Optional[Dict[str, Any]],
     *,
     include_modern: bool = False,
-) -> Tuple[float, List[Tuple[str, Dict[str, Any]]]]:
+) -> Tuple[Optional[float], List[Tuple[str, Dict[str, Any]]]]:
     cd = chart_data if isinstance(chart_data, dict) else {}
-    asc = float(cd.get('ascendant') or 0.0)
+    asc = _directional_number(cd.get('ascendant'))
     planets = cd.get('planets') or {}
     if isinstance(planets, list):
         planet_map: Dict[str, Dict[str, Any]] = {}
@@ -6994,14 +7026,7 @@ def _select_compass_planets(
                 continue
             planet_map[name] = row
         planets = planet_map
-    classical = {'Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn'}
-    selected: List[Tuple[str, Dict[str, Any]]] = []
-    for name, info in planets.items():
-        if not include_modern and name not in classical:
-            continue
-        if not isinstance(info, dict):
-            continue
-        selected.append((name, info))
+    selected = _select_directional_planets(planets, include_modern=include_modern)
     return asc, selected
 
 
@@ -7019,24 +7044,12 @@ def _build_local_space_compass_payload(
             'ascendant': asc,
             'source': 'local_space',
             'has_altitude': True,
+            'body_policy': _directional_body_policy(include_modern, returned_names=[]),
         }
 
-    timestamp_iso = None
-    if isinstance(timestamp, datetime):
-        try:
-            timestamp_iso = timestamp.astimezone(timezone.utc).isoformat()
-        except Exception:
-            timestamp_iso = timestamp.isoformat()
-    elif timestamp:
-        timestamp_iso = str(timestamp)
-    if not timestamp_iso:
-        raise ValueError('Compass requires an active chart timestamp')
+    timestamp_iso = _directional_timestamp_iso(timestamp, label='Compass')
 
-    coords = _coords_from_settings(active_settings)
-    if coords is None:
-        location = getattr(active_settings, 'location', None)
-        if location:
-            coords = _ensure_coords_for_location(location, settings_hint=active_settings)
+    coords = _resolve_directional_observer_coords(active_settings)
     if coords is None:
         raise LocationError('Compass requires chart coordinates')
 
@@ -7057,12 +7070,21 @@ def _build_local_space_compass_payload(
         payload = altaz.get(name)
         if not isinstance(payload, dict):
             continue
+        azimuth = _directional_number(payload.get('azimuth_deg'))
+        if azimuth is None:
+            continue
         item = {
             'planet': name,
-            'azimuth_deg': float(payload.get('azimuth_deg') or 0.0),
+            'azimuth_deg': _directional_wrap_degrees(azimuth),
         }
-        if payload.get('altitude_deg') is not None:
-            item['altitude_deg'] = float(payload.get('altitude_deg'))
+        altitude = _directional_number(payload.get('altitude_deg'))
+        if altitude is not None:
+            item['altitude_deg'] = altitude
+        right_ascension = _directional_number(payload.get('right_ascension_deg'))
+        declination = _directional_number(payload.get('declination_deg'))
+        if right_ascension is not None and declination is not None:
+            item['right_ascension_deg'] = _directional_wrap_degrees(right_ascension)
+            item['declination_deg'] = declination
         try:
             item['longitude_deg'] = float(info.get('longitude'))
         except Exception:
@@ -7079,11 +7101,35 @@ def _build_local_space_compass_payload(
         'longitude': float(coords[1]),
         'source': 'local_space',
         'has_altitude': any('altitude_deg' in row for row in local_rows),
+        'body_policy': _directional_body_policy(
+            include_modern,
+            returned_names=[row['planet'] for row in local_rows],
+        ),
     }
 
 
 DIRECTIONAL_3D_DEFAULT_ROTATION = 9.0
 DIRECTIONAL_3D_DEFAULT_TILT = 19.0
+DIRECTIONAL_TRADITIONAL_BODIES: Tuple[str, ...] = (
+    'Sun',
+    'Moon',
+    'Mercury',
+    'Venus',
+    'Mars',
+    'Jupiter',
+    'Saturn',
+)
+DIRECTIONAL_MODERN_BODIES: Tuple[str, ...] = (
+    'Uranus',
+    'Neptune',
+    'Pluto',
+)
+DIRECTIONAL_EXCLUDED_POINTS: Tuple[str, ...] = (
+    'Chiron',
+    'North Node',
+    'South Node',
+    'True Node',
+)
 DIRECTIONAL_3D_SYMBOLS: Dict[str, str] = {
     'Sun': '☉',
     'Moon': '☽',
@@ -7116,7 +7162,70 @@ DIRECTIONAL_3D_SWISSEPH_KEYS: Dict[str, str] = {
 }
 
 
+def _directional_body_policy(
+    include_modern: bool,
+    *,
+    returned_names: Optional[List[str]] = None,
+) -> Dict[str, Any]:
+    eligible = list(DIRECTIONAL_TRADITIONAL_BODIES)
+    if include_modern:
+        eligible.extend(DIRECTIONAL_MODERN_BODIES)
+    included = (
+        list(eligible)
+        if returned_names is None
+        else [name for name in eligible if name in set(returned_names)]
+    )
+    return {
+        'scope': 'traditional_plus_modern' if include_modern else 'traditional',
+        'included': included,
+        'eligible': eligible,
+        'traditional': list(DIRECTIONAL_TRADITIONAL_BODIES),
+        'modern': list(DIRECTIONAL_MODERN_BODIES),
+        'excluded_points': list(DIRECTIONAL_EXCLUDED_POINTS),
+    }
+
+
+def _select_directional_planets(
+    planets: Any,
+    *,
+    include_modern: bool,
+) -> List[Tuple[str, Dict[str, Any]]]:
+    """Apply the shared Compass/Directional body policy in stable display order.
+
+    The modern switch adds Uranus, Neptune, and Pluto. Nodes and Chiron are
+    deliberately outside this switch because the local-space provider does not
+    guarantee a matching topocentric position for them.
+    """
+    policy_names = _directional_body_policy(include_modern)['eligible']
+    canonical_by_key = {name.casefold(): name for name in policy_names}
+    found: Dict[str, Dict[str, Any]] = {}
+    if isinstance(planets, dict):
+        iterable = planets.items()
+    elif isinstance(planets, list):
+        iterable = []
+        for row in planets:
+            if not isinstance(row, dict):
+                continue
+            iterable.append((row.get('planet') or row.get('name') or row.get('object'), row))
+    else:
+        iterable = []
+    for raw_name, info in iterable:
+        if not isinstance(info, dict):
+            continue
+        if info.get('bnotuse') is True or info.get('not_use') is True or info.get('usable') is False:
+            continue
+        clean_name = str(raw_name or '').strip()
+        canonical = canonical_by_key.get(clean_name.casefold())
+        if canonical is not None:
+            found[canonical] = info
+    return [(name, found[name]) for name in policy_names if name in found]
+
+
 def _directional_number(value: Any, default: Optional[float] = None) -> Optional[float]:
+    if value is None or isinstance(value, bool):
+        return default
+    if isinstance(value, str) and not value.strip():
+        return default
     try:
         number = float(value)
     except Exception:
@@ -7153,8 +7262,8 @@ def _directional_timestamp_iso(timestamp: Any, *, label: str) -> str:
             raise ValueError(f'{label} requires a valid chart timestamp') from exc
     else:
         raise ValueError(f'{label} requires an active chart timestamp')
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
+    if dt.tzinfo is None or dt.utcoffset() is None:
+        raise ValueError(f'{label} requires a timezone-aware chart timestamp')
     return dt.astimezone(timezone.utc).isoformat()
 
 
@@ -7317,7 +7426,7 @@ def _directional_horizontal_from_equatorial(
         )
         return (
             _directional_wrap_degrees(horizontal.get('azimuth_deg')),
-            float(horizontal.get('altitude_deg') or 0.0),
+            float(horizontal['altitude_deg']),
         )
     except Exception as exc:
         raise RuntimeError('Directional 3D horizon coordinates are unavailable') from exc
@@ -7349,7 +7458,11 @@ def _directional_horizontal_from_ecliptic(
                 ),
             )
         altitude = result[1] if len(result) > 1 else result[2]
-        return _directional_wrap_degrees(float(result[0])), float(altitude), 'swisseph_azalt'
+        # swe.azalt reports 0° at South and increases toward West. The public
+        # Directional/Compass contract is the navigation convention:
+        # 0° North, 90° East, 180° South, 270° West.
+        azimuth = _directional_wrap_degrees(float(result[0]) + 180.0)
+        return azimuth, float(altitude), 'swisseph_azalt'
     except Exception:
         equ_longitude, equ_latitude = _directional_ecliptic_to_equatorial(
             ecliptic_longitude_deg,
@@ -7387,9 +7500,9 @@ def _directional_horizontal_rates_from_ecliptic(
     ecliptic_latitude_speed: Optional[float],
     obliquity_deg: float,
     object_type: str,
-) -> Tuple[float, Optional[float], str, str]:
+) -> Tuple[Optional[float], Optional[float], str, str]:
     if object_type == 'cusp':
-        return 0.0, 0.0, 'cusp_static', 'cusp_static'
+        return None, None, 'unavailable', 'unavailable'
 
     step_seconds = 300.0
     step_days = step_seconds / 86400.0
@@ -7414,7 +7527,7 @@ def _directional_horizontal_rates_from_ecliptic(
             obliquity_deg,
         )
     except Exception:
-        return 0.0, None, 'static_zero', 'unavailable'
+        return None, None, 'unavailable', 'unavailable'
 
     divisor_days = 2.0 * step_days
     longitude_rate = _directional_signed_degree_delta(after_longitude, before_longitude) / divisor_days
@@ -7425,7 +7538,7 @@ def _directional_horizontal_rates_from_ecliptic(
 def _directional_equatorial_from_swiss(
     name: str,
     timestamp_iso: str,
-) -> Optional[Tuple[float, float, float, Optional[float]]]:
+) -> Optional[Tuple[float, float, Optional[float], Optional[float]]]:
     swe_key = DIRECTIONAL_3D_SWISSEPH_KEYS.get(str(name or '').strip())
     if not swe_key:
         return None
@@ -7446,7 +7559,7 @@ def _directional_equatorial_from_swiss(
         return (
             _directional_wrap_degrees(float(pos[0])),
             float(pos[1]),
-            float(pos[3]) if len(pos) > 3 else 0.0,
+            float(pos[3]) if len(pos) > 3 else None,
             float(pos[4]) if len(pos) > 4 else None,
         )
     except Exception:
@@ -7489,10 +7602,50 @@ def _directional_ecliptic_latitude_speed_from_fields(info: Dict[str, Any]) -> Op
     return None
 
 
+def _directional_unit_vector(longitude_deg: Any, latitude_deg: Any) -> Optional[Dict[str, float]]:
+    longitude = _directional_number(longitude_deg)
+    latitude = _directional_number(latitude_deg)
+    if longitude is None or latitude is None:
+        return None
+    lon_radians = math.radians(_directional_wrap_degrees(longitude))
+    lat_radians = math.radians(latitude)
+    cos_latitude = math.cos(lat_radians)
+    return {
+        'x': round(cos_latitude * math.cos(lon_radians), 9),
+        'y': round(cos_latitude * math.sin(lon_radians), 9),
+        'z': round(math.sin(lat_radians), 9),
+    }
+
+
+def _directional_rate_from_horizontal_samples(
+    before: Optional[Dict[str, Any]],
+    after: Optional[Dict[str, Any]],
+    *,
+    step_seconds: float,
+) -> Tuple[Optional[float], Optional[float], str, str]:
+    if not isinstance(before, dict) or not isinstance(after, dict):
+        return None, None, 'unavailable', 'unavailable'
+    before_azimuth = _directional_number(before.get('azimuth_deg'))
+    before_altitude = _directional_number(before.get('altitude_deg'))
+    after_azimuth = _directional_number(after.get('azimuth_deg'))
+    after_altitude = _directional_number(after.get('altitude_deg'))
+    if None in (before_azimuth, before_altitude, after_azimuth, after_altitude):
+        return None, None, 'unavailable', 'unavailable'
+    if not (-90.0 <= before_altitude <= 90.0 and -90.0 <= after_altitude <= 90.0):
+        return None, None, 'unavailable', 'unavailable'
+    divisor_days = (2.0 * float(step_seconds)) / 86400.0
+    return (
+        _directional_signed_degree_delta(after_azimuth, before_azimuth) / divisor_days,
+        (float(after_altitude) - float(before_altitude)) / divisor_days,
+        'topocentric_finite_difference',
+        'topocentric_finite_difference',
+    )
+
+
 def _directional_coordinate_triplet(
     longitude_deg: float,
-    latitude_deg: float,
-    speed: float,
+    latitude_deg: Optional[float],
+    speed: Optional[float],
     *,
     object_id: str,
     name: str,
@@ -7504,37 +7657,65 @@ def _directional_coordinate_triplet(
     observer_latitude: float,
     observer_longitude: float,
     obliquity_deg: float,
-) -> Tuple[Dict[str, float], Dict[str, float], Dict[str, float], Dict[str, Dict[str, str]], List[Dict[str, str]]]:
+    horizontal_samples: Optional[Dict[str, Dict[str, Any]]] = None,
+) -> Tuple[Dict[str, Any], Dict[str, Any], Dict[str, Any], Dict[str, Dict[str, Any]], List[Dict[str, str]]]:
     eql_longitude = _directional_wrap_degrees(longitude_deg)
-    eql_latitude = float(latitude_deg)
-    equ_speed = float(speed)
+    eql_latitude = _directional_number(latitude_deg)
+    eql_speed = _directional_number(speed)
+    equ_longitude: Optional[float] = None
+    equ_latitude: Optional[float] = None
+    equ_speed: Optional[float] = None
+    equ_latitude_speed: Optional[float] = None
     equ_speed_provider = None
     equ_latitude_speed_provider = None
     data_gaps: List[Dict[str, str]] = []
     if object_type == 'cusp':
-        equ_longitude, equ_latitude = eql_longitude, 0.0
-        equ_speed = 0.0
-        equ_latitude_speed = 0.0
-        equ_source = 'cusp_static'
-        equ_speed_source = 'cusp_static'
-        equ_latitude_speed_source = 'cusp_static'
+        equ_longitude, equ_latitude = _directional_ecliptic_to_equatorial(
+            eql_longitude,
+            0.0,
+            obliquity_deg,
+        )
+        equ_source = 'derived_from_ecliptic'
+        equ_speed_source = 'unavailable'
+        equ_latitude_speed_source = 'unavailable'
         eql_source = 'house_cusp'
-        eql_speed_source = 'cusp_static'
+        eql_speed_source = 'unavailable'
     else:
         equ_values = _directional_equatorial_from_fields(info or {})
         if equ_values is None:
-            equ_source = 'derived_from_ecliptic'
-            if ecliptic_latitude_speed is not None and ecliptic_speed_source != 'default_zero':
+            if eql_latitude is None:
+                swiss_values = _directional_equatorial_from_swiss(name, timestamp_iso)
+                if swiss_values is not None:
+                    equ_longitude, equ_latitude, swiss_speed, swiss_latitude_speed = swiss_values
+                    equ_source = 'swisseph'
+                    equ_speed = float(swiss_speed) if swiss_speed is not None else None
+                    equ_speed_source = 'native' if swiss_speed is not None else 'unavailable'
+                    equ_speed_provider = 'swisseph' if swiss_speed is not None else None
+                    equ_latitude_speed = float(swiss_latitude_speed) if swiss_latitude_speed is not None else None
+                    equ_latitude_speed_source = 'native' if swiss_latitude_speed is not None else 'unavailable'
+                    equ_latitude_speed_provider = 'swisseph' if swiss_latitude_speed is not None else None
+                else:
+                    equ_source = 'unavailable'
+                    equ_speed_source = 'unavailable'
+                    equ_latitude_speed_source = 'unavailable'
+                data_gaps.append({
+                    'code': 'ecliptic_latitude_unavailable',
+                    'object_id': object_id,
+                    'object': str(name),
+                })
+            elif eql_speed is not None and ecliptic_latitude_speed is not None:
+                equ_source = 'derived_from_ecliptic'
                 equ_longitude, equ_latitude, equ_speed, equ_latitude_speed = _directional_ecliptic_to_equatorial_with_rates(
                     eql_longitude,
                     eql_latitude,
-                    speed,
+                    eql_speed,
                     ecliptic_latitude_speed,
                     obliquity_deg,
                 )
                 equ_speed_source = 'derived'
                 equ_latitude_speed_source = 'derived'
             else:
+                equ_source = 'derived_from_ecliptic'
                 equ_longitude, equ_latitude = _directional_ecliptic_to_equatorial(
                     eql_longitude,
                     eql_latitude,
@@ -7543,15 +7724,14 @@ def _directional_coordinate_triplet(
                 swiss_values = _directional_equatorial_from_swiss(name, timestamp_iso)
                 if swiss_values is not None:
                     _swiss_longitude, _swiss_latitude, swiss_speed, swiss_latitude_speed = swiss_values
-                    equ_speed = float(swiss_speed)
-                    equ_speed_source = 'native'
-                    equ_speed_provider = 'swisseph'
+                    equ_speed = float(swiss_speed) if swiss_speed is not None else None
+                    equ_speed_source = 'native' if swiss_speed is not None else 'unavailable'
+                    equ_speed_provider = 'swisseph' if swiss_speed is not None else None
                     equ_latitude_speed = float(swiss_latitude_speed) if swiss_latitude_speed is not None else None
                     equ_latitude_speed_source = 'native' if swiss_latitude_speed is not None else 'unavailable'
                     equ_latitude_speed_provider = 'swisseph' if swiss_latitude_speed is not None else None
                 else:
-                    equ_speed_source = 'fallback'
-                    equ_latitude_speed = None
+                    equ_speed_source = 'unavailable'
                     equ_latitude_speed_source = 'unavailable'
         else:
             equ_longitude, equ_latitude, maybe_speed, maybe_latitude_speed = equ_values
@@ -7564,15 +7744,15 @@ def _directional_coordinate_triplet(
                 swiss_values = _directional_equatorial_from_swiss(name, timestamp_iso)
                 if swiss_values is not None:
                     _swiss_longitude, _swiss_latitude, swiss_speed, swiss_latitude_speed = swiss_values
-                    equ_speed = float(swiss_speed)
-                    equ_speed_source = 'native'
-                    equ_speed_provider = 'swisseph'
+                    equ_speed = float(swiss_speed) if swiss_speed is not None else None
+                    equ_speed_source = 'native' if swiss_speed is not None else 'unavailable'
+                    equ_speed_provider = 'swisseph' if swiss_speed is not None else None
                     if maybe_latitude_speed is None:
                         equ_latitude_speed = float(swiss_latitude_speed) if swiss_latitude_speed is not None else None
                         equ_latitude_speed_source = 'native' if swiss_latitude_speed is not None else 'unavailable'
                         equ_latitude_speed_provider = 'swisseph' if swiss_latitude_speed is not None else None
                 else:
-                    equ_speed_source = 'fallback'
+                    equ_speed_source = 'unavailable'
             if maybe_latitude_speed is not None:
                 equ_latitude_speed = float(maybe_latitude_speed)
                 equ_latitude_speed_source = 'native'
@@ -7580,32 +7760,67 @@ def _directional_coordinate_triplet(
                 equ_latitude_speed = None
                 equ_latitude_speed_source = 'unavailable'
         eql_source = 'chart_ecliptic'
-        eql_speed_source = ecliptic_speed_source or 'default_zero'
-        if equ_speed_source == 'fallback':
+        eql_speed_source = ecliptic_speed_source or 'unavailable'
+        if equ_speed_source == 'unavailable':
             data_gaps.append({
-                'code': 'equatorial_speed_fallback',
+                'code': 'equatorial_speed_unavailable',
                 'object_id': object_id,
                 'object': str(name),
             })
-    hor_longitude, hor_latitude, hor_source = _directional_horizontal_from_ecliptic(
-        timestamp_iso,
-        observer_latitude,
-        observer_longitude,
-        eql_longitude,
-        eql_latitude,
-        obliquity_deg,
+    horizontal_samples = horizontal_samples if isinstance(horizontal_samples, dict) else {}
+    current_horizontal = horizontal_samples.get('current')
+    current_azimuth = (
+        _directional_number(current_horizontal.get('azimuth_deg'))
+        if isinstance(current_horizontal, dict)
+        else None
     )
-    hor_speed, hor_latitude_speed, hor_speed_source, hor_latitude_speed_source = _directional_horizontal_rates_from_ecliptic(
-        timestamp_iso,
-        observer_latitude,
-        observer_longitude,
-        eql_longitude,
-        eql_latitude,
-        speed,
-        ecliptic_latitude_speed,
-        obliquity_deg,
-        object_type,
+    current_altitude = (
+        _directional_number(current_horizontal.get('altitude_deg'))
+        if isinstance(current_horizontal, dict)
+        else None
     )
+    valid_current_horizontal = bool(
+        current_azimuth is not None
+        and current_altitude is not None
+        and -90.0 <= current_altitude <= 90.0
+    )
+    if object_type == 'planet' and valid_current_horizontal:
+        hor_longitude = _directional_wrap_degrees(current_azimuth)
+        hor_latitude = current_altitude
+        hor_source = 'topocentric_local_space'
+        hor_speed, hor_latitude_speed, hor_speed_source, hor_latitude_speed_source = (
+            _directional_rate_from_horizontal_samples(
+                horizontal_samples.get('before'),
+                horizontal_samples.get('after'),
+                step_seconds=300.0,
+            )
+        )
+    elif object_type == 'cusp':
+        hor_longitude, hor_latitude, hor_source = _directional_horizontal_from_ecliptic(
+            timestamp_iso,
+            observer_latitude,
+            observer_longitude,
+            eql_longitude,
+            0.0,
+            obliquity_deg,
+        )
+        hor_speed = None
+        hor_latitude_speed = None
+        hor_speed_source = 'unavailable'
+        hor_latitude_speed_source = 'unavailable'
+    else:
+        hor_longitude = None
+        hor_latitude = None
+        hor_speed = None
+        hor_latitude_speed = None
+        hor_source = 'unavailable'
+        hor_speed_source = 'unavailable'
+        hor_latitude_speed_source = 'unavailable'
+        data_gaps.append({
+            'code': 'topocentric_horizon_unavailable',
+            'object_id': object_id,
+            'object': str(name),
+        })
     equ_meta = {
         'source': equ_source,
         'speed_source': equ_speed_source,
@@ -7617,20 +7832,20 @@ def _directional_coordinate_triplet(
         equ_meta['latitude_speed_provider'] = equ_latitude_speed_provider
     return (
         {
-            'longitude': _directional_round(eql_longitude, 3, 0.0),
-            'latitude': _directional_round(eql_latitude, 3, 0.0),
-            'speed': _directional_round(speed, 3, 0.0),
+            'longitude': _directional_round(eql_longitude, 3, None),
+            'latitude': _directional_round(eql_latitude, 3, None),
+            'speed': _directional_round(eql_speed, 3, None),
         },
         {
-            'longitude': _directional_round(equ_longitude, 3, 0.0),
-            'latitude': _directional_round(equ_latitude, 3, 0.0),
-            'speed': _directional_round(equ_speed, 3, 0.0),
+            'longitude': _directional_round(equ_longitude, 3, None),
+            'latitude': _directional_round(equ_latitude, 3, None),
+            'speed': _directional_round(equ_speed, 3, None),
             'latitude_speed': _directional_round(equ_latitude_speed, 3, None),
         },
         {
-            'longitude': _directional_round(hor_longitude, 3, 0.0),
-            'latitude': _directional_round(hor_latitude, 3, 0.0),
-            'speed': _directional_round(hor_speed, 3, 0.0),
+            'longitude': _directional_round(hor_longitude, 3, None),
+            'latitude': _directional_round(hor_latitude, 3, None),
+            'speed': _directional_round(hor_speed, 3, None),
             'latitude_speed': _directional_round(hor_latitude_speed, 3, None),
         },
         {
@@ -7660,8 +7875,8 @@ def _directional_object_row(
     object_type: str,
     info: Optional[Dict[str, Any]],
     longitude_deg: float,
-    latitude_deg: float,
-    speed: float,
+    latitude_deg: Optional[float],
+    speed: Optional[float],
     ecliptic_speed_source: str,
     ecliptic_latitude_speed: Optional[float],
     bfull: bool,
@@ -7669,6 +7884,7 @@ def _directional_object_row(
     observer_latitude: float,
     observer_longitude: float,
     obliquity_deg: float,
+    horizontal_samples: Optional[Dict[str, Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     eql, equ, hor, coordinate_meta, data_gaps = _directional_coordinate_triplet(
         longitude_deg,
@@ -7684,7 +7900,20 @@ def _directional_object_row(
         observer_latitude=observer_latitude,
         observer_longitude=observer_longitude,
         obliquity_deg=obliquity_deg,
+        horizontal_samples=horizontal_samples,
     )
+    vectors = {
+        'EQL': _directional_unit_vector(eql.get('longitude'), eql.get('latitude')),
+        'EQU': _directional_unit_vector(equ.get('longitude'), equ.get('latitude')),
+        'HOR': _directional_unit_vector(hor.get('longitude'), hor.get('latitude')),
+    }
+    current_horizontal = (horizontal_samples or {}).get('current') if isinstance(horizontal_samples, dict) else None
+    reference_vector = None
+    if isinstance(current_horizontal, dict):
+        reference_vector = _directional_unit_vector(
+            current_horizontal.get('right_ascension_deg'),
+            current_horizontal.get('declination_deg'),
+        )
     return {
         'object_id': object_id,
         'object_index': object_index,
@@ -7696,68 +7925,147 @@ def _directional_object_row(
         'EQL': eql,
         'EQU': equ,
         'HOR': hor,
+        'vectors': vectors,
+        'reference_vector': reference_vector,
         'coordinate_meta': coordinate_meta,
         '_data_gaps': data_gaps,
     }
 
 
-def _chart_house_cusps(chart_data: Optional[Dict[str, Any]]) -> List[float]:
+def _chart_house_cusps(chart_data: Optional[Dict[str, Any]]) -> List[Tuple[int, float]]:
     cd = chart_data if isinstance(chart_data, dict) else {}
     raw_cusps = cd.get('house_cusps') or cd.get('houses') or []
     if isinstance(raw_cusps, dict):
-        values = [raw_cusps.get(str(index)) or raw_cusps.get(index) for index in range(1, 13)]
+        values = []
+        for index in range(1, 13):
+            string_value = raw_cusps.get(str(index))
+            values.append(string_value if string_value is not None else raw_cusps.get(index))
     else:
         values = list(raw_cusps) if isinstance(raw_cusps, (list, tuple)) else []
-    cusps: List[float] = []
-    for value in values[:12]:
+    cusps: List[Tuple[int, float]] = []
+    for index, value in enumerate(values[:12], start=1):
         number = _directional_number(value)
         if number is not None:
-            cusps.append(number)
+            cusps.append((index, number))
     return cusps
 
 
-def _directional_planet_entries(chart_data: Optional[Dict[str, Any]]) -> List[Tuple[str, Dict[str, Any]]]:
+def _directional_planet_entries(
+    chart_data: Optional[Dict[str, Any]],
+    *,
+    include_modern: bool = False,
+) -> List[Tuple[str, Dict[str, Any]]]:
     cd = chart_data if isinstance(chart_data, dict) else {}
     planets = cd.get('planets') or {}
-    entries: List[Tuple[str, Dict[str, Any]]] = []
-    if isinstance(planets, dict):
-        iterable = planets.items()
-    elif isinstance(planets, list):
-        prepared: List[Tuple[str, Dict[str, Any]]] = []
-        for row in planets:
-            if not isinstance(row, dict):
-                continue
-            name = str(row.get('planet') or row.get('name') or row.get('object') or '').strip()
-            if name:
-                prepared.append((name, row))
-        iterable = prepared
-    else:
-        iterable = []
-    for name, info in iterable:
-        if not isinstance(info, dict):
-            continue
-        if info.get('bnotuse') is True or info.get('not_use') is True or info.get('usable') is False:
-            continue
-        if _directional_number(info.get('longitude')) is None:
-            continue
-        clean_name = str(name or '').strip()
-        if clean_name:
-            entries.append((clean_name, info))
-    return entries
+    return _select_directional_planets(planets, include_modern=include_modern)
 
 
-def _directional_coords_from_context(active_settings: Optional[AstroClockSettings]) -> Optional[Tuple[float, float]]:
-    coords = _coords_from_settings(active_settings)
-    location = getattr(active_settings, 'location', None)
-    if coords is not None:
-        lat, lon = coords
-        if not (abs(float(lat)) < 1e-9 and abs(float(lon)) < 1e-9 and location):
-            return coords
+def _valid_directional_observer_coords(coords: Any) -> Optional[Tuple[float, float]]:
+    if not isinstance(coords, (list, tuple)) or len(coords) < 2:
+        return None
+    latitude = _directional_number(coords[0])
+    longitude = _directional_number(coords[1])
+    if latitude is None or longitude is None:
+        return None
+    if not (-90.0 <= latitude <= 90.0 and -180.0 <= longitude <= 180.0):
+        return None
+    return float(latitude), float(longitude)
+
+
+def _resolve_directional_observer_coords(
+    active_settings: Optional[AstroClockSettings],
+) -> Optional[Tuple[float, float]]:
+    location = str(getattr(active_settings, 'location', None) or '').strip()
+    stored = _valid_directional_observer_coords(_coords_from_settings(active_settings))
+    stored_is_legacy_zero = bool(
+        stored is not None
+        and abs(stored[0]) < 1e-9
+        and abs(stored[1]) < 1e-9
+        and location
+    )
+    if stored is not None and not stored_is_legacy_zero:
+        return stored
     if location:
-        resolved = _ensure_coords_for_location(location, settings_hint=active_settings, trust_settings=False)
-        if resolved is not None:
+        resolved = _valid_directional_observer_coords(
+            _ensure_coords_for_location(
+                location,
+                settings_hint=active_settings,
+                trust_settings=False,
+            )
+        )
+        if resolved is not None and not (
+            abs(resolved[0]) < 1e-9 and abs(resolved[1]) < 1e-9
+        ):
             return resolved
-    return coords
+    return None if stored_is_legacy_zero or stored is None else stored
+
+
+def _directional_coords_from_context(
+    active_settings: Optional[AstroClockSettings],
+) -> Optional[Tuple[float, float]]:
+    return _resolve_directional_observer_coords(active_settings)
+
+
+def _directional_topocentric_samples(
+    timestamp_iso: str,
+    latitude: float,
+    longitude: float,
+    body_names: List[str],
+) -> Dict[str, Dict[str, Dict[str, Any]]]:
+    if not body_names:
+        return {'current': {}, 'before': {}, 'after': {}}
+    try:
+        from forensic.local_space import compute_local_space
+
+        current = compute_local_space(timestamp_iso, latitude, longitude, body_names)
+    except Exception as exc:
+        raise RuntimeError('Directional 3D topocentric calculation is unavailable') from exc
+    if not current:
+        raise RuntimeError('Directional 3D topocentric calculation returned no positions')
+    samples: Dict[str, Dict[str, Dict[str, Any]]] = {
+        'current': current,
+        'before': {},
+        'after': {},
+    }
+    for sample_name, seconds in (('before', -300.0), ('after', 300.0)):
+        try:
+            sample_timestamp = _directional_shift_timestamp_iso(timestamp_iso, seconds)
+            samples[sample_name] = compute_local_space(
+                sample_timestamp,
+                latitude,
+                longitude,
+                body_names,
+            )
+        except Exception:
+            samples[sample_name] = {}
+    return samples
+
+
+def _directional_frame_context(
+    timestamp_iso: str,
+    latitude: float,
+    longitude: float,
+) -> Dict[str, Any]:
+    local_sidereal_degrees: Optional[float] = None
+    try:
+        from forensic.local_space import _jd_ut_from_iso, _lst_hours
+
+        local_sidereal_degrees = _directional_wrap_degrees(
+            _lst_hours(_jd_ut_from_iso(timestamp_iso), longitude) * 15.0
+        )
+    except Exception:
+        pass
+    return {
+        'observer_frame': 'topocentric',
+        'azimuth_convention': 'north_zero_eastward',
+        'altitude_convention': 'degrees_above_horizon',
+        'ecliptic_frame': 'geocentric_chart',
+        'equatorial_frame': 'geocentric_chart',
+        'horizon_frame': 'topocentric_observer',
+        'local_sidereal_time_deg': _directional_round(local_sidereal_degrees, 6, None),
+        'latitude': _directional_round(latitude, 6, None),
+        'longitude': _directional_round(longitude, 6, None),
+    }
 
 
 def _build_directional_3d_payload(
@@ -7775,7 +8083,14 @@ def _build_directional_3d_payload(
     latitude = float(coords[0])
     longitude = float(coords[1])
     obliquity, obliquity_source = _directional_chart_obliquity(chart_data, timestamp_iso)
-    selected_planets = _directional_planet_entries(chart_data)
+    selected_planets = _directional_planet_entries(chart_data, include_modern=include_modern)
+    body_names = [name for name, _info in selected_planets]
+    topocentric_samples = _directional_topocentric_samples(
+        timestamp_iso,
+        latitude,
+        longitude,
+        body_names,
+    )
     rows: List[Dict[str, Any]] = []
     data_gaps: List[Dict[str, str]] = []
     object_index = 0
@@ -7784,15 +8099,14 @@ def _build_directional_3d_payload(
         ecliptic_longitude = _directional_number(info.get('longitude'))
         if ecliptic_longitude is None:
             continue
-        ecliptic_latitude = _directional_number(info.get('latitude'), 0.0) or 0.0
+        ecliptic_latitude = _directional_number(info.get('latitude'))
         speed = _directional_number(info.get('speed')) if info.get('speed') is not None else None
         ecliptic_speed_source = 'native' if speed is not None else ''
         if speed is None:
             speed = _directional_number(info.get('lonspeed')) if info.get('lonspeed') is not None else None
             ecliptic_speed_source = 'native' if speed is not None else ''
         if speed is None:
-            speed = 0.0
-            ecliptic_speed_source = 'default_zero'
+            ecliptic_speed_source = 'unavailable'
         ecliptic_latitude_speed = _directional_ecliptic_latitude_speed_from_fields(info)
         row = _directional_object_row(
             object_id=f'planet:{name}',
@@ -7811,12 +8125,17 @@ def _build_directional_3d_payload(
             observer_latitude=latitude,
             observer_longitude=longitude,
             obliquity_deg=obliquity,
+            horizontal_samples={
+                'current': topocentric_samples['current'].get(name),
+                'before': topocentric_samples['before'].get(name),
+                'after': topocentric_samples['after'].get(name),
+            },
         )
         data_gaps.extend(row.pop('_data_gaps', []))
         rows.append(row)
         object_index += 1
 
-    for house_index, cusp_longitude in enumerate(_chart_house_cusps(chart_data), start=1):
+    for house_index, cusp_longitude in _chart_house_cusps(chart_data):
         row = _directional_object_row(
             object_id=f'house:{house_index}',
             object_index=object_index,
@@ -7826,9 +8145,9 @@ def _build_directional_3d_payload(
             info={},
             longitude_deg=cusp_longitude,
             latitude_deg=0.0,
-            speed=0.0,
-            ecliptic_speed_source='cusp_static',
-            ecliptic_latitude_speed=0.0,
+            speed=None,
+            ecliptic_speed_source='unavailable',
+            ecliptic_latitude_speed=None,
             bfull=False,
             timestamp_iso=timestamp_iso,
             observer_latitude=latitude,
@@ -7840,28 +8159,46 @@ def _build_directional_3d_payload(
         object_index += 1
 
     cd = chart_data if isinstance(chart_data, dict) else {}
-    house_system = (
+    requested_house_system = str(
         getattr(active_settings, 'house_system_code', None)
+        or cd.get('house_system_requested')
         or cd.get('house_system_code')
         or cd.get('house_system')
         or ''
-    )
-    house_system_safety_override = False
-    if abs(obliquity) > (90.0 - abs(latitude)):
-        house_system_safety_override = True
-        if str(house_system).strip().upper() not in {'P', 'PLACIDUS'}:
-            house_system = 'P'
+    ).strip()
+    chart_house_system = cd.get('house_system_effective') or cd.get('house_system_code') or cd.get('house_system')
+    effective_house_system = str(chart_house_system or requested_house_system).strip()
+    house_system_source = 'chart' if chart_house_system else 'request'
+    polar_region = abs(latitude) >= (90.0 - abs(obliquity))
 
     return {
         'systems': ['EQL', 'EQU', 'HOR'],
+        'body_policy': _directional_body_policy(
+            include_modern,
+            returned_names=[
+                row['name']
+                for row in rows
+                if row.get('object_type') == 'planet'
+            ],
+        ),
+        'frame_context': _directional_frame_context(timestamp_iso, latitude, longitude),
         'chart_info': {
             'utc_datetime': timestamp_iso,
             'latitude': _directional_round(latitude, 6, 0.0),
             'longitude': _directional_round(longitude, 6, 0.0),
             'rotation': DIRECTIONAL_3D_DEFAULT_ROTATION,
             'tilt': DIRECTIONAL_3D_DEFAULT_TILT,
-            'house_system': house_system,
-            'house_system_safety_override': house_system_safety_override,
+            'house_system': effective_house_system,
+            'house_system_requested': requested_house_system,
+            'house_system_effective': effective_house_system,
+            'house_system_source': house_system_source,
+            'house_system_adjusted': bool(
+                requested_house_system
+                and effective_house_system
+                and requested_house_system.upper() != effective_house_system.upper()
+            ),
+            'house_system_safety_override': False,
+            'polar_region': polar_region,
             'obliquity': _directional_round(obliquity, 6, 23.439291),
             'obliquity_source': obliquity_source,
             'data_gaps': data_gaps,

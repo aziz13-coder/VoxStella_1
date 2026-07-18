@@ -813,7 +813,20 @@ def test_compass_endpoint_prefers_local_space_payload(monkeypatch):
     assert payload["success"] is True
     assert payload["data"]["source"] == "local_space"
     assert payload["data"]["has_altitude"] is True
-    assert [row["planet"] for row in payload["data"]["azimuths"]] == ["Sun", "Mercury", "Uranus"]
+    assert [row["planet"] for row in payload["data"]["azimuths"]] == [
+        "Sun",
+        "Mercury",
+        "Uranus",
+        "Neptune",
+        "Pluto",
+    ]
+    assert payload["data"]["body_policy"]["included"] == [
+        "Sun",
+        "Mercury",
+        "Uranus",
+        "Neptune",
+        "Pluto",
+    ]
     assert payload["data"]["azimuths"][0]["altitude_deg"] == 20.0
     assert payload["data"]["azimuths"][2]["longitude_deg"] == 90.0
 
@@ -857,6 +870,75 @@ def test_compass_endpoint_uses_resolved_engine_defaults(monkeypatch):
     assert payload["data"]["latitude"] == 51.4769
     assert payload["data"]["longitude"] == -0.0005
     assert [row["planet"] for row in payload["data"]["azimuths"]] == ["Sun", "Moon"]
+
+
+def test_compass_and_directional_routes_augment_modern_bodies_from_real_engine(
+    monkeypatch,
+):
+    client = app_module.app.test_client()
+    engine = astro_clock_engine_module.AstroClockEngine()
+
+    monkeypatch.setattr(
+        engine.horary_engine,
+        "judge",
+        lambda _question, _settings: {
+            "chart_data": {
+                "ascendant": 15.0,
+                "planets": [
+                    {
+                        "planet": "Sun",
+                        "longitude": 15.0,
+                        "latitude": 0.0,
+                        "speed": 1.0,
+                    },
+                    {
+                        "planet": "Moon",
+                        "longitude": 45.0,
+                        "latitude": 2.0,
+                        "speed": 13.0,
+                    },
+                ],
+                "house_cusps": [],
+                "house_system_code": "R",
+            }
+        },
+    )
+    monkeypatch.setattr(engine, "_calculate_moon_state", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(engine, "_calculate_dispositor_chains", lambda *_args, **_kwargs: {})
+    monkeypatch.setattr(engine, "_extract_aspects_from_result", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(astro_clock_api, "_engine_instance", lambda: engine)
+    monkeypatch.setattr(
+        local_space_module,
+        "compute_local_space",
+        lambda _timestamp, _lat, _lon, planets: {
+            planet: {
+                "azimuth_deg": 100.0 + (index * 10.0),
+                "altitude_deg": 20.0 + index,
+                "right_ascension_deg": 30.0 + index,
+                "declination_deg": 5.0 + index,
+            }
+            for index, planet in enumerate(planets)
+        },
+    )
+
+    compass_response = client.get("/api/astro-clock/compass?include_modern=1")
+    directional_response = client.get(
+        "/api/astro-clock/directional-3d?include_modern=1"
+    )
+
+    assert compass_response.status_code == 200
+    assert directional_response.status_code == 200
+    expected = ["Sun", "Moon", "Uranus", "Neptune", "Pluto"]
+    compass_data = compass_response.get_json()["data"]
+    directional_data = directional_response.get_json()["data"]
+    assert [row["planet"] for row in compass_data["azimuths"]] == expected
+    assert [
+        row["name"]
+        for row in directional_data["objects"]
+        if row["object_type"] == "planet"
+    ] == expected
+    assert compass_data["body_policy"]["included"] == expected
+    assert directional_data["body_policy"]["included"] == expected
 
 
 def test_compass_endpoint_reports_local_space_failure_instead_of_approximating(monkeypatch):

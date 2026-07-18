@@ -14,6 +14,16 @@ vi.mock('../features/astroclock/api.mjs', () => ({
 
 import CompassTile from '../features/astroclock/CompassTile.jsx';
 
+function deferredPromise() {
+  let resolve;
+  let reject;
+  const promise = new Promise((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+  return { promise, reject, resolve };
+}
+
 describe('CompassTile', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -29,6 +39,362 @@ describe('CompassTile', () => {
 
     expect(screen.getByText('Set a chart location to render local-space bearings.')).toBeInTheDocument();
     expect(astroClockApiMock.getCompass).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['null coordinates', null, null],
+    ['blank coordinates', '  ', ''],
+    ['non-finite coordinates', Number.NaN, Number.POSITIVE_INFINITY],
+    ['out-of-range coordinates', 91, 181],
+  ])('rejects %s instead of coercing them to a chart location', (_label, latitude, longitude) => {
+    render(
+      <CompassTile
+        timestamp="2026-04-14T09:43:00Z"
+        mode="manual"
+        latitude={latitude}
+        longitude={longitude}
+        houseSystem="R"
+      />,
+    );
+
+    expect(screen.getByText('Set a chart location to render local-space bearings.')).toBeInTheDocument();
+    expect(astroClockApiMock.getCompass).not.toHaveBeenCalled();
+  });
+
+  it('omits invalid coordinates when a specific location can be resolved remotely', async () => {
+    astroClockApiMock.getCompass.mockResolvedValue({
+      success: true,
+      data: {
+        azimuths: [{ planet: 'Mars', azimuth_deg: 120, altitude_deg: 20 }],
+        ascendant: 12,
+      },
+    });
+
+    render(
+      <CompassTile
+        timestamp="2026-04-14T09:43:00Z"
+        mode="manual"
+        location="Greenwich, UK"
+        timezone="Europe/London"
+        latitude=""
+        longitude={null}
+        houseSystem="R"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(astroClockApiMock.getCompass).toHaveBeenCalledWith(
+        expect.objectContaining({
+          latitude: undefined,
+          longitude: undefined,
+          location: 'Greenwich, UK',
+        }),
+      );
+    });
+  });
+
+  it('rejects blank, null, and non-finite bearings without manufacturing north-zero markers', async () => {
+    astroClockApiMock.getCompass.mockResolvedValue({
+      success: true,
+      data: {
+        azimuths: [
+          { planet: 'Sun', azimuth_deg: 45, altitude_deg: 10 },
+          { planet: 'Moon', azimuth_deg: null, altitude_deg: 20 },
+          { planet: 'Mars', azimuth_deg: '', altitude_deg: 30 },
+          { planet: 'Venus', azimuth_deg: Number.POSITIVE_INFINITY, altitude_deg: 40 },
+        ],
+        ascendant: 0,
+      },
+    });
+
+    render(
+      <CompassTile
+        timestamp="2026-04-14T09:43:00Z"
+        mode="manual"
+        location="Greenwich, UK"
+        latitude={51.4769}
+        longitude={-0.0005}
+        houseSystem="R"
+      />,
+    );
+
+    expect(await screen.findByText('\u2609')).toBeInTheDocument();
+    expect(document.querySelectorAll('[data-directional-anchor]')).toHaveLength(1);
+    expect(screen.queryByText('\u263D')).not.toBeInTheDocument();
+    expect(screen.queryByText('\u2642')).not.toBeInTheDocument();
+    expect(screen.queryByText('\u2640')).not.toBeInTheDocument();
+  });
+
+  it('omits missing altitude from ALT while retaining the body in bearing-only AZ', () => {
+    render(
+      <CompassTile
+        timestamp="2026-04-14T09:43:00Z"
+        mode="manual"
+        location="Greenwich, UK"
+        latitude={51.4769}
+        longitude={-0.0005}
+        initialData={{
+          azimuths: [
+            { planet: 'Sun', azimuth_deg: 45, altitude_deg: 10 },
+            { planet: 'Moon', azimuth_deg: 90, altitude_deg: null },
+            { planet: 'Mars', azimuth_deg: 135, altitude_deg: '' },
+          ],
+          ascendant: 0,
+        }}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Alt' })).toHaveAttribute('aria-pressed', 'true');
+    expect(document.querySelectorAll('[data-directional-anchor]')).toHaveLength(1);
+    expect(screen.getByText('2 bodies are omitted because altitude is unavailable.')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Az' }));
+
+    expect(screen.getByRole('button', { name: 'Az' })).toHaveAttribute('aria-pressed', 'true');
+    expect(document.querySelectorAll('[data-directional-anchor]')).toHaveLength(3);
+    expect(screen.queryByText(/omitted because altitude is unavailable/i)).not.toBeInTheDocument();
+  });
+
+  it('keys remote data to its chart context so old bearings disappear during a context change', async () => {
+    const firstRequest = deferredPromise();
+    const secondRequest = deferredPromise();
+    astroClockApiMock.getCompass
+      .mockReturnValueOnce(firstRequest.promise)
+      .mockReturnValueOnce(secondRequest.promise);
+
+    const common = {
+      mode: 'manual',
+      timezone: 'Etc/UTC',
+      latitude: 10,
+      longitude: 20,
+      houseSystem: 'R',
+    };
+    const { rerender } = render(
+      <CompassTile
+        {...common}
+        timestamp="2026-01-01T00:00:00Z"
+        location="First place"
+      />,
+    );
+
+    await waitFor(() => expect(astroClockApiMock.getCompass).toHaveBeenCalledTimes(1));
+    firstRequest.resolve({
+      success: true,
+      data: {
+        azimuths: [{ planet: 'Sun', azimuth_deg: 10, altitude_deg: 5 }],
+        ascendant: 1,
+      },
+    });
+    expect(await screen.findByText('\u2609')).toBeInTheDocument();
+
+    rerender(
+      <CompassTile
+        {...common}
+        timestamp="2026-01-02T00:00:00Z"
+        location="Second place"
+      />,
+    );
+
+    expect(screen.queryByText('\u2609')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Updating local-space bearings');
+    await waitFor(() => expect(astroClockApiMock.getCompass).toHaveBeenCalledTimes(2));
+
+    secondRequest.resolve({
+      success: true,
+      data: {
+        azimuths: [{ planet: 'Moon', azimuth_deg: 20, altitude_deg: 6 }],
+        ascendant: 2,
+      },
+    });
+    expect(await screen.findByText('\u263D')).toBeInTheDocument();
+    expect(screen.queryByText('\u2609')).not.toBeInTheDocument();
+  });
+
+  it('uses payload angles with correct minute carry at sign and zodiac boundaries', () => {
+    render(
+      <CompassTile
+        timestamp="2026-04-14T09:43:00Z"
+        mode="manual"
+        location="Greenwich, UK"
+        latitude={51.4769}
+        longitude={-0.0005}
+        initialData={{
+          azimuths: [{ planet: 'Sun', azimuth_deg: 45, altitude_deg: 10 }],
+          ascendant: 359.9999,
+        }}
+        houseCusps={[12, 42, 72, 102, 132, 162, 192]}
+      />,
+    );
+
+    expect(screen.getByText("\u2648 0\u00B000'")).toBeInTheDocument();
+    expect(screen.getByText("\u264E 0\u00B000'")).toBeInTheDocument();
+    expect(document.body.textContent).not.toContain("29\u00B060'");
+  });
+
+  it('keeps AZ anchors on one radius and offsets colliding labels deterministically', () => {
+    render(
+      <CompassTile
+        timestamp="2026-04-14T09:43:00Z"
+        mode="manual"
+        location="Greenwich, UK"
+        latitude={51.4769}
+        longitude={-0.0005}
+        initialData={{
+          azimuths: [
+            { planet: 'Sun', azimuth_deg: 45, altitude_deg: 5 },
+            { planet: 'Moon', azimuth_deg: 45, altitude_deg: 80 },
+          ],
+          ascendant: 0,
+        }}
+      />,
+    );
+
+    const viewGroup = screen.getByRole('group', { name: 'Directional view' });
+    expect(within(viewGroup).getByRole('button', { name: 'Alt' })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(within(viewGroup).getByRole('button', { name: 'Az' }));
+
+    expect(within(viewGroup).getByRole('button', { name: 'Az' })).toHaveAttribute('aria-pressed', 'true');
+    const sunAnchor = document.querySelector('[data-directional-anchor="Sun"]');
+    const moonAnchor = document.querySelector('[data-directional-anchor="Moon"]');
+    const sunLabel = document.querySelector('[data-directional-label="Sun"]');
+    const moonLabel = document.querySelector('[data-directional-label="Moon"]');
+    expect(sunAnchor).toBeTruthy();
+    expect(moonAnchor).toBeTruthy();
+    expect(sunAnchor.getAttribute('cx')).toBe(moonAnchor.getAttribute('cx'));
+    expect(sunAnchor.getAttribute('cy')).toBe(moonAnchor.getAttribute('cy'));
+    expect(`${sunLabel.getAttribute('x')},${sunLabel.getAttribute('y')}`)
+      .not.toBe(`${moonLabel.getAttribute('x')},${moonLabel.getAttribute('y')}`);
+    expect(document.querySelectorAll('[data-directional-leader]')).toHaveLength(1);
+    expect(screen.getByRole('img', { name: /bearing-only compass/i }))
+      .toHaveAttribute('data-directional-plot', 'azimuth');
+  });
+
+  it('reserves zenith and cardinal labels without moving exact ALT or AZ anchors', () => {
+    render(
+      <CompassTile
+        timestamp="2026-04-14T09:43:00Z"
+        mode="manual"
+        location="Greenwich, UK"
+        latitude={51.4769}
+        longitude={-0.0005}
+        initialData={{
+          azimuths: [
+            { planet: 'Sun', azimuth_deg: 0, altitude_deg: 90 },
+            { planet: 'Moon', azimuth_deg: 90, altitude_deg: 0 },
+          ],
+          ascendant: 0,
+        }}
+      />,
+    );
+
+    const sunAnchor = document.querySelector('[data-directional-anchor="Sun"]');
+    const moonAnchor = document.querySelector('[data-directional-anchor="Moon"]');
+    const zenithAnchor = document.querySelector('[data-directional-zenith-anchor]');
+    const zenithLabel = document.querySelector('[data-directional-reference-label="Z"]');
+    const eastLabel = document.querySelector('[data-directional-reference-label="E"]');
+    const sunLabel = document.querySelector('[data-directional-label="Sun"]');
+    const moonLabel = document.querySelector('[data-directional-label="Moon"]');
+    const distance = (left, right) => Math.hypot(
+      Number(left.getAttribute('x') ?? left.getAttribute('cx'))
+        - Number(right.getAttribute('x') ?? right.getAttribute('cx')),
+      Number(left.getAttribute('y') ?? left.getAttribute('cy'))
+        - Number(right.getAttribute('y') ?? right.getAttribute('cy')),
+    );
+
+    expect(sunAnchor.getAttribute('cx')).toBe(zenithAnchor.getAttribute('cx'));
+    expect(sunAnchor.getAttribute('cy')).toBe(zenithAnchor.getAttribute('cy'));
+    expect(Number(moonAnchor.getAttribute('cx'))).toBeCloseTo(238, 5);
+    expect(Number(moonAnchor.getAttribute('cy'))).toBeCloseTo(136, 5);
+    expect(distance(sunLabel, zenithLabel)).toBeGreaterThanOrEqual(15);
+    expect(distance(moonLabel, eastLabel)).toBeGreaterThanOrEqual(15);
+    expect(document.querySelector('[data-directional-leader="Sun"]')).toBeTruthy();
+    expect(document.querySelector('[data-directional-leader="Moon"]')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Az' }));
+
+    const azSunAnchor = document.querySelector('[data-directional-anchor="Sun"]');
+    const azSunLabel = document.querySelector('[data-directional-label="Sun"]');
+    const northLabel = document.querySelector('[data-directional-reference-label="N"]');
+    expect(Number(azSunAnchor.getAttribute('cx'))).toBeCloseTo(136, 5);
+    expect(Number(azSunAnchor.getAttribute('cy'))).toBeCloseTo(52.5, 5);
+    expect(distance(azSunLabel, northLabel)).toBeGreaterThanOrEqual(15);
+    expect(document.querySelector('[data-directional-reference-label="Z"]')).toBeNull();
+  });
+
+  it('enforces the explicit traditional versus modern body scope', () => {
+    const data = {
+      azimuths: [
+        { planet: 'Sun', azimuth_deg: 10, altitude_deg: 10 },
+        { planet: 'Uranus', azimuth_deg: 20, altitude_deg: 20 },
+        { planet: 'Chiron', azimuth_deg: 30, altitude_deg: 30 },
+      ],
+      ascendant: 0,
+    };
+    const { rerender } = render(
+      <CompassTile
+        includeModern={false}
+        timestamp="2026-04-14T09:43:00Z"
+        mode="manual"
+        location="Greenwich, UK"
+        latitude={51.4769}
+        longitude={-0.0005}
+        initialData={data}
+      />,
+    );
+
+    expect(screen.getByTitle('Current chart · Traditional bodies')).toBeInTheDocument();
+    expect(document.querySelector('[data-directional-anchor="Sun"]')).toBeTruthy();
+    expect(document.querySelector('[data-directional-anchor="Uranus"]')).toBeNull();
+    expect(document.querySelector('[data-directional-anchor="Chiron"]')).toBeNull();
+
+    rerender(
+      <CompassTile
+        includeModern
+        timestamp="2026-04-14T09:43:00Z"
+        mode="manual"
+        location="Greenwich, UK"
+        latitude={51.4769}
+        longitude={-0.0005}
+        initialData={data}
+      />,
+    );
+
+    expect(screen.getByTitle('Current chart · Traditional and modern bodies')).toBeInTheDocument();
+    expect(document.querySelector('[data-directional-anchor="Uranus"]')).toBeTruthy();
+    expect(document.querySelector('[data-directional-anchor="Chiron"]')).toBeNull();
+  });
+
+  it('announces request failures and retries without retaining failed request state', async () => {
+    const firstRequest = deferredPromise();
+    astroClockApiMock.getCompass
+      .mockReturnValueOnce(firstRequest.promise)
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          azimuths: [{ planet: 'Sun', azimuth_deg: 45, altitude_deg: 10 }],
+          ascendant: 0,
+        },
+      });
+
+    const { container } = render(
+      <CompassTile
+        timestamp="2026-04-14T09:43:00Z"
+        mode="manual"
+        location="Greenwich, UK"
+        latitude={51.4769}
+        longitude={-0.0005}
+      />,
+    );
+
+    await waitFor(() => expect(container.firstChild).toHaveAttribute('aria-busy', 'true'));
+    firstRequest.resolve({ success: false, error: 'Bearing service unavailable' });
+    expect(await screen.findByRole('alert')).toHaveTextContent('Bearing service unavailable');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry bearings' }));
+
+    expect(await screen.findByText('\u2609')).toBeInTheDocument();
+    expect(astroClockApiMock.getCompass).toHaveBeenCalledTimes(2);
+    expect(container.firstChild).toHaveAttribute('aria-busy', 'false');
   });
 
   it('requests real compass bearings with the active Astro Clock context', async () => {
@@ -71,7 +437,8 @@ describe('CompassTile', () => {
     expect(screen.getByText('\u2643')).toBeInTheDocument();
     expect(screen.getByText('Directional')).toBeInTheDocument();
     expect(screen.queryByText('Compass Bearings')).not.toBeInTheDocument();
-    expect(screen.getByText('Rising')).toBeInTheDocument();
+    expect(screen.getByText('Ascendant')).toBeInTheDocument();
+    expect(screen.getByText('Descendant')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Alt' })).toHaveClass('bg-zinc-900');
     expect(screen.getByRole('button', { name: 'Alt' })).toBeEnabled();
   });
@@ -213,6 +580,133 @@ describe('CompassTile', () => {
     expect(screen.queryByText('H')).not.toBeInTheDocument();
   });
 
+  it('keeps bearings, angles, and the initial 3D request on the same saved-chart source', async () => {
+    astroClockApiMock.getCompass.mockResolvedValue({
+      success: true,
+      data: {
+        azimuths: [{ planet: 'Moon', azimuth_deg: 91, altitude_deg: 25 }],
+        ascendant: 29.9999,
+        source: 'local_space',
+      },
+    });
+    astroClockApiMock.getDirectional3d.mockResolvedValue({
+      success: true,
+      data: {
+        systems: ['EQL', 'EQU', 'HOR'],
+        chart_info: {
+          utc_datetime: '2001-06-15T08:15:00+00:00',
+          latitude: 51.5,
+          longitude: -0.1,
+          house_system: 'T',
+        },
+        objects: [],
+      },
+    });
+
+    render(
+      <CompassTile
+        includeModern={false}
+        timestamp="2026-03-22T04:32:00Z"
+        mode="manual"
+        location="Current place"
+        timezone="Etc/UTC"
+        latitude={31.778}
+        longitude={35.235}
+        houseSystem="R"
+        initialData={{
+          azimuths: [{ planet: 'Sun', azimuth_deg: 88, altitude_deg: 12 }],
+          ascendant: 15,
+        }}
+        houseCusps={[15, 45, 75, 105, 135, 165, 195]}
+        snaps={[{
+          id: 'snap-source',
+          label: 'Saved source chart',
+          effective_datetime: '2001-06-15T08:15:00+00:00',
+          location: 'Saved place',
+          timezone: 'Etc/UTC',
+          latitude: 51.5,
+          longitude: -0.1,
+          dashboard: { house_system_code: 'T' },
+        }]}
+        activeSnapId="snap-source"
+      />,
+    );
+
+    expect(await screen.findByText('\u263D')).toBeInTheDocument();
+    expect(astroClockApiMock.getCompass).toHaveBeenCalledWith({
+      includeModern: false,
+      snapId: 'snap-source',
+      houseSystem: 'T',
+    });
+    expect(screen.queryByText('\u2609')).not.toBeInTheDocument();
+    expect(screen.getByTitle('Saved source chart · Traditional bodies')).toBeInTheDocument();
+    expect(screen.getByText("\u2649 0\u00B000'")).toBeInTheDocument();
+    expect(screen.getByText("\u264F 0\u00B000'")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '3D' }));
+
+    await waitFor(() => {
+      expect(astroClockApiMock.getDirectional3d).toHaveBeenCalledWith({
+        includeModern: false,
+        snapId: 'snap-source',
+        houseSystem: 'T',
+      });
+    });
+    expect(screen.getByRole('button', { name: '3D' })).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('loads saved-chart detail to recover its stored house system before Compass calculation', async () => {
+    astroClockApiMock.getSnap.mockResolvedValue({
+      success: true,
+      snap: {
+        id: 'snap-house-detail',
+        dashboard: {
+          house_system_code: 'T',
+        },
+      },
+    });
+    astroClockApiMock.getCompass.mockResolvedValue({
+      success: true,
+      data: {
+        azimuths: [{ planet: 'Sun', azimuth_deg: 40, altitude_deg: 20 }],
+        ascendant: 12,
+      },
+    });
+
+    render(
+      <CompassTile
+        includeModern={false}
+        timestamp="2026-03-22T04:32:00Z"
+        mode="manual"
+        location="Current place"
+        timezone="Etc/UTC"
+        latitude={31.778}
+        longitude={35.235}
+        houseSystem="R"
+        snaps={[{
+          id: 'snap-house-detail',
+          label: 'Stored Topocentric chart',
+          effective_datetime: '2001-06-15T08:15:00+00:00',
+          location: 'Saved place',
+          timezone: 'Etc/UTC',
+          latitude: 51.5,
+          longitude: -0.1,
+        }]}
+        activeSnapId="snap-house-detail"
+      />,
+    );
+
+    await waitFor(() => expect(astroClockApiMock.getSnap).toHaveBeenCalledWith('snap-house-detail'));
+    await waitFor(() => {
+      expect(astroClockApiMock.getCompass).toHaveBeenCalledWith({
+        includeModern: false,
+        snapId: 'snap-house-detail',
+        houseSystem: 'T',
+      });
+    });
+    expect(await screen.findByText('\u2609')).toBeInTheDocument();
+  });
+
   it('opens Directional 3D with the active chart context', async () => {
     astroClockApiMock.getDirectional3d.mockResolvedValueOnce({
       success: true,
@@ -338,27 +832,36 @@ describe('CompassTile', () => {
       });
     });
     expect(await screen.findByText('Directional 3D')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'EQL' })).toHaveClass('bg-zinc-900');
-    const chart = screen.getByRole('img', { name: 'Directional 3D chart' });
-    expect(chart).toBeInTheDocument();
-    expect(chart.querySelectorAll('g[role="button"] circle')).toHaveLength(0);
-    const selectedSunGlyph = chart.querySelector('[data-directional-selected-object="planet:Sun"]');
+    expect(screen.getByRole('button', { name: 'HOR' })).toHaveAttribute('aria-pressed', 'true');
+    let chart = screen.getByRole('img', { name: 'Horizon Directional 3D chart' });
+    expect(chart.querySelectorAll('g[role="button"]')).toHaveLength(0);
+    let selectedSunGlyph = chart.querySelector('[data-directional-selected-object="planet:Sun"]');
     expect(selectedSunGlyph).toBeTruthy();
-    expect(selectedSunGlyph).toHaveAttribute('filter', 'url(#directional-selected-glow)');
+    expect(selectedSunGlyph).toHaveAttribute('data-directional-selected-system', 'HOR');
+    expect(selectedSunGlyph).toHaveAttribute('filter', 'url(#directional-selected-glow-HOR)');
     expect(selectedSunGlyph).toHaveAttribute('stroke', 'none');
-    expect(selectedSunGlyph.closest('g')).toHaveStyle({ outline: 'none' });
     expect(chart.querySelectorAll('[data-directional-selected-frame]')).toHaveLength(0);
-    expect(chart.querySelectorAll('[data-directional-house-boundary]')).toHaveLength(2);
-    expect(screen.getByRole('button', { name: 'Ecliptic' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Equator' })).toBeInTheDocument();
+    expect(chart.querySelectorAll('[data-directional-house-boundary]')).toHaveLength(0);
     expect(screen.getByRole('button', { name: 'Horizon' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Back points' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Back points' })).toHaveAttribute('aria-pressed');
+    expect(chart.querySelectorAll('[data-directional-reference="tropic"]')).toHaveLength(0);
+    fireEvent.click(screen.getByRole('button', { name: 'EQU' }));
+    chart = screen.getByRole('img', { name: 'Equatorial Directional 3D chart' });
+    expect(screen.getByRole('button', { name: 'Equator' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Tropics' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Polar' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Back half' })).toBeInTheDocument();
-    expect(chart.querySelectorAll('[data-directional-reference="tropic"]')).toHaveLength(2);
-    expect(chart.querySelectorAll('[data-directional-reference="polar"]')).toHaveLength(2);
+    expect(chart.querySelectorAll('[data-directional-reference="tropic"]').length).toBeGreaterThan(0);
+    expect(chart.querySelectorAll('[data-directional-reference="polar"]').length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole('button', { name: 'Tropics' }));
     expect(chart.querySelectorAll('[data-directional-reference="tropic"]')).toHaveLength(0);
+    fireEvent.click(screen.getByRole('button', { name: 'EQL' }));
+    chart = screen.getByRole('img', { name: 'Ecliptic Directional 3D chart' });
+    expect(screen.getByRole('button', { name: 'Ecliptic' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cusp points' })).toBeInTheDocument();
+    expect(chart.querySelectorAll('[data-directional-house-cusp]')).toHaveLength(2);
+    selectedSunGlyph = chart.querySelector('[data-directional-selected-object="planet:Sun"]');
+    expect(selectedSunGlyph).toHaveAttribute('data-directional-selected-system', 'EQL');
     const inspector = document.querySelector('[data-directional-inspector]');
     expect(inspector).toBeTruthy();
     expect(within(inspector).getByText('Selected object')).toBeInTheDocument();
@@ -371,7 +874,7 @@ describe('CompassTile', () => {
     expect(within(inspector).queryByText('Speed source')).not.toBeInTheDocument();
     expect(within(inspector).queryByText('Lat source')).not.toBeInTheDocument();
     expect(within(inspector).queryByText('finite_difference')).not.toBeInTheDocument();
-    expect(within(inspector).getByText('Sun')).toBeInTheDocument();
+    expect(within(inspector).getByText(/Sun/)).toBeInTheDocument();
     expect(screen.getByText('Lat speed -0.121')).toBeInTheDocument();
     expect(screen.getByText('Speed 312.456')).toBeInTheDocument();
     expect(screen.getByText('Lat speed -148.123')).toBeInTheDocument();
@@ -380,22 +883,21 @@ describe('CompassTile', () => {
     const houseRow = screen.getByRole('row', { name: /House 1/ });
     expect(within(houseRow).getByText('House 1')).toBeInTheDocument();
     expect(within(houseRow).queryByText('H1')).not.toBeInTheDocument();
-    fireEvent.click(within(houseRow).getByRole('button', { name: 'House 1' }));
-    const selectedHouseLabel = chart.querySelector('[data-directional-selected-object="cusp:1"]');
-    expect(selectedHouseLabel).toBeTruthy();
-    expect(selectedHouseLabel).toHaveAttribute('stroke', 'none');
-    expect(selectedHouseLabel.closest('g')).toHaveStyle({ outline: 'none' });
-    expect(chart.querySelector('[aria-label="House 1 EQL"] path')).toBeNull();
+    fireEvent.click(within(houseRow).getByRole('button', { name: /Inspect House 1 EQL Lon/ }));
+    const selectedHouseMarker = chart.querySelector('[data-directional-house-cusp="cusp:1"] circle');
+    expect(selectedHouseMarker).toHaveAttribute('r', '4.5');
     const sunRow = screen.getByRole('row', { name: /Sun/ });
     expect(within(sunRow).getByText('\u2609')).toBeInTheDocument();
     const marsRow = screen.getByRole('row', { name: /Mars/ });
-    fireEvent.click(within(marsRow).getByRole('button', { name: /\u2642\s*Mars/ }));
+    fireEvent.click(within(marsRow).getByRole('button', { name: /Inspect Mars EQL Lon/ }));
     const selectedMarsGlyph = chart.querySelector('[data-directional-selected-object="planet:Mars"]');
+    expect(selectedMarsGlyph).toHaveAttribute('data-directional-selected-system', 'EQL');
     expect(selectedMarsGlyph).toHaveAttribute('fill', '#ef4444');
     expect(selectedMarsGlyph).toHaveAttribute('color', '#ef4444');
     const saturnRow = screen.getByRole('row', { name: /Saturn/ });
-    fireEvent.click(within(saturnRow).getByRole('button', { name: /\u2644\s*Saturn/ }));
+    fireEvent.click(within(saturnRow).getByRole('button', { name: /Inspect Saturn EQL Lon/ }));
     const selectedSaturnGlyph = chart.querySelector('[data-directional-selected-object="planet:Saturn"]');
+    expect(selectedSaturnGlyph).toHaveAttribute('data-directional-selected-system', 'EQL');
     expect(selectedSaturnGlyph).toHaveAttribute('fill', '#27272a');
     expect(selectedSaturnGlyph).toHaveAttribute('color', '#27272a');
   });
@@ -537,6 +1039,97 @@ describe('CompassTile', () => {
     });
   });
 
+  it('retries the exact failed stepped context and replaces it on a base reload', async () => {
+    const payload = (utcDatetime) => ({
+      systems: ['EQL', 'EQU', 'HOR'],
+      chart_info: {
+        utc_datetime: utcDatetime,
+        latitude: 31.778,
+        longitude: 35.235,
+        house_system: 'R',
+      },
+      objects: [{
+        object_id: 'planet:Sun',
+        name: 'Sun',
+        symbol: '\u2609',
+        EQL: { longitude: 1.5, latitude: 0.1, speed: 0.98 },
+        EQU: { longitude: 1.4, latitude: 0.7, speed: 0.98 },
+        HOR: { longitude: 88.1, latitude: 12.4, speed: 0 },
+      }],
+    });
+    astroClockApiMock.getDirectional3d
+      .mockResolvedValueOnce({
+        success: true,
+        data: payload('2026-03-22T04:32:00+00:00'),
+      })
+      .mockResolvedValueOnce({ success: false, error: 'Stepped request failed' })
+      .mockResolvedValueOnce({
+        success: true,
+        data: payload('2026-03-22T05:32:00+00:00'),
+      })
+      .mockResolvedValueOnce({ success: false, error: 'Base reload failed' })
+      .mockResolvedValueOnce({
+        success: true,
+        data: payload('2026-03-22T04:32:00+00:00'),
+      });
+
+    render(
+      <CompassTile
+        includeModern={false}
+        timestamp="2026-03-22T04:32:00Z"
+        mode="manual"
+        location="Israel"
+        timezone="Asia/Jerusalem"
+        latitude={31.778}
+        longitude={35.235}
+        houseSystem="R"
+        initialData={{
+          azimuths: [{ planet: 'Sun', azimuth_deg: 88.1, altitude_deg: 12.4 }],
+          ascendant: 18,
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '3D' }));
+    expect(await screen.findByText('Directional 3D')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Time +1h' }));
+    expect(await screen.findByText('Stepped request failed')).toBeInTheDocument();
+
+    const steppedRequest = {
+      includeModern: false,
+      mode: 'manual',
+      datetime: '2026-03-22T05:32:00.000Z',
+      location: 'Israel',
+      timezone: 'Asia/Jerusalem',
+      latitude: 31.778,
+      longitude: 35.235,
+      houseSystem: 'R',
+    };
+    expect(astroClockApiMock.getDirectional3d).toHaveBeenLastCalledWith(steppedRequest);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await waitFor(() => expect(astroClockApiMock.getDirectional3d).toHaveBeenCalledTimes(3));
+    expect(astroClockApiMock.getDirectional3d).toHaveBeenLastCalledWith(steppedRequest);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Current Manual' }));
+    expect(await screen.findByText('Base reload failed')).toBeInTheDocument();
+    const baseRequest = {
+      includeModern: false,
+      mode: 'manual',
+      datetime: '2026-03-22T04:32:00Z',
+      location: 'Israel',
+      timezone: 'Asia/Jerusalem',
+      latitude: 31.778,
+      longitude: 35.235,
+      houseSystem: 'R',
+    };
+    expect(astroClockApiMock.getDirectional3d).toHaveBeenLastCalledWith(baseRequest);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await waitFor(() => expect(astroClockApiMock.getDirectional3d).toHaveBeenCalledTimes(5));
+    expect(astroClockApiMock.getDirectional3d).toHaveBeenLastCalledWith(baseRequest);
+  });
+
   it('uses realtime context without datetime when Current Auto is selected after a saved snap', async () => {
     astroClockApiMock.getDirectional3d
       .mockResolvedValueOnce({
@@ -673,7 +1266,6 @@ describe('CompassTile', () => {
             dashboard: { house_system_code: 'T' },
           },
         ]}
-        activeSnapId="snap-synthetic"
         loadingSnaps={false}
         snapsLoaded
         onRefreshSnaps={vi.fn()}
@@ -824,7 +1416,6 @@ describe('CompassTile', () => {
             },
           },
         ]}
-        activeSnapId="snap-synthetic"
         loadingSnaps={false}
         snapsLoaded
         onRefreshSnaps={vi.fn()}
@@ -833,7 +1424,7 @@ describe('CompassTile', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '3D' }));
     expect(await screen.findByText('Directional 3D')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Current Manual' })).toHaveClass('bg-zinc-900');
+    expect(screen.getByRole('button', { name: 'Current Manual' })).toHaveAttribute('aria-pressed', 'true');
 
     fireEvent.click(screen.getByRole('button', { name: 'Saved Snap' }));
     fireEvent.change(screen.getByLabelText('Directional saved snap'), {
@@ -907,7 +1498,7 @@ describe('CompassTile', () => {
         houseSystem: 'T',
       });
     });
-    expect(screen.getByRole('button', { name: 'Saved Snap' })).toHaveClass('bg-zinc-900');
+    expect(screen.getByRole('button', { name: 'Saved Snap' })).toHaveAttribute('aria-pressed', 'true');
     expect((await screen.findAllByText('Moon')).length).toBeGreaterThan(0);
   });
 
@@ -1023,6 +1614,7 @@ describe('CompassTile', () => {
             timezone: 'Etc/UTC',
             latitude: 1,
             longitude: 2,
+            dashboard: { house_system_code: 'R' },
           },
         ]}
         snapsLoaded

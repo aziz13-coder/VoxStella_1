@@ -2800,11 +2800,11 @@ const AstroClock = ({
 
   return (
     <div className={`max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8`}>
-      <div className="mb-4 grid gap-y-3 gap-x-4 lg:gap-x-5 md:grid-cols-[minmax(200px,0.78fr)_minmax(620px,2.55fr)_minmax(300px,1.22fr)] md:items-center">
-        <button onClick={() => setCurrentView('dashboard')} className="flex items-center self-start text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 md:col-start-1 md:col-end-2">
+      <div className="mb-4 grid min-w-0 grid-cols-[minmax(0,1fr)] gap-x-4 gap-y-3 lg:gap-x-5 xl:grid-cols-[minmax(180px,0.78fr)_minmax(0,2.55fr)_minmax(260px,1.22fr)] xl:items-center">
+        <button onClick={() => setCurrentView('dashboard')} className="flex items-center self-start text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 xl:col-start-1 xl:col-end-2">
           <span className="mr-2">←</span> Back to Dashboard
         </button>
-        <div className="flex flex-wrap items-center justify-start gap-2 md:col-start-2 md:col-end-4 md:justify-end">
+        <div className="flex min-w-0 flex-wrap items-center justify-start gap-2 xl:col-start-2 xl:col-end-4 xl:justify-end">
           <button
             type="button"
             className={featureActionCls}
@@ -2883,7 +2883,7 @@ const AstroClock = ({
       {/* Controls */}
       <div
         data-testid="astro-clock-control-strip"
-        className={`mb-6 w-full rounded-[24px] px-4 py-2.5 sm:px-5 md:min-w-[1152px] lg:min-w-[1160px] ${controlShellCls}`}
+        className={`mb-6 w-full min-w-0 max-w-full rounded-[24px] px-4 py-2.5 sm:px-5 ${controlShellCls}`}
       >
         <div className="sr-only" aria-hidden="true">
           <input
@@ -2910,8 +2910,8 @@ const AstroClock = ({
           />
         </div>
 
-        <div className="flex flex-col gap-2.5 lg:grid lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center lg:gap-2.5">
-          <div className="flex flex-wrap items-center gap-2.5 lg:flex-nowrap lg:shrink-0">
+        <div className="flex min-w-0 flex-col gap-2.5 xl:grid xl:grid-cols-[auto_minmax(0,1fr)_auto] xl:items-center xl:gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5 xl:flex-nowrap xl:shrink-0">
             <div className={`inline-flex rounded-full p-1 ${darkMode ? 'bg-zinc-900' : 'bg-zinc-100'}`}>
               <button
                 onClick={resumeRealtime}
@@ -2949,7 +2949,7 @@ const AstroClock = ({
             </div>
           </div>
 
-          <div className={`grid min-w-0 gap-2.5 sm:grid-cols-2 lg:grid-cols-[minmax(150px,0.68fr)_minmax(132px,0.46fr)_minmax(220px,1fr)] lg:border-l lg:pl-4 ${darkMode ? 'lg:border-zinc-800' : 'lg:border-zinc-200'}`}>
+          <div className={`grid min-w-0 gap-2.5 sm:grid-cols-2 xl:grid-cols-[minmax(150px,0.68fr)_minmax(132px,0.46fr)_minmax(220px,1fr)] xl:border-l xl:pl-4 ${darkMode ? 'xl:border-zinc-800' : 'xl:border-zinc-200'}`}>
             <div className="min-w-0">
               <div className={`text-[8px] font-semibold uppercase tracking-[0.18em] ${darkMode ? 'text-zinc-500' : 'text-zinc-400'}`} style={monoStyle}>
                 Date
@@ -3053,7 +3053,7 @@ const AstroClock = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-3 lg:shrink-0">
+          <div className="flex items-center gap-3 xl:shrink-0">
             <button
               onClick={refreshControlBar}
               disabled={refreshButtonDisabled}
@@ -3153,10 +3153,10 @@ const AstroClock = ({
         )}
       </div>
 
-      {/* 12-col layout, custom widths/rows on md+ */}
-      <div className="grid gap-y-4 gap-x-4 lg:gap-y-6 lg:gap-x-5 md:grid-cols-[minmax(200px,0.78fr)_minmax(620px,2.55fr)_minmax(300px,1.22fr)] md:grid-rows-[auto_minmax(500px,auto)_auto]">
+      {/* Single-column reading flow below xl; balanced three-column workspace on wide screens. */}
+      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-x-4 gap-y-4 lg:gap-x-5 lg:gap-y-6 xl:grid-cols-[minmax(180px,0.78fr)_minmax(0,2.55fr)_minmax(260px,1.22fr)] xl:grid-rows-[auto_minmax(500px,auto)_auto]">
         {/* Left column (col 1): stack Dispositors + Fixed Stars together to avoid row stretching */}
-        <div className="order-1 md:[grid-column:1] md:[grid-row:1/4] self-start space-y-4 lg:space-y-6">
+        <div className="order-1 min-w-0 self-start space-y-4 lg:space-y-6 xl:[grid-column:1] xl:[grid-row:1/4]">
           {/* Receptions - rectangle */}
           <section className={`${panelCls} h-auto max-h-80 md:max-h-[340px] overflow-auto`}>
             <div className="flex items-center justify-between mb-2">
@@ -3256,7 +3256,7 @@ const AstroClock = ({
         </div>
 
         {/* Center column (col 2) */}
-        <div className="order-4 md:[grid-column:2] md:[grid-row:1] space-y-4 lg:space-y-6">
+        <div className="order-4 min-w-0 space-y-4 lg:space-y-6 xl:[grid-column:2] xl:[grid-row:1]">
           {/* A) Solar Conditions - rectangle with chips (Morin-aware) */}
           <section className={panelCls}>
             <div className="flex items-center justify-between gap-3">
@@ -3307,7 +3307,7 @@ const AstroClock = ({
           </section>
 
           {/* B) Chart - square mock with Hour-of-Day mini ring */}
-          <section className="order-5 md:[grid-column:2] md:[grid-row:2]">
+          <section className="order-5 xl:[grid-column:2] xl:[grid-row:2]">
             <ChartMock
               data={data}
               chartLens={chartLens}
@@ -3321,11 +3321,11 @@ const AstroClock = ({
           </section>
 
           {/* C) Moon Condition - rectangle */}
-          <section className="order-6 md:[grid-column:2] md:[grid-row:3]">
+          <section className="order-6 xl:[grid-column:2] xl:[grid-row:3]">
             <MoonCondition data={data} />
           </section>
           {/* Saved Snaps - below Moon Condition */}
-          <section className="order-7 md:[grid-column:2] md:[grid-row:4]">
+          <section className="order-7 xl:[grid-column:2] xl:[grid-row:4]">
             <SavedSnapsTile
               snaps={snaps}
               loading={loadingSnaps}
@@ -3337,15 +3337,15 @@ const AstroClock = ({
             />
           </section>
           {/* Influence & Afflictions - under Saved Snaps */}
-          <section className="order-8 md:[grid-column:2] md:[grid-row:5]">
+          <section className="order-8 xl:[grid-column:2] xl:[grid-row:5]">
             <MetricsTile metrics={data?.metrics} specialDegrees={data?.special_degrees} />
           </section>
         </div>
 
         {/* Right column (col 3) */}
-        <div className="order-7 md:[grid-column:3] md:[grid-row:1] space-y-4 lg:space-y-6 md:-ml-2">
+        <div className="order-7 min-w-0 space-y-4 lg:space-y-6 xl:-ml-2 xl:[grid-column:3] xl:[grid-row:1]">
           {/* D) Current Aspect - square */}
-          <section className="md:[grid-column:3] md:[grid-row:1]">
+          <section className="xl:[grid-column:3] xl:[grid-row:1]">
             <CurrentAspectCard data={data} onOpenAnalysis={()=> setShowAspectAnalysis(true)} useMorin={useMorin} setUseMorin={setUseMorin} />
           </section>
           {/* Modal mount (fixed overlay) */}
@@ -3358,11 +3358,11 @@ const AstroClock = ({
             dashboardData={data}
           />
           {/* E) Positions + Dignity - row 2 */}
-          <section className="md:[grid-column:3] md:[grid-row:2/3] overflow-auto">
+          <section className="overflow-auto xl:[grid-column:3] xl:[grid-row:2/3]">
             <PositionsDignityCard data={data} />
           </section>
           {/* Current Cusps - moved up to row 3 */}
-          <section className={`md:[grid-column:3] md:[grid-row:3] ${panelCls}`}>
+          <section className={`xl:[grid-column:3] xl:[grid-row:3] ${panelCls}`}>
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-400" style={monoStyle}>
@@ -3398,7 +3398,7 @@ const AstroClock = ({
           </section>
 
       {/* Cusp Aspects - tight 1° aspects of cusps to planets */}
-      <section className={`md:[grid-column:3] md:[grid-row:4] ${panelCls}`}>
+      <section className={`xl:[grid-column:3] xl:[grid-row:4] ${panelCls}`}>
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-400" style={monoStyle}>
@@ -3591,7 +3591,7 @@ const AstroClock = ({
         </div>
       </section>
 
-      <section className={`md:[grid-column:3] md:[grid-row:5]`}>
+      <section className="min-w-0 xl:[grid-column:3] xl:[grid-row:5]">
         <CompassTile
           includeModern={includeModern}
           timestamp={activeCompassTimestamp}
@@ -3620,7 +3620,7 @@ const AstroClock = ({
           directional3dLockedTitle={featureActionTitle}
         />
       </section>
-      <section className={`md:[grid-column:3] md:[grid-row:6]`}>
+      <section className="min-w-0 xl:[grid-column:3] xl:[grid-row:6]">
         <AsteroidsTile asteroids={data?.asteroids} />
       </section>
         </div>
@@ -7905,7 +7905,6 @@ function SavedSnapsTile({ snaps, loading, loaded, migrationReport, onRefresh, on
       }
       await onRefresh?.({ silent: true });
       setCorrection(null);
-      setCorrectionNotice('Corrected copy saved. The original saved chart was preserved.');
     } catch (error) {
       setCorrection((current) => current ? {
         ...current,

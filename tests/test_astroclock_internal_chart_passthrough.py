@@ -626,6 +626,7 @@ def test_directional_3d_route_returns_chart_context_and_coordinate_rows(monkeypa
         "&latitude=31.778"
         "&longitude=35.235"
         "&house_system_code=R"
+        "&include_modern=1"
     )
 
     assert response.status_code == 200
@@ -656,9 +657,9 @@ def test_directional_3d_route_returns_chart_context_and_coordinate_rows(monkeypa
     assert sun["coordinate_meta"]["EQU"]["speed_provider"] == "swisseph"
     assert sun["coordinate_meta"]["EQU"]["latitude_speed_source"] == "native"
     assert sun["coordinate_meta"]["EQU"]["latitude_speed_provider"] == "swisseph"
-    assert sun["coordinate_meta"]["HOR"]["source"] in {"swisseph_azalt", "equatorial_fallback"}
-    assert sun["coordinate_meta"]["HOR"]["speed_source"] == "finite_difference"
-    assert sun["coordinate_meta"]["HOR"]["latitude_speed_source"] == "finite_difference"
+    assert sun["coordinate_meta"]["HOR"]["source"] == "topocentric_local_space"
+    assert sun["coordinate_meta"]["HOR"]["speed_source"] == "topocentric_finite_difference"
+    assert sun["coordinate_meta"]["HOR"]["latitude_speed_source"] == "topocentric_finite_difference"
     assert abs(sun["HOR"]["speed"]) > 0.001
     assert sun["HOR"]["latitude_speed"] is not None
     moon = next(row for row in data["objects"] if row["name"] == "Moon")
@@ -673,6 +674,7 @@ def test_directional_3d_route_returns_chart_context_and_coordinate_rows(monkeypa
         "object": "Sun",
     } not in data["chart_info"]["data_gaps"]
     assert any(row["name"] == "Uranus" for row in data["objects"])
+    assert data["body_policy"]["scope"] == "traditional_plus_modern"
     assert not any(row["name"] == "Hidden Test Point" for row in data["objects"])
 
     cusp = next(row for row in data["objects"] if row["name"] == "House 1")
@@ -681,71 +683,50 @@ def test_directional_3d_route_returns_chart_context_and_coordinate_rows(monkeypa
     assert cusp["object_type"] == "cusp"
     assert cusp["EQL"]["longitude"] == 18.0
     assert cusp["EQL"]["latitude"] == 0.0
-    assert cusp["EQU"]["longitude"] == 18.0
-    assert cusp["EQU"]["latitude"] == 0.0
-    assert cusp["coordinate_meta"]["EQU"]["speed_source"] == "cusp_static"
-    assert cusp["coordinate_meta"]["EQU"]["latitude_speed_source"] == "cusp_static"
-    assert cusp["coordinate_meta"]["HOR"]["speed_source"] == "cusp_static"
-    assert cusp["coordinate_meta"]["HOR"]["latitude_speed_source"] == "cusp_static"
-    assert cusp["HOR"]["speed"] == 0.0
-    assert cusp["HOR"]["latitude_speed"] == 0.0
+    assert cusp["EQU"]["longitude"] != 18.0
+    assert cusp["EQU"]["latitude"] != 0.0
+    assert cusp["coordinate_meta"]["EQU"]["speed_source"] == "unavailable"
+    assert cusp["coordinate_meta"]["EQU"]["latitude_speed_source"] == "unavailable"
+    assert cusp["coordinate_meta"]["HOR"]["speed_source"] == "unavailable"
+    assert cusp["coordinate_meta"]["HOR"]["latitude_speed_source"] == "unavailable"
+    assert cusp["HOR"]["speed"] is None
+    assert cusp["HOR"]["latitude_speed"] is None
     assert captured["settings"].location == "Israel"
 
 
-def test_directional_3d_derives_equatorial_speed_from_ecliptic_rates():
-    settings = AstroClockSettings(
-        mode=ClockMode.MANUAL,
-        location="Fixture",
-        timezone="UTC",
-        custom_time=datetime(2026, 3, 22, 0, 0, tzinfo=timezone.utc),
-        latitude=31.778,
-        longitude=35.235,
-        paused_at=None,
-        house_system_code="R",
-    )
-    payload = astro_clock_api._build_directional_3d_payload(
-        {
-            "obliquity": 23.4392911,
-            "planets": [
-                {
-                    "planet": "Derived Example",
-                    "longitude": 120.0,
-                    "latitude": 5.0,
-                    "speed": 1.0,
-                    "latitude_speed": 0.1,
-                },
-                {
-                    "planet": "No Latitude Speed",
-                    "longitude": 120.0,
-                    "latitude": 5.0,
-                    "speed": 1.0,
-                },
-            ],
-            "house_cusps": [],
-            "house_system_code": "R",
+def test_directional_3d_derives_equatorial_speed_from_complete_ecliptic_rates(monkeypatch):
+    monkeypatch.setattr(astro_clock_api, "_directional_equatorial_from_swiss", lambda *_args: None)
+    eql, equ, hor, meta, gaps = astro_clock_api._directional_coordinate_triplet(
+        120.0,
+        5.0,
+        1.0,
+        object_id="planet:Fixture",
+        name="Fixture",
+        info={},
+        object_type="planet",
+        ecliptic_speed_source="native",
+        ecliptic_latitude_speed=0.1,
+        timestamp_iso="2026-03-22T00:00:00+00:00",
+        observer_latitude=31.778,
+        observer_longitude=35.235,
+        obliquity_deg=23.4392911,
+        horizontal_samples={
+            "current": {"azimuth_deg": 0.0, "altitude_deg": 0.0},
         },
-        datetime(2026, 3, 22, 0, 0, tzinfo=timezone.utc),
-        settings,
     )
 
-    derived = next(row for row in payload["objects"] if row["name"] == "Derived Example")
-    assert derived["EQU"]["longitude"] == pytest.approx(123.349, abs=0.001)
-    assert derived["EQU"]["latitude"] == pytest.approx(25.033, abs=0.001)
-    assert derived["EQU"]["speed"] == pytest.approx(1.097, abs=0.001)
-    assert derived["EQU"]["latitude_speed"] == pytest.approx(-0.121, abs=0.001)
-    assert derived["coordinate_meta"]["EQU"]["source"] == "derived_from_ecliptic"
-    assert derived["coordinate_meta"]["EQU"]["speed_source"] == "derived"
-    assert derived["coordinate_meta"]["EQU"]["latitude_speed_source"] == "derived"
-
-    fallback = next(row for row in payload["objects"] if row["name"] == "No Latitude Speed")
-    assert fallback["coordinate_meta"]["EQU"]["speed_source"] == "fallback"
-    assert fallback["coordinate_meta"]["EQU"]["latitude_speed_source"] == "unavailable"
-    assert fallback["EQU"]["latitude_speed"] is None
-    assert {
-        "code": "equatorial_speed_fallback",
-        "object_id": "planet:No Latitude Speed",
-        "object": "No Latitude Speed",
-    } in payload["chart_info"]["data_gaps"]
+    assert eql == {"longitude": 120.0, "latitude": 5.0, "speed": 1.0}
+    assert equ["longitude"] == pytest.approx(123.349, abs=0.001)
+    assert equ["latitude"] == pytest.approx(25.033, abs=0.001)
+    assert equ["speed"] == pytest.approx(1.097, abs=0.001)
+    assert equ["latitude_speed"] == pytest.approx(-0.121, abs=0.001)
+    assert meta["EQU"]["source"] == "derived_from_ecliptic"
+    assert meta["EQU"]["speed_source"] == "derived"
+    assert meta["EQU"]["latitude_speed_source"] == "derived"
+    assert hor["longitude"] == 0.0
+    assert hor["latitude"] == 0.0
+    assert hor["speed"] is None
+    assert gaps == []
 
 
 def test_directional_3d_computes_horizon_rates_for_planets_but_not_cusps():
@@ -782,14 +763,14 @@ def test_directional_3d_computes_horizon_rates_for_planets_but_not_cusps():
     assert set(sun["HOR"]) == {"longitude", "latitude", "speed", "latitude_speed"}
     assert abs(sun["HOR"]["speed"]) > 0.001
     assert abs(sun["HOR"]["latitude_speed"]) > 0.001
-    assert sun["coordinate_meta"]["HOR"]["speed_source"] == "finite_difference"
-    assert sun["coordinate_meta"]["HOR"]["latitude_speed_source"] == "finite_difference"
+    assert sun["coordinate_meta"]["HOR"]["speed_source"] == "topocentric_finite_difference"
+    assert sun["coordinate_meta"]["HOR"]["latitude_speed_source"] == "topocentric_finite_difference"
 
     cusp = next(row for row in payload["objects"] if row["name"] == "House 1")
-    assert cusp["HOR"]["speed"] == 0.0
-    assert cusp["HOR"]["latitude_speed"] == 0.0
-    assert cusp["coordinate_meta"]["HOR"]["speed_source"] == "cusp_static"
-    assert cusp["coordinate_meta"]["HOR"]["latitude_speed_source"] == "cusp_static"
+    assert cusp["HOR"]["speed"] is None
+    assert cusp["HOR"]["latitude_speed"] is None
+    assert cusp["coordinate_meta"]["HOR"]["speed_source"] == "unavailable"
+    assert cusp["coordinate_meta"]["HOR"]["latitude_speed_source"] == "unavailable"
 
 
 def test_directional_3d_uses_swiss_equatorial_speed_before_fallback(monkeypatch):
@@ -994,18 +975,499 @@ def test_directional_3d_synthetic_fixture_matches_documented_geometry():
     sun = next(row for row in payload["objects"] if row["name"] == "Sun")
     assert sun["EQU"]["latitude"] == pytest.approx(-7.748, abs=0.02)
     assert sun["EQU"]["longitude"] == pytest.approx(341.709, abs=0.02)
-    assert sun["HOR"]["latitude"] == pytest.approx(33.040, abs=0.02)
-    assert sun["HOR"]["longitude"] == pytest.approx(351.400, abs=0.02)
+    assert sun["HOR"]["latitude"] == pytest.approx(33.038, abs=0.02)
+    assert sun["HOR"]["longitude"] == pytest.approx(171.400, abs=0.02)
+    assert sun["coordinate_meta"]["HOR"]["source"] == "topocentric_local_space"
 
     moon = next(row for row in payload["objects"] if row["name"] == "Moon")
-    assert moon["HOR"]["latitude"] == pytest.approx(2.889, abs=0.02)
-    assert moon["HOR"]["longitude"] == pytest.approx(53.102, abs=0.02)
+    assert moon["HOR"]["latitude"] == pytest.approx(1.987, abs=0.02)
+    assert moon["HOR"]["longitude"] == pytest.approx(233.105, abs=0.02)
+    assert moon["coordinate_meta"]["HOR"]["source"] == "topocentric_local_space"
 
     cusp = next(row for row in payload["objects"] if row["name"] == "House 1")
     assert cusp["bfull"] is False
-    assert cusp["EQU"] == {"longitude": 93.765, "latitude": 0.0, "speed": 0.0, "latitude_speed": 0.0}
+    assert cusp["EQU"] == {
+        "longitude": pytest.approx(94.103, abs=0.02),
+        "latitude": pytest.approx(23.384, abs=0.02),
+        "speed": None,
+        "latitude_speed": None,
+    }
     assert cusp["HOR"]["latitude"] == pytest.approx(0.0, abs=0.02)
-    assert cusp["HOR"]["longitude"] == pytest.approx(232.901, abs=0.02)
+    assert cusp["HOR"]["longitude"] == pytest.approx(52.901, abs=0.02)
+    assert cusp["HOR"]["speed"] is None
+
+
+@pytest.mark.parametrize(
+    ("swiss_azimuth", "public_azimuth"),
+    [
+        (0.0, 180.0),
+        (90.0, 270.0),
+        (180.0, 0.0),
+        (270.0, 90.0),
+    ],
+)
+def test_directional_swiss_azimuth_is_normalized_to_north_zero_eastward(
+    monkeypatch,
+    swiss_azimuth,
+    public_azimuth,
+):
+    fake_swiss = types.SimpleNamespace(
+        GREG_CAL=1,
+        ECL2HOR=0,
+        julday=lambda *_args: 2451545.0,
+        azalt=lambda *_args: (swiss_azimuth, 12.5, 12.5),
+    )
+    monkeypatch.setattr(astro_clock_api, "require_swisseph", lambda: fake_swiss)
+
+    azimuth, altitude, source = astro_clock_api._directional_horizontal_from_ecliptic(
+        "2000-01-01T12:00:00+00:00",
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        23.4392911,
+    )
+
+    assert azimuth == public_azimuth
+    assert altitude == 12.5
+    assert source == "swisseph_azalt"
+
+
+def test_directional_timestamp_requires_an_explicit_offset_and_normalizes_to_utc():
+    assert astro_clock_api._directional_timestamp_iso(
+        "1990-01-13T21:33:00+02:00",
+        label="Directional 3D",
+    ) == "1990-01-13T19:33:00+00:00"
+
+    with pytest.raises(ValueError, match="timezone-aware"):
+        astro_clock_api._directional_timestamp_iso(
+            "1990-01-13T21:33:00",
+            label="Directional 3D",
+        )
+
+
+def test_directional_horizon_matches_compass_topocentric_contract_for_jerusalem():
+    timestamp = datetime(1990, 1, 13, 19, 33, tzinfo=timezone.utc)
+    settings = AstroClockSettings(
+        mode=ClockMode.MANUAL,
+        location="Jerusalem, Israel",
+        timezone="Asia/Jerusalem",
+        custom_time=timestamp,
+        latitude=31.7683,
+        longitude=35.2137,
+        paused_at=None,
+        house_system_code="R",
+    )
+    chart_data = {
+        "planets": {
+            "Sun": {
+                "longitude": 293.361998619,
+                "latitude": -0.000045159,
+                "speed": 1.018358695,
+            },
+            "Moon": {
+                "longitude": 145.988305068,
+                "latitude": -0.862928126,
+                "speed": 13.056245837,
+            },
+            "Uranus": {
+                "longitude": 276.0,
+                "latitude": -0.2,
+                "speed": 0.03,
+            },
+        },
+        "house_cusps": [],
+        "house_system_code": "R",
+    }
+
+    compass = astro_clock_api._build_local_space_compass_payload(
+        chart_data,
+        timestamp,
+        settings,
+        include_modern=True,
+    )
+    directional = astro_clock_api._build_directional_3d_payload(
+        chart_data,
+        timestamp,
+        settings,
+        include_modern=True,
+    )
+    directional_by_name = {
+        row["name"]: row
+        for row in directional["objects"]
+        if row["object_type"] == "planet"
+    }
+
+    for compass_row in compass["azimuths"]:
+        directional_row = directional_by_name[compass_row["planet"]]
+        assert directional_row["HOR"]["longitude"] == pytest.approx(
+            compass_row["azimuth_deg"],
+            abs=0.001,
+        )
+        assert directional_row["HOR"]["latitude"] == pytest.approx(
+            compass_row["altitude_deg"],
+            abs=0.001,
+        )
+        assert directional_row["coordinate_meta"]["HOR"]["source"] == "topocentric_local_space"
+
+    moon = next(row for row in compass["azimuths"] if row["planet"] == "Moon")
+    assert moon["azimuth_deg"] == pytest.approx(91.801, abs=0.001)
+    assert moon["altitude_deg"] == pytest.approx(25.374, abs=0.001)
+    sun = next(row for row in compass["azimuths"] if row["planet"] == "Sun")
+    assert sun["azimuth_deg"] == pytest.approx(280.640, abs=0.001)
+    assert sun["altitude_deg"] == pytest.approx(-58.268, abs=0.001)
+
+
+def test_directional_and_compass_share_explicit_traditional_modern_body_policy():
+    timestamp = datetime(2000, 1, 1, 12, 0, tzinfo=timezone.utc)
+    settings = AstroClockSettings(
+        mode=ClockMode.MANUAL,
+        location="Greenwich, UK",
+        timezone="UTC",
+        custom_time=timestamp,
+        latitude=51.4769,
+        longitude=-0.0005,
+        paused_at=None,
+        house_system_code="R",
+    )
+    chart_data = {
+        "planets": {
+            "Uranus": {"longitude": 10.0, "latitude": 0.0, "speed": 0.03},
+            "North Node": {"longitude": 20.0, "latitude": 0.0, "speed": -0.05},
+            "Moon": {"longitude": 30.0, "latitude": 1.0, "speed": 13.0},
+            "Chiron": {"longitude": 40.0, "latitude": 2.0, "speed": 0.02},
+            "Sun": {"longitude": 50.0, "latitude": 0.0, "speed": 1.0},
+        },
+        "house_cusps": [],
+        "house_system_code": "R",
+    }
+
+    traditional = astro_clock_api._build_directional_3d_payload(
+        chart_data,
+        timestamp,
+        settings,
+        include_modern=False,
+    )
+    modern = astro_clock_api._build_directional_3d_payload(
+        chart_data,
+        timestamp,
+        settings,
+        include_modern=True,
+    )
+
+    assert [
+        row["name"] for row in traditional["objects"] if row["object_type"] == "planet"
+    ] == ["Sun", "Moon"]
+    assert [
+        row["name"] for row in modern["objects"] if row["object_type"] == "planet"
+    ] == ["Sun", "Moon", "Uranus"]
+    assert traditional["body_policy"]["scope"] == "traditional"
+    assert modern["body_policy"]["scope"] == "traditional_plus_modern"
+    assert traditional["body_policy"]["included"] == ["Sun", "Moon"]
+    assert modern["body_policy"]["included"] == ["Sun", "Moon", "Uranus"]
+    assert modern["body_policy"]["eligible"] == [
+        "Sun",
+        "Moon",
+        "Mercury",
+        "Venus",
+        "Mars",
+        "Jupiter",
+        "Saturn",
+        "Uranus",
+        "Neptune",
+        "Pluto",
+    ]
+    assert modern["body_policy"]["excluded_points"] == [
+        "Chiron",
+        "North Node",
+        "South Node",
+        "True Node",
+    ]
+
+
+def test_compass_and_directional_share_legacy_zero_coordinate_reresolution(
+    monkeypatch,
+):
+    import forensic.local_space as local_space_module
+
+    timestamp = datetime(2000, 2, 29, 11, 34, tzinfo=timezone.utc)
+    settings = AstroClockSettings(
+        mode=ClockMode.MANUAL,
+        location="Paris, France",
+        timezone="Europe/Paris",
+        custom_time=timestamp,
+        latitude=0.0,
+        longitude=0.0,
+        paused_at=None,
+        house_system_code="R",
+    )
+    calls = []
+    monkeypatch.setattr(
+        astro_clock_api,
+        "_ensure_coords_for_location",
+        lambda location, *args, **kwargs: (
+            calls.append((location, kwargs.get("trust_settings"))),
+            (48.85341, 2.3488),
+        )[1],
+    )
+    monkeypatch.setattr(
+        local_space_module,
+        "compute_local_space",
+        lambda _timestamp, _lat, _lon, planets: {
+            name: {
+                "azimuth_deg": 180.0,
+                "altitude_deg": 20.0,
+                "right_ascension_deg": 10.0,
+                "declination_deg": 5.0,
+            }
+            for name in planets
+        },
+    )
+    chart_data = {
+        "planets": {
+            "Sun": {
+                "longitude": 340.0,
+                "latitude": 0.0,
+                "speed": 1.0,
+            },
+        },
+        "house_cusps": [],
+        "house_system_code": "R",
+    }
+
+    compass = astro_clock_api._build_local_space_compass_payload(
+        chart_data,
+        timestamp,
+        settings,
+    )
+    directional = astro_clock_api._build_directional_3d_payload(
+        chart_data,
+        timestamp,
+        settings,
+    )
+
+    assert (compass["latitude"], compass["longitude"]) == (48.85341, 2.3488)
+    assert (
+        directional["chart_info"]["latitude"],
+        directional["chart_info"]["longitude"],
+    ) == (48.85341, 2.3488)
+    assert calls == [
+        ("Paris, France", False),
+        ("Paris, France", False),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("latitude", "longitude"),
+    [
+        (float("nan"), 35.0),
+        (95.0, 35.0),
+        (31.0, 181.0),
+    ],
+)
+def test_compass_and_directional_reject_invalid_stored_observer_coordinates(
+    latitude,
+    longitude,
+):
+    timestamp = datetime(2000, 2, 29, 11, 34, tzinfo=timezone.utc)
+    settings = AstroClockSettings(
+        mode=ClockMode.MANUAL,
+        location=None,
+        timezone="UTC",
+        custom_time=timestamp,
+        latitude=latitude,
+        longitude=longitude,
+        paused_at=None,
+        house_system_code="R",
+    )
+    chart_data = {
+        "planets": {
+            "Sun": {
+                "longitude": 340.0,
+                "latitude": 0.0,
+                "speed": 1.0,
+            },
+        },
+        "house_cusps": [],
+    }
+
+    with pytest.raises(astro_clock_api.LocationError, match="coordinates"):
+        astro_clock_api._build_local_space_compass_payload(
+            chart_data,
+            timestamp,
+            settings,
+        )
+    with pytest.raises(astro_clock_api.LocationError, match="coordinates"):
+        astro_clock_api._build_directional_3d_payload(
+            chart_data,
+            timestamp,
+            settings,
+        )
+
+
+def test_compass_preserves_missing_ascendant_as_unavailable():
+    ascendant, selected = astro_clock_api._select_compass_planets(
+        {
+            "planets": {
+                "Sun": {
+                    "longitude": 10.0,
+                    "latitude": 0.0,
+                    "speed": 1.0,
+                },
+            },
+        }
+    )
+
+    assert ascendant is None
+    assert [name for name, _info in selected] == ["Sun"]
+    empty_payload = astro_clock_api._build_local_space_compass_payload(
+        {"planets": {}},
+        datetime(2000, 1, 1, 12, 0, tzinfo=timezone.utc),
+        None,
+    )
+    assert empty_payload["ascendant"] is None
+
+
+def test_directional_partial_topocentric_record_is_unavailable(monkeypatch):
+    monkeypatch.setattr(astro_clock_api, "_directional_equatorial_from_swiss", lambda *_args: None)
+    _eql, _equ, hor, meta, gaps = astro_clock_api._directional_coordinate_triplet(
+        15.0,
+        0.0,
+        1.0,
+        object_id="planet:Sun",
+        name="Sun",
+        info={},
+        object_type="planet",
+        ecliptic_speed_source="native",
+        ecliptic_latitude_speed=0.0,
+        timestamp_iso="2000-01-01T12:00:00+00:00",
+        observer_latitude=0.0,
+        observer_longitude=0.0,
+        obliquity_deg=23.4392911,
+        horizontal_samples={
+            "current": {"azimuth_deg": 90.0},
+        },
+    )
+
+    assert hor == {
+        "longitude": None,
+        "latitude": None,
+        "speed": None,
+        "latitude_speed": None,
+    }
+    assert meta["HOR"]["source"] == "unavailable"
+    assert meta["HOR"]["speed_source"] == "unavailable"
+    assert {
+        "code": "topocentric_horizon_unavailable",
+        "object_id": "planet:Sun",
+        "object": "Sun",
+    } in gaps
+
+
+def test_directional_missing_values_remain_unavailable_not_zero(monkeypatch):
+    monkeypatch.setattr(astro_clock_api, "_directional_equatorial_from_swiss", lambda *_args: None)
+    eql, equ, hor, meta, gaps = astro_clock_api._directional_coordinate_triplet(
+        15.0,
+        None,
+        None,
+        object_id="planet:Fixture",
+        name="Fixture",
+        info={},
+        object_type="planet",
+        ecliptic_speed_source="unavailable",
+        ecliptic_latitude_speed=None,
+        timestamp_iso="2000-01-01T12:00:00+00:00",
+        observer_latitude=0.0,
+        observer_longitude=0.0,
+        obliquity_deg=23.4392911,
+        horizontal_samples={
+            "current": {"azimuth_deg": 0.0, "altitude_deg": 0.0},
+        },
+    )
+
+    assert eql == {"longitude": 15.0, "latitude": None, "speed": None}
+    assert equ == {
+        "longitude": None,
+        "latitude": None,
+        "speed": None,
+        "latitude_speed": None,
+    }
+    assert hor == {
+        "longitude": 0.0,
+        "latitude": 0.0,
+        "speed": None,
+        "latitude_speed": None,
+    }
+    assert meta["EQU"]["source"] == "unavailable"
+    assert meta["EQU"]["speed_source"] == "unavailable"
+    assert meta["HOR"]["speed_source"] == "unavailable"
+    assert {gap["code"] for gap in gaps} == {
+        "ecliptic_latitude_unavailable",
+        "equatorial_speed_unavailable",
+    }
+
+
+def test_directional_preserves_house_numbers_and_converts_cusps_to_equatorial():
+    settings = AstroClockSettings(
+        mode=ClockMode.MANUAL,
+        location="Greenwich, UK",
+        timezone="UTC",
+        custom_time=datetime(2000, 1, 1, 12, 0, tzinfo=timezone.utc),
+        latitude=51.4769,
+        longitude=-0.0005,
+        paused_at=None,
+        house_system_code="R",
+    )
+    payload = astro_clock_api._build_directional_3d_payload(
+        {
+            "obliquity": 23.4392911,
+            "planets": {},
+            "house_cusps": {"1": 0.0, "2": None, "3": 45.0},
+            "house_system_code": "R",
+        },
+        datetime(2000, 1, 1, 12, 0, tzinfo=timezone.utc),
+        settings,
+    )
+    cusps = [row for row in payload["objects"] if row["object_type"] == "cusp"]
+
+    assert [row["object_id"] for row in cusps] == ["house:1", "house:3"]
+    assert [row["EQL"]["longitude"] for row in cusps] == [0.0, 45.0]
+    assert cusps[1]["EQU"]["longitude"] == pytest.approx(42.536, abs=0.001)
+    assert cusps[1]["EQU"]["latitude"] == pytest.approx(16.336, abs=0.001)
+    assert cusps[1]["EQU"]["speed"] is None
+    assert cusps[1]["HOR"]["speed"] is None
+
+
+def test_directional_polar_metadata_never_relabels_requested_house_system():
+    settings = AstroClockSettings(
+        mode=ClockMode.MANUAL,
+        location="High latitude fixture",
+        timezone="UTC",
+        custom_time=datetime(2000, 1, 1, 12, 0, tzinfo=timezone.utc),
+        latitude=80.0,
+        longitude=0.0,
+        paused_at=None,
+        house_system_code="R",
+    )
+    payload = astro_clock_api._build_directional_3d_payload(
+        {
+            "obliquity": 23.4392911,
+            "planets": {},
+            "house_cusps": [],
+            "house_system_code": "R",
+        },
+        datetime(2000, 1, 1, 12, 0, tzinfo=timezone.utc),
+        settings,
+    )
+    chart_info = payload["chart_info"]
+
+    assert chart_info["house_system"] == "R"
+    assert chart_info["house_system_requested"] == "R"
+    assert chart_info["house_system_effective"] == "R"
+    assert chart_info["house_system_source"] == "chart"
+    assert chart_info["house_system_adjusted"] is False
+    assert chart_info["house_system_safety_override"] is False
+    assert chart_info["polar_region"] is True
 
 
 def test_dashboard_respects_manual_request_context(monkeypatch):

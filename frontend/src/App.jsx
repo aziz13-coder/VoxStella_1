@@ -1346,11 +1346,13 @@ const Header = ({ darkMode, toggleDarkMode, currentView, setCurrentView, apiStat
           </div>
 
           {/* Unified Navigation Bar */}
-          <UnifiedNavigationBar 
-            currentView={currentView}
-            setCurrentView={setCurrentView}
-            darkMode={darkMode}
-          />
+          <div className="hidden lg:block">
+            <UnifiedNavigationBar
+              currentView={currentView}
+              setCurrentView={setCurrentView}
+              darkMode={darkMode}
+            />
+          </div>
 
           {/* Dark Mode Toggle */}
           <div className="flex items-center">
@@ -1520,16 +1522,16 @@ const Dashboard = ({ charts, setCurrentView, setCurrentChart, darkMode, apiStatu
         <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
           <h3 className="text-2xl font-bold">Recent Charts</h3>
           
-          <div className="flex gap-4 items-center">
+          <div className="flex w-full min-w-0 flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:items-center sm:gap-4">
             {/* Search */}
-            <div className="relative">
+            <div className="relative min-w-0">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
                 placeholder="Search charts..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className={`pl-10 pr-4 py-2 rounded-lg border transition-all duration-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
+                className={`w-full min-w-0 rounded-lg border py-2 pl-10 pr-4 transition-all duration-200 focus:border-transparent focus:ring-2 focus:ring-indigo-500 sm:w-auto ${
                   darkMode 
                     ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400' 
                     : 'bg-white/70 border-gray-200 text-gray-900 placeholder-gray-500'
@@ -1541,7 +1543,7 @@ const Dashboard = ({ charts, setCurrentView, setCurrentChart, darkMode, apiStatu
             <select
               value={filterOutcome}
               onChange={(e) => setFilterOutcome(e.target.value)}
-              className={`px-4 py-2 rounded-lg border transition-all duration-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
+              className={`w-full rounded-lg border px-4 py-2 transition-all duration-200 focus:border-transparent focus:ring-2 focus:ring-indigo-500 sm:w-auto ${
                 darkMode 
                   ? 'bg-gray-700/50 border-gray-600 text-white' 
                   : 'bg-white/70 border-gray-200 text-gray-900'
@@ -6753,8 +6755,8 @@ const Footer = ({ darkMode, currentView, setCurrentView }) => {
     : 'bg-white/90 backdrop-blur-xl border-gray-200';
 
   return (
-    <footer className={`fixed bottom-0 left-0 right-0 ${footerBg} border-t md:hidden`}>
-      <div className="flex justify-around items-center py-2">
+    <footer className={`fixed bottom-0 left-0 right-0 z-50 ${footerBg} border-t lg:hidden`}>
+      <div className={`grid items-center py-2 ${SHOW_RESEARCH_WORKSPACE ? 'grid-cols-7' : 'grid-cols-6'}`}>
         <FooterButton 
           icon={BarChart3} 
           label="Dashboard" 
@@ -6766,6 +6768,13 @@ const Footer = ({ darkMode, currentView, setCurrentView }) => {
           label="Cast" 
           active={currentView === 'cast-chart'}
           onClick={() => setCurrentView('cast-chart')}
+        />
+        <FooterButton
+          icon={Clock}
+          label="Astro"
+          ariaLabel="Astro Clock"
+          active={currentView === 'astro-clock'}
+          onClick={() => setCurrentView('astro-clock')}
         />
         <FooterButton 
           icon={History} 
@@ -6799,7 +6808,7 @@ const Footer = ({ darkMode, currentView, setCurrentView }) => {
 };
 
 // Footer Button Component (Enhanced)
-const FooterButton = ({ icon: Icon, label, active, onClick, customIcon }) => {
+const FooterButton = ({ icon: Icon, label, ariaLabel, active, onClick, customIcon }) => {
   const activeClasses = active 
     ? 'text-indigo-600 dark:text-indigo-400' 
     : 'text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400';
@@ -6807,10 +6816,11 @@ const FooterButton = ({ icon: Icon, label, active, onClick, customIcon }) => {
   return (
     <button 
       onClick={onClick}
-      className={`flex flex-col items-center py-2 px-3 transition-colors ${activeClasses}`}
+      aria-label={ariaLabel || label}
+      className={`flex min-w-0 flex-col items-center px-1 py-2 transition-colors ${activeClasses}`}
     >
       {customIcon ? customIcon : <Icon className="w-5 h-5 mb-1" />}
-      <span className="text-xs">{label}</span>
+      <span className="max-w-full truncate text-[10px] sm:text-xs">{label}</span>
     </button>
   );
 };

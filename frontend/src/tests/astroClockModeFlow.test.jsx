@@ -1119,9 +1119,12 @@ describe('AstroClock mode flow', () => {
         expect.objectContaining({ persist: true }),
       );
     });
-    expect(await screen.findByText(
+    await waitFor(() => {
+      expect(screen.queryByRole('region', { name: 'Correct saved chart context' })).not.toBeInTheDocument();
+    });
+    expect(screen.queryByText(
       'Corrected copy saved. The original saved chart was preserved.',
-    )).toBeInTheDocument();
+    )).not.toBeInTheDocument();
     expect(screen.getByText('Superseded—use corrected copy')).toBeInTheDocument();
     const originalCard = screen.getByText('Legacy Jerusalem birth').closest('.rounded-2xl');
     expect(originalCard).not.toBeNull();
@@ -3255,8 +3258,10 @@ describe('AstroClock mode flow', () => {
 
     expect(forensicButton.compareDocumentPosition(certificationButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(applyButton.compareDocumentPosition(copyPromptButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(controlStrip).toHaveClass('md:min-w-[1152px]');
-    expect(controlStrip).toHaveClass('lg:min-w-[1160px]');
+    expect(controlStrip).toHaveClass('min-w-0');
+    expect(controlStrip).toHaveClass('max-w-full');
+    expect(controlStrip).not.toHaveClass('md:min-w-[1152px]');
+    expect(controlStrip).not.toHaveClass('lg:min-w-[1160px]');
     expect(copyPromptButton).toHaveClass('h-9');
     expect(copyPromptButton).toHaveClass('w-9');
     expect(copyPromptButton).toHaveClass('rounded-full');

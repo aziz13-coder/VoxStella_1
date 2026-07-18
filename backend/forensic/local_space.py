@@ -125,7 +125,12 @@ def compute_local_space(timestamp_iso: str, lat: float, lon: float, planets: Ite
                 ra_deg = float(pos[0])
                 ra_hours = ra_deg / 15.0
                 dec_deg = float(pos[1])
-                out[name] = _az_alt_from_ra_dec(ra_hours, dec_deg, float(lat), lst_h)
+                horizontal = _az_alt_from_ra_dec(ra_hours, dec_deg, float(lat), lst_h)
+                out[name] = {
+                    **horizontal,
+                    'right_ascension_deg': ra_deg,
+                    'declination_deg': dec_deg,
+                }
             except Exception:
                 continue
     return out
