@@ -63,17 +63,36 @@ SIGN_ELEMENTS: Dict[str, str] = {
     "Pisces": "Water",
 }
 
+# William Lilly's point weights applied to a single zodiacal longitude.  The
+# method metadata is returned with every chart result so consumers do not have
+# to infer which of the several traditional triplicity conventions is in use.
+ALMUTEN_METHOD: Dict[str, Any] = {
+    "id": "lilly_sect",
+    "label": "Lilly · sect ruler",
+    "terms": "Egyptian",
+    "faces": "Chaldean",
+    "weights": {
+        "domicile": 5,
+        "exaltation": 4,
+        "triplicity": 3,
+        "term": 2,
+        "face": 1,
+    },
+}
+
+# Egyptian bounds expressed as consecutive lengths within each sign.  These
+# values intentionally mirror ``reception.terms`` in horary_constants.yaml.
 TERMS: Dict[str, List[tuple[str, float]]] = {
     "Aries": [("Jupiter", 6), ("Venus", 6), ("Mercury", 8), ("Mars", 5), ("Saturn", 5)],
     "Taurus": [("Venus", 8), ("Mercury", 6), ("Jupiter", 8), ("Saturn", 5), ("Mars", 3)],
-    "Gemini": [("Mercury", 7), ("Jupiter", 6), ("Venus", 7), ("Mars", 4), ("Saturn", 6)],
+    "Gemini": [("Mercury", 6), ("Jupiter", 6), ("Venus", 5), ("Mars", 7), ("Saturn", 6)],
     "Cancer": [("Mars", 7), ("Venus", 6), ("Mercury", 6), ("Jupiter", 7), ("Saturn", 4)],
-    "Leo": [("Saturn", 6), ("Mercury", 5), ("Venus", 7), ("Jupiter", 6), ("Mars", 6)],
+    "Leo": [("Jupiter", 6), ("Venus", 5), ("Saturn", 7), ("Mercury", 6), ("Mars", 6)],
     "Virgo": [("Mercury", 7), ("Venus", 10), ("Jupiter", 4), ("Mars", 7), ("Saturn", 2)],
-    "Libra": [("Saturn", 6), ("Mercury", 7), ("Jupiter", 7), ("Venus", 8), ("Mars", 2)],
+    "Libra": [("Saturn", 6), ("Mercury", 8), ("Jupiter", 7), ("Venus", 7), ("Mars", 2)],
     "Scorpio": [("Mars", 7), ("Venus", 4), ("Mercury", 8), ("Jupiter", 5), ("Saturn", 6)],
-    "Sagittarius": [("Jupiter", 12), ("Venus", 5), ("Mercury", 4), ("Saturn", 9)],
-    "Capricorn": [("Mercury", 7), ("Jupiter", 6), ("Venus", 7), ("Saturn", 5), ("Mars", 5)],
+    "Sagittarius": [("Jupiter", 12), ("Venus", 5), ("Mercury", 4), ("Saturn", 5), ("Mars", 4)],
+    "Capricorn": [("Mercury", 7), ("Jupiter", 7), ("Venus", 8), ("Saturn", 4), ("Mars", 4)],
     "Aquarius": [("Mercury", 7), ("Venus", 6), ("Jupiter", 7), ("Mars", 5), ("Saturn", 5)],
     "Pisces": [("Venus", 12), ("Jupiter", 4), ("Mercury", 3), ("Mars", 9), ("Saturn", 2)],
 }
@@ -125,9 +144,14 @@ def _triplicity_ruler(sign: str, is_day_chart: Optional[bool]) -> Optional[str]:
     rulers = TRIPLICITY.get(element)
     if not isinstance(rulers, tuple) or len(rulers) < 2:
         return None
+    if is_day_chart is True:
+        return rulers[0]
     if is_day_chart is False:
         return rulers[1]
-    return rulers[0]
+    # Sect is required by the Lilly-style method.  Returning no ruler makes
+    # the missing +3 explicit instead of silently treating an unknown chart
+    # as diurnal.
+    return None
 
 
 def _ordinal(value: int) -> str:
@@ -229,6 +253,17 @@ def compute_almuten_for_longitude(longitude: float, is_day_chart: Optional[bool]
     leader_score = int(leader.get("score") or 0) if leader else 0
     ties = [row for row in candidates if int(row.get("score") or 0) == leader_score]
     tied_with = [row.get("planet") for row in ties[1:]]
+    sect_known = is_day_chart is not None
+    withheld_dignities = [] if sect_known else ["triplicity"]
+    leader_details = [
+        {
+            "planet": row.get("planet"),
+            "score": int(row.get("score") or 0),
+            "dignities": list(row.get("dignities") or []),
+            "breakdown": dict(row.get("breakdown") or {}),
+        }
+        for row in ties
+    ]
 
     return {
         "longitude": _wrap360(longitude),
@@ -239,8 +274,11 @@ def compute_almuten_for_longitude(longitude: float, is_day_chart: Optional[bool]
         "leader_score": leader_score,
         "leader_dignities": list(leader.get("dignities") or []) if leader else [],
         "leader_breakdown": dict(leader.get("breakdown") or {}) if leader else {},
+        "leader_details": leader_details,
         "tied_with": [name for name in tied_with if isinstance(name, str)],
         "candidates": candidates,
+        "calculation_status": "complete" if sect_known else "partial",
+        "withheld_dignities": withheld_dignities,
     }
 
 
@@ -287,9 +325,16 @@ def compute_chart_almutens(chart_data: Dict[str, Any]) -> Dict[str, Any]:
         "house_12",
     ]
     items = [points[key] for key in display_order if key in points]
+    sect_known = is_day_chart is not None
 
     return {
         "sect": sect_label,
+        "method": {
+            **ALMUTEN_METHOD,
+            "weights": dict(ALMUTEN_METHOD["weights"]),
+        },
+        "calculation_status": "complete" if sect_known else "partial",
+        "withheld_dignities": [] if sect_known else ["triplicity"],
         "points": points,
         "display_order": display_order,
         "items": items,

@@ -62,9 +62,9 @@ class TraditionalReceptionCalculator:
             Sign.AQUARIUS: {"day": Planet.SATURN, "night": Planet.MERCURY},
 
             # Water signs (Cancer, Scorpio, Pisces)
-            Sign.CANCER: {"day": Planet.MARS, "night": Planet.VENUS},
-            Sign.SCORPIO: {"day": Planet.MARS, "night": Planet.VENUS},
-            Sign.PISCES: {"day": Planet.MARS, "night": Planet.VENUS},
+            Sign.CANCER: {"day": Planet.VENUS, "night": Planet.MARS},
+            Sign.SCORPIO: {"day": Planet.VENUS, "night": Planet.MARS},
+            Sign.PISCES: {"day": Planet.VENUS, "night": Planet.MARS},
         }
 
     def calculate_comprehensive_reception(

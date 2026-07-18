@@ -1,4 +1,32 @@
 export const WHATS_NEW_RELEASES = {
+  '3.1.5': {
+    version: '3.1.5',
+    publishedAt: '2026-07-18',
+    headline: 'Clearer Almuten readings',
+    summary: 'This update makes traditional dignity and Almuten results more dependable, easier to compare, and clearer when chart context is incomplete.',
+    items: [
+      {
+        title: 'More dependable dignity results',
+        tag: 'Improved',
+        body: 'Traditional degree ranges are now handled consistently across the chart, giving Almuten results a steadier foundation.',
+      },
+      {
+        title: 'No guessed day or night',
+        tag: 'Improved',
+        body: 'When the chart cannot confirm whether it is a day or night chart, Vox Stella now says so clearly instead of making an assumption.',
+      },
+      {
+        title: 'Ties are easier to understand',
+        tag: 'Improved',
+        body: 'When more than one planet shares the lead, each planet now shows its own supporting dignities.',
+      },
+      {
+        title: 'Cleaner zodiac positions',
+        tag: 'Polished',
+        body: 'Degree and minute labels now round correctly, including positions that carry into the next sign.',
+      },
+    ],
+  },
   '3.1.4': {
     version: '3.1.4',
     publishedAt: '2026-07-18',

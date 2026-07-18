@@ -3892,52 +3892,9 @@ class EnhancedTraditionalHoraryJudgmentEngine:
         elif benefic_support["neutral"]:
             reasoning.append(f"Note: {benefic_support['reason']} (secondary testimony)")
         
-        # 6. PREGNANCY-SPECIFIC: Check for Moonв†’benefic OR L1в†”L5 reception (FIXED: don't auto-deny)
-        if question_type == Category.PREGNANCY:
-            # Check for L1в†”L5 reception (already fixed)
-            reception = self._detect_reception_between_planets(chart, querent_planet, quesited_planet)
-            has_reception = reception != "none"
-            
-            # Check for Moonв†’benefic testimony (already fixed in moon testimony)  
-            has_moon_benefic = False
-            if moon_testimony.get("aspects"):
-                for aspect_info in moon_testimony["aspects"]:
-                    if (aspect_info.get("testimony_type") == "moon_to_benefic" and 
-                        aspect_info.get("applying") and aspect_info.get("favorable")):
-                        has_moon_benefic = True
-                        break
-            
-            # Pregnancy exception: Don't auto-deny if reception OR moonв†’benefic exists
-            if has_reception or has_moon_benefic:
-                reception_reason = f"L1в†”L5 reception ({reception})" if has_reception else ""
-                moon_benefic_reason = "Moon applying to benefic" if has_moon_benefic else ""
-                combined_reason = " & ".join(filter(None, [reception_reason, moon_benefic_reason]))
-                
-                reasoning.append(f"Pregnancy: {combined_reason}")
-                
-                # Calculate confidence based on quality of testimony
-                pregnancy_confidence = 70  # Base for pregnancy sufficiency
-                if has_reception:
-                    pregnancy_confidence += 5
-                if has_moon_benefic:
-                    pregnancy_confidence += 5
-                
-                return {
-                    "result": "YES",
-                    "confidence": pregnancy_confidence,
-                    "reasoning": reasoning,
-                    "timing": moon_testimony.get("timing", "Moderate timeframe"),
-                    "traditional_factors": {
-                        "perfection_type": "pregnancy_sufficiency",
-                        "reception": reception,
-                        "querent_strength": chart.planets[querent_planet].dignity_score,
-                        "quesited_strength": chart.planets[quesited_planet].dignity_score,
-                        "moon_benefic": has_moon_benefic
-                    },
-                    "solar_factors": solar_factors
-                }
-        
-        # 7. FALLBACK: Build transparent math-based denial reasoning 
+        # 6. FALLBACK: Build transparent math-based denial reasoning.
+        # Conception can only reach pregnancy_sufficiency through the dedicated
+        # doctrine above; reception and generic benefic testimony remain secondary.
         config = cfg()
         
         # CRITICAL FIX: For SAFETY mode questions, evaluate condition instead of requiring perfection

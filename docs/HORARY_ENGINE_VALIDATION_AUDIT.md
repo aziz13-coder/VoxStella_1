@@ -245,7 +245,7 @@ Question-level replay tests added:
 Broad manual-review corpus added for ambiguous domains:
 
 - `C:\Users\sabaa\Downloads\codexhorary\tests\fixtures\horary_manual_review\conceive_review.json:1`
-  Reviewed as a conception chart where the engine surfaces `pregnancy_sufficiency`, unilateral L1-L5 reception, and non-void Moon. This remains a manual-review case because conception support can exist without a single direct perfection signature.
+  Reviewed against the canonical Molly Morrissey example for January 14, 2014, 6:43 P.M. in San Diego: Leo rises, the Sun rules the querent, Jupiter rules the 5th, and the Moon immediately applies to conjoin Jupiter in fertile Cancer. The engine surfaces `pregnancy_sufficiency` from that explicit Moon-to-child connection; reception is `none` and is not used as a substitute for perfection.
 
 - `C:\Users\sabaa\Downloads\codexhorary\tests\fixtures\horary_manual_review\marry_review.json:1`
   Reviewed as a marriage chart with mixed reception, a supportive Moon contact, but no direct perfection. This is doctrinally arguable and therefore guarded by signal-level assertions instead of an over-tight golden verdict.
@@ -546,7 +546,7 @@ Observed non-blocking issue:
 # Remaining Ambiguities / Manual Review Cases
 
 - `C:\Users\sabaa\Downloads\codexhorary\tests\fixtures\horary_manual_review\conceive_review.json:1`
-  Manual review outcome: the engine surfaces meaningful conception support, but this is still not as doctrinally crisp as a chart with an unmistakable direct conception perfection. It should remain a reviewed ambiguity rather than a hard golden answer about certainty or viability.
+  Manual review outcome: `YES` through the Moon's immediate applying conjunction to Lord 5 Jupiter, reinforced by the Moon and Jupiter occupying fertile Cancer and carrying strong essential dignity. Jupiter's retrogradation remains a minor negative testimony. The fixture stays under manual review because an astrological conception judgment must not be presented as medical certainty or a guarantee of viability.
 
 - `C:\Users\sabaa\Downloads\codexhorary\tests\fixtures\horary_manual_review\marry_review.json:1`
   Manual review outcome: the chart combines mixed reception, supportive Moon contact, and lack of direct perfection. This is exactly the kind of marriage question where different traditional practitioners may weight support and impediment differently.

@@ -54,6 +54,25 @@ describe('whats new release gating', () => {
     expect(release.isFallback).toBe(false);
   });
 
+  it('keeps the 3.1.5 release copy product-facing', () => {
+    const release = getWhatsNewRelease('3.1.5');
+    const copy = [
+      release.headline,
+      release.summary,
+      release.note,
+      ...release.items.flatMap((item) => [item.title, item.tag, item.body]),
+    ]
+      .filter(Boolean)
+      .join(' ');
+
+    expect(release.headline).toBe('Clearer Almuten readings');
+    expect(copy).toContain('More dependable dignity results');
+    expect(copy).toContain('No guessed day or night');
+    expect(copy).toContain('Ties are easier to understand');
+    expect(copy).toContain('Cleaner zodiac positions');
+    expect(copy).not.toMatch(/\b(activation|access keys|licens\w*|backend|benchmark|API|algorithm|payload|fallback)\b/i);
+  });
+
   it('keeps the 3.1.4 release copy product-facing', () => {
     const release = getWhatsNewRelease('3.1.4');
     const copy = [

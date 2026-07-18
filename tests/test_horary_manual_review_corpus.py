@@ -66,15 +66,28 @@ def _rules(final):
     return [entry.get("rule", "") for entry in final.get("reasoning", [])]
 
 
-def test_conception_manual_review_case_surfaces_pregnancy_support_signals():
+def test_conception_manual_review_case_matches_source_aligned_pregnancy_testimony():
     payload, final = _replay_manual_case("conceive_review.json")
     rules = _rules(final)
+    traditional_factors = final["traditional_factors"]
+    source = payload["source"]
 
     assert payload["question"] == "Will I conceive?"
-    assert final["traditional_factors"]["perfection_type"] == "pregnancy_sufficiency"
-    assert final["traditional_factors"]["reception"] == "unilateral"
-    assert any("L1" in rule and "L5" in rule for rule in rules)
+    assert payload["category"] == "pregnancy"
+    assert source["case_id"] == "will_i_conceive"
+    assert source["local_dt"] == "2014-01-14T18:43:00"
+    assert source["header_ascendant"] == "16 Leo"
+    assert source["source_alignment"] is True
+    assert final["result"] == "YES"
+    assert traditional_factors["perfection_type"] == "pregnancy_sufficiency"
+    assert traditional_factors["reception"] == "none"
     assert any("Moon not void of course" in rule for rule in rules)
+    assert any("Querent: Sun (ruler of 1), Quesited: Jupiter (ruler of 5)" in rule for rule in rules)
+    assert any("Moon next applies by Conjunction to child significator Jupiter" in rule for rule in rules)
+    assert any("Moon is in a fertile sign" in rule for rule in rules)
+    assert any("Child significator Jupiter is in a fertile sign" in rule for rule in rules)
+    assert any("Moon is well dignified" in rule for rule in rules)
+    assert any("Child significator Jupiter is retrograde" in rule for rule in rules)
 
 
 def test_marriage_manual_review_case_preserves_mixed_secondary_balance():
