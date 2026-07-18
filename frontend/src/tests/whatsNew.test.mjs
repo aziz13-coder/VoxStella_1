@@ -54,6 +54,25 @@ describe('whats new release gating', () => {
     expect(release.isFallback).toBe(false);
   });
 
+  it('keeps the 3.1.4 release copy product-facing', () => {
+    const release = getWhatsNewRelease('3.1.4');
+    const copy = [
+      release.headline,
+      release.summary,
+      release.note,
+      ...release.items.flatMap((item) => [item.title, item.tag, item.body]),
+    ]
+      .filter(Boolean)
+      .join(' ');
+
+    expect(release.headline).toBe('Clearer Directional views');
+    expect(copy).toContain('A more faithful compass');
+    expect(copy).toContain('Three clearer 3D perspectives');
+    expect(copy).toContain('Saved charts stay consistent');
+    expect(copy).toContain('Better on smaller screens');
+    expect(copy).not.toMatch(/\b(activation|access keys|licens\w*|backend|benchmark|API|algorithm|topocentric|ecliptic)\b/i);
+  });
+
   it('keeps the 3.1.3 release copy product-facing', () => {
     const release = getWhatsNewRelease('3.1.3');
     const copy = [

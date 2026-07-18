@@ -1,4 +1,32 @@
 export const WHATS_NEW_RELEASES = {
+  '3.1.4': {
+    version: '3.1.4',
+    publishedAt: '2026-07-18',
+    headline: 'Clearer Directional views',
+    summary: 'This update makes the Directional compass and its 3D view clearer, more consistent, and easier to use across saved charts and smaller screens.',
+    items: [
+      {
+        title: 'A more faithful compass',
+        tag: 'Improved',
+        body: 'Direction and height are now shown more clearly, with labels kept apart so crowded charts remain easier to read.',
+      },
+      {
+        title: 'Three clearer 3D perspectives',
+        tag: 'Improved',
+        body: 'The 3D view now separates the chart, equatorial, and local-horizon perspectives so each one can be explored without mixing their meanings.',
+      },
+      {
+        title: 'Saved charts stay consistent',
+        tag: 'Improved',
+        body: 'Opening Directional views from a saved chart now keeps the chart\'s confirmed settings throughout the experience.',
+      },
+      {
+        title: 'Better on smaller screens',
+        tag: 'Polished',
+        body: 'Astro Clock and Directional views now fit more comfortably on phones and tablets, with easier access to the workspace.',
+      },
+    ],
+  },
   '3.1.3': {
     version: '3.1.3',
     publishedAt: '2026-07-18',
