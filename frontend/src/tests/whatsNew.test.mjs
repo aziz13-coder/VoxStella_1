@@ -54,8 +54,8 @@ describe('whats new release gating', () => {
     expect(release.isFallback).toBe(false);
   });
 
-  it('keeps the current 3.1.1 release copy product-facing', () => {
-    expect(packageJson.version).toBe('3.1.1');
+  it('keeps the current 3.1.2 release copy product-facing', () => {
+    expect(packageJson.version).toBe('3.1.2');
 
     const release = getWhatsNewRelease(packageJson.version);
     const copy = [
@@ -67,12 +67,20 @@ describe('whats new release gating', () => {
       .filter(Boolean)
       .join(' ');
 
-    expect(release.headline).toBe('Deeper Chinese Astrology readings');
-    expect(copy).toContain('Safer unknown birth times');
-    expect(copy).toContain('Clearer element readings');
-    expect(copy).toContain('More thoughtful relationship readings');
-    expect(copy).toContain('More reliable seasonal boundaries');
+    expect(release.headline).toBe('Deeper Astrocartography guidance');
+    expect(copy).toContain('Better-matched destinations');
+    expect(copy).toContain('Clearer learning and communication guidance');
+    expect(copy).toContain('More dependable city matching');
+    expect(copy).toContain('More honest confidence');
     expect(copy).not.toMatch(/\b(activation|access keys|licens\w*|backend|benchmark|module|filtered catalog|API|algorithm|calibration)\b/i);
+  });
+
+  it('preserves the 3.1.1 release copy', () => {
+    const release = getWhatsNewRelease('3.1.1');
+
+    expect(release.version).toBe('3.1.1');
+    expect(release.headline).toBe('Deeper Chinese Astrology readings');
+    expect(release.summary).toContain('birth time is unknown');
   });
 
   it('preserves the 3.1.0 release copy', () => {

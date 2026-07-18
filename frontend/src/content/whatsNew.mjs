@@ -1,4 +1,32 @@
 export const WHATS_NEW_RELEASES = {
+  '3.1.2': {
+    version: '3.1.2',
+    publishedAt: '2026-07-18',
+    headline: 'Deeper Astrocartography guidance',
+    summary: 'This update makes Astrocartography place guidance more dependable, clearer about why a location fits, and more careful when a city or interpretation is uncertain.',
+    items: [
+      {
+        title: 'Better-matched destinations',
+        tag: 'Improved',
+        body: 'Place suggestions now respond more thoughtfully to what you want from a move or journey, including career, relationships, home life, wellbeing, creativity, and personal growth.',
+      },
+      {
+        title: 'Clearer learning and communication guidance',
+        tag: 'Improved',
+        body: 'Writing, speaking, networking, studying, and teaching are now read as distinct goals, giving each kind of place search a more focused result.',
+      },
+      {
+        title: 'More dependable city matching',
+        tag: 'Improved',
+        body: 'City searches are more precise, and Vox Stella now asks for clarity when a place name could refer to more than one location.',
+      },
+      {
+        title: 'More honest confidence',
+        tag: 'Improved',
+        body: 'Readings now make it easier to see which guidance is well supported and which parts should be treated as tentative.',
+      },
+    ],
+  },
   '3.1.1': {
     version: '3.1.1',
     publishedAt: '2026-07-17',
