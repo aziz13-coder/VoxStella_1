@@ -19,6 +19,22 @@ class _SentinelChart:
     pass
 
 
+_USER_ENTERED_BIRTH_TIME_QUALITY = {
+    "kind": "birth_time_quality",
+    "status": "user_entered_time",
+    "confidence": "user_entered",
+    "source_time_status": None,
+    "uncertainty_minutes": None,
+    "effective_uncertainty_minutes": None,
+    "search_window_minutes": None,
+    "ranking_eligible": True,
+    "ranking_eligibility": "provisional",
+    "warnings": [
+        "The birth time has not been externally certified; city ranks are provisional.",
+    ],
+}
+
+
 def test_compute_chart_bundle_for_retains_raw_chart(monkeypatch):
     sentinel = _SentinelChart()
 
@@ -119,7 +135,13 @@ def test_natal_bundle_from_query_uses_manual_inputs(monkeypatch):
     }
     assert bundle["raw_chart"] is sentinel
     assert chart_data == {"house_rulers": {"10": "Mars"}}
-    assert meta == {"timestamp": "1990-01-01T00:00:00+00:00", "location": "Jerusalem", "timezone": "UTC"}
+    assert meta == {
+        "timestamp": "1990-01-01T00:00:00+00:00",
+        "location": "Jerusalem",
+        "timezone": "UTC",
+        "coordinate_source": "geocoder",
+        "birth_time": _USER_ENTERED_BIRTH_TIME_QUALITY,
+    }
 
 
 def test_natal_bundle_from_query_uses_snap_context(monkeypatch):
@@ -178,4 +200,6 @@ def test_natal_bundle_from_query_uses_snap_context(monkeypatch):
         "timestamp": "2001-05-15T14:20:00Z",
         "location": "Washington, District of Columbia",
         "timezone": "America/New_York",
+        "coordinate_source": "saved_snap",
+        "birth_time": _USER_ENTERED_BIRTH_TIME_QUALITY,
     }
