@@ -160,15 +160,18 @@ describe('Directional3DModal projection', () => {
 });
 
 describe('Directional3DModal', () => {
-  it('opens as an accessible Horizon view with noninteractive SVG semantics', async () => {
+  it('opens as an accessible Horizon view with directly selectable SVG objects', async () => {
     render(<Directional3DModal {...defaultProps()} />);
 
     const dialog = screen.getByRole('dialog', { name: 'Directional 3D' });
     expect(dialog).toHaveAttribute('aria-modal', 'true');
     expect(screen.getByRole('button', { name: 'HOR', exact: true })).toHaveAttribute('aria-pressed', 'true');
-    const chart = screen.getByRole('img', { name: 'Horizon Directional 3D chart' });
+    const chart = screen.getByRole('group', { name: 'Horizon Directional 3D chart' });
     expect(chart).toBeInTheDocument();
-    expect(chart.querySelector('g[role="button"]')).toBeNull();
+    expect(within(chart).getByRole('button', { name: 'Inspect Sun in Horizon coordinates' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
     expect(chart.querySelector('[data-directional-object="planet:Sun"]')).toBeTruthy();
     expect(chart.querySelector('[data-directional-object="planet:Moon"]')).toHaveAttribute(
       'data-directional-side',
@@ -184,6 +187,69 @@ describe('Directional3DModal', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Close' })).toHaveFocus());
   });
 
+  it('changes selected objects from the visible sphere without starting an orbit drag', () => {
+    render(<Directional3DModal {...defaultProps()} />);
+
+    const chart = screen.getByRole('group', { name: 'Horizon Directional 3D chart' });
+    const moonMarker = within(chart).getByRole('button', {
+      name: 'Inspect Moon in Horizon coordinates',
+    });
+    const sunMarker = within(chart).getByRole('button', {
+      name: 'Inspect Sun in Horizon coordinates',
+    });
+    const rotation = screen.getByRole('slider', { name: 'Directional rotation' });
+
+    fireEvent.pointerDown(moonMarker, { button: 0, pointerId: 8, clientX: 120, clientY: 90 });
+    fireEvent.pointerUp(moonMarker, { pointerId: 8, clientX: 120, clientY: 90 });
+    fireEvent.click(moonMarker);
+
+    expect(screen.getByLabelText('Directional object inspector')).toHaveTextContent(/Moon.*HOR/);
+    expect(moonMarker).toHaveAttribute('aria-pressed', 'true');
+    expect(rotation).toHaveValue('0');
+
+    fireEvent.click(sunMarker);
+    expect(screen.getByLabelText('Directional object inspector')).toHaveTextContent(/Sun.*HOR/);
+    expect(sunMarker).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.keyDown(moonMarker, { key: ' ', code: 'Space' });
+    expect(screen.getByLabelText('Directional object inspector')).toHaveTextContent(/Moon.*HOR/);
+    expect(moonMarker).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('selects the nearest displayed object when marker hit areas overlap', () => {
+    render(<Directional3DModal {...defaultProps()} />);
+
+    const chart = screen.getByRole('group', { name: 'Horizon Directional 3D chart' });
+    const sunMarker = within(chart).getByRole('button', {
+      name: 'Inspect Sun in Horizon coordinates',
+    });
+    const moonMarker = within(chart).getByRole('button', {
+      name: 'Inspect Moon in Horizon coordinates',
+    });
+    const sunHitTarget = sunMarker.querySelector('[data-directional-hit-target="true"]');
+    const sunX = Number(sunHitTarget?.getAttribute('cx'));
+    const sunY = Number(sunHitTarget?.getAttribute('cy'));
+    vi.spyOn(chart, 'getBoundingClientRect').mockReturnValue({
+      x: 0,
+      y: 0,
+      top: 0,
+      right: 320,
+      bottom: 320,
+      left: 0,
+      width: 320,
+      height: 320,
+      toJSON: () => ({}),
+    });
+
+    // Simulate the browser targeting Moon's overlapping transparent circle while
+    // the pointer itself is visually centred on the Sun glyph.
+    fireEvent.click(moonMarker, { clientX: sunX, clientY: sunY });
+
+    expect(screen.getByLabelText('Directional object inspector')).toHaveTextContent(/Sun.*HOR/);
+    expect(sunMarker).toHaveAttribute('aria-pressed', 'true');
+    expect(moonMarker).toHaveAttribute('aria-pressed', 'false');
+  });
+
   it('uses three independent panes for All systems and labels their frames', () => {
     render(<Directional3DModal {...defaultProps()} />);
 
@@ -191,9 +257,9 @@ describe('Directional3DModal', () => {
 
     expect(screen.getByRole('button', { name: 'All systems' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByText(/They are separated below so positions are not falsely co-registered/)).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: 'Ecliptic Directional 3D chart' })).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: 'Equatorial Directional 3D chart' })).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: 'Horizon Directional 3D chart' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Ecliptic Directional 3D chart' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Equatorial Directional 3D chart' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Horizon Directional 3D chart' })).toBeInTheDocument();
     expect(screen.getByText('Ecliptic (EQL)')).toBeInTheDocument();
     expect(screen.getByText('Equatorial (EQU)')).toBeInTheDocument();
     expect(screen.getByText('Horizon (HOR)')).toBeInTheDocument();
@@ -203,7 +269,7 @@ describe('Directional3DModal', () => {
     render(<Directional3DModal {...defaultProps()} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'EQL', exact: true }));
-    const chart = screen.getByRole('img', { name: 'Ecliptic Directional 3D chart' });
+    const chart = screen.getByRole('group', { name: 'Ecliptic Directional 3D chart' });
 
     expect(screen.getByRole('button', { name: 'Cusp points' })).toHaveAttribute('aria-pressed', 'true');
     expect(chart.querySelector('[data-directional-house-cusp="house:1"]')).toBeTruthy();
@@ -212,7 +278,7 @@ describe('Directional3DModal', () => {
 
   it('limits Back points honestly to markers while preserving reference orientation', () => {
     render(<Directional3DModal {...defaultProps()} />);
-    const chart = screen.getByRole('img', { name: 'Horizon Directional 3D chart' });
+    const chart = screen.getByRole('group', { name: 'Horizon Directional 3D chart' });
 
     expect(chart.querySelector('[data-directional-object="planet:Moon"]')).toBeTruthy();
     expect(chart.querySelector('[data-directional-reference-plane="HOR"]')).toBeTruthy();
@@ -244,7 +310,7 @@ describe('Directional3DModal', () => {
       ],
     });
     render(<Directional3DModal {...defaultProps({ payload })} />);
-    const chart = screen.getByRole('img', { name: 'Horizon Directional 3D chart' });
+    const chart = screen.getByRole('group', { name: 'Horizon Directional 3D chart' });
     const visibleLabel = () => chart.querySelector('[data-directional-object="planet:Sun"] text');
 
     expect(visibleLabel()).not.toHaveAttribute('x', '160');
@@ -273,6 +339,24 @@ describe('Directional3DModal', () => {
     expect(objectHeader).toHaveAttribute('aria-sort', 'ascending');
     fireEvent.click(within(objectHeader).getByRole('button', { name: /Object/ }));
     expect(objectHeader).toHaveAttribute('aria-sort', 'descending');
+  });
+
+  it('lets the table inspect an available scalar when the paired coordinate is missing', () => {
+    const base = buildPayload();
+    const payload = buildPayload({
+      objects: base.objects.map((item) => (
+        item.object_id === 'planet:Moon'
+          ? { ...item, EQU: { ...item.EQU, latitude: null } }
+          : item
+      )),
+    });
+    render(<Directional3DModal {...defaultProps({ payload })} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'EQU', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: /Inspect Moon EQU RA/ }));
+
+    expect(screen.getByLabelText('Directional object inspector')).toHaveTextContent(/Moon.*EQU/);
+    expect(screen.getAllByText('Unavailable').length).toBeGreaterThan(0);
   });
 
   it('preserves camera and system-aware selection while stepped payloads load', () => {

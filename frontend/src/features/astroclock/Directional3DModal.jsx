@@ -23,6 +23,8 @@ const SPHERE_SIZE = 320;
 const SPHERE_CENTER = SPHERE_SIZE / 2;
 const SPHERE_RADIUS_X = 126;
 const SPHERE_RADIUS_Y = 118;
+const OBJECT_HIT_RADIUS = 17;
+const CUSP_HIT_RADIUS = 12;
 const FOCUSABLE_SELECTOR = [
   'button:not([disabled])',
   'select:not([disabled])',
@@ -264,6 +266,14 @@ function validCoordinate(coord) {
     && latitude <= 90;
 }
 
+function inspectableCoordinate(coord) {
+  const longitude = asFiniteNumber(coord?.longitude);
+  const latitude = asFiniteNumber(coord?.latitude);
+  if (longitude === null) return false;
+  if (latitude !== null && (latitude < -90 || latitude > 90)) return false;
+  return true;
+}
+
 function friendlySource(value) {
   const text = String(value || '').trim();
   if (!text) return 'Source unavailable';
@@ -288,7 +298,7 @@ function isValidObject(item) {
     && typeof item === 'object'
     && objectIdentity(item)
     && String(item.name || '').trim()
-    && SYSTEMS.some((system) => validCoordinate(item?.[system])),
+    && SYSTEMS.some((system) => inspectableCoordinate(item?.[system])),
   );
 }
 
@@ -669,6 +679,7 @@ const DirectionalSphere = memo(function DirectionalSphere({
   layers,
   selectedObjectId,
   selectedSystem,
+  onSelectObject,
 }) {
   const details = SYSTEM_DETAILS[system];
   const objectRows = useMemo(() => {
@@ -716,12 +727,68 @@ const DirectionalSphere = memo(function DirectionalSphere({
   const polarSouth = useMemo(() => circleCoordinates('horizontal', -66.560709), []);
   const referenceVisible = Boolean(layers[details.referenceKey]);
   const sphereLabel = `${details.name} Directional 3D chart`;
+  const pointerCandidates = useMemo(() => [
+    ...(layers.houses ? cuspRows
+      .filter(({ point }) => layers.backPoints || !point.hidden)
+      .map(({ item, point }) => ({
+        item,
+        x: point.x,
+        y: point.y,
+        radius: CUSP_HIT_RADIUS,
+      })) : []),
+    ...(layers.objects ? objectRows
+      .filter(({ point }) => layers.backPoints || !point.hidden)
+      .map(({ item, displayPoint }) => ({
+        item,
+        x: displayPoint.x,
+        y: displayPoint.y,
+        radius: OBJECT_HIT_RADIUS,
+      })) : []),
+  ], [cuspRows, layers.backPoints, layers.houses, layers.objects, objectRows]);
+
+  const selectPointerObject = useCallback((event, fallbackItem) => {
+    event.stopPropagation();
+    const svg = event.currentTarget.ownerSVGElement;
+    const rect = svg?.getBoundingClientRect?.();
+    if (
+      !rect
+      || rect.width <= 0
+      || rect.height <= 0
+      || !Number.isFinite(event.clientX)
+      || !Number.isFinite(event.clientY)
+    ) {
+      onSelectObject?.(fallbackItem, system);
+      return;
+    }
+
+    const pointerX = ((event.clientX - rect.left) / rect.width) * SPHERE_SIZE;
+    const pointerY = ((event.clientY - rect.top) / rect.height) * SPHERE_SIZE;
+    const fallbackId = objectIdentity(fallbackItem);
+    const nearest = pointerCandidates.reduce((best, candidate) => {
+      const dx = candidate.x - pointerX;
+      const dy = candidate.y - pointerY;
+      const distanceSquared = (dx * dx) + (dy * dy);
+      if (distanceSquared > candidate.radius * candidate.radius) return best;
+      if (!best || distanceSquared < best.distanceSquared - 0.01) {
+        return { candidate, distanceSquared };
+      }
+      if (
+        Math.abs(distanceSquared - best.distanceSquared) <= 0.01
+        && objectIdentity(candidate.item) === fallbackId
+      ) {
+        return { candidate, distanceSquared };
+      }
+      return best;
+    }, null);
+
+    onSelectObject?.(nearest?.candidate?.item || fallbackItem, system);
+  }, [onSelectObject, pointerCandidates, system]);
 
   return (
     <svg
       viewBox={`0 0 ${SPHERE_SIZE} ${SPHERE_SIZE}`}
       className="h-auto w-full select-none"
-      role="img"
+      role="group"
       aria-label={sphereLabel}
       shapeRendering="geometricPrecision"
       textRendering="optimizeLegibility"
@@ -829,8 +896,32 @@ const DirectionalSphere = memo(function DirectionalSphere({
             key={`cusp-${objectIdentity(item)}`}
             data-directional-house-cusp={objectIdentity(item)}
             opacity={point.hidden ? 0.3 : 0.82}
-            aria-hidden="true"
+            role="button"
+            tabIndex={0}
+            focusable="true"
+            aria-label={`Inspect ${item.name} in ${details.name} coordinates`}
+            aria-pressed={selected}
+            className="group cursor-pointer outline-none"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => selectPointerObject(event, item)}
+            onKeyDown={(event) => {
+              if (event.key !== 'Enter' && event.key !== ' ') return;
+              event.preventDefault();
+              event.stopPropagation();
+              onSelectObject?.(item, system);
+            }}
           >
+            <circle
+              data-directional-hit-target="true"
+              cx={point.x}
+              cy={point.y}
+              r={CUSP_HIT_RADIUS}
+              fill="transparent"
+              stroke="transparent"
+              strokeWidth="2.5"
+              pointerEvents="all"
+              className="group-focus-visible:stroke-teal-600"
+            />
             <circle
               cx={point.x}
               cy={point.y}
@@ -873,8 +964,32 @@ const DirectionalSphere = memo(function DirectionalSphere({
             data-directional-depth={point.depth.toFixed(6)}
             data-directional-side={point.hidden ? 'back' : 'front'}
             opacity={point.hidden ? 0.34 : 1}
-            aria-hidden="true"
+            role="button"
+            tabIndex={0}
+            focusable="true"
+            aria-label={`Inspect ${item.name} in ${details.name} coordinates`}
+            aria-pressed={selected}
+            className="group cursor-pointer outline-none"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => selectPointerObject(event, item)}
+            onKeyDown={(event) => {
+              if (event.key !== 'Enter' && event.key !== ' ') return;
+              event.preventDefault();
+              event.stopPropagation();
+              onSelectObject?.(item, system);
+            }}
           >
+            <circle
+              data-directional-hit-target="true"
+              cx={displayPoint.x}
+              cy={displayPoint.y}
+              r={OBJECT_HIT_RADIUS}
+              fill="transparent"
+              stroke="transparent"
+              strokeWidth="2.5"
+              pointerEvents="all"
+              className="group-focus-visible:stroke-teal-600"
+            />
             {displaced ? (
               <line
                 x1={point.x}
@@ -921,6 +1036,7 @@ function SpherePane({
   layers,
   selectedObjectId,
   selectedSystem,
+  onSelectObject,
   onPointerDown,
   onPointerMove,
   onPointerUp,
@@ -963,6 +1079,7 @@ function SpherePane({
           layers={layers}
           selectedObjectId={selectedObjectId}
           selectedSystem={selectedSystem}
+          onSelectObject={onSelectObject}
         />
       </div>
       <p className="px-1 pb-1 text-center text-[9px] leading-4 text-zinc-400">
@@ -1302,7 +1419,7 @@ export default function Directional3DModal({
       for (const itemSystem of requestedSystems) {
         const currentObject = objects.find(
           (item) => objectIdentity(item) === current.objectId
-            && validCoordinate(item?.[itemSystem]),
+            && inspectableCoordinate(item?.[itemSystem]),
         );
         if (currentObject) {
           if (current.system === itemSystem) return current;
@@ -1311,7 +1428,11 @@ export default function Directional3DModal({
 
         const preferred = objects.find(
           (item) => !isCuspObject(item) && validCoordinate(item?.[itemSystem]),
-        ) || objects.find((item) => validCoordinate(item?.[itemSystem]));
+        ) || objects.find((item) => validCoordinate(item?.[itemSystem]))
+          || objects.find(
+            (item) => !isCuspObject(item) && inspectableCoordinate(item?.[itemSystem]),
+          )
+          || objects.find((item) => inspectableCoordinate(item?.[itemSystem]));
         if (preferred) {
           return { objectId: objectIdentity(preferred), system: itemSystem };
         }
@@ -1395,7 +1516,11 @@ export default function Directional3DModal({
   }, []);
 
   const selectObject = useCallback((item, coordinateSystem) => {
-    if (!item || !SYSTEMS.includes(coordinateSystem) || !validCoordinate(item[coordinateSystem])) return;
+    if (
+      !item
+      || !SYSTEMS.includes(coordinateSystem)
+      || !inspectableCoordinate(item[coordinateSystem])
+    ) return;
     setSelection({ objectId: objectIdentity(item), system: coordinateSystem });
   }, []);
 
@@ -1606,6 +1731,7 @@ export default function Directional3DModal({
                         layers={layers}
                         selectedObjectId={selection.objectId}
                         selectedSystem={selection.system}
+                        onSelectObject={selectObject}
                         onPointerDown={handlePointerDown}
                         onPointerMove={handlePointerMove}
                         onPointerUp={handlePointerUp}
@@ -1813,8 +1939,11 @@ export default function Directional3DModal({
                               {tableSystems.map((itemSystem) => {
                                 const details = SYSTEM_DETAILS[itemSystem];
                                 const coord = item[itemSystem];
-                                const longitudeAvailable = asFiniteNumber(coord?.longitude) !== null;
-                                const latitudeAvailable = item.bfull !== false
+                                const coordinateInspectable = inspectableCoordinate(coord);
+                                const longitudeAvailable = coordinateInspectable
+                                  && asFiniteNumber(coord?.longitude) !== null;
+                                const latitudeAvailable = coordinateInspectable
+                                  && item.bfull !== false
                                   && asFiniteNumber(coord?.latitude) !== null;
                                 return (
                                   <React.Fragment key={`${itemId}-${itemSystem}`}>

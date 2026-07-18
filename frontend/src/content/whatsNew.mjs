@@ -13,7 +13,7 @@ export const WHATS_NEW_RELEASES = {
       {
         title: 'Three clearer 3D perspectives',
         tag: 'Improved',
-        body: 'The 3D view now separates the chart, equatorial, and local-horizon perspectives so each one can be explored without mixing their meanings.',
+        body: 'The 3D view now separates the chart, equatorial, and local-horizon perspectives, and each visible object can be selected directly while you explore.',
       },
       {
         title: 'Saved charts stay consistent',

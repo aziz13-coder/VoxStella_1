@@ -833,8 +833,10 @@ describe('CompassTile', () => {
     });
     expect(await screen.findByText('Directional 3D')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'HOR' })).toHaveAttribute('aria-pressed', 'true');
-    let chart = screen.getByRole('img', { name: 'Horizon Directional 3D chart' });
-    expect(chart.querySelectorAll('g[role="button"]')).toHaveLength(0);
+    let chart = screen.getByRole('group', { name: 'Horizon Directional 3D chart' });
+    expect(within(chart).getByRole('button', {
+      name: 'Inspect Sun in Horizon coordinates',
+    })).toHaveAttribute('aria-pressed', 'true');
     let selectedSunGlyph = chart.querySelector('[data-directional-selected-object="planet:Sun"]');
     expect(selectedSunGlyph).toBeTruthy();
     expect(selectedSunGlyph).toHaveAttribute('data-directional-selected-system', 'HOR');
@@ -847,7 +849,7 @@ describe('CompassTile', () => {
     expect(screen.getByRole('button', { name: 'Back points' })).toHaveAttribute('aria-pressed');
     expect(chart.querySelectorAll('[data-directional-reference="tropic"]')).toHaveLength(0);
     fireEvent.click(screen.getByRole('button', { name: 'EQU' }));
-    chart = screen.getByRole('img', { name: 'Equatorial Directional 3D chart' });
+    chart = screen.getByRole('group', { name: 'Equatorial Directional 3D chart' });
     expect(screen.getByRole('button', { name: 'Equator' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Tropics' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Polar' })).toBeInTheDocument();
@@ -856,7 +858,7 @@ describe('CompassTile', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Tropics' }));
     expect(chart.querySelectorAll('[data-directional-reference="tropic"]')).toHaveLength(0);
     fireEvent.click(screen.getByRole('button', { name: 'EQL' }));
-    chart = screen.getByRole('img', { name: 'Ecliptic Directional 3D chart' });
+    chart = screen.getByRole('group', { name: 'Ecliptic Directional 3D chart' });
     expect(screen.getByRole('button', { name: 'Ecliptic' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cusp points' })).toBeInTheDocument();
     expect(chart.querySelectorAll('[data-directional-house-cusp]')).toHaveLength(2);
@@ -884,7 +886,9 @@ describe('CompassTile', () => {
     expect(within(houseRow).getByText('House 1')).toBeInTheDocument();
     expect(within(houseRow).queryByText('H1')).not.toBeInTheDocument();
     fireEvent.click(within(houseRow).getByRole('button', { name: /Inspect House 1 EQL Lon/ }));
-    const selectedHouseMarker = chart.querySelector('[data-directional-house-cusp="cusp:1"] circle');
+    const selectedHouseMarker = chart.querySelector(
+      '[data-directional-house-cusp="cusp:1"] circle:not([data-directional-hit-target])',
+    );
     expect(selectedHouseMarker).toHaveAttribute('r', '4.5');
     const sunRow = screen.getByRole('row', { name: /Sun/ });
     expect(within(sunRow).getByText('\u2609')).toBeInTheDocument();
