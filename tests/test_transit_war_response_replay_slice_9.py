@@ -205,6 +205,7 @@ class TransitWarResponseReplaySliceNineTests(TestCase):
         self.assertTrue(
             any(
                 row["event_type"] in {
+                    "relationship_conflict",
                     "attack_violence",
                     "war_declaration_offensive",
                     "war_response_defensive",
@@ -214,7 +215,7 @@ class TransitWarResponseReplaySliceNineTests(TestCase):
                 }
                 for row in event["war_rows"]
             ),
-            msg=f"missing war-specific event type in event_war_rows={event['war_rows']}",
+            msg=f"missing source-defensible conflict event type in event_war_rows={event['war_rows']}",
         )
         self.assertTrue(
             any(row["life_area"] == "conflict" for row in event["war_rows"]),

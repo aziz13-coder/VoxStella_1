@@ -46,7 +46,7 @@ def test_journey_rank_matrix_degrades_with_fixed_asc_and_l1_retrograde():
     assert scores[(False, True)] > scores[(True, True)]
 
 
-def test_surgery_rank_matrix_keeps_soft_warning_above_never_conditions():
+def test_surgery_rank_matrix_keeps_bad_house_and_retrograde_as_cautions():
     scores: dict[tuple[bool, bool], float] = {}
 
     for moon_to_retrograde, moon_bad_house in itertools.product([False, True], [False, True]):
@@ -63,8 +63,8 @@ def test_surgery_rank_matrix_keeps_soft_warning_above_never_conditions():
     assert scores[(False, False)] > scores[(True, False)]
     assert scores[(False, False)] > scores[(False, True)]
     assert scores[(True, False)] > scores[(True, True)]
-    assert scores[(False, True)] <= -90.0
-    assert scores[(True, True)] <= -90.0
+    assert scores[(False, True)] > -90.0
+    assert scores[(True, True)] > -90.0
 
 
 def test_battle_rank_matrix_prohibition_dominates_non_prohibited_variants():

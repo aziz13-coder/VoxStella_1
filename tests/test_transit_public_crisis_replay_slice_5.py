@@ -188,7 +188,7 @@ class TransitPublicCrisisReplaySliceFiveTests(TestCase):
                 self.assertTrue(case["time_basis"])
                 self.assertTrue(case["time_confidence"])
 
-    def test_event_date_beats_nearby_control_on_public_crisis_support(self):
+    def test_generic_catalog_terms_do_not_manufacture_major_crisis_events(self):
         for case in self.cases:
             with self.subTest(case=case["id"]):
                 event = self._run_case(case, case["event_datetime"])
@@ -200,30 +200,19 @@ class TransitPublicCrisisReplaySliceFiveTests(TestCase):
                 self.assertEqual((event_data["data"].get("natal") or {}).get("timezone"), natal_meta.get("timezone"))
                 self.assertEqual((event_data["data"].get("natal") or {}).get("house_system_code"), case["house_system_code"])
 
-                matching_hit = next(
-                    (
+                forbidden = set(case["forbidden_inferred_keywords"])
+                descriptions = set(case["expected_crisis_hit_descriptions"])
+                for label, measured in (("event", event_data), ("control", control_data)):
+                    unsafe = [
                         row
-                        for row in event_data["interesting_hits"]
-                        if row.get("description") in set(case["expected_crisis_hit_descriptions"])
-                        and set(case["expected_crisis_keywords"]).issubset(set(row.get("keywords") or []))
-                    ),
-                    None,
-                )
-                self.assertIsNotNone(
-                    matching_hit,
-                    msg=f"{case['id']} event_hits={event_data['interesting_hits']}",
-                )
-
-                self.assertGreaterEqual(
-                    event_data["best_strength"],
-                    control_data["best_strength"] + float(case["minimum_hit_delta"]),
-                    msg=(
-                        f"{case['id']} event_best={event_data['best_strength']} "
-                        f"control_best={control_data['best_strength']} "
-                        f"event_hits={event_data['interesting_hits']} "
-                        f"control_hits={control_data['interesting_hits']}"
-                    ),
-                )
+                        for row in measured["top_hits"]
+                        if _describe_hit(row) in descriptions
+                        and forbidden & set(row.get("enriched_keywords") or [])
+                    ]
+                    self.assertFalse(
+                        unsafe,
+                        msg=f"{case['id']} {label} manufactured crisis rows={unsafe}",
+                    )
 
 
 if __name__ == "__main__":

@@ -3,6 +3,7 @@ import { AstroClockAPI } from './api.mjs';
 import {
   formatSavedSnapDateTime,
   getSavedSnapIneligibilityLabel,
+  getSavedSnapTimezone,
   getSavedSnapTimezoneLabel,
   isSavedSnapCalculationEligible,
 } from './savedSnapViewModel.mjs';
@@ -1270,6 +1271,126 @@ function normalizeTimezoneHint(hint) {
   return text;
 }
 
+function utcMillisFromWallParts(year, month, day, hour, minute, second) {
+  const probe = new Date(0);
+  probe.setUTCFullYear(year, month - 1, day);
+  probe.setUTCHours(hour, minute, second, 0);
+  if (
+    probe.getUTCFullYear() !== year
+    || probe.getUTCMonth() !== month - 1
+    || probe.getUTCDate() !== day
+    || probe.getUTCHours() !== hour
+    || probe.getUTCMinutes() !== minute
+    || probe.getUTCSeconds() !== second
+  ) {
+    return null;
+  }
+  return probe.getTime();
+}
+
+function zonedWallParts(date, timeZone) {
+  try {
+    const dtf = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      hourCycle: 'h23',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+    const bucket = {};
+    dtf.formatToParts(date).forEach((part) => {
+      if (part.type !== 'literal') bucket[part.type] = part.value;
+    });
+    if (!bucket.year || !bucket.month || !bucket.day || !bucket.hour || !bucket.minute || !bucket.second) {
+      return null;
+    }
+    return {
+      year: Number(bucket.year),
+      month: Number(bucket.month),
+      day: Number(bucket.day),
+      hour: bucket.hour === '24' ? 0 : Number(bucket.hour),
+      minute: Number(bucket.minute),
+      second: Number(bucket.second),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function getTimezoneOffsetMinutes(date, timeZone) {
+  const parts = zonedWallParts(date, timeZone);
+  if (!parts) return null;
+  const asUtc = utcMillisFromWallParts(
+    parts.year,
+    parts.month,
+    parts.day,
+    parts.hour,
+    parts.minute,
+    parts.second,
+  );
+  return asUtc == null ? null : (asUtc - date.getTime()) / 60000;
+}
+
+function wallPartsMatch(parts, expected) {
+  return Boolean(
+    parts
+    && parts.year === expected.year
+    && parts.month === expected.month
+    && parts.day === expected.day
+    && parts.hour === expected.hour
+    && parts.minute === expected.minute
+    && parts.second === expected.second
+  );
+}
+
+export function buildTransitIso(dateValue, timeValue, timezoneHint) {
+  if (!dateValue || !timeValue) return null;
+  const hhmmss = timeValue.length === 5 ? `${timeValue}:00` : timeValue;
+  const [year, month, day] = dateValue.split('-').map((part) => Number(part));
+  const [hour, minute, second = 0] = hhmmss.split(':').map((part) => Number(part));
+  const expected = { year, month, day, hour, minute, second };
+  if (Object.values(expected).some((value) => !Number.isInteger(value))) return null;
+
+  const baseUtc = utcMillisFromWallParts(year, month, day, hour, minute, second);
+  if (baseUtc == null) return null;
+  const timezone = normalizeTimezoneHint(timezoneHint);
+
+  if (timezone) {
+    const offsets = new Set();
+    for (const dayOffset of [-2, -1, 0, 1, 2]) {
+      const offset = getTimezoneOffsetMinutes(
+        new Date(baseUtc + dayOffset * 24 * 60 * 60 * 1000),
+        timezone,
+      );
+      if (offset != null && Number.isFinite(offset)) offsets.add(offset);
+    }
+    const candidates = [...offsets]
+      .map((offset) => new Date(baseUtc - offset * 60000))
+      .filter((candidate) => wallPartsMatch(zonedWallParts(candidate, timezone), expected))
+      .sort((a, b) => a.getTime() - b.getTime());
+    // Choose the earlier occurrence in a DST overlap; reject DST gaps and bad zones.
+    return candidates.length ? candidates[0].toISOString() : null;
+  }
+
+  const localDate = new Date(0);
+  localDate.setFullYear(year, month - 1, day);
+  localDate.setHours(hour, minute, second, 0);
+  if (
+    localDate.getFullYear() !== year
+    || localDate.getMonth() !== month - 1
+    || localDate.getDate() !== day
+    || localDate.getHours() !== hour
+    || localDate.getMinutes() !== minute
+    || localDate.getSeconds() !== second
+  ) {
+    return null;
+  }
+  return localDate.toISOString();
+}
+
 function formatIsoForInputFields(iso, tz) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return null;
@@ -1435,6 +1556,7 @@ export default function TransitsModal({
   const [scanning, setScanning] = useState(false);
   const [scanProgress, setScanProgress] = useState(0);
   const streamRef = React.useRef(null);
+  const scanRunRef = React.useRef(0);
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
   const [predictorLoading, setPredictorLoading] = useState(false);
@@ -1472,6 +1594,20 @@ export default function TransitsModal({
     () => snaps.filter((snap) => isSavedSnapCalculationEligible(snap)),
     [snaps],
   );
+  const selectedSnap = useMemo(
+    () => snaps.find((snap) => String(snap?.id || '') === String(selectedSnapId)) || null,
+    [selectedSnapId, snaps],
+  );
+  const transitInputTimezone = (
+    sourceMode === 'manual'
+      ? natalTimezone
+      : getSavedSnapTimezone(selectedSnap)
+  )
+    || result?.natal?.timezone
+    || result?.natal?.timezone_label
+    || windowTz
+    || natalTimezone
+    || 'UTC';
   const natalCoordinateContext = useMemo(() => {
     const latitude = finiteNumberOrUndefined(natalLatitude);
     const longitude = finiteNumberOrUndefined(natalLongitude);
@@ -1503,6 +1639,14 @@ export default function TransitsModal({
 
   // Debounce ref for scans (must be inside component for hooks)
   const scanDebounceRef = React.useRef(null);
+  const invalidateActiveScan = useCallback(() => {
+    scanRunRef.current += 1;
+    const stream = streamRef.current;
+    streamRef.current = null;
+    if (stream) {
+      try { stream.close(); } catch (_) {}
+    }
+  }, []);
 
   // Build a compact concordance tooltip for a hit
   const ccTip = (h) => {
@@ -1520,6 +1664,7 @@ export default function TransitsModal({
   if (!open) return null;
 
   const close = () => {
+    invalidateActiveScan();
     setResult(null);
     setError(null);
     setComputeLoading(false);
@@ -1529,87 +1674,7 @@ export default function TransitsModal({
     onClose && onClose();
   };
 
-  const getTimezoneOffsetMinutes = (date, timeZone) => {
-    try {
-      const dtf = new Intl.DateTimeFormat('en-US', {
-        timeZone,
-        hourCycle: 'h23',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-      });
-      const parts = dtf.formatToParts(date);
-      const bucket = {};
-      parts.forEach((part) => {
-        if (part.type !== 'literal') bucket[part.type] = part.value;
-      });
-      if (!bucket.year || !bucket.month || !bucket.day || !bucket.hour || !bucket.minute || !bucket.second) return null;
-      const asUTC = Date.UTC(
-        Number(bucket.year),
-        Number(bucket.month) - 1,
-        Number(bucket.day),
-        Number(bucket.hour),
-        Number(bucket.minute),
-        Number(bucket.second),
-      );
-      return (asUTC - date.getTime()) / 60000;
-    } catch {
-      return null;
-    }
-  };
-
-  const buildIso = (d, t, tzHint) => {
-    if (!d || !t) return null;
-    const hhmmss = t.length === 5 ? `${t}:00` : t;
-    const [year, month, day] = d.split('-').map((part) => Number(part));
-    const [hour, minute, second = 0] = hhmmss.split(':').map((part) => Number(part));
-    if ([year, month, day, hour, minute, second].some((n) => !Number.isFinite(n))) return null;
-    const baseUtc = Date.UTC(year, month - 1, day, hour, minute, second);
-    if (!Number.isFinite(baseUtc)) return null;
-
-    const normalizeTimezoneHint = (hint) => {
-      if (!hint) return null;
-      const text = String(hint).trim();
-      if (!text) return null;
-      const match = text.match(/^([A-Za-z_]+(?:\/[A-Za-z0-9_.+\-]+)+)/);
-      if (match && match[1]) return match[1];
-      return text;
-    };
-
-    const applyTimezone = (timezone) => {
-      if (!timezone) return null;
-      const baseDate = new Date(baseUtc);
-      const offsetMinutes = getTimezoneOffsetMinutes(baseDate, timezone);
-      if (offsetMinutes == null || Number.isNaN(offsetMinutes)) return null;
-      return new Date(baseUtc - offsetMinutes * 60000).toISOString();
-    };
-
-    const tzName = normalizeTimezoneHint(tzHint);
-    if (tzName) {
-      const zoned = applyTimezone(tzName);
-      if (zoned) return zoned;
-    }
-
-    if (!tzName) {
-      const localDate = new Date(`${d}T${hhmmss}`);
-      if (!Number.isNaN(localDate.getTime())) {
-        return localDate.toISOString();
-      }
-    }
-
-    return new Date(baseUtc).toISOString();
-  };
-
-  const getTransitInputTimezone = () => (
-    windowTz
-    || result?.natal?.timezone
-    || result?.natal?.timezone_label
-    || natalTimezone
-    || 'UTC'
-  );
+  const buildIso = buildTransitIso;
 
   const setStoredContextIso = (key, boundary, iso) => {
     const value = iso || undefined;
@@ -1627,11 +1692,11 @@ export default function TransitsModal({
 
   const buildContextIsoFromInputs = (date, time, fallbackTime) => {
     if (!date) return '';
-    return buildIso(date, time || fallbackTime, getTransitInputTimezone()) || '';
+    return buildIso(date, time || fallbackTime, transitInputTimezone) || '';
   };
 
   const writeInputDateTime = (dateId, timeId, iso) => {
-    const parts = formatIsoForInputFields(iso, getTransitInputTimezone());
+    const parts = formatIsoForInputFields(iso, transitInputTimezone);
     if (!parts) return;
     try { const el = document.getElementById(dateId); if (el) el.value = parts.date; } catch(_) { }
     try { const el = document.getElementById(timeId); if (el) el.value = parts.time; } catch(_) { }
@@ -1738,21 +1803,28 @@ export default function TransitsModal({
   };
 
   const handleComputeExactTime = async () => {
-    const tzFallback = windowTz || result?.natal?.timezone || result?.natal?.timezone_label || natalTimezone || undefined;
+    const tzFallback = transitInputTimezone;
     const transitIso = buildIso(transitDate, transitTime, tzFallback);
     if (!transitIso) {
-      setError('Enter a transit date and time to compute the exact transit.');
+      setError(
+        transitDate && transitTime
+          ? 'That local time is not valid in the selected timezone. Check the timezone or choose a time outside the daylight-saving change.'
+          : 'Enter a transit date and time to compute the exact transit.'
+      );
       return;
     }
     await handleCompute(transitIso);
   };
 
   const doScan = async () => {
+    invalidateActiveScan();
+    const scanRunId = scanRunRef.current;
+    const isCurrentScan = () => scanRunRef.current === scanRunId;
     setActiveStep(null);
     setScanning(true); setError(null); setScanProgress(0);
     try {
       const useSnap = (sourceMode === 'snap');
-      const tzFallback = windowTz || result?.natal?.timezone || result?.natal?.timezone_label || natalTimezone || undefined;
+      const tzFallback = transitInputTimezone;
       const natalIso = useSnap ? null : buildIso(natalDate, natalTime, natalTimezone || tzFallback);
       if (useSnap) {
         if (!selectedSnapId) { setError('Choose a saved snap as natal source.'); setScanning(false); return; }
@@ -1762,6 +1834,11 @@ export default function TransitsModal({
       const startIsoRaw = buildIso(winStartDate, winStartTime, tzFallback);
       const endIsoRaw = buildIso(winEndDate, winEndTime, tzFallback);
       const centerIso = buildIso(transitDate, transitTime, tzFallback);
+      if ((winStartDate && winStartTime && !startIsoRaw) || (winEndDate && winEndTime && !endIsoRaw)) {
+        setError('A scan boundary is not valid in the selected timezone. Check the timezone or daylight-saving change.');
+        setScanning(false);
+        return;
+      }
       const hasStart = !!startIsoRaw;
       const hasEnd = !!endIsoRaw;
       if ((hasStart && !hasEnd) || (!hasStart && hasEnd)) {
@@ -1867,6 +1944,7 @@ export default function TransitsModal({
       });
       const reqPreview = `/api/astro-clock/transits/window?${ps.toString()}`;
       const applyWindowData = (payload) => {
+        if (!isCurrentScan()) return;
         const data = payload || {};
         setSeries(Array.isArray(data.series) ? data.series : []);
         setPeaks(Array.isArray(data.peaks) ? data.peaks : []);
@@ -1892,25 +1970,27 @@ export default function TransitsModal({
       const fetchWindowData = async () => {
         try {
           const res = await AstroClockAPI.getTransitsWindow(req);
+          if (!isCurrentScan()) return;
           applyWindowData(res?.data);
           setScanProgress(1);
         } catch (err) {
-          setError(err?.message || String(err));
+          if (isCurrentScan()) setError(err?.message || String(err));
         } finally {
-          setScanning(false);
+          if (isCurrentScan()) setScanning(false);
         }
       };
       // Try streaming for real progress updates
-      if (streamRef.current) {
-        try { streamRef.current.close(); } catch(_){ }
-        streamRef.current = null;
-      }
       const es = await AstroClockAPI.createTransitsWindowStream(req);
+      if (!isCurrentScan()) {
+        try { es?.close?.(); } catch (_) {}
+        return;
+      }
       if (es) {
         streamRef.current = es;
         const acc = [];
         let finished = false;
         es.onmessage = (e) => {
+          if (!isCurrentScan()) return;
           try {
             const msg = JSON.parse(e.data || '{}');
             if (msg.type === 'progress') {
@@ -1928,7 +2008,7 @@ export default function TransitsModal({
           } catch (_) {}
         };
         es.onerror = () => {
-          if (finished) return;
+          if (finished || !isCurrentScan()) return;
           finished = true;
           try { es.close(); } catch(_){ }
           streamRef.current = null;
@@ -1938,9 +2018,9 @@ export default function TransitsModal({
         await fetchWindowData();
       }
     } catch (e) {
-      setError(e?.message || String(e));
+      if (isCurrentScan()) setError(e?.message || String(e));
     } finally {
-      // scanning ends in stream handler for streaming path
+      if (isCurrentScan() && !streamRef.current) setScanning(false);
     }
   };
 
@@ -1950,7 +2030,7 @@ export default function TransitsModal({
     setPredictorResults(null);
     try {
       const useSnap = (sourceMode === 'snap');
-      const tzFallback = windowTz || result?.natal?.timezone || result?.natal?.timezone_label || natalTimezone || undefined;
+      const tzFallback = transitInputTimezone;
       const natalIso = useSnap ? null : buildIso(natalDate, natalTime, natalTimezone || tzFallback);
       if (useSnap) {
         if (!selectedSnapId) { setPredictorError('Choose a saved snap as natal source.'); setPredictorLoading(false); return; }
@@ -2023,13 +2103,13 @@ export default function TransitsModal({
     }, 300);
   };
 
-  React.useEffect(() => () => { try { if (streamRef.current) streamRef.current.close(); } catch(_){ } }, []);
+  React.useEffect(() => () => invalidateActiveScan(), [invalidateActiveScan]);
 
   // Auto-fill SR window and focus hints
   const handleAutoContext = async () => {
     try {
       const useSnap = (sourceMode === 'snap');
-      const tzFallback = windowTz || result?.natal?.timezone || result?.natal?.timezone_label || natalTimezone || undefined;
+      const tzFallback = transitInputTimezone;
       const natalIso = useSnap ? null : buildIso(natalDate, natalTime, natalTimezone || tzFallback);
       if (useSnap) {
         if (!selectedSnapId) { setError('Choose a saved snap as natal source.'); return; }
@@ -2312,12 +2392,7 @@ export default function TransitsModal({
   const scanCriticalGroups = useMemo(() => collectGroupedSeriesCriticalRows(series, 4, 4), [series]);
   const hasCoarseScanStep = Number(stepMinutes || 0) >= 720;
   const predictorWindowBounds = useMemo(() => {
-    const tzFallback =
-      windowTz
-      || result?.natal?.timezone
-      || result?.natal?.timezone_label
-      || natalTimezone
-      || undefined;
+    const tzFallback = transitInputTimezone;
     let startIso = buildIso(winStartDate, winStartTime, tzFallback);
     let endIso = buildIso(winEndDate, winEndTime, tzFallback);
     if (!startIso || !endIso) {
@@ -2333,10 +2408,7 @@ export default function TransitsModal({
     }
     return { startIso, endIso };
   }, [
-    windowTz,
-    result?.natal?.timezone,
-    result?.natal?.timezone_label,
-    natalTimezone,
+    transitInputTimezone,
     winStartDate,
     winStartTime,
     winEndDate,
@@ -2363,6 +2435,7 @@ export default function TransitsModal({
           .map((occ) => ({
             date: occ.date,
             probability: toNumber(occ.probability, null),
+            ruleSupport: toNumber(occ.rule_support ?? occ.ruleSupport ?? occ.probability, null),
             score: toNumber(occ.score, null),
             supportScore: toNumber(occ.support_score ?? occ.supportScore, null),
           }))
@@ -2382,6 +2455,22 @@ export default function TransitsModal({
         : (Array.isArray(group.keywordTokens) ? group.keywordTokens : []),
       probabilityMax: toNumber(group.probability_max ?? group.probabilityMax, 0),
       probabilityMean: toNumber(group.probability_mean ?? group.probabilityMean, 0),
+      ruleConcordanceMax: toNumber(
+        group.rule_concordance_max
+          ?? group.ruleConcordanceMax
+          ?? group.probability_max
+          ?? group.probabilityMax,
+        0,
+      ),
+      ruleConcordanceMean: toNumber(
+        group.rule_concordance_mean
+          ?? group.ruleConcordanceMean
+          ?? group.probability_mean
+          ?? group.probabilityMean,
+        0,
+      ),
+      evidenceLevel: group.evidence_level || group.evidenceLevel || null,
+      isEventPrediction: group.is_event_prediction ?? group.isEventPrediction ?? null,
       scoreMax: toNumber(group.score_max ?? group.scoreMax, null),
       scoreMean: toNumber(group.score_mean ?? group.scoreMean, null),
       supportScore: toNumber(group.support_score ?? group.supportScore, null),
@@ -2563,13 +2652,7 @@ export default function TransitsModal({
           })
         : null;
       setActiveStep(selectedRow || null);
-      const inputTimezone =
-        windowTz
-        || result?.natal?.timezone
-        || result?.natal?.timezone_label
-        || natalTimezone
-        || 'UTC';
-      const inputParts = formatIsoForInputFields(ts, inputTimezone);
+      const inputParts = formatIsoForInputFields(ts, transitInputTimezone);
       if (inputParts) {
         setTransitDate(inputParts.date);
         setTransitTime(inputParts.time);
@@ -2600,7 +2683,7 @@ export default function TransitsModal({
     try {
       setError(null);
       const useSnap = (sourceMode === 'snap');
-      const tzFallback = windowTz || result?.natal?.timezone || result?.natal?.timezone_label || natalTimezone || undefined;
+      const tzFallback = transitInputTimezone;
       const natalIso = useSnap ? null : buildIso(natalDate, natalTime, natalTimezone || tzFallback);
       const transitIso = (transitDate && transitTime) ? buildIso(transitDate, transitTime, tzFallback) : undefined;
       const focusPlanetsList = focusPlanets.split(',').map(s => s.trim()).filter(Boolean);
@@ -2644,7 +2727,7 @@ export default function TransitsModal({
     try {
       setError(null);
       const useSnap = (sourceMode === 'snap');
-      const tzFallback = windowTz || result?.natal?.timezone || result?.natal?.timezone_label || natalTimezone || undefined;
+      const tzFallback = transitInputTimezone;
       const startIso = buildIso(winStartDate, winStartTime, tzFallback);
       const endIso = buildIso(winEndDate, winEndTime, tzFallback);
       const hasRange = Boolean(startIso && endIso);
@@ -2743,7 +2826,7 @@ export default function TransitsModal({
   );
   // Apply intersection of PD ∩ Prog ∩ SA into the Scan Window inputs
   const handleUseIntersectionRange = () => {
-    const inputTimezone = getTransitInputTimezone();
+    const inputTimezone = transitInputTimezone;
     const getIso = (dateId, timeId, backup) => {
       try {
         const d = document.getElementById(dateId)?.value;
@@ -3213,6 +3296,9 @@ export default function TransitsModal({
                   <div className="text-[11px] text-zinc-500">
                     Predictor step: {predictorStepLabel}{predictorStepPlan.usesResponsiveFloor ? ' (auto-tuned for window size)' : predictorStepWasClamped ? ' (finer than the current scan step)' : ''}
                   </div>
+                  <div className="text-[11px] text-zinc-500">
+                    Percentages are rule-concordance scores, not statistical event probabilities.
+                  </div>
                 </div>
               </div>
               <div className="grid gap-3 md:grid-cols-2">
@@ -3242,11 +3328,11 @@ export default function TransitsModal({
                           ? `${formatTsCompact(group.start, tz)} → ${formatTsCompact(group.end, tz)}`
                           : (group.start ? formatTsCompact(group.start, tz) : null);
                       const topOccurrences = group.occurrences.slice(0, 3);
-                      const probabilityLabel = group.probabilityMax
-                        ? `${Math.round(group.probabilityMax * 100)}%`
+                      const probabilityLabel = group.ruleConcordanceMax
+                        ? `Rule concordance ${Math.round(group.ruleConcordanceMax * 100)}%`
                         : null;
-                      const probabilityMeanLabel = group.probabilityMean
-                        ? `${Math.round(group.probabilityMean * 100)}% avg`
+                      const probabilityMeanLabel = group.ruleConcordanceMean
+                        ? `Avg concordance ${Math.round(group.ruleConcordanceMean * 100)}%`
                         : null;
                       const scoreLabel = Number.isFinite(group.scoreMax)
                         ? Number(group.scoreMax).toFixed(1).replace(/\.0$/, '')
@@ -3264,10 +3350,33 @@ export default function TransitsModal({
                       const strongestAtLabel = group.dominantTimestamp
                         ? formatTsCompact(group.dominantTimestamp, tz)
                         : null;
+                      const predictorEvidence = {
+                        theme_only: {
+                          label: 'Theme only',
+                          cls: 'border-zinc-300 bg-zinc-100 text-zinc-600',
+                        },
+                        supported: {
+                          label: 'Supported',
+                          cls: 'border-amber-300 bg-amber-50 text-amber-800',
+                        },
+                        corroborated: {
+                          label: 'Corroborated',
+                          cls: 'border-emerald-300 bg-emerald-50 text-emerald-800',
+                        },
+                      }[group.evidenceLevel] || null;
                       return (
                         <div key={idx} className="border rounded p-2 bg-zinc-50 text-xs text-zinc-700">
                           <div className="flex items-center justify-between gap-2">
-                            <div className="font-medium text-zinc-800">{title}</div>
+                            <div className="flex items-center gap-1">
+                              {predictorEvidence && (
+                                <span
+                                  className={`px-1 py-0.5 border rounded text-[10px] whitespace-nowrap ${predictorEvidence.cls}`}
+                                >
+                                  {predictorEvidence.label}
+                                </span>
+                              )}
+                              <span className="font-medium text-zinc-800">{title}</span>
+                            </div>
                             <div className="flex items-center gap-2 text-[11px] text-zinc-500">
                               {supportLabel && <span>Window support {supportLabel}</span>}
                               {densityLabel && <span>Density {densityLabel}</span>}
@@ -3309,9 +3418,9 @@ export default function TransitsModal({
                                 <li key={occIdx} className="flex items-center justify-between">
                                   <span>{formatTsCompact(occ.date, tz)}</span>
                                   <span className="text-zinc-500">
-                                    {occ.probability != null ? `${Math.round(occ.probability * 100)}%` : ''}
-                                    {occ.score != null ? `${occ.probability != null ? ' • ' : ''}score ${Number(occ.score).toFixed(1).replace(/\.0$/, '')}` : ''}
-                                    {occ.supportScore != null ? `${(occ.probability != null || occ.score != null) ? ' • ' : ''}support ${Number(occ.supportScore).toFixed(1).replace(/\.0$/, '')}` : ''}
+                                    {occ.ruleSupport != null ? `rule ${Math.round(occ.ruleSupport * 100)}%` : ''}
+                                    {occ.score != null ? `${occ.ruleSupport != null ? ' • ' : ''}score ${Number(occ.score).toFixed(1).replace(/\.0$/, '')}` : ''}
+                                    {occ.supportScore != null ? `${(occ.ruleSupport != null || occ.score != null) ? ' • ' : ''}support ${Number(occ.supportScore).toFixed(1).replace(/\.0$/, '')}` : ''}
                                   </span>
                                 </li>
                               ))}
@@ -3872,9 +3981,19 @@ export default function TransitsModal({
                   <th className="text-right p-2">Orb</th>
                   <th className="text-left p-2">Phase</th>
                   <th className="text-left p-2">Dir.</th>
-                  <th className="text-left p-2">Timing</th>
+                  <th
+                    className="text-left p-2"
+                    title="Estimated partile activation: Moon ±6 hours; other planets ±1 day"
+                  >
+                    Timing
+                  </th>
                   <th className="text-left p-2">Area</th>
-                  <th className="text-left p-2">Event</th>
+                  <th
+                    className="text-left p-2"
+                    title="Theme only = transit symbolism without enough concordant timing support. Supported and corroborated require additional Morin timing layers."
+                  >
+                    Event / theme
+                  </th>
                   <th className="text-left p-2">Laws</th>
                   <th className="text-left p-2">Keywords</th>
                 </tr>
@@ -3937,6 +4056,29 @@ export default function TransitsModal({
                           explicitTokens,
                         );
                         const evLabel = evRaw ? (allowed[evRaw] || evRaw.replace(/_/g,' ')) : '';
+                        const evidenceLevel = row.prediction && row.prediction.evidenceLevel
+                          ? String(row.prediction.evidenceLevel)
+                          : '';
+                        const evidenceMeta = {
+                          theme_only: {
+                            label: 'Theme only',
+                            cls: 'border-zinc-300 bg-zinc-100 text-zinc-600',
+                            explanation: 'Transit symbolism only; not a standalone event prediction.',
+                          },
+                          supported: {
+                            label: 'Supported',
+                            cls: 'border-amber-300 bg-amber-50 text-amber-800',
+                            explanation: 'Moderate radical determination with at least one supporting timing layer.',
+                          },
+                          corroborated: {
+                            label: 'Corroborated',
+                            cls: 'border-emerald-300 bg-emerald-50 text-emerald-800',
+                            explanation: 'The concordance threshold, radical determination, and primary-direction support agree.',
+                          },
+                        }[evidenceLevel] || null;
+                        const ruleSupport = row.prediction && Number.isFinite(Number(row.prediction.confidence))
+                          ? `${Math.round(Number(row.prediction.confidence) * 100)}% rule support; this is not a statistical probability.`
+                          : '';
                         // Build curated secondary chips by eventType
                         const cur = EventChipCurations[evRaw] || null;
                         let keys = orderedTokens.filter((tok) => tok !== evRaw);
@@ -3959,7 +4101,15 @@ export default function TransitsModal({
                         const summaryTip = remaining.length ? remaining.join(', ') : '';
                         return (
                           <>
-                            <span className="font-semibold">{evLabel}</span>
+                            {evidenceMeta && (
+                              <span
+                                className={`inline-block mr-1 px-1 py-0.5 border rounded text-[10px] whitespace-nowrap ${evidenceMeta.cls}`}
+                                title={`${evidenceMeta.explanation}${ruleSupport ? ` ${ruleSupport}` : ''}`}
+                              >
+                                {evidenceMeta.label}
+                              </span>
+                            )}
+                            <span className={evidenceLevel === 'theme_only' ? 'text-zinc-600' : 'font-semibold'}>{evLabel}</span>
                             {shown.map((t, i) => (
                               <span key={i} className="inline-block ml-1 px-1 py-0.5 border rounded text-[10px] bg-zinc-50 border-zinc-300 text-zinc-700 whitespace-nowrap">{t}</span>
                             ))}

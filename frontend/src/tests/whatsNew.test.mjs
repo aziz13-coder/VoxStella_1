@@ -54,6 +54,44 @@ describe('whats new release gating', () => {
     expect(release.isFallback).toBe(false);
   });
 
+  it('keeps the 3.1.7 release copy product-facing', () => {
+    const release = getWhatsNewRelease('3.1.7');
+    const copy = [
+      release.headline,
+      release.summary,
+      release.note,
+      ...release.items.flatMap((item) => [item.title, item.tag, item.body]),
+    ]
+      .filter(Boolean)
+      .join(' ');
+
+    expect(release.headline).toBe('Clearer transit guidance');
+    expect(copy).toContain('Themes are clearly identified');
+    expect(copy).toContain('More dependable event wording');
+    expect(copy).toContain('Clearer support percentages');
+    expect(copy).toContain('More faithful activation timing');
+    expect(copy).not.toMatch(/\b(activation keys|backend|benchmark|API|algorithm|payload|fallback)\b/i);
+  });
+
+  it('keeps the 3.1.6 release copy product-facing', () => {
+    const release = getWhatsNewRelease('3.1.6');
+    const copy = [
+      release.headline,
+      release.summary,
+      release.note,
+      ...release.items.flatMap((item) => [item.title, item.tag, item.body]),
+    ]
+      .filter(Boolean)
+      .join(' ');
+
+    expect(release.headline).toBe('Stronger election planning');
+    expect(copy).toContain('Clearer choices for each goal');
+    expect(copy).toContain('More dependable ranked times');
+    expect(copy).toContain('Natal details stay optional');
+    expect(copy).toContain('Smoother upgrades');
+    expect(copy).not.toMatch(/\b(activation|access keys|backend|benchmark|API|algorithm|payload|fallback)\b/i);
+  });
+
   it('keeps the 3.1.5 release copy product-facing', () => {
     const release = getWhatsNewRelease('3.1.5');
     const copy = [

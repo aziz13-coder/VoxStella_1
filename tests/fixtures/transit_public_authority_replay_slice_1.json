@@ -11,7 +11,7 @@
     "resolved_location": "Queens, Queens County, New York, United States",
     "transit_datetime": "2017-01-20T12:00:00-05:00",
     "house_system_code": "R",
-    "expected_prediction_event_type": "promotion",
+    "expected_prediction_event_type": "recognition",
     "expected_prediction_life_area": "honors",
     "expected_prediction_descriptions": [
       "Jupiter Trine Sun"
@@ -21,8 +21,7 @@
     ],
     "expected_public_hit_keywords": [
       "career",
-      "public_recognition",
-      "promotion"
+      "public_recognition"
     ],
     "sources": {
       "natal": "https://www.astro.com/astro-databank/Trump%2C_Donald",

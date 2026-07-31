@@ -15,7 +15,7 @@ vi.mock('../features/astroclock/api.mjs', () => ({
   AstroClockAPI: astroClockApiMock,
 }));
 
-import TransitsModal from '../features/astroclock/TransitsModal.jsx';
+import TransitsModal, { buildTransitIso } from '../features/astroclock/TransitsModal.jsx';
 
 function makeWindowResponse({
   timezone,
@@ -104,6 +104,8 @@ function makeSingleTransitResponse({
   significance,
   tone = 'positive',
   revolutions = null,
+  evidenceLevel = null,
+  confidence = null,
 }) {
   return {
     data: {
@@ -143,6 +145,8 @@ function makeSingleTransitResponse({
             description,
             lifeArea: lifeArea,
             eventType: eventType,
+            evidenceLevel,
+            confidence,
           },
           enriched_keywords: enrichedKeywords,
           keywords,
@@ -391,6 +395,127 @@ describe('TransitsModal replay rendering', () => {
     astroClockApiMock.getAutoContext.mockReset();
   });
 
+  it('rejects nonexistent daylight-saving wall times and resolves overlaps deterministically', () => {
+    expect(buildTransitIso('2026-03-08', '02:30', 'America/New_York')).toBeNull();
+    expect(buildTransitIso('2026-03-08', '01:30', 'America/New_York')).toBe('2026-03-08T06:30:00.000Z');
+    expect(buildTransitIso('2026-03-08', '03:30', 'America/New_York')).toBe('2026-03-08T07:30:00.000Z');
+    expect(buildTransitIso('2026-11-01', '01:30', 'America/New_York')).toBe('2026-11-01T05:30:00.000Z');
+    expect(buildTransitIso('2026-03-27', '02:30', 'Asia/Jerusalem')).toBeNull();
+    expect(buildTransitIso('2026-03-08', '12:00', 'Not/A_Timezone')).toBeNull();
+  });
+
+  it('closes an active scan stream when the modal closes', async () => {
+    const eventSource = makeFakeEventSource();
+    const onClose = vi.fn();
+    astroClockApiMock.createTransitsWindowStream.mockResolvedValue(eventSource);
+
+    const { container } = render(
+      <TransitsModal open={true} onClose={onClose} defaultHouseSystem="W" />
+    );
+    fillManualInputs(container, {
+      natalDate: '1990-01-01',
+      natalTime: '12:00',
+      natalLocation: 'New York, USA',
+      natalTimezone: 'America/New_York',
+      transitDate: '2026-03-08',
+      transitTime: '03:30',
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Scan Window' }));
+    await waitFor(() => {
+      expect(astroClockApiMock.createTransitsWindowStream).toHaveBeenCalledTimes(1);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+
+    expect(eventSource.close).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves scan controls usable when stream creation fails', async () => {
+    astroClockApiMock.createTransitsWindowStream.mockRejectedValue(new Error('stream unavailable'));
+
+    const { container } = render(
+      <TransitsModal open={true} onClose={() => {}} defaultHouseSystem="W" />
+    );
+    fillManualInputs(container, {
+      natalDate: '1990-01-01',
+      natalTime: '12:00',
+      natalLocation: 'New York, USA',
+      natalTimezone: 'America/New_York',
+      transitDate: '2026-03-08',
+      transitTime: '03:30',
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Scan Window' }));
+
+    expect(await screen.findByText('stream unavailable')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Scan Window' })).toBeEnabled();
+  });
+
+  it('explains daylight-saving gaps instead of shifting the requested transit time', async () => {
+    const { container } = render(
+      <TransitsModal open={true} onClose={() => {}} defaultHouseSystem="W" />
+    );
+    fillManualInputs(container, {
+      natalDate: '1990-01-01',
+      natalTime: '12:00',
+      natalLocation: 'New York, USA',
+      natalTimezone: 'America/New_York',
+      transitDate: '2026-03-08',
+      transitTime: '02:30',
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Compute Exact Time' }));
+
+    expect(await screen.findByText(/not valid in the selected timezone/i)).toBeInTheDocument();
+    expect(astroClockApiMock.getTransits).not.toHaveBeenCalled();
+  });
+
+  it('uses the edited manual timezone instead of a previous result timezone', async () => {
+    astroClockApiMock.getTransits.mockResolvedValue(
+      makeSingleTransitResponse({
+        natalLocation: 'London, UK',
+        timezone: 'Europe/London',
+        transitTimestamp: '2026-03-08T03:30:00.000Z',
+        transiting: 'Saturn',
+        targetLabel: 'Sun',
+        aspect: 'Trine',
+        lifeArea: 'identity',
+        eventType: 'activation',
+        description: 'Prior result used the London chart timezone.',
+        significance: 55,
+      })
+    );
+
+    const { container } = render(
+      <TransitsModal open={true} onClose={() => {}} defaultHouseSystem="W" />
+    );
+    fillManualInputs(container, {
+      natalDate: '1990-01-01',
+      natalTime: '12:00',
+      natalLocation: 'London, UK',
+      natalTimezone: 'Europe/London',
+      transitDate: '2026-03-08',
+      transitTime: '03:30',
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Compute Exact Time' }));
+    await waitFor(() => {
+      expect(astroClockApiMock.getTransits).toHaveBeenCalledTimes(1);
+    });
+
+    const dateInputs = container.querySelectorAll('input[type="date"]');
+    const timeInputs = container.querySelectorAll('input[type="time"]');
+    fireEvent.change(
+      container.querySelector('input[placeholder="e.g., Europe/London"]'),
+      { target: { value: 'America/New_York' } },
+    );
+    fireEvent.change(dateInputs[1], { target: { value: '2026-03-08' } });
+    fireEvent.change(timeInputs[1], { target: { value: '02:30' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Compute Exact Time' }));
+
+    expect(await screen.findByText(/not valid in the selected timezone/i)).toBeInTheDocument();
+    expect(astroClockApiMock.getTransits).toHaveBeenCalledTimes(1);
+  });
+
   it('renders scan window inputs with dedicated labels and wider date fields', async () => {
     render(<TransitsModal open={true} onClose={() => {}} defaultHouseSystem="W" />);
     await waitFor(() => {
@@ -408,6 +533,47 @@ describe('TransitsModal replay rendering', () => {
     expect(endTime.className).toContain('min-w-[7.5rem]');
     expect(screen.getByRole('button', { name: 'Compute Exact Time' })).toBeInTheDocument();
     expect(screen.getByText(/compute the exact time entered above or click a peak below/i)).toBeInTheDocument();
+  });
+
+  it('labels a low-concordance event token as a theme rather than a prediction', async () => {
+    astroClockApiMock.getTransits.mockResolvedValue(
+      makeSingleTransitResponse({
+        natalLocation: 'London, UK',
+        timezone: 'Europe/London',
+        transitTimestamp: '2026-05-10T12:00:00Z',
+        transiting: 'Mars',
+        targetLabel: 'C7',
+        aspect: 'Square',
+        lifeArea: 'relationships',
+        eventType: 'relationship_conflict',
+        description: 'This is a thematic correspondence, not a standalone event prediction.',
+        enrichedKeywords: ['relationship_conflict'],
+        keywords: ['Relationship'],
+        predictionTags: ['relationships', 'negative'],
+        significance: 18,
+        tone: 'negative',
+        evidenceLevel: 'theme_only',
+        confidence: 0.18,
+      })
+    );
+
+    const { container } = render(
+      <TransitsModal open={true} onClose={() => {}} defaultHouseSystem="W" />
+    );
+    fillManualInputs(container, {
+      natalDate: '1990-01-01',
+      natalTime: '12:00',
+      natalLocation: 'London, UK',
+      natalTimezone: 'Europe/London',
+      transitDate: '2026-05-10',
+      transitTime: '12:00',
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Compute Exact Time' }));
+
+    const badge = await screen.findByText('Theme only');
+    expect(screen.getByText('Event / theme')).toBeInTheDocument();
+    expect(screen.getByText('partnership/open dispute')).toBeInTheDocument();
+    expect(badge).toHaveAttribute('title', expect.stringMatching(/18% rule support.*not a statistical probability/i));
   });
 
   it('seeds natal inputs from the active chart context when the modal opens', async () => {
@@ -1133,6 +1299,10 @@ describe('TransitsModal replay rendering', () => {
     expect(await screen.findByText(/Predictor refines coarse scans/i)).toBeInTheDocument();
     expect(await screen.findByText(/Predictor step: 60m/i)).toBeInTheDocument();
     expect(await screen.findByText(/Support Windows/i)).toBeInTheDocument();
+    expect(await screen.findByText(/not statistical event probabilities/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Rule concordance 100%/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Avg concordance 80%/i)).toBeInTheDocument();
+    expect(await screen.findByText(/rule 60%/i)).toBeInTheDocument();
     expect(await screen.findByText(/Support 134\.2/i)).toBeInTheDocument();
     expect(await screen.findByText(/Density 67\.1/i)).toBeInTheDocument();
     expect(await screen.findByText(/Strongest at/i)).toBeInTheDocument();

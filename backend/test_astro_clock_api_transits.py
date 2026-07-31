@@ -132,6 +132,50 @@ def test_prediction_sort_prioritizes_crisis_angle_testimony_over_benefic_honors(
     assert astro_clock_api._prediction_crisis_focus(crisis) > 0.0
 
 
+def test_prediction_payload_distinguishes_rule_support_from_probability():
+    hit = {
+        "transiting": "Mars",
+        "aspect": "Square",
+        "target_label": "C7",
+        "determination_strength": 0.18,
+        "concordance": {"overall_concordance": 0.42},
+        "prediction": {
+            "eventType": "relationship_conflict",
+            "lifeArea": "relationships",
+            "description": "Theme only",
+            "evidenceLevel": "theme_only",
+            "isEventPrediction": False,
+            "score": 12.0,
+        },
+    }
+
+    prediction = astro_clock_api._prediction_from_hit(hit, "2026-05-10T12:00:00+00:00")
+
+    assert prediction["probability"] == 0.42
+    assert prediction["rule_support"] == 0.42
+    assert prediction["probability_basis"] == "morin_rule_concordance"
+    assert prediction["is_statistical_probability"] is False
+    assert prediction["evidence_level"] == "theme_only"
+    assert prediction["is_event_prediction"] is False
+
+
+def test_theme_only_event_does_not_receive_predictor_event_bonus():
+    base = {
+        "event_type": "relationship_conflict",
+        "life_area": "relationships",
+        "probability": 0.42,
+        "score": 12.0,
+        "factors": {"determination_strength": 0.18, "significance": 12.0},
+    }
+    theme = {**base, "evidence_level": "theme_only", "is_event_prediction": False}
+    supported = {**base, "evidence_level": "supported", "is_event_prediction": True}
+
+    assert (
+        astro_clock_api._predictor_occurrence_support(supported)
+        - astro_clock_api._predictor_occurrence_support(theme)
+    ) == 20.0
+
+
 def test_select_dominant_occurrence_uses_midpoint_of_strongest_band():
     occurrences = [
         {"date": "1615-07-01T00:00:00+00:00", "support_score": 86.3, "score": 30.0},
@@ -446,5 +490,168 @@ def test_transit_scan_routes_reject_invalid_step_before_scanning(monkeypatch):
         assert response.status_code == 400
         assert payload["success"] is False
         assert payload["error"] == "Invalid step_minutes"
+
+    assert scan_called is False
+
+
+def test_exact_transit_routes_reject_invalid_timestamp_before_compute(monkeypatch):
+    client = app_module.app.test_client()
+    compute_called = False
+
+    monkeypatch.setattr(
+        astro_clock_api,
+        "_natal_from_query",
+        lambda args: (
+            {"planets": {"Sun": {"longitude": 10.0}}},
+            {
+                "timestamp": "1990-01-01T00:00:00+00:00",
+                "location": "London, UK",
+                "timezone": "Europe/London",
+            },
+        ),
+    )
+
+    def fail_compute(*args, **kwargs):
+        nonlocal compute_called
+        compute_called = True
+        raise AssertionError("compute should not run after timestamp validation fails")
+
+    monkeypatch.setattr(transits_morin, "compute_morin_transits_to_natal", fail_compute)
+    query = {
+        "natal_datetime": "1990-01-01T00:00:00+00:00",
+        "natal_location": "London, UK",
+        "natal_timezone": "Europe/London",
+        "transit_datetime": "not-an-instant",
+    }
+
+    for path in (
+        "/api/astro-clock/transits",
+        "/api/astro-clock/transits/export",
+    ):
+        response = client.get(path, query_string=query)
+        payload = response.get_json()
+
+        assert response.status_code == 400
+        assert payload["success"] is False
+        assert payload["error"] == "Invalid transit_datetime"
+
+    assert compute_called is False
+
+
+def test_window_context_filter_normalizes_mixed_naive_and_aware_instants(monkeypatch):
+    client = app_module.app.test_client()
+
+    monkeypatch.setattr(
+        astro_clock_api,
+        "_natal_from_query",
+        lambda args: (
+            {"planets": {"Sun": {"longitude": 10.0}}},
+            {
+                "timestamp": "1990-01-01T00:00:00+00:00",
+                "location": "London, UK",
+                "timezone": "Europe/London",
+            },
+        ),
+    )
+    monkeypatch.setattr(astro_clock_api, "_compute_pd_windows_for_years", lambda *args, **kwargs: [])
+    monkeypatch.setattr(
+        transits_morin,
+        "scan_morin_transits_window",
+        lambda *args, **kwargs: [
+            {
+                "timestamp": "2026-01-01T01:00:00Z",
+                "count": 0,
+                "top": [],
+                "step_score": 0.0,
+                "tone": "mixed",
+            },
+            {
+                "timestamp": "2026-01-01T03:00:00+00:00",
+                "count": 0,
+                "top": [],
+                "step_score": 0.0,
+                "tone": "mixed",
+            },
+        ],
+    )
+
+    response = client.get(
+        "/api/astro-clock/transits/window",
+        query_string={
+            "natal_datetime": "1990-01-01T00:00:00+00:00",
+            "natal_location": "London, UK",
+            "natal_timezone": "Europe/London",
+            "start": "2026-01-01T00:00:00",
+            "end": "2026-01-01T04:00:00Z",
+            "step_minutes": "60",
+            "pd_start": "2026-01-01T00:30:00",
+            "pd_end": "2026-01-01T01:30:00Z",
+        },
+    )
+    payload = response.get_json()
+
+    assert response.status_code == 200
+    assert payload["success"] is True
+    assert [row["timestamp"] for row in payload["data"]["series"]] == [
+        "2026-01-01T01:00:00Z",
+    ]
+
+
+def test_scan_datetime_validation_preserves_explicit_offset():
+    parsed, error = astro_clock_api._parse_transit_scan_datetime(
+        "2026-01-01T12:00:00-05:00",
+        "start",
+    )
+
+    assert error is None
+    assert parsed is not None
+    assert parsed.isoformat() == "2026-01-01T12:00:00-05:00"
+
+
+def test_scan_routes_reject_incomplete_context_windows(monkeypatch):
+    client = app_module.app.test_client()
+    scan_called = False
+
+    monkeypatch.setattr(
+        astro_clock_api,
+        "_natal_from_query",
+        lambda args: (
+            {"planets": {"Sun": {"longitude": 10.0}}},
+            {
+                "timestamp": "1990-01-01T00:00:00+00:00",
+                "location": "London, UK",
+                "timezone": "Europe/London",
+            },
+        ),
+    )
+
+    def fail_scan(*args, **kwargs):
+        nonlocal scan_called
+        scan_called = True
+        raise AssertionError("scan should not run after context validation fails")
+
+    monkeypatch.setattr(transits_morin, "scan_morin_transits_window", fail_scan)
+    query = {
+        "natal_datetime": "1990-01-01T00:00:00+00:00",
+        "natal_location": "London, UK",
+        "natal_timezone": "Europe/London",
+        "start": "2026-01-01T00:00:00Z",
+        "end": "2026-01-01T04:00:00Z",
+        "step_minutes": "60",
+        "pd_start": "2026-01-01T00:30:00Z",
+    }
+
+    for path in (
+        "/api/astro-clock/transits/window",
+        "/api/astro-clock/predictor",
+        "/api/astro-clock/transits/window/stream",
+        "/api/astro-clock/transits/window/export",
+    ):
+        response = client.get(path, query_string=query)
+        payload = response.get_json()
+
+        assert response.status_code == 400
+        assert payload["success"] is False
+        assert payload["error"] == "pd_start and pd_end must be provided together"
 
     assert scan_called is False

@@ -4,16 +4,18 @@ Date: 2026-04-22
 
 Scope: add a new Astro Clock Election model based on the Galaxy SkyLiner research note at `C:\Program Files (x86)\Galaxy\docs\research\skyliner_reverse_engineering.md`.
 
-Implementation status: the initial runtime slice is implemented. The scanner, route key, frontend controls, API serialization, and focused tests now exist. Export-specific work and richer reporting remain future work.
+Implementation status: implemented and reconciled in July 2026. Overlap
+strength is additive, phase wins the display flag on phase/antiphase overlap,
+raw strength is preserved alongside range-normalized display scores, Level is
+a visual guide rather than an export filter, and period/report output uses
+Moon-sign polarity with an explicit medical disclaimer. See
+`ELECTION_MODEL_REFERENCE_2026-07-31.md`.
 
 Implemented source files:
 
 - `backend/election_models/lunar_fertility.py`
-- `frontend/backend/election_models/lunar_fertility.py`
 - `backend/astro_clock_api.py`
-- `frontend/backend/astro_clock_api.py`
 - `backend/election.py`
-- `frontend/backend/election.py`
 - `frontend/src/features/astroclock/api.mjs`
 - `frontend/src/features/astroclock/ElectionModal.jsx`
 

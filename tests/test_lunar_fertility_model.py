@@ -83,8 +83,11 @@ def test_projection_scores_window_strength_and_moon_sign_polarity():
     assert 0 not in by_hour
     assert by_hour[12]["score"] == 100.0
     assert by_hour[12]["sex_label"] == "male"
+    assert by_hour[12]["moon_sign_polarity"] == "masculine"
     assert by_hour[18]["sex_label"] == "female"
-    assert by_hour[18]["score"] == 75.0
+    assert by_hour[18]["moon_sign_polarity"] == "feminine"
+    assert by_hour[18]["raw_strength"] == 75.0
+    assert by_hour[18]["score"] == 72.97
 
 
 def test_period_grouping_splits_by_phase_and_sex():

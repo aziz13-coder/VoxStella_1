@@ -99,16 +99,15 @@
       "2003-03-05T22:16:00-05:00"
     ],
     "house_system_code": "R",
-    "measurement_mode": "crisis_hit",
+    "measurement_mode": "conservative_crisis_check",
     "time_basis": "official_oval_office_address_timestamp",
     "time_confidence": "high",
     "expected_crisis_hit_descriptions": [
       "Mars Quincunx Mercury"
     ],
-    "expected_crisis_keywords": [
+    "forbidden_inferred_keywords": [
       "accident_major"
     ],
-    "minimum_hit_delta": 20.0,
     "sources": {
       "natal": "https://www.astro.com/astro-databank/Bush%2C_George_W.",
       "event": "https://georgewbush-whitehouse.archives.gov/news/releases/2003/03/20030319-17.html"

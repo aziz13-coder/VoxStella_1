@@ -14,49 +14,38 @@ from .common import (
 )
 
 
+# Bonatti, Treatise 7: prefer common/double-bodied signs, except Gemini.
+# Aries is prohibited for completely shaving the head/beard, not for an
+# ordinary trim. Other signs remain neutral rather than receiving modern
+# tiers that reverse the primary rule.
 MOON_SIGN_POINTS: Dict[str, float] = {
-    "Taurus": 10.0,
-    "Capricorn": 10.0,
-    "Cancer": 10.0,
-    "Virgo": 7.0,
-    "Libra": 7.0,
-    "Scorpio": 7.0,
-    "Pisces": 5.0,
-    "Aquarius": 5.0,
-    "Gemini": -4.0,
-    "Leo": 2.0,
-    "Sagittarius": 2.0,
-    "Aries": -100.0,
+    "Aries": 0.0,
+    "Taurus": 0.0,
+    "Gemini": -6.0,
+    "Cancer": 0.0,
+    "Leo": 0.0,
+    "Virgo": 8.0,
+    "Libra": 0.0,
+    "Scorpio": 0.0,
+    "Sagittarius": 8.0,
+    "Capricorn": 0.0,
+    "Aquarius": 0.0,
+    "Pisces": 8.0,
 }
 
 MOON_SIGN_LABELS: Dict[str, str] = {
-    "Taurus": "Tier 1 Moon (Taurus) – beauty & lasting results",
-    "Capricorn": "Tier 1 Moon (Capricorn) – structured, professional finish",
-    "Cancer": "Tier 1 Moon (Cancer) – nurturing & healthy regrowth",
-    "Virgo": "Tier 2 Moon (Virgo) – precision and health",
-    "Libra": "Tier 2 Moon (Libra) – beauty & balance",
-    "Scorpio": "Tier 2 Moon (Scorpio) – transformative support",
-    "Pisces": "Tier 3 Moon (Pisces) – gentle, soft outcome",
-    "Aquarius": "Tier 3 Moon (Aquarius) – experimental flavor",
-    "Gemini": "Bonatti exception: Moon in Gemini – avoid haircut timing",
-    "Leo": "Caution Moon (Leo) – dramatic growth, manage volume",
-    "Sagittarius": "Caution Moon (Sagittarius) – unpredictable regrowth",
-    "Aries": "Golden rule: Moon in Aries – avoid head hair cuts",
-}
-
-ASC_SIGN_ADJUST: Dict[str, float] = {
-    "Taurus": 1.5,
-    "Capricorn": 1.3,
-    "Cancer": 1.0,
-    "Virgo": 0.8,
-    "Libra": 0.8,
-    "Scorpio": 0.8,
-    "Pisces": 0.6,
-    "Aquarius": 0.4,
-    "Gemini": 0.4,
-    "Leo": -0.6,
-    "Sagittarius": -0.6,
-    "Aries": -3.0,
+    "Aries": "Moon in Aries - allowed for trimming; avoid complete shaving",
+    "Taurus": "Moon in Taurus - neutral in Bonatti's haircut rule",
+    "Gemini": "Bonatti exception: Moon in Gemini - avoid",
+    "Cancer": "Moon in Cancer - neutral in Bonatti's haircut rule",
+    "Leo": "Moon in Leo - neutral in Bonatti's haircut rule",
+    "Virgo": "Common-sign Moon (Virgo) - preferred by Bonatti",
+    "Libra": "Moon in Libra - neutral in Bonatti's haircut rule",
+    "Scorpio": "Moon in Scorpio - neutral in Bonatti's haircut rule",
+    "Sagittarius": "Common-sign Moon (Sagittarius) - preferred by Bonatti",
+    "Capricorn": "Moon in Capricorn - neutral in Bonatti's haircut rule",
+    "Aquarius": "Moon in Aquarius - neutral in Bonatti's haircut rule",
+    "Pisces": "Common-sign Moon (Pisces) - preferred by Bonatti",
 }
 
 SOFT_ASPECTS = {"Trine", "Sextile"}
@@ -72,6 +61,15 @@ def _normalize_goal(options: Optional[Dict[str, Any]]) -> str:
     if goal in {'lasting', 'maintain', 'stay'}:
         return 'lasting'
     return 'balanced'
+
+
+def _normalize_cut_type(options: Optional[Dict[str, Any]]) -> str:
+    value = ''
+    if options and isinstance(options, dict):
+        value = str(options.get('haircut_type') or options.get('cut_type') or '').strip().lower()
+    if value in {'shave', 'shaving', 'complete_shave', 'full_shave'}:
+        return 'shave'
+    return 'trim'
 
 
 def _safe_angle(value: Any) -> Optional[float]:
@@ -160,6 +158,8 @@ def score_haircut_election(
         asc_sign = _sign_from_lon(cusps[0])
 
     goal = _normalize_goal(options)
+    cut_type = _normalize_cut_type(options)
+    hard_prohibited = False
 
     # Golden rule and baseline score from Moon sign
     if moon_sign:
@@ -169,18 +169,15 @@ def score_haircut_election(
             note = MOON_SIGN_LABELS.get(moon_sign)
             if note:
                 tags.append(note)
-        if moon_sign == "Aries":
-            tags.append("Forbidden: Moon in Aries – wait two days")
+        if moon_sign == "Aries" and cut_type == "shave":
+            hard_prohibited = True
+            score = min(score - 100.0, -100.0)
+            tags.append("Forbidden by Bonatti: complete shaving with Moon in Aries")
 
-    # Ascendant adjustments (head rulership awareness)
+    # The reviewed source states the haircut rule through the Moon's sign,
+    # not through an additional Ascendant sign table.
     if asc_sign:
-        asc_adj = ASC_SIGN_ADJUST.get(asc_sign)
-        if asc_adj:
-            score += asc_adj
-            if asc_adj > 0:
-                tags.append(f"Ascendant in supportive sign ({asc_sign})")
-            else:
-                tags.append(f"Ascendant caution sign ({asc_sign})")
+        tags.append(f"Ascendant context: {asc_sign}")
 
     # Moon phase handling (waxing/waning/dark)
     sun_lon = _safe_angle(sun.get('longitude')) if sun else None
@@ -379,6 +376,9 @@ def score_haircut_election(
         tags.append("Rating: MARGINAL ⭐")
     else:
         tags.append("Rating: POOR ❌")
+
+    if hard_prohibited:
+        score = min(score, -100.0)
 
     return Score(value=score, tags=tags)
 

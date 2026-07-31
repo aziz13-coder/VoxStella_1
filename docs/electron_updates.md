@@ -54,6 +54,8 @@ Files to update
 - `frontend/package-lock.json`
   - bump the root `"version"`
   - bump the top-level package entry `"packages"."".version"`
+- `frontend/src/content/whatsNew.mjs`
+  - add an explicit, product-facing entry for the new bundled version
 
 Release procedure
 1. Start from a completely clean named branch whose `HEAD` exactly matches its
@@ -114,6 +116,29 @@ Packaging notes
   - the packaging script now passes a normalized workspace path into the helper so PowerShell does not receive a trailing-backslash argument that breaks `Resolve-Path`
 - The script writes logs into:
   - `build-logs/`
+
+Installer upgrade compatibility
+- Keep `build.nsis.guid` fixed at
+  `c7765e19-78c9-5b2a-a935-14614127ff63`. This is the registry identity used by
+  existing Vox Stella installations; changing it would prevent reliable
+  upgrade/uninstall discovery.
+- electron-builder normally uninstalls the previous version with `--updated`,
+  which first moves the installed tree into a temporary rollback directory.
+  Older Vox Stella payloads used a long
+  `traits/corpus/new_sources_inspection` path. Those files could fit in the
+  normal install directory but exceed legacy Windows `MAX_PATH` after the
+  rollback prefix was added, causing automatic upgrades to abort while a
+  manual uninstall still succeeded.
+- `frontend/build-resources/installer.nsh` preserves the normal transactional
+  removal first. It preempts the known 3.1.0 per-user layout and, if any normal
+  atomic upgrade removal fails, retries the registered uninstaller once
+  without `--updated`. The fallback always passes `/KEEP_APP_DATA`; licenses,
+  saved charts, and preferences are not deleted.
+- A per-user installation must not be upgraded by explicitly choosing
+  **Run as administrator**. The installer now tells the user to close setup and
+  launch it normally instead of instructing them to uninstall manually.
+- `tests/test_installer_legacy_upgrade.py` locks the installer identity,
+  fallback behavior, non-elevated per-user rule, and app-data preservation.
 - It may print:
   - `ERROR: Input redirection is not supported, exiting the process immediately.`
 - In observed runs, that message appeared after a successful packaging completion and did not prevent output generation. Still verify the new files in `frontend/dist-electron/`.

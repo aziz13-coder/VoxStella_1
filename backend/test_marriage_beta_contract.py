@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from pathlib import Path
+import json
 import os
 import sys
 
@@ -10,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import app as app_module
 import astro_clock_api
+import election
 from election_models.common import Score
 import election_models.marriage as marriage_model
 import election_models.marriage_beta as marriage_beta
@@ -279,9 +281,15 @@ def test_score_marriage_beta_election_adds_participant_layers(monkeypatch):
     assert any(tag.startswith("Snap B:") for tag in result.tags)
     assert any(tag.startswith("Snap A:") for tag in (result.pros or []))
     assert isinstance(result.cautions or [], list)
+    assert [line["id"] for line in (result.lines or [])] == [
+        "event",
+        "participant:1",
+        "participant:2",
+    ]
+    assert all("favorable" in line and "tense" in line for line in (result.lines or []))
 
 
-def test_score_marriage_beta_keeps_house_cusp_rules_active_without_accuracy_gates(monkeypatch):
+def test_score_marriage_beta_precision_gates_house_cusp_rules(monkeypatch):
     event_cd = {
         "marker": "event",
         "houses": _houses(),
@@ -328,15 +336,170 @@ def test_score_marriage_beta_keeps_house_cusp_rules_active_without_accuracy_gate
     )
     monkeypatch.setattr(marriage_beta, "compute_chart_almutens", fake_almutens)
 
-    result = marriage_beta.score_marriage_beta_election(
+    unsafe = marriage_beta.score_marriage_beta_election(
         event_cd,
         options={
             "participant_a_cd": participant_cd,
+            "participant_a_precision": {
+                "precision_class": "unknown",
+                "precision_safe": False,
+                "precision_source": "test",
+            },
         },
     )
 
-    assert any("house/cusp fit" in tag for tag in result.tags)
-    assert any(tag.startswith("Snap A:") for tag in result.tags)
+    assert not any("house/cusp fit" in tag for tag in unsafe.tags)
+    assert any("house/cusp rules withheld" in tag for tag in unsafe.tags)
+    assert unsafe.lines[1]["precision_safe"] is False
+
+    safe = marriage_beta.score_marriage_beta_election(
+        event_cd,
+        options={
+            "participant_a_cd": participant_cd,
+            "participant_a_precision": {
+                "precision_class": "certified",
+                "precision_safe": True,
+                "precision_source": "test",
+            },
+        },
+    )
+
+    assert any("house/cusp fit" in tag for tag in safe.tags)
+    assert any(tag.startswith("Snap A:") for tag in safe.tags)
+    assert safe.lines[1]["precision_safe"] is True
+
+
+def test_marriage_beta_stream_extracts_periods_and_precision_lines(monkeypatch):
+    monkeypatch.setattr(astro_clock_api, "_ensure_coords_for_location", lambda _location: (31.778, 35.235))
+    monkeypatch.setattr(
+        astro_clock_api,
+        "_normalize_manual_datetime",
+        lambda value, timezone_name=None, location=None: (
+            datetime.fromisoformat(str(value).replace("Z", "+00:00")),
+            timezone_name or "Asia/Jerusalem",
+        ),
+    )
+    monkeypatch.setattr(astro_clock_api, "_validate_stream_scan_bounds", lambda _sdt, _edt, _step: (3, None))
+    monkeypatch.setattr(
+        astro_clock_api,
+        "_extend_chart_data_for_marriage_beta",
+        lambda chart_data, _meta, include_moon_day: chart_data,
+    )
+    monkeypatch.setattr(
+        astro_clock_api,
+        "_compute_chart_for",
+        lambda dt_iso, *_args, **_kwargs: (
+            {"houses": _houses(), "planets": {"Moon": {"longitude": 90.0}}},
+            {
+                "timestamp": dt_iso.replace("Z", "+00:00"),
+                "location": "Jerusalem",
+                "timezone": "Asia/Jerusalem",
+            },
+        ),
+    )
+    monkeypatch.setattr(
+        astro_clock_api,
+        "_bundle_from_snap_id",
+        lambda snap_id, *, house_system_code=None, missing_error="Snap not found": {
+            "chart_data": {
+                "houses": _houses(),
+                "planets": {"Jupiter": {"longitude": 120.0}},
+            },
+            "meta": {
+                "timestamp": "1990-01-01T00:00:00+00:00",
+                "house_system_code": house_system_code,
+            },
+            "birth_time": {
+                "status": "certified",
+                "ranking_eligible": True,
+                "ranking_eligibility": "confirmed",
+            },
+        },
+    )
+    monkeypatch.setattr(
+        astro_clock_api,
+        "_snaps",
+        lambda: {
+            "snap-a": {"label": "Partner A", "location": "Jerusalem"},
+            "snap-b": {"label": "Partner B", "location": "Jerusalem"},
+        },
+    )
+
+    def fake_marriage_beta(_chart_data, *, options=None, **_kwargs):
+        hour = getattr((options or {}).get("current_timestamp"), "hour", 0)
+        if hour == 8:
+            values = ((6.0, 6.0, 0.0), (3.0, 3.0, 0.0), (2.0, 2.0, 0.0))
+        elif hour == 9:
+            values = ((1.0, 4.0, 3.0), (1.0, 2.0, 1.0), (1.0, 2.0, 1.0))
+        else:
+            values = ((-2.0, 1.0, 3.0), (3.0, 3.0, 0.0), (2.0, 2.0, 0.0))
+        specs = (
+            ("event", "event", "Event line"),
+            ("participant:1", "participant", "Partner A"),
+            ("participant:2", "participant", "Partner B"),
+        )
+        lines = [
+            {
+                "id": line_id,
+                "kind": kind,
+                "label": label,
+                "score": score,
+                "favorable": favorable,
+                "tense": tense,
+                "tags": [],
+            }
+            for (line_id, kind, label), (score, favorable, tense) in zip(specs, values)
+        ]
+        return {
+            "value": sum(line["score"] for line in lines),
+            "tags": [],
+            "pros": [],
+            "cautions": [],
+            "lines": lines,
+        }
+
+    monkeypatch.setattr(election, "score_marriage_beta_election", fake_marriage_beta)
+
+    response = app_module.app.test_client().get(
+        "/api/astro-clock/election/suggest/stream",
+        query_string={
+            "matter": "marriage",
+            "marriage_algorithm": "beta",
+            "start": "2026-04-15T08:00:00Z",
+            "end": "2026-04-15T10:00:00Z",
+            "location": "Jerusalem",
+            "timezone": "Asia/Jerusalem",
+            "step_minutes": "60",
+            "participant_a_snap_id": "snap-a",
+            "participant_b_snap_id": "snap-b",
+            "marriage_beta_display_mode": "total",
+            "marriage_beta_scope": "all",
+            "marriage_beta_level_percent": "50",
+        },
+    )
+
+    assert response.status_code == 200
+    done_payload = None
+    for line in response.data.decode("utf-8").splitlines():
+        if not line.startswith("data: "):
+            continue
+        payload = json.loads(line[len("data: "):])
+        if payload.get("type") == "done":
+            done_payload = payload["data"]
+            break
+
+    assert done_payload is not None
+    assert done_payload["marriage_beta_extraction"]["selected_line_ids"] == [
+        "event",
+        "participant:1",
+        "participant:2",
+    ]
+    assert done_payload["marriage_beta_extraction"]["period_count"] == 1
+    assert done_payload["marriage_beta_periods"][0]["start"] == "2026-04-15T08:00:00+00:00"
+    assert done_payload["top"][0]["aggregate_score"] == 11.0
+    assert done_payload["top"][0]["marriage_beta_pass"] is True
+    assert done_payload["series"][1]["marriage_beta_pass"] is False
+    assert all(item["precision_safe"] is True for item in done_payload["participants"]["items"])
 
 
 def test_alpha_split_still_treats_plain_jupiter_retrograde_as_caution():
@@ -362,8 +525,8 @@ def test_beta_event_branch_rewards_jupiter_retrograde_without_alpha_runtime_tags
 
     result = marriage_beta.score_marriage_beta_election(event_cd, options={})
 
-    assert "Event Jupiter retrograde support (+4.0)" in result.tags
-    assert "Event Jupiter retrograde support (+4.0)" in (result.pros or [])
+    assert "Event Jupiter retrograde support (+3.0)" in result.tags
+    assert "Event Jupiter retrograde support (+3.0)" in (result.pros or [])
     assert not any("morin" in str(tag).lower() for tag in result.tags)
     assert not any("natal omitted" in str(tag).lower() for tag in result.tags)
     assert not any(str(tag).startswith("Fixed Asc") or str(tag).startswith("Mobile Asc") for tag in result.tags)

@@ -80,6 +80,36 @@ def _clamp(value: float, low: float, high: float) -> float:
     return value
 
 
+def _authority_party_support(
+    aspects: List[Dict[str, Any]],
+    authority: Optional[str],
+    party: Optional[str],
+) -> float:
+    """Measure an authority ruler's explicit aspectual support for one party."""
+    if not authority or not party or authority == party:
+        return 0.0
+    best = 0.0
+    for other, aspect, phase in _iter_aspects(aspects, authority):
+        if other != party:
+            continue
+        applying_bonus = 0.5 if "apply" in phase else 0.0
+        if aspect == "Conjunction":
+            value = 5.0 + applying_bonus
+        elif aspect == "Trine":
+            value = 4.0 + applying_bonus
+        elif aspect == "Sextile":
+            value = 3.0 + applying_bonus
+        elif aspect == "Square":
+            value = -2.0
+        elif aspect == "Opposition":
+            value = -3.0
+        else:
+            value = 0.0
+        if abs(value) > abs(best):
+            best = value
+    return best
+
+
 def score_legal_election(
     election_cd: Dict[str, Any],
     *,
@@ -469,6 +499,24 @@ def score_legal_election(
             if other in MALEFICS and asp in HARD_ASPECTS and "apply" in phase:
                 tenth_score -= 3.0
 
+        # Bonatti's victory rule is comparative: the judge/10th ruler must
+        # favor the claimant's ruler more than the opponent's ruler.
+        claimant_support = _authority_party_support(aspects_list, L10, L1)
+        opponent_support = _authority_party_support(aspects_list, L10, L7)
+        support_difference = _clamp(claimant_support - opponent_support, -8.0, 8.0)
+        if support_difference > 0:
+            tenth_score += support_difference
+            tenth_tags.append(
+                f"Judge ruler favors claimant over opponent (+{support_difference:.1f})"
+            )
+        elif support_difference < 0:
+            tenth_score += support_difference
+            tenth_tags.append(
+                f"Judge ruler favors opponent over claimant ({support_difference:.1f})"
+            )
+        elif claimant_support or opponent_support:
+            tenth_tags.append("Judge ruler supports both parties equally")
+
     score += _clamp(tenth_score, -8.0, 15.0)
     tags.extend(tenth_tags)
 
@@ -482,6 +530,34 @@ def score_legal_election(
     if malefic_fourth:
         fourth_score -= 3.0
         fourth_tags.append("Malefic in 4th – risky verdict")
+
+    # Bonatti uses both the 4th ruler and the ruler of the Moon's sign for
+    # the ending/verdict. Compare each ending ruler's support to L1 vs L7.
+    sign_4 = _sign_from_lon(cusps[3]) if len(cusps) >= 4 else None
+    L4 = TRAD_RULER.get(sign_4) if sign_4 else None
+    moon_sign = _sign_from_lon(moon_lon) if moon_lon is not None else None
+    moon_dispositor = TRAD_RULER.get(moon_sign) if moon_sign else None
+    ending_rulers: List[Tuple[str, str]] = []
+    for label, ruler in (("4th ruler", L4), ("Moon dispositor", moon_dispositor)):
+        if ruler and all(existing_ruler != ruler for _, existing_ruler in ending_rulers):
+            ending_rulers.append((label, ruler))
+    for label, ruler in ending_rulers:
+        claimant_support = _authority_party_support(aspects_list, ruler, L1)
+        opponent_support = _authority_party_support(aspects_list, ruler, L7)
+        difference = _clamp(claimant_support - opponent_support, -5.0, 5.0)
+        if difference > 0:
+            fourth_score += difference
+            fourth_tags.append(f"{label} supports claimant (+{difference:.1f})")
+        elif difference < 0:
+            fourth_score += difference
+            fourth_tags.append(f"{label} supports opponent ({difference:.1f})")
+        ruler_row = planets.get(ruler) or {}
+        if bool(ruler_row.get("retrograde")):
+            fourth_score -= 1.0
+            fourth_tags.append(f"{label} retrograde")
+        if _combustion_status(ruler, combust_map) == "combust":
+            fourth_score -= 1.5
+            fourth_tags.append(f"{label} combust")
     score += _clamp(fourth_score, -4.0, 6.0)
     tags.extend(fourth_tags)
 

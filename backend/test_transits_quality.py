@@ -17,9 +17,9 @@ except Exception:
     import transits_morin as tm
 
 try:
-    from backend.nlg_templates import render_prediction
+    from backend.nlg_templates import prediction_evidence_level, render_prediction
 except Exception:
-    from nlg_templates import render_prediction
+    from nlg_templates import prediction_evidence_level, render_prediction
 
 try:
     from backend.nlg_templates import _label_event
@@ -483,8 +483,66 @@ def test_render_prediction_softens_when_concordance_is_weak():
         },
     }
     description = render_prediction(hit)
-    assert "can coincide with" in description.lower() or "can point to" in description.lower()
+    assert "can coincide" in description.lower() or "can point" in description.lower()
     assert "indicates" not in description.lower()
+    assert "not a standalone event prediction" in description.lower()
+    assert prediction_evidence_level(hit) == "theme_only"
+
+
+def test_prediction_evidence_requires_concordant_layers():
+    supported = {
+        "determination_strength": 0.5,
+        "concordance": {
+            "direction_concordance": 0.2,
+            "overall_concordance": 0.48,
+            "solar_score": 0.4,
+            "lunar_score": 0.0,
+        },
+    }
+    corroborated = {
+        "determination_strength": 0.72,
+        "concordance": {
+            "direction_concordance": 0.42,
+            "overall_concordance": 0.67,
+            "threshold_met": True,
+            "solar_score": 0.0,
+            "lunar_score": 0.0,
+        },
+    }
+
+    assert prediction_evidence_level(supported) == "supported"
+    assert prediction_evidence_level(corroborated) == "corroborated"
+
+
+def test_prediction_metadata_marks_unsupported_event_as_theme(monkeypatch):
+    det_ctx = {
+        "by_planet": {
+            "Mars": {
+                "determinationScores": {"by_area": {"relationships": 0.1}},
+                "nature": {"conditionScore": -0.2},
+            },
+            "C7": {"housePosition": {"house": 7}},
+        }
+    }
+    hits = [
+        {
+            "transiting": "Mars",
+            "target_label": "C7",
+            "target_type": "cusp",
+            "aspect": "Square",
+            "orb": 0.5,
+            "max_orb": 5.0,
+            "score": 6.0,
+            "enriched_keywords": ["relationship_conflict"],
+        }
+    ]
+
+    prediction = _run_enrich(monkeypatch, det_ctx, hits)[0]["prediction"]
+
+    assert prediction["eventType"] == "relationship_conflict"
+    assert prediction["evidenceLevel"] == "theme_only"
+    assert prediction["isEventPrediction"] is False
+    assert prediction["confidenceBasis"] == "morin_rule_concordance"
 
 
 def test_render_prediction_uses_open_enemy_wording_for_seventh_house_war_rows():

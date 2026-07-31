@@ -234,6 +234,7 @@ class Score:
     tags: List[str]
     pros: Optional[List[str]] = None
     cautions: Optional[List[str]] = None
+    lines: Optional[List[Dict[str, Any]]] = None
 
 __all__ = [
     'FIXED_SIGNS', 'CARDINAL_SIGNS', 'MUTABLE_SIGNS',

@@ -3,6 +3,7 @@ import contextlib
 import io
 import json
 import sys
+from datetime import datetime
 
 
 repo_root = Path(__file__).resolve().parents[1]
@@ -28,7 +29,11 @@ def _replay_manual_case(name: str):
     payload = json.loads((FIXTURE_DIR / name).read_text(encoding="utf-8"))
     engine = EnhancedTraditionalHoraryJudgmentEngine()
     chart = deserialize_chart_for_evaluation(payload["chart_data"])
-    question_analysis = engine.question_analyzer.analyze_question(payload["question"])
+    local_time = payload["chart_data"]["timezone_info"]["local_time"]
+    question_analysis = engine.question_analyzer.analyze_question(
+        payload["question"],
+        reference_datetime=datetime.fromisoformat(local_time),
+    )
     if payload.get("category"):
         question_analysis["question_type"] = payload["category"]
     window_days = question_analysis.get("timeframe_analysis", {}).get("window_days") or 90

@@ -1,4 +1,60 @@
 export const WHATS_NEW_RELEASES = {
+  '3.1.7': {
+    version: '3.1.7',
+    publishedAt: '2026-07-31',
+    headline: 'Clearer transit guidance',
+    summary: 'This update makes Transit timing, themes, and supported event readings easier to distinguish and more dependable across exact-time and predictor views.',
+    items: [
+      {
+        title: 'Themes are clearly identified',
+        tag: 'Improved',
+        body: 'Transit symbolism now stays labeled as a theme until the chart has enough supporting timing factors for a stronger event reading.',
+      },
+      {
+        title: 'More dependable event wording',
+        tag: 'Improved',
+        body: 'Broad words such as conflict, loss, or change no longer turn into an unrelated specific event through keyword matching alone.',
+      },
+      {
+        title: 'Clearer support percentages',
+        tag: 'Improved',
+        body: 'Predictor percentages are now identified as rule-concordance scores instead of being presented like statistical event probabilities.',
+      },
+      {
+        title: 'More faithful activation timing',
+        tag: 'Fixed',
+        body: 'Exact-time and window calculations now handle activation periods and local timezone transitions more consistently.',
+      },
+    ],
+  },
+  '3.1.6': {
+    version: '3.1.6',
+    publishedAt: '2026-07-31',
+    headline: 'Stronger election planning',
+    summary: 'This update makes Election searches clearer and more dependable across different goals, while making upgrades from earlier Vox Stella versions smoother.',
+    items: [
+      {
+        title: 'Clearer choices for each goal',
+        tag: 'Improved',
+        body: 'Election searches now present the options that belong to the selected purpose, making it easier to shape the dates and times you want to compare.',
+      },
+      {
+        title: 'More dependable ranked times',
+        tag: 'Improved',
+        body: 'The Election models now apply their required, supportive, and cautionary conditions more consistently when ranking candidate times.',
+      },
+      {
+        title: 'Natal details stay optional',
+        tag: 'Improved',
+        body: 'You can still search without birth details, and add them only when you want the selected times compared with a natal chart.',
+      },
+      {
+        title: 'Smoother upgrades',
+        tag: 'Fixed',
+        body: 'Setup can now recover more reliably when an earlier Vox Stella version cannot be removed in the usual way, while keeping your license, saved charts, and preferences.',
+      },
+    ],
+  },
   '3.1.5': {
     version: '3.1.5',
     publishedAt: '2026-07-18',

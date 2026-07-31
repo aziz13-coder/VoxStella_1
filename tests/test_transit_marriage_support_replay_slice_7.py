@@ -107,7 +107,13 @@ def _measure_marriage_support(payload):
 
     prediction_rows = []
     for row in predictions[:12]:
-        if row.get("event_type") == "marriage" or row.get("life_area") == "marriage":
+        # Keep the replay determination-led: a wedding can surface as a
+        # marriage/relationship row or as home/family joy, but a catalog
+        # synonym alone must not rewrite the latter into "marriage".
+        if (
+            row.get("event_type") in {"marriage", "family_joy", "family_celebration"}
+            or row.get("life_area") == "marriage"
+        ):
             prediction_rows.append(
                 {
                     "label": _prediction_label(row),

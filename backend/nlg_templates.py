@@ -184,6 +184,35 @@ def _label_event(token: Optional[str]) -> Optional[str]:
     return EVENT_TEMPLATES.get(s, s.replace('_',' '))
 
 
+def prediction_evidence_level(hit: Dict[str, Any]) -> str:
+    """Classify rule concordance without presenting it as probability."""
+    try:
+        det_strength = abs(float(hit.get('determination_strength') or 0.0))
+    except Exception:
+        det_strength = 0.0
+    conc = hit.get('concordance') or {}
+
+    def _score(key: str) -> float:
+        try:
+            return float(conc.get(key) or 0.0)
+        except Exception:
+            return 0.0
+
+    direction_score = _score('direction_concordance')
+    overall_score = _score('overall_concordance')
+    solar_score = _score('solar_score')
+    lunar_score = _score('lunar_score')
+    threshold_met = bool(conc.get('threshold_met')) or overall_score >= (150.0 / 230.0)
+
+    if threshold_met and det_strength >= 0.55 and direction_score >= 0.3:
+        return 'corroborated'
+    if det_strength >= 0.35 and overall_score >= 0.4 and (
+        direction_score >= 0.15 or solar_score >= 0.35 or lunar_score >= 0.35
+    ):
+        return 'supported'
+    return 'theme_only'
+
+
 def render_prediction(hit: Dict[str, Any]) -> str:
     """Return a human-friendly prediction sentence for a single transit hit."""
     A = str(hit.get('transiting') or '')
@@ -194,31 +223,8 @@ def render_prediction(hit: Dict[str, Any]) -> str:
     event_tok = pred.get('eventType')
     area = _label_area(area_tok, event_tok)
     event = _label_event(event_tok)
-    try:
-        det_strength = abs(float(hit.get('determination_strength') or 0.0))
-    except Exception:
-        det_strength = 0.0
     conc = hit.get('concordance') or {}
-    try:
-        dir_score = float(conc.get('direction_concordance') or 0.0)
-    except Exception:
-        dir_score = 0.0
-    try:
-        overall_score = float(conc.get('overall_concordance') or 0.0)
-    except Exception:
-        overall_score = 0.0
-    try:
-        solar_score = float(conc.get('solar_score') or 0.0)
-    except Exception:
-        solar_score = 0.0
-    try:
-        lunar_score = float(conc.get('lunar_score') or 0.0)
-    except Exception:
-        lunar_score = 0.0
-    strong_prediction = det_strength >= 0.55 and dir_score >= 0.3 and overall_score >= 0.55
-    moderate_prediction = det_strength >= 0.35 and overall_score >= 0.4 and (
-        dir_score >= 0.15 or solar_score >= 0.35 or lunar_score >= 0.35
-    )
+    evidence_level = prediction_evidence_level(hit)
     # Tone
     verb = ASPECT_TONE.get(asp, 'touches')
     role = PLANET_ROLES.get(A, '')
@@ -241,14 +247,31 @@ def render_prediction(hit: Dict[str, Any]) -> str:
     drv = f" (drivers: {', '.join(drivers)})" if drivers else ''
     # Compose
     if event and area:
-        connector = 'indicates' if strong_prediction else ('points to' if moderate_prediction else 'can coincide with')
-        return f"{A} {asp} {tgt} {verb} {role}; {connector} {event} in {area}.{drv}"
+        if evidence_level == 'corroborated':
+            return f"{A} {asp} {tgt} {verb} {role}; concordant factors support {event} in {area}.{drv}"
+        if evidence_level == 'supported':
+            return f"{A} {asp} {tgt} {verb} {role}; the model points to {event} in {area}.{drv}"
+        return (
+            f"{A} {asp} {tgt} {verb} {role}; can coincide thematically with "
+            f"{event} in {area}, but is not a standalone event prediction.{drv}"
+        )
     if area:
+        if evidence_level == 'theme_only':
+            return (
+                f"{A} {asp} {tgt} {verb} {role}; highlights {area} as a theme, "
+                f"but is not a standalone event prediction.{drv}"
+            )
         return f"{A} {asp} {tgt} {verb} {role}; activates {area}.{drv}"
     if event:
-        connector = 'suggests' if strong_prediction else ('points toward' if moderate_prediction else 'can point to')
-        return f"{A} {asp} {tgt} {verb} {role}; {connector} {event}.{drv}"
+        if evidence_level == 'corroborated':
+            return f"{A} {asp} {tgt} {verb} {role}; concordant factors support {event}.{drv}"
+        if evidence_level == 'supported':
+            return f"{A} {asp} {tgt} {verb} {role}; the model points toward {event}.{drv}"
+        return (
+            f"{A} {asp} {tgt} {verb} {role}; can point thematically to {event}, "
+            f"but is not a standalone event prediction.{drv}"
+        )
     return f"{A} {asp} {tgt} {verb} {role}.{drv}"
 
 
-__all__ = ['render_prediction']
+__all__ = ['render_prediction', 'prediction_evidence_level']

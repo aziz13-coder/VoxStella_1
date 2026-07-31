@@ -1870,7 +1870,10 @@ class EnhancedTraditionalHoraryJudgmentEngine:
             self._precompute_planet_state(chart)
             
             # Analyze question traditionally
-            question_analysis = self.question_analyzer.analyze_question(question)
+            question_analysis = self.question_analyzer.analyze_question(
+                question,
+                reference_datetime=dt_local,
+            )
             
             # Override with manual houses if provided
             if manual_houses:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Tuple
+import re
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from almutens import compute_chart_almutens
 
@@ -37,6 +38,9 @@ _CROSS_HARD_ASPECTS = (
     (90.0, 5.0, -0.75, "square"),
     (180.0, 6.0, -0.9, "opposition"),
 )
+_TAG_WEIGHT_RE = re.compile(r"\(([+-]?\d+(?:\.\d+)?)\)\s*$|\s([+-]?\d+(?:\.\d+)?)\s*$")
+
+
 def _planet_longitude(planets: Dict[str, Dict[str, Any]], name: Optional[str]) -> Optional[float]:
     if not name:
         return None
@@ -152,6 +156,10 @@ def _beta_is_caution_tag(tag: Any) -> bool:
         return True
     if lowered.startswith("snap ") and "strain" in lowered:
         return True
+    if any(token in lowered for token in ("cross strain", "house/cusp strain")):
+        return True
+    if "withheld because birth-time precision" in lowered:
+        return True
     if "support" in lowered:
         return False
     if lowered.startswith("event asc marriage sign caution:") or lowered.startswith("event moon marriage sign caution:"):
@@ -168,6 +176,80 @@ def _split_beta_tags(tags: List[str]) -> tuple[List[str], List[str]]:
         else:
             pros.append(tag)
     return pros, cautions
+
+
+def _extract_tag_weight(tag: Any) -> Optional[float]:
+    match = _TAG_WEIGHT_RE.search(str(tag or "").strip())
+    if not match:
+        return None
+    try:
+        return float(match.group(1) or match.group(2))
+    except Exception:
+        return None
+
+
+def _line_channels(tags: Iterable[str], score: float) -> Tuple[float, float]:
+    positive = 0.0
+    negative = 0.0
+    for tag in list(tags or []):
+        weight = _extract_tag_weight(tag)
+        if weight is None:
+            continue
+        if weight >= 0.0:
+            positive += weight
+        else:
+            negative += abs(weight)
+    residual = float(score or 0.0) - (positive - negative)
+    if residual >= 0.0:
+        positive += residual
+    else:
+        negative += abs(residual)
+    return round(max(0.0, positive), 2), round(max(0.0, negative), 2)
+
+
+def _participant_precision_context(value: Any) -> Dict[str, Any]:
+    payload = value if isinstance(value, dict) else {}
+    precision_class = str(payload.get("precision_class") or "unknown").strip().lower() or "unknown"
+    precision_safe_raw = payload.get("precision_safe")
+    if precision_safe_raw is None:
+        precision_safe = precision_class in {"certified", "timed", "known_time"}
+    else:
+        precision_safe = bool(precision_safe_raw)
+    return {
+        "precision_class": precision_class,
+        "precision_safe": precision_safe,
+        "precision_source": str(
+            payload.get("precision_source") or "missing_birth_time_quality"
+        ).strip() or "missing_birth_time_quality",
+    }
+
+
+def _line_payload(
+    *,
+    line_id: str,
+    kind: str,
+    label: str,
+    score: float,
+    tags: Iterable[str],
+    precision_context: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    line_tags = [str(tag) for tag in list(tags or []) if str(tag).strip()]
+    pros, cautions = _split_beta_tags(line_tags)
+    favorable, tense = _line_channels(line_tags, score)
+    payload: Dict[str, Any] = {
+        "id": line_id,
+        "kind": kind,
+        "label": label,
+        "score": round(float(score or 0.0), 2),
+        "favorable": favorable,
+        "tense": tense,
+        "tags": line_tags,
+        "pros": pros,
+        "cautions": cautions,
+    }
+    if precision_context:
+        payload.update(precision_context)
+    return payload
 
 
 def _score_beta_moon_day(election_cd: Dict[str, Any]) -> tuple[float, Optional[str]]:
@@ -242,8 +324,8 @@ def _score_beta_event_chart(
     try:
         jupiter = planets.get("Jupiter") or {}
         if bool(jupiter.get("retrograde")):
-            score += 4.0
-            tags.append("Event Jupiter retrograde support (+4.0)")
+            score += 3.0
+            tags.append("Event Jupiter retrograde support (+3.0)")
     except Exception:
         pass
 
@@ -377,6 +459,7 @@ def _participant_cross_score(
     participant_cd: Dict[str, Any],
     *,
     event_almutens: Dict[str, Any],
+    precision_safe: bool,
 ) -> Tuple[float, List[str]]:
     score = 0.0
     tags: List[str] = []
@@ -385,21 +468,9 @@ def _participant_cross_score(
     participant_planets = _collect_planets(participant_cd)
     participant_cusps = _house_cusps(participant_cd)
 
-    participant_almutens = compute_chart_almutens(participant_cd)
     event_points = event_almutens.get("points") or {}
-    participant_points = participant_almutens.get("points") or {}
-
     event_asc_almuten = _almuten_point(event_points, "ascendant").get("leader")
     event_7th_almuten = _almuten_point(event_points, "house_7").get("leader")
-
-    participant_asc = _almuten_point(participant_points, "ascendant")
-    participant_mc = _almuten_point(participant_points, "midheaven")
-    participant_2nd = _almuten_point(participant_points, "house_2")
-    participant_7th = _almuten_point(participant_points, "house_7")
-
-    participant_asc_almuten = participant_asc.get("leader")
-    participant_2nd_almuten = participant_2nd.get("leader")
-    participant_7th_almuten = participant_7th.get("leader")
 
     always_on_rules = (
         ("Jupiter", "Venus", 1.8),
@@ -431,6 +502,22 @@ def _participant_cross_score(
     if strain_hits:
         score += always_on_strain
         tags.append(f"{participant_label}: always-on cross strain {strain_hits} hits ({always_on_strain:.1f})")
+
+    if not precision_safe:
+        tags.append(
+            f"{participant_label}: house/cusp rules withheld because birth-time precision is not safe"
+        )
+        return score, tags
+
+    participant_almutens = compute_chart_almutens(participant_cd)
+    participant_points = participant_almutens.get("points") or {}
+    participant_asc = _almuten_point(participant_points, "ascendant")
+    participant_mc = _almuten_point(participant_points, "midheaven")
+    participant_2nd = _almuten_point(participant_points, "house_2")
+    participant_7th = _almuten_point(participant_points, "house_7")
+    participant_asc_almuten = participant_asc.get("leader")
+    participant_2nd_almuten = participant_2nd.get("leader")
+    participant_7th_almuten = participant_7th.get("leader")
 
     if event_7th_almuten and participant_7th_almuten and event_7th_almuten == participant_7th_almuten:
         score += 2.5
@@ -528,28 +615,73 @@ def score_marriage_beta_election(
     event_score = _score_beta_event_chart(election_cd, event_almutens=event_almutens)
     total = float(event_score.value or 0.0)
     tags = list(event_score.tags or [])
+    lines: List[Dict[str, Any]] = [
+        _line_payload(
+            line_id="event",
+            kind="event",
+            label="Event line",
+            score=float(event_score.value or 0.0),
+            tags=event_score.tags or [],
+        )
+    ]
 
     if isinstance(participant_a_cd, dict) and participant_a_cd:
+        participant_a_label = str(opts.get("participant_a_label") or "Snap A")
+        participant_a_precision = _participant_precision_context(
+            opts.get("participant_a_precision") or opts.get("participant_a_meta")
+        )
         participant_score, participant_tags = _participant_cross_score(
-            "Snap A",
+            participant_a_label,
             election_cd,
             participant_a_cd,
             event_almutens=event_almutens,
+            precision_safe=bool(participant_a_precision.get("precision_safe")),
         )
         total += participant_score
         tags.extend(participant_tags)
+        lines.append(
+            _line_payload(
+                line_id="participant:1",
+                kind="participant",
+                label=participant_a_label,
+                score=participant_score,
+                tags=participant_tags,
+                precision_context=participant_a_precision,
+            )
+        )
 
     if isinstance(participant_b_cd, dict) and participant_b_cd:
+        participant_b_label = str(opts.get("participant_b_label") or "Snap B")
+        participant_b_precision = _participant_precision_context(
+            opts.get("participant_b_precision") or opts.get("participant_b_meta")
+        )
         participant_score, participant_tags = _participant_cross_score(
-            "Snap B",
+            participant_b_label,
             election_cd,
             participant_b_cd,
             event_almutens=event_almutens,
+            precision_safe=bool(participant_b_precision.get("precision_safe")),
         )
         total += participant_score
         tags.extend(participant_tags)
+        lines.append(
+            _line_payload(
+                line_id="participant:2",
+                kind="participant",
+                label=participant_b_label,
+                score=participant_score,
+                tags=participant_tags,
+                precision_context=participant_b_precision,
+            )
+        )
     pros, cautions = _split_beta_tags(tags)
-    return Score(round(total, 2), tags, pros=pros, cautions=cautions)
+    return Score(
+        round(total, 2),
+        tags,
+        pros=pros,
+        cautions=cautions,
+        lines=lines,
+    )
 
 
 __all__ = ["score_marriage_beta_election"]

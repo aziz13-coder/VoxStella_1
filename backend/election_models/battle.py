@@ -303,8 +303,6 @@ def _prohibition_checks(
             reasons.append("Ascendant on Algol (≤3°)")
     if asc_ruler:
         asc_ruler_house = _planet_house(asc_ruler, cusps)
-        if asc_ruler_house == 8:
-            reasons.append("Ascendant ruler in 8th house")
         if asc_ruler_house in CADENT_HOUSES:
             hard_hits = _aspect_hits(aspects, asc_ruler_name or "", MALEFICS, HARD_ASPECTS, applying_only=True)
             if hard_hits:
@@ -314,15 +312,8 @@ def _prohibition_checks(
             if hard and _dignity_rank(asc_ruler_name, _planet_sign(asc_ruler)) < _dignity_rank(
                 seventh_ruler_name, _planet_sign(seventh_ruler)
             ):
-                reasons.append("Ascendant ruler applying to stronger 7th ruler")
-    if len(cusps) >= 8:
-        eighth_planets = [
-            nm
-            for nm, info in planets.items()
-            if _planet_house(info, cusps) == 8 and nm not in NODE_ALIASES
-        ]
-        if eighth_planets:
-            reasons.append("Planets in 8th house")
+                suffix = " from the 8th house" if asc_ruler_house == 8 else ""
+                reasons.append(f"Ascendant ruler applying to stronger 7th ruler{suffix}")
     try:
         nodes: List[float] = []
         nn = planets.get("North Node") or planets.get("Node")

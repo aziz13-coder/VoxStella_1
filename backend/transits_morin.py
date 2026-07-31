@@ -170,31 +170,59 @@ def _classify_quality(transiting: str, aspect: str) -> str:
     return 'mixed'
 
 
-def _estimate_effective_window(ts_iso: str, sep_now: float, sep_future: float, dt_days: float, max_orb: float) -> Optional[Dict[str, str]]:
-    """Estimate effective window [start,end] via linearized separation rate.
+def _estimate_effective_window(
+    ts_iso: str,
+    sep_now: float,
+    sep_future: float,
+    dt_days: float,
+    max_orb: float,
+    transiting: Optional[str] = None,
+) -> Optional[Dict[str, str]]:
+    """Estimate Morin's partile activation window around an exact transit.
 
-    - rate ≈ (sep_future - sep_now) / dt_days (deg/day)
-    - exact center ≈ t0 - sep_now / rate
-    - window half-width ≈ max_orb / |rate| (clamped)
+    Book 22, chapter 13 gives the Moon six hours before and after the
+    partile transit and the other planets one day before and after.  The
+    exact instant is estimated from the local separation slope.  A nearly
+    stationary separation has no defensible linear exact-time estimate, so
+    it returns ``None`` instead of inventing an arbitrary window.
+
+    ``max_orb`` remains in the signature because it is part of the caller's
+    hit geometry, but it is deliberately not used as the activation
+    half-width.  The wider platic orb and Morin's short partile activation
+    period are different concepts.
     """
     try:
-        from datetime import datetime, timedelta
         t0 = datetime.fromisoformat(str(ts_iso).replace('Z','+00:00'))
-        if not dt_days:
+        if t0.tzinfo is None:
+            t0 = t0.replace(tzinfo=timezone.utc)
+        else:
+            t0 = t0.astimezone(timezone.utc)
+        step_days = float(dt_days)
+        current_sep = abs(float(sep_now))
+        future_sep = abs(float(sep_future))
+        if (
+            not math.isfinite(step_days)
+            or not math.isfinite(current_sep)
+            or not math.isfinite(future_sep)
+            or step_days <= 0.0
+            or float(max_orb) <= 0.0
+        ):
             return None
-        rate = (float(sep_future) - float(sep_now)) / float(dt_days)
+        rate = (future_sep - current_sep) / step_days
         rate_abs = abs(rate)
-        if rate_abs < 1e-6:
-            a = (t0 - timedelta(days=3)).isoformat()
-            b = (t0 + timedelta(days=3)).isoformat()
-            return {'start': a, 'end': b}
-        center = t0 + timedelta(days=(-float(sep_now) / rate))
-        width_days = float(max_orb) / rate_abs
-        # Clamp pathological widths
-        width_days = max(0.0, min(width_days, 45.0))
-        start = (center - timedelta(days=width_days)).isoformat()
-        end = (center + timedelta(days=width_days)).isoformat()
-        return {'start': start, 'end': end}
+        if not math.isfinite(rate_abs) or rate_abs < 1e-6:
+            return None
+        center_offset_days = -current_sep / rate
+        if not math.isfinite(center_offset_days):
+            return None
+        center = t0 + timedelta(days=center_offset_days)
+        half_width = timedelta(hours=6 if str(transiting or '') == 'Moon' else 24)
+        return {
+            'start': (center - half_width).isoformat(),
+            'end': (center + half_width).isoformat(),
+            'exact_estimate': center.isoformat(),
+            'basis': 'morin_partile_activation',
+        }
     except Exception:
         return None
 
@@ -1456,6 +1484,13 @@ def scan_morin_transits_window(
         # parse start/end
         sdt = datetime.fromisoformat(start_iso.replace('Z', '+00:00'))
         edt = datetime.fromisoformat(end_iso.replace('Z', '+00:00'))
+        # Naive API inputs are defined as UTC, while explicitly offset inputs
+        # retain their display offset.  Both become aware and therefore compare
+        # safely, without rewriting timestamps expected by replay/export clients.
+        if sdt.tzinfo is None:
+            sdt = sdt.replace(tzinfo=timezone.utc)
+        if edt.tzinfo is None:
+            edt = edt.replace(tzinfo=timezone.utc)
         if edt <= sdt:
             return []
     except Exception:
@@ -1904,7 +1939,12 @@ def compute_morin_transits_to_natal(
                     row['quality'] = 'mixed'
                 try:
                     row['effectiveWindow'] = _estimate_effective_window(
-                        transit_timestamp_iso, float(sep), float(sep_future), float(dt_days), float(combined)
+                        transit_timestamp_iso,
+                        float(sep),
+                        float(sep_future),
+                        float(dt_days),
+                        float(combined),
+                        A,
                     ) or None
                 except Exception:
                     row['effectiveWindow'] = None
@@ -3589,7 +3629,7 @@ def enrich_hits_with_concordance(
                 'lunar_score': round(lr_score, 3),
                 'solar_match': round(sr_score, 3),
                 'lunar_match': round(lr_score, 3),
-                'confidence': round(max(0.05, min(0.99, overall_norm)), 2),
+                'confidence': round(max(0.0, min(1.0, overall_norm)), 2),
                 'multipliers': {
                     'partile': round(partile_mult, 3),
                     'multiple_transits': round(multi_mult, 3),
@@ -4058,7 +4098,7 @@ def enrich_hits_with_concordance(
                     pass
             row['concordance']['overall_score'] = round(final_score, 1)
             row['concordance']['overall_concordance'] = round(overall_norm, 3)
-            row['concordance']['confidence'] = round(max(0.05, min(0.99, overall_norm)), 2)
+            row['concordance']['confidence'] = round(max(0.0, min(1.0, overall_norm)), 2)
             row['concordance']['threshold_met'] = final_score >= 150.0
             row['laws_applied'] = laws_applied
             if final_score <= 0.0:
@@ -5684,7 +5724,7 @@ def enrich_hits_with_concordance(
 
             # Event type from enriched keywords (keep current coded keywords)
             event_candidates = [
-                'promotion','recognition','business_deal','contract_signing','communication_breakthrough','romantic_connection','romance','marriage','reconciliation',
+                'promotion','recognition','business_deal','contract_signing','communication_breakthrough','romantic_connection','romance','marriage','reconciliation','relationship_conflict',
                 'financial_gain','financial_loss','injury_risk','accident_risk','public_recognition','parties_celebrations','opportunity_received',
                 'protection_granted','delay_obstruction','illness_chronic','fall_from_power','authority_problems','domestic_happiness','family_joy',
                 'domestic_disruption','family_problems','miscommunication','excess_problems','structure_established','discipline_rewarded','authority_earned',
@@ -5724,7 +5764,12 @@ def enrich_hits_with_concordance(
             else:
                 event_search_order = event_candidates
             event_type = _select_row_event_type(row, life_area, kw_all, event_search_order)
-            confidence = round(max(0.05, min(0.99, overall_norm)), 2)
+            confidence = round(max(0.0, min(1.0, overall_norm)), 2)
+            try:
+                from nlg_templates import prediction_evidence_level
+                evidence_level = prediction_evidence_level(row)
+            except Exception:
+                evidence_level = 'theme_only'
             prediction_label = None
             try:
                 transiting_label = str(row.get('transiting') or '')
@@ -5740,6 +5785,9 @@ def enrich_hits_with_concordance(
                 'label': prediction_label,
                 'description': None,
                 'confidence': confidence,
+                'confidenceBasis': 'morin_rule_concordance',
+                'evidenceLevel': evidence_level,
+                'isEventPrediction': bool(event_type) and evidence_level in {'supported', 'corroborated'},
                 'score': row.get('prediction_score'),
                 'tags': row.get('prediction_tags', []),
             }
@@ -6442,10 +6490,14 @@ def _compute_hits_with_ctx(
                 orbA = _orb_for(A, include_modern)
                 if ttype == 'planet':
                     orbB = _orb_for(B, natal_include_modern)
-                    combined = orbA + orbB
+                    moietyA = orbA / 2.0
+                    moietyB = orbB / 2.0
+                    combined = moietyA + moietyB
                 else:
                     orbB = 0.0
-                    combined = orbA
+                    moietyA = orbA / 2.0
+                    moietyB = 0.0
+                    combined = moietyA
                 if sep > combined:
                     continue
                 # Tight cap for (contra-)antiscia targets
@@ -6467,7 +6519,7 @@ def _compute_hits_with_ctx(
                 if ttype == 'planet':
                     sd_sum += _semi_diameter_deg(B, jd0)
                 partile = sep <= sd_sum
-                complete_platic = (sep <= (min(orbA, orbB) if ttype == 'planet' else orbA))
+                complete_platic = (sep <= (min(moietyA, moietyB) if ttype == 'planet' else moietyA))
 
                 # Phase via forward step for A (B fixed)
                 lonA2, latA2 = fut_ll[A]
@@ -6508,7 +6560,12 @@ def _compute_hits_with_ctx(
                     row['quality'] = 'mixed'
                 try:
                     row['effectiveWindow'] = _estimate_effective_window(
-                        transit_timestamp_iso, float(sep), float(sep_future), float(dt_days), float(combined)
+                        transit_timestamp_iso,
+                        float(sep),
+                        float(sep_future),
+                        float(dt_days),
+                        float(combined),
+                        A,
                     ) or None
                 except Exception:
                     row['effectiveWindow'] = None

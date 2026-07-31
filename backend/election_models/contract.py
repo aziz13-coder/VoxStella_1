@@ -8,7 +8,7 @@ from .common import (
     ANGULAR_HOUSES, SUCCEDENT_HOUSES, CADENT_HOUSES,
     TRAD_RULER,
     compute_morin_combustion,
-    _sign_from_lon, _house_cusps, _collect_planets, _get_aspects_list, _house_from_lon, _ang_sep,
+    _sign_from_lon, _house_cusps, _collect_planets, _get_aspects_list, _house_from_lon, _ang_sep, _is_waxing,
 )
 
 
@@ -49,7 +49,10 @@ def score_contract_election(
     else:
         prefer_fixed_asc = bool(pref_raw)
     saturn_binding_ok = bool(opts.get('saturn_binding_ok', True))
-    min_mercury_direct_days = int(opts.get('min_mercury_direct_days', 0) or 0)
+    min_mercury_direct_days = max(
+        0,
+        int(opts.get('min_mercury_direct_days', 0) or 0),
+    )
     contract_mode = str(opts.get('contract_mode') or '').strip().lower()  # '', 'new', 'renew', 'amend', 'finalize'
 
     # Combustion map (uses timestamp when provided)
@@ -104,17 +107,23 @@ def score_contract_election(
                     score -= 5.0; tags.append('Deal-breaker: Mercury retrograde (new contracts)')
             else:
                 tags.append('Mercury direct')
-                # Optional post-station buffer is not computed here; caller can filter by time
                 if min_mercury_direct_days:
-                    # Use speed as a coarse proxy for proximity to station; penalize very slow motion
+                    station_age_days = opts.get('mercury_direct_station_age_days')
                     try:
-                        spd = float(me.get('speed')) if me.get('speed') is not None else None
+                        station_age_days = float(station_age_days)
                     except Exception:
-                        spd = None
-                    if spd is not None and spd < 0.2:
-                        score -= 0.8; tags.append('Mercury near station (speed low)')
+                        station_age_days = None
+                    if station_age_days is None:
+                        score -= 1.0
+                        tags.append('Mercury direct-station age unavailable')
+                    elif station_age_days < float(min_mercury_direct_days):
+                        score = min(score - 12.0, -12.0)
+                        tags.append(
+                            f"Excluded: Mercury only {station_age_days:.2f}d past direct station "
+                            f"(minimum {min_mercury_direct_days}d)"
+                        )
                     else:
-                        tags.append(f"Mercury direct ≥{min_mercury_direct_days}d (proxy)")
+                        tags.append(f"Mercury direct for {station_age_days:.2f}d")
             m_sign = str(me.get('sign') or _sign_from_lon(float(me.get('longitude') or 0.0)))
             if m_sign in ("Gemini","Virgo"):
                 score += 2.0; tags.append('Mercury dignified')
@@ -180,10 +189,11 @@ def score_contract_election(
                 pass
             # Waxing preferred
             if s and s.get('longitude') is not None and m.get('longitude') is not None:
-                sep = abs((((float(m.get('longitude')) - float(s.get('longitude'))) + 180.0) % 360.0) - 180.0)
-                waxing = True if sep < 180.0 else False
-                if waxing:
+                waxing = _is_waxing(float(m.get('longitude')), float(s.get('longitude')))
+                if waxing is True:
                     score += 0.5; tags.append('Moon waxing')
+                elif waxing is False:
+                    tags.append('Moon waning')
     except Exception:
         pass
 

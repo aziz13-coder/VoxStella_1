@@ -1,13 +1,15 @@
 # -*- coding: utf-8 -*-
 """
-Event Keywords Helper (non-intrusive)
+Event-keyword catalog helper
 
-Reads event keywords from 'event_keywords_dictionary(1).md' and exposes a
-single function to augment an existing list of event tokens with known
-synonyms/related keywords. This does NOT change event detection logic — it
-only adds extra tokens to lists you already build.
+Reads the bundled event-keyword catalog and augments existing tokens with
+known related terms. When canonical promotion is enabled, it may also classify
+an unambiguous direct term as one canonical event.
 
-Safe behavior: if the file is missing or parsing fails, it returns the input
+Canonical promotion is conservative: only an unambiguous, directly supplied
+catalog term may promote a canonical event. Expanded terms do not cascade.
+
+Safe behavior: if the file is missing or parsing fails, the input is returned
 unchanged.
 """
 
@@ -153,14 +155,15 @@ def _load_map() -> Dict[str, Set[str]]:
 
 
 def merge_event_synonyms(tokens: List[str], *, promote_canonical: Optional[bool] = None) -> List[str]:
-    """Return tokens + synonyms for any recognized event tokens.
+    """Return tokens plus catalog terms for recognized events.
 
     - Input tokens are preserved as-is, order maintained.
-    - Added synonyms are appended, deduplicated (case-insensitive).
-    - Only expands tokens that match event keys in the dictionary.
-    - If promote_canonical is True (or ENV EVENT_KEYWORDS_PROMOTE on),
-      then if any token matches a synonym or keyword list for an event,
-      the canonical event token is appended as well.
+    - Added terms are appended in deterministic order and deduplicated
+      case-insensitively.
+    - Only canonical event tokens expand into their catalog terms.
+    - If canonical promotion is enabled, an original non-canonical token
+      promotes an event only when it belongs to exactly one catalog entry.
+      Generated terms never cascade into additional events.
     """
     evmap = _load_map()
     if not evmap or not tokens:
@@ -173,30 +176,43 @@ def merge_event_synonyms(tokens: List[str], *, promote_canonical: Optional[bool]
             promote_canonical = False
     out: List[str] = []
     seen: Set[str] = set()
+    original_keys: List[str] = []
     # preserve originals
     for t in tokens:
-        if t and t.lower() not in seen:
-            out.append(t)
-            seen.add(t.lower())
-    # expand for known events
-    for t in tokens:
+        if not isinstance(t, str) or not t:
+            continue
         key = t.lower()
+        original_keys.append(key)
+        if key not in seen:
+            out.append(t)
+            seen.add(key)
+    # expand for known events
+    for key in original_keys:
         if key in evmap:
-            for syn in evmap.get(key, set()):
+            for syn in sorted(evmap.get(key, set())):
                 if syn and syn not in seen:
                     out.append(syn)
                     seen.add(syn)
-    # optional canonical promotion: if any token matches a synonym set, add the canonical event token
+    # A generic term such as "fight", "loss", or "fall" may occur under
+    # several events. Choosing one here would manufacture specificity that the
+    # input did not contain, so only unique direct matches can be promoted.
     if promote_canonical:
-        for ev, toks in evmap.items():
-            try:
-                # if any token already present (original or synonym) appears in this event's token set
-                if any(tok in seen for tok in (tok.lower() for tok in toks)):
-                    if ev.lower() not in seen:
-                        out.append(ev)
-                        seen.add(ev.lower())
-            except Exception:
+        token_events: Dict[str, Set[str]] = {}
+        for event, event_tokens in evmap.items():
+            for token in event_tokens:
+                token_events.setdefault(token.lower(), set()).add(event.lower())
+        for key in original_keys:
+            # A canonical input already identifies its event. Do not reinterpret
+            # it through a different event's related terms.
+            if key in evmap:
                 continue
+            matching_events = token_events.get(key, set())
+            if len(matching_events) != 1:
+                continue
+            event = next(iter(matching_events))
+            if event not in seen:
+                out.append(event)
+                seen.add(event)
     return out
 
 

@@ -36,11 +36,13 @@ The current UI supports these election models:
 - Marriage
 - Surgery
 - Business
+- Estate
 - Contract
 - Journey
 - Haircut
 - Beautification
 - Conception
+- Lunar Fertility Windows
 - Viral Publish
 - Battle
 - Legal Action
@@ -79,20 +81,28 @@ This matters because some election models support natal overlay features such as
 
 The `Include SR/LR weighting` toggle is only available when a natal saved snap is active.
 
+Natal overlay remains optional in the shared Election workflow. Specialized
+participant-relative models still require the saved charts that define their
+calculation: Marriage Beta uses two participant snaps, Business Beta at least
+one, Estate one, and Lunar Fertility Windows a natal phase anchor.
+
 ## Model-Specific Options
 
 Different models add different controls.
 
 Examples from the current UI include:
 
+- `Marriage`: Alpha or line-aware Beta; Beta adds two participant snaps and period extraction
 - `Surgery`: procedure type, body part, lunation screen, fixed-star screening
-- `Business`: business mode, commerce emphasis, lunation screen, weekday weighting, fixed stars
+- `Business`: Alpha business options or line-aware Beta participant/extraction controls
+- `Estate`: buy or sell, participant snap, and line-aware period extraction
 - `Contract`: context, fixed Asc preference, Saturn binding option, Mercury-direct delay, fixed stars
 - `Journey`: long or short journey and optional fixed-star screening
 - `Battle`: action focus, traditional timing, fixed-star screening
-- `Haircut`: balanced, growth, or longer-lasting focus
+- `Haircut`: trim or complete shave, plus balanced, growth, or longer-lasting focus
 - `Beautification`: procedure type, body parts, sign overrides, timing and fixed-star toggles
 - `Conception`: fertility guidance, optional sex focus, timing and fixed-star toggles
+- `Lunar Fertility Windows`: phase/antiphase mode and a visual inspection level
 - `Viral Publish`: natal overlay, timing, and fixed-star toggles
 - `Legal Action`: filing, response, or counter-filing, plus timing and fixed-star toggles
 
@@ -134,6 +144,11 @@ Each result row shows:
 - a short `CAUTIONS` summary when present
 - a `Jump` button
 
+The score ranks candidates within the selected model and scan. It is not a
+shared percentage scale, so scores from different models are not comparable.
+The metadata panel identifies the model version, source profile, scan mode,
+and whether optional natal context was applied.
+
 The result list is meant to help you compare the short-ranked candidates quickly before loading one back into the main Astro Clock workspace.
 
 ## Jumping Back Into Astro Clock
@@ -158,7 +173,9 @@ The export includes:
 - score
 - tags summary
 
-This is a lightweight export of the current ranked result list, not a full narrative report.
+This is a lightweight export of the current ranked result list, not a full
+narrative report. Line-aware models also expose their extracted periods in the
+results workflow.
 
 ## Practical Workflow
 
@@ -178,3 +195,8 @@ For most users, the cleanest Election workflow is:
 - Not every model requires a saved snap.
 - A saved snap becomes important when you want natal promise or SR/LR style weighting.
 - The result list is a ranked shortlist. Use `Jump` and the main Astro Clock workspace when you want to inspect a chosen candidate more fully.
+- Surgery, Conception, and Lunar Fertility are traditional symbolic timing
+  tools, not medical advice, fertility diagnosis, ovulation estimation, or
+  fetal-sex prediction.
+- Technical model and source details are recorded in
+  `docs/ELECTION_MODEL_REFERENCE_2026-07-31.md`.

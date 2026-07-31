@@ -147,8 +147,12 @@ class TraditionalHoraryQuestionAnalyzer:
     
     # NOTE: Duplicate methods removed - using enhanced versions below
     
-    def _parse_question_timeframe(self, question: str) -> Dict[str, Any]:
-        """Parse timeframe constraints from question text"""
+    def _parse_question_timeframe(
+        self,
+        question: str,
+        reference_datetime: Any = None,
+    ) -> Dict[str, Any]:
+        """Parse timeframe constraints relative to the chart's local datetime."""
         import re
         from datetime import datetime, timedelta
         import calendar
@@ -188,7 +192,12 @@ class TraditionalHoraryQuestionAnalyzer:
             return {"has_timeframe": False, "type": None, "end_date": None, "window_days": None}
         
         # Calculate end date and window_days for timeframes
-        now = datetime.now()
+        now = reference_datetime or datetime.now()
+        # Calendar phrases such as "this month" refer to local wall time.  Drop
+        # timezone metadata before combining the reference with naive calendar
+        # boundaries below.
+        if getattr(now, "tzinfo", None) is not None:
+            now = now.replace(tzinfo=None)
         end_date = None
         window_days = None
         
@@ -215,10 +224,11 @@ class TraditionalHoraryQuestionAnalyzer:
         elif "this_month" in detected_timeframes:
             # End of current month
             if now.month == 12:
-                end_date = datetime(now.year + 1, 1, 1) - timedelta(days=1)
+                next_month = datetime(now.year + 1, 1, 1)
             else:
-                end_date = datetime(now.year, now.month + 1, 1) - timedelta(days=1)
-            window_days = (end_date - now).days
+                next_month = datetime(now.year, now.month + 1, 1)
+            end_date = next_month - timedelta(microseconds=1)
+            window_days = max(1, (next_month - now).days + 1)
         elif "this_week" in detected_timeframes:
             # End of current week (Sunday)
             days_until_sunday = (6 - now.weekday()) % 7
@@ -265,7 +275,11 @@ class TraditionalHoraryQuestionAnalyzer:
             "patterns_matched": detected_timeframes
         }
     
-    def analyze_question(self, question: str) -> Dict[str, Any]:
+    def analyze_question(
+        self,
+        question: str,
+        reference_datetime: Any = None,
+    ) -> Dict[str, Any]:
         """Analyze question to determine significators using traditional methods"""
 
         question_lower = question.lower()
@@ -279,7 +293,10 @@ class TraditionalHoraryQuestionAnalyzer:
         third_person_analysis = self._detect_third_person_question(question_lower)
         
         # ENHANCEMENT: Parse timeframe from question
-        timeframe_analysis = self._parse_question_timeframe(question_lower)
+        timeframe_analysis = self._parse_question_timeframe(
+            question_lower,
+            reference_datetime=reference_datetime,
+        )
         
         # Determine question type and intent
         question_type, matched_pattern = self._determine_question_type(question_lower)

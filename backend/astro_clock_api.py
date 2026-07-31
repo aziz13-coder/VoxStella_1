@@ -111,6 +111,10 @@ astro_clock_bp = Blueprint('astro_clock', __name__, url_prefix='/api/astro-clock
 
 _STREAM_MAX_STEPS = max(100, int(os.environ.get("VOX_STELLA_STREAM_MAX_STEPS", "5000")))
 _STREAM_MAX_WINDOW_HOURS = max(1.0, float(os.environ.get("VOX_STELLA_STREAM_MAX_WINDOW_HOURS", "720")))
+_ELECTION_REFERENCE_MAX_STEPS = max(
+    _STREAM_MAX_STEPS,
+    int(os.environ.get("VOX_STELLA_ELECTION_REFERENCE_MAX_STEPS", "43201")),
+)
 _STREAM_BUFFER_ROWS = max(50, int(os.environ.get("VOX_STELLA_STREAM_BUFFER_ROWS", "750")))
 _STREAM_BUFFER_PREDICTIONS = max(50, int(os.environ.get("VOX_STELLA_STREAM_BUFFER_PREDICTIONS", "500")))
 _TRANSIT_WINDOW_PREDICTION_HITS_PER_TYPE = max(
@@ -158,10 +162,34 @@ _ASTRO_PERF_REQUEST: ContextVar[Optional[str]] = ContextVar('astro_perf_request'
 _BUSINESS_BETA_EXTRACTION_LEVEL_DEFAULT = 67.0
 _BUSINESS_BETA_EXTRACTION_MODES = {'total', 'detail'}
 _BUSINESS_BETA_EXTRACTION_SCOPES = {'all', 'current', 'selected'}
+_MARRIAGE_BETA_EXTRACTION_LEVEL_DEFAULT = 67.0
+_MARRIAGE_BETA_EXTRACTION_MODES = _BUSINESS_BETA_EXTRACTION_MODES
+_MARRIAGE_BETA_EXTRACTION_SCOPES = _BUSINESS_BETA_EXTRACTION_SCOPES
 _ESTATE_EXTRACTION_LEVEL_DEFAULT = 67.0
 _ESTATE_EXTRACTION_MODES = _BUSINESS_BETA_EXTRACTION_MODES
 _ESTATE_EXTRACTION_SCOPES = _BUSINESS_BETA_EXTRACTION_SCOPES
 _LUNAR_FERTILITY_LEVEL_DEFAULT = 33.0
+_ELECTION_MATTER_ALIASES = {
+    'marriage': 'marriage',
+    'surgery': 'surgery',
+    'business': 'business',
+    'estate': 'estate',
+    'contract': 'contract',
+    'journey': 'journey',
+    'haircut': 'haircut',
+    'beautification': 'beautification',
+    'conception': 'conception',
+    'fertility': 'conception',
+    'lunar_fertility': 'lunar_fertility',
+    'viral': 'viral',
+    'viral_content': 'viral',
+    'viral-content': 'viral',
+    'viralpublish': 'viral',
+    'battle': 'battle',
+    'combat': 'battle',
+    'war': 'battle',
+    'legal': 'legal',
+}
 _BACKGROUND_STOP = object()
 
 
@@ -450,7 +478,13 @@ def _missing_volatile_session_response(workflow: str):
     }), 404
 
 
-def _validate_transit_scan_bounds(start_dt: datetime, end_dt: datetime, step_minutes: int) -> Tuple[Optional[int], Optional[str]]:
+def _validate_transit_scan_bounds(
+    start_dt: datetime,
+    end_dt: datetime,
+    step_minutes: int,
+    *,
+    max_steps: Optional[int] = None,
+) -> Tuple[Optional[int], Optional[str]]:
     """Validate transit scan ranges to prevent unbounded CPU usage."""
     if end_dt <= start_dt:
         return None, "End must be after start"
@@ -465,16 +499,28 @@ def _validate_transit_scan_bounds(start_dt: datetime, end_dt: datetime, step_min
         )
 
     total_steps = int(span_seconds // (step_minutes * 60)) + 1
-    if total_steps > _STREAM_MAX_STEPS:
+    effective_max_steps = _STREAM_MAX_STEPS if max_steps is None else max(1, int(max_steps))
+    if total_steps > effective_max_steps:
         return None, (
-            f"Requested scan would process {total_steps} steps; max is {_STREAM_MAX_STEPS}"
+            f"Requested scan would process {total_steps} steps; max is {effective_max_steps}"
         )
     return max(1, total_steps), None
 
 
-def _validate_stream_scan_bounds(start_dt: datetime, end_dt: datetime, step_minutes: int) -> Tuple[Optional[int], Optional[str]]:
+def _validate_stream_scan_bounds(
+    start_dt: datetime,
+    end_dt: datetime,
+    step_minutes: int,
+    *,
+    max_steps: Optional[int] = None,
+) -> Tuple[Optional[int], Optional[str]]:
     """Backward-compatible wrapper for callers that still use the old name."""
-    return _validate_transit_scan_bounds(start_dt, end_dt, step_minutes)
+    return _validate_transit_scan_bounds(
+        start_dt,
+        end_dt,
+        step_minutes,
+        max_steps=max_steps,
+    )
 
 
 def _parse_transit_scan_datetime(value: Any, label: str) -> Tuple[Optional[datetime], Optional[str]]:
@@ -487,6 +533,51 @@ def _parse_transit_scan_datetime(value: Any, label: str) -> Tuple[Optional[datet
         return parsed, None
     except Exception:
         return None, f"Invalid {label}"
+
+
+def _parse_transit_context_ranges(
+    raw_ranges: Iterable[Tuple[str, Any, Any]],
+) -> Tuple[List[Tuple[datetime, datetime]], Optional[str]]:
+    """Validate optional transit context windows as timezone-aware instants."""
+    parsed_ranges: List[Tuple[datetime, datetime]] = []
+    for label, raw_start, raw_end in raw_ranges:
+        has_start = raw_start not in (None, "", "null")
+        has_end = raw_end not in (None, "", "null")
+        if not has_start and not has_end:
+            continue
+        if not (has_start and has_end):
+            return [], f"{label}_start and {label}_end must be provided together"
+        start_dt, start_error = _parse_transit_scan_datetime(raw_start, f"{label}_start")
+        if start_error:
+            return [], start_error
+        end_dt, end_error = _parse_transit_scan_datetime(raw_end, f"{label}_end")
+        if end_error:
+            return [], end_error
+        assert start_dt is not None and end_dt is not None
+        if end_dt <= start_dt:
+            return [], f"{label}_end must be after {label}_start"
+        parsed_ranges.append((start_dt, end_dt))
+    return parsed_ranges, None
+
+
+def _filter_transit_series_to_context_ranges(
+    series: List[Dict[str, Any]],
+    context_ranges: List[Tuple[datetime, datetime]],
+) -> List[Dict[str, Any]]:
+    """Keep rows inside at least one enabled, validated context window."""
+    if not context_ranges:
+        return series
+    filtered: List[Dict[str, Any]] = []
+    for row in series:
+        row_dt, row_error = _parse_transit_scan_datetime(
+            row.get("timestamp") if isinstance(row, dict) else None,
+            "series timestamp",
+        )
+        if row_error or row_dt is None:
+            continue
+        if any(start_dt <= row_dt <= end_dt for start_dt, end_dt in context_ranges):
+            filtered.append(row)
+    return filtered
 
 
 def _parse_transit_scan_step(value: Any, default: int = 60) -> Tuple[Optional[int], Optional[str]]:
@@ -520,6 +611,156 @@ def _parse_transit_limit(value: Any, default: int = 40, max_value: int = 200) ->
     if limit < 1:
         return None, "limit must be >= 1"
     return min(limit, max_value), None
+
+
+def _parse_election_matter(value: Any) -> Tuple[Optional[str], Optional[str]]:
+    raw = str(value or 'marriage').strip().lower()
+    matter = _ELECTION_MATTER_ALIASES.get(raw)
+    if matter is None:
+        allowed = ', '.join(sorted(set(_ELECTION_MATTER_ALIASES.values())))
+        return None, f"Unknown election matter '{raw}'. Allowed matters: {allowed}"
+    return matter, None
+
+
+def _election_reference_model(
+    matter: str,
+    marriage_algorithm: str,
+    business_algorithm: str,
+) -> bool:
+    return bool(
+        (matter == 'marriage' and marriage_algorithm == 'beta')
+        or (matter == 'business' and business_algorithm == 'beta')
+        or matter == 'estate'
+    )
+
+
+def _election_model_metadata(
+    matter: str,
+    *,
+    marriage_algorithm: str = 'alpha',
+    business_algorithm: str = 'alpha',
+    natal_context_applied: bool = False,
+    reference_parity: bool = False,
+    step_minutes: int = 60,
+) -> Dict[str, Any]:
+    if matter == 'marriage':
+        variant = 'beta' if marriage_algorithm == 'beta' else 'alpha'
+    elif matter == 'business':
+        variant = 'beta' if business_algorithm == 'beta' else 'alpha'
+    else:
+        variant = 'default'
+    model_id = f'{matter}:{variant}'
+    source_profiles = {
+        'marriage:alpha': ('historical-primary', 'Morin Book 26 + Bonatti Treatise 7'),
+        'marriage:beta': ('recovered-reference', 'Galaxy Electioner marriage workflow'),
+        'surgery:default': ('historical-primary', 'Morin Book 26 + Bonatti Treatise 7'),
+        'business:alpha': ('traditional-synthesis', 'Morin-derived business election synthesis'),
+        'business:beta': ('recovered-reference', 'Galaxy Electioner business workflow'),
+        'estate:default': ('recovered-reference', 'Galaxy Electioner estate workflow'),
+        'contract:default': ('traditional-synthesis', 'traditional Mercury/Moon/7th-house synthesis'),
+        'journey:default': ('historical-primary', 'Morin Book 26 + Bonatti Treatise 7'),
+        'haircut:default': ('historical-primary', 'Bonatti Treatise 7 haircut rules'),
+        'beautification:default': ('modern-heuristic', 'modern cosmetic-election analogy'),
+        'conception:default': ('traditional-synthesis', 'Bonatti Treatise 7 conception rules'),
+        'lunar_fertility:default': ('recovered-reference', 'Galaxy SkyLiner Jonas workflow'),
+        'viral:default': ('modern-heuristic', 'modern house-signification analogy'),
+        'battle:default': ('historical-primary', 'Morin Book 26 battle rules'),
+        'legal:default': ('historical-primary', 'Bonatti Treatise 7 legal-contest rules'),
+    }
+    source_profile, source_basis = source_profiles.get(
+        model_id,
+        ('traditional-synthesis', 'repository election synthesis'),
+    )
+    return {
+        'id': model_id,
+        'version': '2026.07.31.1',
+        'source_profile': source_profile,
+        'source_basis': source_basis,
+        'score_semantics': 'ordinal_within_model_run',
+        'cross_model_comparable': False,
+        'natal_mode': 'optional',
+        'natal_context_applied': bool(natal_context_applied),
+        'scan_mode': 'reference_1m' if reference_parity else 'standard',
+        'step_minutes': int(step_minutes),
+        'medical_use': False,
+    }
+
+
+def _mercury_direct_station_times(
+    start_dt: datetime,
+    end_dt: datetime,
+) -> List[datetime]:
+    """Return Mercury direct-station instants needed by a contract scan.
+
+    The search starts 120 days before the window so a direct Mercury at the
+    first scan point still has an exact station age.
+    """
+    try:
+        swe = require_swisseph()
+    except Exception:
+        return []
+    start_utc = (
+        start_dt.replace(tzinfo=timezone.utc)
+        if start_dt.tzinfo is None
+        else start_dt.astimezone(timezone.utc)
+    )
+    end_utc = (
+        end_dt.replace(tzinfo=timezone.utc)
+        if end_dt.tzinfo is None
+        else end_dt.astimezone(timezone.utc)
+    )
+    search_start = start_utc - timedelta(days=120)
+    search_end = end_utc + timedelta(days=1)
+    hour = (
+        search_start.hour
+        + search_start.minute / 60.0
+        + search_start.second / 3600.0
+    )
+    try:
+        start_jd = swe.julday(
+            search_start.year,
+            search_start.month,
+            search_start.day,
+            hour,
+            getattr(swe, 'GREG_CAL', 1),
+        )
+        span_days = (search_end - search_start).total_seconds() / 86400.0
+        end_jd = start_jd + span_days
+        flags = getattr(swe, 'FLG_SWIEPH', 2) | getattr(swe, 'FLG_SPEED', 256)
+        mercury_id = getattr(swe, 'MERCURY')
+        path = _resolve_synastry_ephemeris_path()
+        stations: List[datetime] = []
+        step_days = 0.25
+        with swisseph_lock():
+            with swisseph_ephemeris_path(path, swe_module=swe):
+                previous_jd = start_jd
+                previous_speed = float(swe.calc_ut(previous_jd, mercury_id, flags)[0][3])
+                current_jd = previous_jd + step_days
+                while current_jd <= end_jd:
+                    current_speed = float(swe.calc_ut(current_jd, mercury_id, flags)[0][3])
+                    if previous_speed < 0.0 <= current_speed:
+                        left = previous_jd
+                        right = current_jd
+                        left_speed = previous_speed
+                        for _ in range(24):
+                            middle = (left + right) / 2.0
+                            middle_speed = float(swe.calc_ut(middle, mercury_id, flags)[0][3])
+                            if left_speed < 0.0 <= middle_speed:
+                                right = middle
+                            else:
+                                left = middle
+                                left_speed = middle_speed
+                        station_jd = (left + right) / 2.0
+                        stations.append(
+                            search_start + timedelta(days=station_jd - start_jd)
+                        )
+                    previous_jd = current_jd
+                    previous_speed = current_speed
+                    current_jd += step_days
+        return stations
+    except Exception:
+        logger.exception('Unable to calculate Mercury direct-station timeline')
+        return []
 
 
 def _validate_transit_scan_request_bounds(
@@ -719,6 +960,14 @@ def _parse_business_beta_level_percent(raw_value: Any) -> float:
     if value > 100.0:
         return 100.0
     return value
+
+
+def _parse_marriage_beta_level_percent(raw_value: Any) -> float:
+    try:
+        value = float(raw_value)
+    except Exception:
+        return _MARRIAGE_BETA_EXTRACTION_LEVEL_DEFAULT
+    return max(0.0, min(100.0, value))
 
 
 def _parse_estate_level_percent(raw_value: Any) -> float:
@@ -975,6 +1224,29 @@ def _extract_estate_periods(
         selected_line_ids=selected_line_ids,
         row_prefix='estate',
         period_id_prefix='estate-period',
+    )
+
+
+def _extract_marriage_beta_periods(
+    rows: List[Dict[str, Any]],
+    *,
+    step_td: timedelta,
+    display_mode: str,
+    scope: str,
+    level_percent: float,
+    current_line_id: Optional[str] = None,
+    selected_line_ids: Optional[Iterable[str]] = None,
+) -> Dict[str, Any]:
+    return _extract_business_beta_periods(
+        rows,
+        step_td=step_td,
+        display_mode=display_mode,
+        scope=scope,
+        level_percent=level_percent,
+        current_line_id=current_line_id,
+        selected_line_ids=selected_line_ids,
+        row_prefix='marriage_beta',
+        period_id_prefix='marriage-beta-period',
     )
 
 
@@ -1559,6 +1831,8 @@ def _prediction_domain_alignment(pred: Dict[str, Any]) -> float:
 
 def _prediction_crisis_focus(pred: Dict[str, Any]) -> float:
     event_type = str(pred.get('event_type') or '').strip().lower()
+    if event_type and not _prediction_is_supported_event(pred, event_type):
+        return 0.0
     life_area = _prediction_life_area(pred)
     if event_type not in _CRISIS_EVENT_TYPES or life_area not in _CRISIS_LIFE_AREAS:
         return 0.0
@@ -1573,6 +1847,21 @@ def _prediction_crisis_focus(pred: Dict[str, Any]) -> float:
     if direction:
         focus += 0.2
     return round(min(1.0, focus), 3)
+
+
+def _prediction_is_supported_event(pred: Dict[str, Any], event_type: Optional[str] = None) -> bool:
+    """Respect explicit evidence metadata while preserving legacy inputs."""
+    raw = pred.get('is_event_prediction')
+    if raw is None:
+        raw = pred.get('isEventPrediction')
+    if isinstance(raw, bool):
+        return raw
+    if raw is not None:
+        return str(raw).strip().lower() in {'1', 'true', 'yes', 'on'}
+    evidence_level = str(pred.get('evidence_level') or pred.get('evidenceLevel') or '').strip().lower()
+    if evidence_level:
+        return evidence_level in {'supported', 'corroborated'}
+    return bool(str(event_type or pred.get('event_type') or '').strip())
 
 
 def _prediction_sort_key(pred: Dict[str, Any]) -> Tuple[float, float, float, float, float, float, str]:
@@ -1596,7 +1885,11 @@ def _prediction_sort_key(pred: Dict[str, Any]) -> Tuple[float, float, float, flo
     event_type = str(pred.get('event_type') or '').strip()
     domain_alignment = _prediction_domain_alignment(pred)
     crisis_focus = _prediction_crisis_focus(pred)
-    substantive_event = 1.0 if (event_type and (score > 0.0 or probability > 0.0 or significance > 0.0 or det_strength > 0.0)) else 0.0
+    substantive_event = 1.0 if (
+        event_type
+        and _prediction_is_supported_event(pred, event_type)
+        and (score > 0.0 or probability > 0.0 or significance > 0.0 or det_strength > 0.0)
+    ) else 0.0
     return (
         -domain_alignment,
         -crisis_focus,
@@ -1648,6 +1941,7 @@ def _predictor_occurrence_support(pred: Dict[str, Any]) -> float:
     event_type = str(pred.get('event_type') or '').strip()
     substantive_event = 1.0 if (
         event_type
+        and _prediction_is_supported_event(pred, event_type)
         and (
             score > 0.0
             or probability > 0.0
@@ -2018,7 +2312,7 @@ def _prediction_from_hit(hit: Dict[str, Any], timestamp: str) -> Dict[str, Any]:
     target = str(hit.get('target_label') or hit.get('natal') or '')
     event_type = _derive_event_type(hit, pred)
     life_area = pred.get('lifeArea') or hit.get('life_area')
-    probability = float(conc.get('overall_concordance') or 0.0)
+    rule_support = float(conc.get('overall_concordance') or 0.0)
     score_val = pred.get('score')
     if score_val is None:
         score_val = hit.get('prediction_score')
@@ -2035,6 +2329,15 @@ def _prediction_from_hit(hit: Dict[str, Any], timestamp: str) -> Dict[str, Any]:
             description = label
         else:
             description = None
+    evidence_level = str(pred.get('evidenceLevel') or '')
+    is_event_prediction = _prediction_is_supported_event(
+        {
+            'event_type': event_type,
+            'evidence_level': evidence_level,
+            'is_event_prediction': pred.get('isEventPrediction'),
+        },
+        event_type,
+    )
     factors: Dict[str, Any] = {
         'direction': _direction_summary(hit),
         'solar_revolution': conc.get('solar_score'),
@@ -2051,7 +2354,14 @@ def _prediction_from_hit(hit: Dict[str, Any], timestamp: str) -> Dict[str, Any]:
         'date': timestamp,
         'event_type': event_type,
         'life_area': life_area,
-        'probability': round(probability, 3),
+        # Backward-compatible alias. This is rule concordance, not an
+        # empirical or calibrated event probability.
+        'probability': round(rule_support, 3),
+        'rule_support': round(rule_support, 3),
+        'probability_basis': 'morin_rule_concordance',
+        'is_statistical_probability': False,
+        'evidence_level': evidence_level or None,
+        'is_event_prediction': bool(event_type) and is_event_prediction,
         'label': label,
         'description': description,
         'score': score,
@@ -2310,6 +2620,15 @@ def _summarize_predictor_window(
         occurrence = {
             'date': pred.get('date'),
             'probability': _prediction_numeric(pred.get('probability')),
+            'rule_support': _prediction_numeric(
+                pred.get('rule_support')
+                if pred.get('rule_support') is not None
+                else pred.get('probability')
+            ),
+            'probability_basis': pred.get('probability_basis') or 'morin_rule_concordance',
+            'is_statistical_probability': False,
+            'evidence_level': pred.get('evidence_level'),
+            'is_event_prediction': _prediction_is_supported_event(pred),
             'score': _prediction_numeric(pred.get('score')),
             'support_score': support,
         }
@@ -2386,6 +2705,26 @@ def _summarize_predictor_window(
         'probability_max': probability_max,
         'max_probability': probability_max,
         'probability_mean': round(probability_total / count, 3),
+        'rule_concordance_max': probability_max,
+        'rule_concordance_mean': round(probability_total / count, 3),
+        'probability_basis': 'morin_rule_concordance',
+        'is_statistical_probability': False,
+        'evidence_level': next(
+            (
+                level
+                for level in ('corroborated', 'supported', 'theme_only')
+                if any(
+                    isinstance(pred, dict)
+                    and str(pred.get('evidence_level') or '') == level
+                    for pred in cluster_predictions
+                )
+            ),
+            'theme_only',
+        ),
+        'is_event_prediction': any(
+            isinstance(pred, dict) and _prediction_is_supported_event(pred)
+            for pred in cluster_predictions
+        ),
         'score_max': score_max,
         'max_score': score_max,
         'score_mean': round(score_total / count, 3),
@@ -12335,6 +12674,9 @@ def transits_compute():
     ts = request.args.get('transit_datetime')
     if not ts:
         ts = datetime.now(timezone.utc).isoformat()
+    target_dt, timestamp_error = _parse_transit_scan_datetime(ts, 'transit_datetime')
+    if timestamp_error:
+        return jsonify({'success': False, 'error': timestamp_error}), 400
     include_modern = (request.args.get('include_modern', '0').lower() in {'1','true','yes'})
     natal_include_modern = (request.args.get('include_natal_modern', '0').lower() in {'1','true','yes'})
     include_cusps = (request.args.get('include_cusps', '0').lower() in {'1','true','yes'})
@@ -12368,7 +12710,6 @@ def transits_compute():
     sig_beta = None
     if sig_raw is not None:
         sig_beta = str(sig_raw).lower() in {'1','true','yes','new','beta'}
-    target_dt = _parse_iso_datetime(ts)
     pd_windows = _compute_pd_windows_for_years(
         natal_cd,
         natal_meta,
@@ -12454,6 +12795,13 @@ def transits_window():
     sa_end = request.args.get('sa_end')
     prog_start = request.args.get('prog_start')
     prog_end = request.args.get('prog_end')
+    context_ranges, context_error = _parse_transit_context_ranges((
+        ('pd', pd_start, pd_end),
+        ('sa', sa_start, sa_end),
+        ('prog', prog_start, prog_end),
+    ))
+    if context_error:
+        return jsonify({'success': False, 'error': context_error}), 400
 
     # A/B toggle: ?sig_beta=0/1 to switch significance formula
     sig_raw = request.args.get('sig_beta')
@@ -12492,34 +12840,7 @@ def transits_window():
         observer_location=natal_meta.get('location'),
         observer_timezone=natal_meta.get('timezone'),
     )
-    # Apply context filtering if any context window provided
-    try:
-        from datetime import datetime as _dt
-        ctx_ranges = []
-        def _norm_iso(x):
-            return str(x).replace('Z','+00:00') if x else None
-        def _to_dt(x):
-            try:
-                return _dt.fromisoformat(_norm_iso(x)) if x else None
-            except Exception:
-                return None
-        for a,b in ((pd_start, pd_end), (sa_start, sa_end), (prog_start, prog_end)):
-            A = _to_dt(a); B = _to_dt(b)
-            if A and B and B > A:
-                ctx_ranges.append((A,B))
-        if ctx_ranges:
-            def _in_any(ts):
-                try:
-                    t = _dt.fromisoformat(str(ts).replace('Z','+00:00'))
-                except Exception:
-                    return False
-                for (A,B) in ctx_ranges:
-                    if A <= t <= B:
-                        return True
-                return False
-            series = [row for row in series if _in_any(row.get('timestamp'))]
-    except Exception:
-        pass
+    series = _filter_transit_series_to_context_ranges(series, context_ranges)
     all_predictions: List[Dict[str, Any]] = []
     for row in series:
         ts_iso = str(row.get('timestamp') or '')
@@ -12589,6 +12910,13 @@ def transits_predictor():
     sa_end = request.args.get('sa_end')
     prog_start = request.args.get('prog_start')
     prog_end = request.args.get('prog_end')
+    context_ranges, context_error = _parse_transit_context_ranges((
+        ('pd', pd_start, pd_end),
+        ('sa', sa_start, sa_end),
+        ('prog', prog_start, prog_end),
+    ))
+    if context_error:
+        return jsonify({'success': False, 'error': context_error}), 400
 
     sig_raw = request.args.get('sig_beta')
     sig_beta = None
@@ -12630,35 +12958,7 @@ def transits_predictor():
         observer_timezone=observer_timezone,
     )
 
-    # Apply optional context windows (PD/SA/Progressions) if provided.
-    try:
-        def _parse_ctx_iso(val: Optional[str]):
-            if not val:
-                return None
-            try:
-                return datetime.fromisoformat(str(val).replace('Z', '+00:00'))
-            except Exception:
-                return None
-
-        ctx_ranges: List[Tuple[datetime, datetime]] = []
-        for a, b in ((pd_start, pd_end), (sa_start, sa_end), (prog_start, prog_end)):
-            A = _parse_ctx_iso(a)
-            B = _parse_ctx_iso(b)
-            if A and B and B > A:
-                ctx_ranges.append((A, B))
-        if ctx_ranges:
-            def _in_any(ts_value):
-                try:
-                    t = datetime.fromisoformat(str(ts_value).replace('Z', '+00:00'))
-                except Exception:
-                    return False
-                for A, B in ctx_ranges:
-                    if A <= t <= B:
-                        return True
-                return False
-            series = [row for row in series if _in_any(row.get('timestamp'))]
-    except Exception:
-        pass
+    series = _filter_transit_series_to_context_ranges(series, context_ranges)
 
     # Attach predictions per row and collect aggregate list
     all_predictions: List[Dict[str, Any]] = []
@@ -12753,6 +13053,13 @@ def transits_window_stream():
     start_dt, end_dt, validated_total_steps, bounds_error = _validate_transit_scan_request_bounds(start, end, step)
     if bounds_error:
         return jsonify({'success': False, 'error': bounds_error}), 400
+    context_ranges, context_error = _parse_transit_context_ranges((
+        ('pd', pd_start, pd_end),
+        ('sa', sa_start, sa_end),
+        ('prog', prog_start, prog_end),
+    ))
+    if context_error:
+        return jsonify({'success': False, 'error': context_error}), 400
 
     pd_windows = _compute_pd_windows_for_years(
         natal_cd,
@@ -12768,21 +13075,6 @@ def transits_window_stream():
     if sig_raw is not None:
         sig_beta = str(sig_raw).lower() in {'1','true','yes','new','beta'}
 
-    def _parse_ctx_iso(val: Optional[str]):
-        if not val:
-            return None
-        try:
-            return datetime.fromisoformat(str(val).replace('Z', '+00:00'))
-        except Exception:
-            return None
-
-    ctx_ranges: List[Tuple[datetime, datetime]] = []
-    for a, b in ((pd_start, pd_end), (sa_start, sa_end), (prog_start, prog_end)):
-        A = _parse_ctx_iso(a)
-        B = _parse_ctx_iso(b)
-        if A and B and B > A:
-            ctx_ranges.append((A, B))
-
     context_filters = {
         'pd': {'start': pd_start, 'end': pd_end} if (pd_start and pd_end) else None,
         'sa': {'start': sa_start, 'end': sa_end} if (sa_start and sa_end) else None,
@@ -12796,7 +13088,7 @@ def transits_window_stream():
     prediction_buffer_limit = max(25, _STREAM_BUFFER_PREDICTIONS)
 
     def _sse():
-        from datetime import datetime as _dt, timedelta as _td, timezone as _tz
+        from datetime import timedelta as _td, timezone as _tz
         sdt = start_dt
         edt = end_dt
         total = validated_total_steps or 1
@@ -12900,12 +13192,10 @@ def transits_window_stream():
                 'tone': _step_tone(top_planets + top_points),
             }
             include_row = True
-            if ctx_ranges:
-                try:
-                    t_dt = _dt.fromisoformat(ts_iso.replace('Z', '+00:00'))
-                    include_row = any(A <= t_dt <= B for (A, B) in ctx_ranges)
-                except Exception:
-                    include_row = False
+            if context_ranges:
+                include_row = bool(
+                    _filter_transit_series_to_context_ranges([row], context_ranges)
+                )
             if include_row:
                 row_predictions = _predictions_from_hits((prediction_planets + prediction_points), ts_iso)
                 row['predictions'] = row_predictions
@@ -12971,6 +13261,9 @@ def transits_export_csv():
     from transits_morin import compute_morin_transits_to_natal
     natal_cd, natal_meta = _natal_from_query(request.args)
     ts = request.args.get('transit_datetime') or datetime.now(timezone.utc).isoformat()
+    target_dt, timestamp_error = _parse_transit_scan_datetime(ts, 'transit_datetime')
+    if timestamp_error:
+        return jsonify({'success': False, 'error': timestamp_error}), 400
     include_modern = (request.args.get('include_modern', '0').lower() in {'1','true','yes'})
     natal_include_modern = (request.args.get('include_natal_modern', '0').lower() in {'1','true','yes'})
     include_cusps = (request.args.get('include_cusps', '0').lower() in {'1','true','yes'})
@@ -12998,7 +13291,6 @@ def transits_export_csv():
     sig_beta = None
     if sig_raw is not None:
         sig_beta = str(sig_raw).lower() in {'1','true','yes','new','beta'}
-    target_dt = _parse_iso_datetime(ts)
     pd_windows = _compute_pd_windows_for_years(
         natal_cd,
         natal_meta,
@@ -13093,6 +13385,13 @@ def transits_window_export_csv():
     sa_end = request.args.get('sa_end')
     prog_start = request.args.get('prog_start')
     prog_end = request.args.get('prog_end')
+    context_ranges, context_error = _parse_transit_context_ranges((
+        ('pd', pd_start, pd_end),
+        ('sa', sa_start, sa_end),
+        ('prog', prog_start, prog_end),
+    ))
+    if context_error:
+        return jsonify({'success': False, 'error': context_error}), 400
     # A/B toggle via ?sig_beta=0/1
     sig_raw = request.args.get('sig_beta')
     sig_beta = None
@@ -13123,34 +13422,7 @@ def transits_window_export_csv():
         observer_location=natal_meta.get('location'),
         observer_timezone=natal_meta.get('timezone'),
     )
-    try:
-        def _parse_ctx_iso(val: Optional[str]):
-            if not val:
-                return None
-            try:
-                return datetime.fromisoformat(str(val).replace('Z', '+00:00'))
-            except Exception:
-                return None
-
-        ctx_ranges: List[Tuple[datetime, datetime]] = []
-        for a, b in ((pd_start, pd_end), (sa_start, sa_end), (prog_start, prog_end)):
-            A = _parse_ctx_iso(a)
-            B = _parse_ctx_iso(b)
-            if A and B and B > A:
-                ctx_ranges.append((A, B))
-        if ctx_ranges:
-            def _in_any(ts_value):
-                try:
-                    t = datetime.fromisoformat(str(ts_value).replace('Z', '+00:00'))
-                except Exception:
-                    return False
-                for A, B in ctx_ranges:
-                    if A <= t <= B:
-                        return True
-                return False
-            series = [row for row in series if _in_any(row.get('timestamp'))]
-    except Exception:
-        pass
+    series = _filter_transit_series_to_context_ranges(series, context_ranges)
     out = StringIO()
     header = ['Timestamp','TopCount','Transiting','Natal','Aspect','Orb','Score','Quality','DeterminationStrength']
     out.write(','.join(header) + '\n')
@@ -14097,9 +14369,13 @@ def forensic_analysis():
 
 @astro_clock_bp.route('/election/validate', methods=['GET'])
 def election_validate():
-    matter = (request.args.get('matter') or 'marriage').strip().lower()
+    matter, matter_error = _parse_election_matter(request.args.get('matter'))
+    if matter_error:
+        return jsonify({'success': False, 'error': matter_error}), 400
+    assert matter is not None
     marriage_algorithm = (request.args.get('marriage_algorithm') or 'alpha').strip().lower()
     business_algorithm = (request.args.get('business_algorithm') or 'alpha').strip().lower()
+    reference_parity = request.args.get('reference_parity', '0').lower() in {'1', 'true', 'yes'}
     estate_direction = (request.args.get('estate_direction') or request.args.get('direction') or 'buy').strip().lower()
     lunar_fertility_consider_mode_raw = request.args.get('consider_mode') or 'phase_and_antiphase'
     start = request.args.get('start')
@@ -14139,17 +14415,23 @@ def election_validate():
         step = int(step_minutes) if step_minutes not in (None, '', 'null') else 60
     except Exception:
         return jsonify({'success': False, 'error': 'step_minutes must be an integer >= 1'}), 400
+    if reference_parity:
+        if not _election_reference_model(matter, marriage_algorithm, business_algorithm):
+            return jsonify({
+                'success': False,
+                'error': 'reference_parity is available only for Marriage Beta, Business Beta, and Estate',
+            }), 400
+        step = 1
+    _, limit_error = _parse_transit_limit(
+        request.args.get('limit', '15'),
+        default=15,
+        max_value=200,
+    )
+    if limit_error:
+        return jsonify({'success': False, 'error': limit_error}), 400
 
     if hour_start_val is not None and hour_end_val is not None and hour_start_val > hour_end_val:
         return jsonify({'success': False, 'error': 'hour_end must be after hour_start'}), 400
-
-    try:
-        sdt = datetime.fromisoformat(start.replace('Z', '+00:00'))
-        edt = datetime.fromisoformat(end.replace('Z', '+00:00'))
-    except Exception:
-        return jsonify({'success': False, 'error': 'Invalid start/end'}), 400
-    if edt <= sdt:
-        return jsonify({'success': False, 'error': 'End must be after start'}), 400
 
     # Ensure location is known (best-effort)
     try:
@@ -14174,7 +14456,17 @@ def election_validate():
             raise ValueError('Missing start/end')
     except Exception:
         return jsonify({'success': False, 'error': 'Invalid start/end'}), 400
-    validated_total_steps, bounds_error = _validate_stream_scan_bounds(sdt, edt, step)
+    if edt <= sdt:
+        return jsonify({'success': False, 'error': 'End must be after start'}), 400
+    if reference_parity:
+        validated_total_steps, bounds_error = _validate_stream_scan_bounds(
+            sdt,
+            edt,
+            step,
+            max_steps=_ELECTION_REFERENCE_MAX_STEPS,
+        )
+    else:
+        validated_total_steps, bounds_error = _validate_stream_scan_bounds(sdt, edt, step)
     if bounds_error:
         return jsonify({'success': False, 'error': bounds_error}), 400
 
@@ -14209,6 +14501,22 @@ def election_validate():
         if marriage_algorithm not in {'alpha', 'beta'}:
             return jsonify({'success': False, 'error': 'marriage_algorithm must be alpha or beta'}), 400
         if marriage_algorithm == 'beta':
+            marriage_beta_display_mode = (
+                request.args.get('marriage_beta_display_mode') or 'total'
+            ).strip().lower()
+            marriage_beta_scope = (
+                request.args.get('marriage_beta_scope') or 'all'
+            ).strip().lower()
+            if marriage_beta_display_mode not in _MARRIAGE_BETA_EXTRACTION_MODES:
+                return jsonify({
+                    'success': False,
+                    'error': 'marriage_beta_display_mode must be total or detail',
+                }), 400
+            if marriage_beta_scope not in _MARRIAGE_BETA_EXTRACTION_SCOPES:
+                return jsonify({
+                    'success': False,
+                    'error': 'marriage_beta_scope must be all, current, or selected',
+                }), 400
             participant_a_snap_id = (request.args.get('participant_a_snap_id') or '').strip()
             participant_b_snap_id = (request.args.get('participant_b_snap_id') or '').strip()
             if not participant_a_snap_id or not participant_b_snap_id:
@@ -14225,6 +14533,22 @@ def election_validate():
         if business_algorithm not in {'alpha', 'beta'}:
             return jsonify({'success': False, 'error': 'business_algorithm must be alpha or beta'}), 400
         if business_algorithm == 'beta':
+            business_beta_display_mode = (
+                request.args.get('business_beta_display_mode') or 'total'
+            ).strip().lower()
+            business_beta_scope = (
+                request.args.get('business_beta_scope') or 'all'
+            ).strip().lower()
+            if business_beta_display_mode not in _BUSINESS_BETA_EXTRACTION_MODES:
+                return jsonify({
+                    'success': False,
+                    'error': 'business_beta_display_mode must be total or detail',
+                }), 400
+            if business_beta_scope not in _BUSINESS_BETA_EXTRACTION_SCOPES:
+                return jsonify({
+                    'success': False,
+                    'error': 'business_beta_scope must be all, current, or selected',
+                }), 400
             if not unique_participant_snap_ids:
                 return jsonify({'success': False, 'error': 'Beta business requires at least one participant_snap_id'}), 400
             if len(unique_participant_snap_ids) != len(participant_snap_ids):
@@ -14242,6 +14566,22 @@ def election_validate():
     if matter == 'estate':
         if estate_direction not in {'buy', 'sell'}:
             return jsonify({'success': False, 'error': 'estate_direction must be buy or sell'}), 400
+        estate_display_mode = (
+            request.args.get('estate_display_mode') or 'total'
+        ).strip().lower()
+        estate_scope = (
+            request.args.get('estate_scope') or 'all'
+        ).strip().lower()
+        if estate_display_mode not in _ESTATE_EXTRACTION_MODES:
+            return jsonify({
+                'success': False,
+                'error': 'estate_display_mode must be total or detail',
+            }), 400
+        if estate_scope not in _ESTATE_EXTRACTION_SCOPES:
+            return jsonify({
+                'success': False,
+                'error': 'estate_scope must be all, current, or selected',
+            }), 400
         if not estate_participant_snap_id:
             return jsonify({'success': False, 'error': 'Estate election requires estate_participant_snap_id'}), 400
         house = request.args.get('house_system_code') or None
@@ -14254,7 +14594,13 @@ def election_validate():
         except ValueError as exc:
             return jsonify({'success': False, 'error': str(exc)}), 400
 
-    return jsonify({'success': True})
+    return jsonify({
+        'success': True,
+        'matter': matter,
+        'step_minutes': step,
+        'reference_parity': reference_parity,
+        'total_steps': validated_total_steps,
+    })
 
 
 @astro_clock_bp.route('/election/suggest/stream', methods=['GET'])
@@ -14263,9 +14609,13 @@ def election_suggest_stream():
 
     Computes a score at each step and emits a final result with top items.
     """
-    matter = (request.args.get('matter') or 'marriage').strip().lower()
+    matter, matter_error = _parse_election_matter(request.args.get('matter'))
+    if matter_error:
+        return jsonify({'success': False, 'error': matter_error}), 400
+    assert matter is not None
     marriage_algorithm = (request.args.get('marriage_algorithm') or 'alpha').strip().lower()
     business_algorithm = (request.args.get('business_algorithm') or 'alpha').strip().lower()
+    reference_parity = request.args.get('reference_parity', '0').lower() in {'1', 'true', 'yes'}
     estate_direction = (request.args.get('estate_direction') or request.args.get('direction') or 'buy').strip().lower()
     lunar_fertility_consider_mode_raw = request.args.get('consider_mode') or 'phase_and_antiphase'
     start = request.args.get('start')
@@ -14273,8 +14623,25 @@ def election_suggest_stream():
     location = request.args.get('location')
     timezone_name = request.args.get('timezone')
     house_system_code = request.args.get('house_system_code') or None
-    step = int(request.args.get('step_minutes', '60') or 60)
-    limit = int(request.args.get('limit', '15') or 15)
+    try:
+        step = int(request.args.get('step_minutes', '60') or 60)
+    except Exception:
+        return jsonify({'success': False, 'error': 'step_minutes must be an integer >= 1'}), 400
+    limit, limit_error = _parse_transit_limit(
+        request.args.get('limit', '15'),
+        default=15,
+        max_value=200,
+    )
+    if limit_error:
+        return jsonify({'success': False, 'error': limit_error}), 400
+    assert limit is not None
+    if reference_parity:
+        if not _election_reference_model(matter, marriage_algorithm, business_algorithm):
+            return jsonify({
+                'success': False,
+                'error': 'reference_parity is available only for Marriage Beta, Business Beta, and Estate',
+            }), 400
+        step = 1
     include_series = (request.args.get('include_series', '1').lower() in {'1', 'true', 'yes'})
     natal_snap = request.args.get('natal_snap_id')
     natal_datetime = request.args.get('natal_datetime')
@@ -14292,6 +14659,20 @@ def election_suggest_stream():
         estate_participant_snap_ids[0]
         if estate_participant_snap_ids
         else (unique_participant_snap_ids[0] if unique_participant_snap_ids else '')
+    )
+    marriage_beta_display_mode = (request.args.get('marriage_beta_display_mode') or 'total').strip().lower()
+    marriage_beta_scope = (request.args.get('marriage_beta_scope') or 'all').strip().lower()
+    marriage_beta_current_line_id = (request.args.get('marriage_beta_current_line_id') or '').strip()
+    marriage_beta_selected_line_ids = [
+        str(item).strip()
+        for item in request.args.getlist('marriage_beta_selected_line_id')
+        if str(item).strip()
+    ]
+    marriage_beta_level_percent = _parse_marriage_beta_level_percent(
+        request.args.get(
+            'marriage_beta_level_percent',
+            str(_MARRIAGE_BETA_EXTRACTION_LEVEL_DEFAULT),
+        )
     )
     business_beta_display_mode = (request.args.get('business_beta_display_mode') or 'total').strip().lower()
     business_beta_scope = (request.args.get('business_beta_scope') or 'all').strip().lower()
@@ -14338,6 +14719,11 @@ def election_suggest_stream():
         lunar_fertility_consider_mode = 'phase_and_antiphase'
     if matter == 'marriage' and marriage_algorithm not in {'alpha', 'beta'}:
         return jsonify({'success': False, 'error': 'marriage_algorithm must be alpha or beta'}), 400
+    if matter == 'marriage' and marriage_algorithm == 'beta':
+        if marriage_beta_display_mode not in _MARRIAGE_BETA_EXTRACTION_MODES:
+            return jsonify({'success': False, 'error': 'marriage_beta_display_mode must be total or detail'}), 400
+        if marriage_beta_scope not in _MARRIAGE_BETA_EXTRACTION_SCOPES:
+            return jsonify({'success': False, 'error': 'marriage_beta_scope must be all, current, or selected'}), 400
     if matter == 'business' and business_algorithm not in {'alpha', 'beta'}:
         return jsonify({'success': False, 'error': 'business_algorithm must be alpha or beta'}), 400
     if matter == 'business' and business_algorithm == 'beta':
@@ -14445,6 +14831,7 @@ def election_suggest_stream():
     participant_b_bundle: Optional[Dict[str, Any]] = None
     participant_a_cd: Optional[Dict[str, Any]] = None
     participant_b_cd: Optional[Dict[str, Any]] = None
+    marriage_participants: List[Dict[str, Any]] = []
     business_participants: List[Dict[str, Any]] = []
     estate_participant: Optional[Dict[str, Any]] = None
     if matter == 'marriage' and marriage_algorithm == 'beta':
@@ -14475,6 +14862,27 @@ def election_suggest_stream():
             )
             participant_a_cd = participant_a_bundle.get('chart_data') or {}
             participant_b_cd = participant_b_bundle.get('chart_data') or {}
+            saved_snaps = _snaps()
+            for idx, (snap_id, bundle, fallback_label) in enumerate(
+                (
+                    (participant_a_snap_id, participant_a_bundle, 'Participant A'),
+                    (participant_b_snap_id, participant_b_bundle, 'Participant B'),
+                ),
+                start=1,
+            ):
+                snap = saved_snaps.get(snap_id) or {}
+                label = (
+                    str(snap.get('label') or '').strip()
+                    or str(snap.get('location') or '').strip()
+                    or fallback_label
+                )
+                marriage_participants.append({
+                    'snap_id': snap_id,
+                    'label': label,
+                    'chart_data': bundle.get('chart_data') or {},
+                    'meta': bundle.get('meta') or {},
+                    **_election_precision_from_saved_bundle(bundle),
+                })
         except ValueError as exc:
             return jsonify({'success': False, 'error': str(exc)}), 400
     if matter == 'business' and business_algorithm == 'beta':
@@ -14582,7 +14990,15 @@ def election_suggest_stream():
     except Exception:
         scan_zone = ZoneInfo('UTC')
         tz = 'UTC'
-    validated_total_steps, bounds_error = _validate_stream_scan_bounds(sdt, edt, step)
+    if reference_parity:
+        validated_total_steps, bounds_error = _validate_stream_scan_bounds(
+            sdt,
+            edt,
+            step,
+            max_steps=_ELECTION_REFERENCE_MAX_STEPS,
+        )
+    else:
+        validated_total_steps, bounds_error = _validate_stream_scan_bounds(sdt, edt, step)
     if bounds_error:
         return jsonify({'success': False, 'error': bounds_error}), 400
     default_series_limit = _STREAM_MAX_STEPS if matter == 'lunar_fertility' else _STREAM_BUFFER_ROWS
@@ -14660,7 +15076,9 @@ def election_suggest_stream():
             row for row in series_source_rows
             if bool(row.get('passes_level')) or float(row.get('score') or 0.0) >= lunar_fertility_level_percent
         ]
-        grouped = group_lunar_fertility_periods(passing_rows, timezone_name=tz)
+        # Level is a graph/inspection guide. Exported periods include every
+        # nonzero favorable hour, as in the recovered SkyLiner workflow.
+        grouped = group_lunar_fertility_periods(series_source_rows, timezone_name=tz)
         period_rows = grouped.get('rows') or []
         period_by_key = {
             (row.get('timestamp'), row.get('phase_kind'), row.get('sex_label')): row.get('period_id')
@@ -14676,8 +15094,11 @@ def election_suggest_stream():
                 row_copy['period_id'] = period_id
             rebuilt_series_source_rows.append(row_copy)
         series_source_rows = rebuilt_series_source_rows
-        top_source = passing_rows if passing_rows else series_source_rows
-        top = sorted(top_source, key=lambda row: float(row.get('score') or 0.0), reverse=True)[:limit]
+        top = sorted(
+            series_source_rows,
+            key=lambda row: float(row.get('score') or 0.0),
+            reverse=True,
+        )[:limit]
         series_rows: List[Dict[str, Any]] = []
         series_dropped = 0
         if include_series:
@@ -14695,6 +15116,7 @@ def election_suggest_stream():
             'timezone': tz,
             'consider_mode': lunar_result.get('consider_mode') or lunar_fertility_consider_mode,
             'level_percent': lunar_result.get('level_percent', lunar_fertility_level_percent),
+            'level_behavior': 'visual_inspection_guide',
             'periods': grouped.get('periods') or [],
             'anchors': lunar_result.get('anchors') or [],
             'signature': lunar_result.get('signature') or {},
@@ -14711,6 +15133,16 @@ def election_suggest_stream():
                 'series_retained': len(series_rows) if include_series else 0,
                 'series_dropped': series_dropped if include_series else 0,
             },
+            'model_metadata': _election_model_metadata(
+                'lunar_fertility',
+                natal_context_applied=True,
+                reference_parity=False,
+                step_minutes=60,
+            ),
+            'medical_disclaimer': (
+                'Traditional Moon-sign polarity and fertility timing only; '
+                'not medical advice, an ovulation estimate, or fetal-sex prediction.'
+            ),
         }
         if include_series:
             payload['series'] = series_rows
@@ -14781,6 +15213,17 @@ def election_suggest_stream():
     except Exception:
         sr_windows = []; lr_list = []
 
+    try:
+        min_mercury_direct_days_requested = max(
+            0,
+            int(request.args.get('min_mercury_direct_days', '0') or 0),
+        )
+    except Exception:
+        min_mercury_direct_days_requested = 0
+    mercury_direct_stations: List[datetime] = []
+    if matter == 'contract' and min_mercury_direct_days_requested:
+        mercury_direct_stations = _mercury_direct_station_times(sdt, edt)
+
     from datetime import timedelta
     step_td = timedelta(minutes=max(1, step))
     eng = _engine_instance()
@@ -14834,6 +15277,8 @@ def election_suggest_stream():
         if matter == 'haircut':
             hg = request.args.get('hair_goal')
             if hg: opts['hair_goal'] = hg
+            ht = request.args.get('haircut_type')
+            if ht: opts['haircut_type'] = ht
         if matter == 'beautification':
             bp_vals: List[str] = []
             bp_param = request.args.get('body_parts')
@@ -14892,7 +15337,6 @@ def election_suggest_stream():
                 opts.pop('include_lunation_screen', None)
                 opts.pop('emphasize_commerce', None)
                 opts.pop('business_mode', None)
-                opts['business_beta_certified_participants'] = True
         if matter == 'estate':
             opts['estate_direction'] = estate_direction
             opts['include_traditional_timing'] = True
@@ -14902,10 +15346,22 @@ def election_suggest_stream():
             opts['participant_a_cd'] = participant_a_cd
             opts['participant_a_meta'] = (participant_a_bundle or {}).get('meta') or {}
             opts['participant_a_snap_id'] = participant_a_snap_id
+            if marriage_participants:
+                opts['participant_a_label'] = marriage_participants[0].get('label')
+                opts['participant_a_precision'] = {
+                    key: marriage_participants[0].get(key)
+                    for key in ('precision_class', 'precision_safe', 'precision_source')
+                }
         if participant_b_cd is not None:
             opts['participant_b_cd'] = participant_b_cd
             opts['participant_b_meta'] = (participant_b_bundle or {}).get('meta') or {}
             opts['participant_b_snap_id'] = participant_b_snap_id
+            if len(marriage_participants) >= 2:
+                opts['participant_b_label'] = marriage_participants[1].get('label')
+                opts['participant_b_precision'] = {
+                    key: marriage_participants[1].get(key)
+                    for key in ('precision_class', 'precision_safe', 'precision_source')
+                }
         if business_participants:
             opts['business_participants'] = business_participants
             opts['participant_snap_ids'] = [item.get('snap_id') for item in business_participants if item.get('snap_id')]
@@ -14925,11 +15381,36 @@ def election_suggest_stream():
     def _generate():
         attempted = 0
         kept_total = 0
+        failure_reasons: Counter = Counter()
+        failure_samples: List[Dict[str, str]] = []
         all_series_rows: List[Dict[str, Any]] = []
         top_candidates: List[Dict[str, Any]] = []
         series_dropped = 0
         t = sdt
         total_steps = validated_total_steps or 1
+        progress_stride = max(1, math.ceil(total_steps / 500))
+        scan_step_index = 0
+
+        def _progress_event(current_t: datetime, current_index: int) -> Optional[str]:
+            if current_index % progress_stride and current_t < edt:
+                return None
+            try:
+                progress_value = min(
+                    1.0,
+                    max(
+                        0.0,
+                        (
+                            (current_t - sdt).total_seconds()
+                            / ((edt - sdt).total_seconds() or 1)
+                        ),
+                    ),
+                )
+            except Exception:
+                progress_value = 0.0
+            return (
+                f"data: {json.dumps({'type': 'progress', 'progress': progress_value})}\n\n"
+            )
+
         # Prepare planetary hours calculator if traditional timing requested
         ph_calc = None
         coords = None
@@ -14948,24 +15429,25 @@ def election_suggest_stream():
             ph_calc = None
         while t <= edt:
             # Filter by weekday/hour if provided (use local time at tz)
+            skip_for_filter = False
             try:
                 t_local = t.astimezone(scan_zone)
                 minute_of_day = (t_local.hour * 60) + t_local.minute
                 if weekday_filter_active and (not weekday_idx or t_local.weekday() not in weekday_idx):
-                    # Progress update even if skipped
-                    yield f"data: {json.dumps({'type':'progress','progress':min(1.0, max(0.0, ((t - sdt).total_seconds() / ((edt - sdt).total_seconds() or 1))))})}\n\n"
-                    t = t + step_td
-                    continue
-                if (hour_start is not None) and (minute_of_day < hour_start):
-                    yield f"data: {json.dumps({'type':'progress','progress':min(1.0, max(0.0, ((t - sdt).total_seconds() / ((edt - sdt).total_seconds() or 1))))})}\n\n"
-                    t = t + step_td
-                    continue
-                if (hour_end is not None) and (minute_of_day > hour_end):
-                    yield f"data: {json.dumps({'type':'progress','progress':min(1.0, max(0.0, ((t - sdt).total_seconds() / ((edt - sdt).total_seconds() or 1))))})}\n\n"
-                    t = t + step_td
-                    continue
+                    skip_for_filter = True
+                elif (hour_start is not None) and (minute_of_day < hour_start):
+                    skip_for_filter = True
+                elif (hour_end is not None) and (minute_of_day > hour_end):
+                    skip_for_filter = True
             except Exception:
                 pass
+            if skip_for_filter:
+                progress_event = _progress_event(t, scan_step_index)
+                if progress_event:
+                    yield progress_event
+                t = t + step_td
+                scan_step_index += 1
+                continue
             attempted += 1
             # Compute chart at t for location
             try:
@@ -14983,6 +15465,16 @@ def election_suggest_stream():
                 opts = _model_options()
                 opts['current_timestamp'] = t
                 opts['event_meta'] = meta
+                if matter == 'contract' and min_mercury_direct_days_requested:
+                    prior_stations = [
+                        station for station in mercury_direct_stations
+                        if station <= t.astimezone(timezone.utc)
+                    ]
+                    if prior_stations:
+                        latest_station = max(prior_stations)
+                        opts['mercury_direct_station_age_days'] = (
+                            t.astimezone(timezone.utc) - latest_station
+                        ).total_seconds() / 86400.0
                 # Attach planetary day/hour rulers when requested and available
                 try:
                     if opts.get('include_traditional_timing') and ph_calc is not None and tz:
@@ -15072,21 +15564,49 @@ def election_suggest_stream():
                         key=lambda r: float(r.get('score') or 0.0),
                         reverse=True,
                     )[:top_buffer_limit]
-                if include_series or (matter == 'business' and business_algorithm == 'beta') or matter == 'estate':
+                if (
+                    include_series
+                    or (matter == 'marriage' and marriage_algorithm == 'beta')
+                    or (matter == 'business' and business_algorithm == 'beta')
+                    or matter == 'estate'
+                ):
                     all_series_rows.append(row)
-            except Exception:
-                # Skip step on error
-                pass
-            # Progress event
-            try:
-                prog = min(1.0, max(0.0, ((t - sdt).total_seconds() / ((edt - sdt).total_seconds() or 1))))
-            except Exception:
-                prog = 0.0
-            yield f"data: {json.dumps({'type':'progress','progress':prog})}\n\n"
+            except Exception as exc:
+                reason = type(exc).__name__
+                failure_reasons[reason] += 1
+                if len(failure_samples) < 3:
+                    failure_samples.append({
+                        'timestamp': t.isoformat(),
+                        'type': reason,
+                        'message': str(exc)[:240] or reason,
+                    })
+                    logger.warning(
+                        'Election step failed for %s at %s: %s',
+                        matter,
+                        t.isoformat(),
+                        exc,
+                        exc_info=True,
+                    )
+            progress_event = _progress_event(t, scan_step_index)
+            if progress_event:
+                yield progress_event
             t = t + step_td
+            scan_step_index += 1
         extraction_payload: Optional[Dict[str, Any]] = None
         series_source_rows = list(all_series_rows)
-        if matter == 'business' and business_algorithm == 'beta':
+        if matter == 'marriage' and marriage_algorithm == 'beta':
+            extraction_payload = _extract_marriage_beta_periods(
+                series_source_rows,
+                step_td=step_td,
+                display_mode=marriage_beta_display_mode,
+                scope=marriage_beta_scope,
+                level_percent=marriage_beta_level_percent,
+                current_line_id=marriage_beta_current_line_id or None,
+                selected_line_ids=marriage_beta_selected_line_ids,
+            )
+            series_source_rows = list(extraction_payload.get('rows') or [])
+            top = list(extraction_payload.get('top_rows') or [])[:limit]
+        elif matter == 'business' and business_algorithm == 'beta':
             extraction_payload = _extract_business_beta_periods(
                 series_source_rows,
                 step_td=step_td,
@@ -15130,11 +15650,26 @@ def election_suggest_stream():
                 'attempted': attempted,
                 'kept_total': kept_total,
                 'failed': attempted - kept_total,
+                'failure_reasons': dict(sorted(failure_reasons.items())),
+                'failure_samples': failure_samples,
                 'series_total': len(series_source_rows) if include_series else 0,
                 'series_retained': len(series_rows) if include_series else 0,
                 'series_dropped': series_dropped if include_series else 0,
             },
         }
+        payload['model_metadata'] = _election_model_metadata(
+            matter,
+            marriage_algorithm=marriage_algorithm,
+            business_algorithm=business_algorithm,
+            natal_context_applied=bool(
+                natal_cd is not None
+                or marriage_participants
+                or business_participants
+                or estate_participant
+            ),
+            reference_parity=reference_parity,
+            step_minutes=step,
+        )
         if include_series:
             payload['series'] = series_rows
         if matter == 'marriage':
@@ -15143,7 +15678,34 @@ def election_suggest_stream():
                 payload['participants'] = {
                     'participant_a_snap_id': participant_a_snap_id,
                     'participant_b_snap_id': participant_b_snap_id,
+                    'items': [
+                        {
+                            'snap_id': item.get('snap_id'),
+                            'label': item.get('label'),
+                            'precision_class': item.get('precision_class'),
+                            'precision_safe': item.get('precision_safe'),
+                            'precision_source': item.get('precision_source'),
+                        }
+                        for item in marriage_participants
+                    ],
+                    'precision_note': (
+                        'House and cusp rules are active only for participants with safe birth-time precision.'
+                    ),
                 }
+                if extraction_payload is not None:
+                    payload['marriage_beta_extraction'] = {
+                        'display_mode': extraction_payload.get('display_mode'),
+                        'scope': extraction_payload.get('scope'),
+                        'level_percent': extraction_payload.get('level_percent'),
+                        'selected_line_ids': extraction_payload.get('selected_line_ids') or [],
+                        'current_line_id': (extraction_payload.get('selected_line_ids') or [None])[0]
+                        if extraction_payload.get('scope') == 'current'
+                        else None,
+                        'line_stats': extraction_payload.get('line_stats') or [],
+                        'passing_row_count': extraction_payload.get('passing_row_count') or 0,
+                        'period_count': extraction_payload.get('period_count') or 0,
+                    }
+                    payload['marriage_beta_periods'] = extraction_payload.get('periods') or []
         if matter == 'business':
             payload['business_algorithm'] = business_algorithm
             if business_algorithm == 'beta':

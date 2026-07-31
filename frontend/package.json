@@ -1,7 +1,7 @@
 {
   "name": "vox-stella",
   "private": true,
-  "version": "3.1.5",
+  "version": "3.1.7",
   "packageManager": "npm@10.9.8",
   "homepage": "./",
   "description": "Vox Stella - Traditional Horary Astrology Application",
@@ -159,6 +159,7 @@
       "category": "Office"
     },
     "nsis": {
+      "guid": "c7765e19-78c9-5b2a-a935-14614127ff63",
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
@@ -194,6 +195,6 @@
     "compression": "normal",
     "buildDependenciesFromSource": false,
     "nodeGypRebuild": false,
-    "buildVersion": "3.1.5"
+    "buildVersion": "3.1.7"
   }
 }

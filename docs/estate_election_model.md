@@ -1,5 +1,11 @@
 # AstroClock Estate Election Model
 
+> Current implementation note (2026-07-31): participant house/cusp rules use
+> saved birth-time quality and are not automatically treated as certified.
+> Source files are canonical under `backend/**` and `frontend/src/**`; generated
+> or legacy package mirrors must not be edited. See
+> `ELECTION_MODEL_REFERENCE_2026-07-31.md`.
+
 This document tracks the estate election implementation added from the Galaxy research note:
 
 `C:\Program Files (x86)\Galaxy\docs\research\electioner_estate_astrological_logic.md`
@@ -9,9 +15,8 @@ This document tracks the estate election implementation added from the Galaxy re
 - Frontend modal: `frontend/src/features/astroclock/ElectionModal.jsx`
 - Frontend API serialization: `frontend/src/features/astroclock/api.mjs`
 - Backend API route: `backend/astro_clock_api.py`
-- Packaged backend mirror: `frontend/backend/astro_clock_api.py`
-- Scorer facade: `backend/election.py` and `frontend/backend/election.py`
-- Estate scorer: `backend/election_models/estate.py` and `frontend/backend/election_models/estate.py`
+- Scorer facade: `backend/election.py`
+- Estate scorer: `backend/election_models/estate.py`
 
 Do not edit generated packaged artifacts under `frontend/dist-electron`, `frontend/backend/build`, `frontend/dist`, or `website`.
 
@@ -33,7 +38,9 @@ Optional period extraction inputs:
 - repeated `estate_selected_line_id`
 - `estate_level_percent`
 
-The backend forces traditional timing for this model, because the estate rules use planetary hour support. The selected participant snap is treated as certified for the initial implementation so Ascendant-based participant fit is active.
+The backend forces traditional timing for this model because the estate rules
+use planetary-hour support. Participant house/cusp fit is active only when the
+saved birth-time quality is precision-safe.
 
 ## Model Shape
 

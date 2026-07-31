@@ -2,6 +2,11 @@ Date: 2026-04-15
 Status: Baseline contract implemented
 Depends on: `MARRIAGE_ELECTION_ALPHA_BETA_DECISION_2026-04-15.md`
 
+> Historical implementation note. The favorable/tense line contract,
+> total/detail extraction, period segmentation, and birth-time precision gates
+> listed below as incomplete were completed in July 2026. See
+> `ELECTION_MODEL_REFERENCE_2026-07-31.md` for the current contract.
+
 # Purpose
 
 This note records the first implementation slice of the `Beta` marriage election model.

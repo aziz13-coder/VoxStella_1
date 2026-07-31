@@ -30,7 +30,7 @@ from tests.election_stress_utils import (
 )
 
 
-def test_surgery_mercury_retrograde_never_beats_direct_control():
+def test_surgery_mercury_retrograde_is_a_caution_not_an_absolute_exclusion():
     control_chart = base_surgery_chart()
     control = score_surgery_election(control_chart, options={"procedure": "cutting", "surgery_sign": "Leo"})
 
@@ -39,8 +39,9 @@ def test_surgery_mercury_retrograde_never_beats_direct_control():
     variant = score_surgery_election(variant_chart, options={"procedure": "cutting", "surgery_sign": "Leo"})
 
     assert control.value > variant.value
-    assert variant.value <= -90.0
+    assert variant.value > -90.0
     assert any("Mercury retrograde" in tag for tag in variant.tags)
+    assert not any("Never timing contraindications" in tag for tag in variant.tags)
 
 
 def test_surgery_moon_applying_to_retrograde_planet_never_beats_control():

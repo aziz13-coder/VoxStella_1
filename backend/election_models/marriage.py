@@ -246,6 +246,12 @@ def score_marriage_election(
     if asc_sign in FIXED_SIGNS:
         score += 2.0
         tags.append(f"Fixed Asc ({asc_sign})")
+        if asc_sign in {"Taurus", "Leo"}:
+            score += 1.0
+            tags.append(f"Bonatti preferred Asc ({asc_sign})")
+        elif asc_sign in {"Scorpio", "Aquarius"}:
+            score -= 2.5
+            tags.append(f"Bonatti cautions Asc ({asc_sign})")
     elif asc_sign in CARDINAL_SIGNS:
         score -= 1.5
         tags.append(f"Mobile Asc ({asc_sign}) for lasting matter")
@@ -273,6 +279,15 @@ def score_marriage_election(
     if (not is_day) and moon_sign in NOCTURNAL_SIGNS:
         score += 0.3
         tags.append("Moon in nocturnal sign by night")
+    if moon_sign in FIXED_SIGNS:
+        score += 0.7
+        tags.append(f"Fixed Moon ({moon_sign})")
+        if moon_sign in {"Taurus", "Leo"}:
+            score += 0.6
+            tags.append(f"Bonatti preferred Moon ({moon_sign})")
+        elif moon_sign in {"Scorpio", "Aquarius"}:
+            score -= 1.5
+            tags.append(f"Bonatti cautions Moon ({moon_sign})")
 
     for label, planet_name in (("Asc ruler", asc_ruler), ("7th ruler", seventh_ruler)):
         if not planet_name:

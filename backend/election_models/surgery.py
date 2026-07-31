@@ -217,13 +217,12 @@ def score_surgery_election(
     except Exception:
         pass
 
-    # Classic surgery cautions treat Mercury retrograde as a hard contraindication.
+    # Mercury retrograde is a caution, not an absolute prohibition in the
+    # reviewed Bonatti surgery passage.
     try:
         if mercury and bool(mercury.get('retrograde')):
             score -= 3.0
             tags.append('Mercury retrograde')
-            if strict_never_rules:
-                never_reasons.append('Mercury retrograde')
     except Exception:
         pass
 
@@ -306,8 +305,6 @@ def score_surgery_election(
                     break
     except Exception:
         pass
-    if moon_via_combusta and strict_never_rules:
-        never_reasons.append('Moon in Via Combusta')
 
     # Near-eclipse penalty (Sun/Moon within 1° of a Node)
     try:
@@ -368,8 +365,6 @@ def score_surgery_election(
                 score -= 4.0; tags.append('Moon void-of-course (strong penalty)')
             else:
                 score -= 1.0; tags.append('Moon void-of-course')
-            if strict_never_rules:
-                never_reasons.append('Moon void-of-course')
     except Exception:
         pass
 
@@ -476,8 +471,6 @@ def score_surgery_election(
                 score -= 2.5; tags.append(f'{nm} in 12th (hospitalization)')
         except Exception:
             continue
-    if saturn_hard_house and strict_never_rules:
-        never_reasons.append('Saturn rising/in 7th')
 
     # 8) Benefics in angles (Rules 21–23)
     for nm in ('Jupiter','Venus'):
@@ -648,17 +641,15 @@ def score_surgery_election(
 
     # 12) Moon optimization and general environment (standalone best practices)
     try:
-        # Waxing/Waning handling — surgery prefers waning
+        # Bonatti's surgery instruction prefers an increasing-light Moon.
         if m and s and m.get('longitude') is not None and s.get('longitude') is not None:
             waxing = _is_waxing(float(m.get('longitude')), float(s.get('longitude')))
-            if proc in ('cutting','purging'):
-                if waxing is True:
-                    score -= 0.5; tags.append('Waxing Moon (surgery): increased bleeding risk')
-                elif waxing is False:
-                    score += 0.5; tags.append('Waning Moon (surgery)')
-            else:
-                if waxing is True:
-                    score += 0.5; tags.append('Moon waxing')
+            if waxing is True:
+                score += 0.75
+                tags.append('Moon increasing in light (Bonatti surgery support)')
+            elif waxing is False:
+                score -= 0.5
+                tags.append('Moon decreasing in light (Bonatti surgery caution)')
         # Moon house support: avoid boosting 1st for medical; penalize instead
         if isinstance(moon_house, int):
             if moon_house in (10,11):

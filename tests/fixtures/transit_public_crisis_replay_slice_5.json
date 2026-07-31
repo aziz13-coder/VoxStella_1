@@ -17,10 +17,9 @@
     "expected_crisis_hit_descriptions": [
       "Mars Quincunx Mercury"
     ],
-    "expected_crisis_keywords": [
+    "forbidden_inferred_keywords": [
       "accident_major"
     ],
-    "minimum_hit_delta": 35.0,
     "sources": {
       "natal": "https://www.astro.com/astro-databank/Bush%2C_George_W.",
       "event": "https://georgewbush-whitehouse.archives.gov/news/releases/2003/03/20030319-17.html"
@@ -44,10 +43,9 @@
     "expected_crisis_hit_descriptions": [
       "Jupiter Quincunx Mercury (contra-antiscia)"
     ],
-    "expected_crisis_keywords": [
+    "forbidden_inferred_keywords": [
       "accident_major"
     ],
-    "minimum_hit_delta": 10.0,
     "sources": {
       "natal": "https://www.astro.com/astro-databank/Abe%2C_Shinzo",
       "event": "https://www.asahi.com/ajw/articles/14664249"

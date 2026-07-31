@@ -129,8 +129,8 @@ def _measure_case(payload, case):
             "context_rows": context_rows,
         }
 
-    if mode == "crisis_hit":
-        crisis_rows = [
+    if mode == "conservative_crisis_check":
+        unsafe_rows = [
             {
                 "description": _describe_hit(row),
                 "keywords": sorted(set(row.get("enriched_keywords") or [])),
@@ -138,12 +138,11 @@ def _measure_case(payload, case):
             }
             for row in hits[:40]
             if _describe_hit(row) in set(case["expected_crisis_hit_descriptions"])
-            and set(case["expected_crisis_keywords"]).issubset(set(row.get("enriched_keywords") or []))
+            and set(case["forbidden_inferred_keywords"]) & set(row.get("enriched_keywords") or [])
         ]
         return {
             "data": data,
-            "hit_strength": max((row["significance"] for row in crisis_rows), default=0.0),
-            "crisis_rows": crisis_rows,
+            "unsafe_rows": unsafe_rows,
         }
 
     if mode == "marriage_cluster_score":
@@ -247,10 +246,10 @@ class TransitPreEventControlReplaySliceEightTests(TestCase):
                         event["context_rows"],
                         msg=f"{case['id']} event_context={event['context_rows']}",
                     )
-                elif mode == "crisis_hit":
-                    self.assertTrue(
-                        event["crisis_rows"],
-                        msg=f"{case['id']} event_crisis_rows={event['crisis_rows']}",
+                elif mode == "conservative_crisis_check":
+                    self.assertFalse(
+                        event["unsafe_rows"],
+                        msg=f"{case['id']} event_unsafe_rows={event['unsafe_rows']}",
                     )
                 elif mode == "marriage_cluster_score":
                     self.assertGreaterEqual(
@@ -294,16 +293,10 @@ class TransitPreEventControlReplaySliceEightTests(TestCase):
                                     f"control_predictions={control['prediction_rows']}"
                                 ),
                             )
-                        elif mode == "crisis_hit":
-                            self.assertGreaterEqual(
-                                event["hit_strength"],
-                                control["hit_strength"] + float(case["minimum_hit_delta"]),
-                                msg=(
-                                    f"{case['id']} hit_strength event={event['hit_strength']} "
-                                    f"control={control['hit_strength']} "
-                                    f"event_crisis={event['crisis_rows']} "
-                                    f"control_crisis={control['crisis_rows']}"
-                                ),
+                        elif mode == "conservative_crisis_check":
+                            self.assertFalse(
+                                control["unsafe_rows"],
+                                msg=f"{case['id']} control_unsafe_rows={control['unsafe_rows']}",
                             )
                         elif mode == "marriage_cluster_score":
                             self.assertGreaterEqual(

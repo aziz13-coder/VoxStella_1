@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Iterable, List, Optional, Protocol, Tuple
@@ -259,6 +258,14 @@ def _sex_label_for_sign(sign: str) -> str:
     return "unknown"
 
 
+def _polarity_label_for_sign(sign: str) -> str:
+    if sign in MASCULINE_SIGNS:
+        return "masculine"
+    if sign in FEMININE_SIGNS:
+        return "feminine"
+    return "unknown"
+
+
 def _safe_zone(timezone_name: Optional[str]) -> ZoneInfo:
     try:
         return ZoneInfo(str(timezone_name or "UTC"))
@@ -281,48 +288,75 @@ def project_lunar_fertility_series(
     rows: List[Dict[str, Any]] = []
     t = start
     while t <= end:
-        best: Optional[Tuple[float, LunarFertilityAnchor]] = None
+        matches: List[Tuple[float, LunarFertilityAnchor]] = []
         for anchor in anchor_list:
             strength = _strength_for(anchor.timestamp, t)
             if strength <= 0.0:
                 continue
-            if best is None or strength > best[0] or (
-                math.isclose(strength, best[0], abs_tol=1e-9) and anchor.phase_kind == "phase"
-            ):
-                best = (strength, anchor)
-        if best is not None:
-            strength, anchor = best
+            matches.append((strength, anchor))
+        if matches:
+            # Galaxy adds overlapping window strengths. If phase and
+            # antiphase overlap, phase owns the display flag.
+            raw_strength = sum(strength for strength, _anchor in matches)
+            phase_matches = [item for item in matches if item[1].phase_kind == "phase"]
+            preferred_matches = phase_matches or matches
+            strength, anchor = max(preferred_matches, key=lambda item: item[0])
+            phase_kind = "phase" if phase_matches else anchor.phase_kind
             moon_lon = ephemeris.longitude_at(t, "Moon")
             moon_sign = _sign_from_lon(moon_lon)
             sex_label = _sex_label_for_sign(moon_sign)
+            polarity = _polarity_label_for_sign(moon_sign)
             local_dt = t.astimezone(zone)
-            score = round(strength, 2)
-            tags = [
-                "Lunar fertility window",
-                "Phase" if anchor.phase_kind == "phase" else "Antiphase",
-                f"Moon in {moon_sign}",
-                "Moon in masculine sign" if sex_label == "male" else "Moon in feminine sign" if sex_label == "female" else "Moon sign polarity unknown",
-            ]
-            if strength >= 90.0:
-                tags.append("Near anchor")
             rows.append(
                 {
                     "timestamp": t.isoformat(),
                     "timestamp_local": local_dt.isoformat(),
-                    "score": score,
-                    "strength": score,
-                    "phase_kind": anchor.phase_kind,
+                    "score": 0.0,
+                    "strength": 0.0,
+                    "raw_strength": round(raw_strength, 6),
+                    "phase_kind": phase_kind,
                     "sex_label": sex_label,
+                    "moon_sign_polarity": polarity,
                     "moon_sign": moon_sign,
                     "moon_longitude": round(float(moon_lon) % 360.0, 6),
                     "anchor_timestamp": anchor.timestamp.isoformat(),
                     "anchor_offset_hours": round((t - anchor.timestamp).total_seconds() / 3600.0, 2),
-                    "tags": tags,
-                    "pros": tags[:3],
+                    "overlap_count": len(matches),
+                    "tags": [],
+                    "pros": [],
                     "cautions": [],
                 }
             )
         t = t + timedelta(hours=1)
+
+    # Galaxy normalizes favorable strength relative to the visible period.
+    raw_values = [float(row.get("raw_strength") or 0.0) for row in rows]
+    if raw_values:
+        raw_max = max(raw_values)
+        raw_min_floor = min(raw_values) * 0.9
+        denominator = raw_max - raw_min_floor
+        for row in rows:
+            raw_strength = float(row.get("raw_strength") or 0.0)
+            if denominator <= 1e-12:
+                normalized = 100.0
+            else:
+                normalized = max(0.0, min(100.0, ((raw_strength - raw_min_floor) / denominator) * 100.0))
+            score = round(normalized, 2)
+            row["score"] = score
+            row["strength"] = score
+            polarity = str(row.get("moon_sign_polarity") or "unknown")
+            tags = [
+                "Lunar fertility window",
+                "Phase" if row.get("phase_kind") == "phase" else "Antiphase",
+                f"Moon in {row.get('moon_sign')}",
+                f"Moon-sign polarity: {polarity}",
+            ]
+            if int(row.get("overlap_count") or 0) > 1:
+                tags.append(f"Overlapping windows combined ({row.get('overlap_count')})")
+            if score >= 90.0:
+                tags.append("Near visible-period maximum")
+            row["tags"] = tags
+            row["pros"] = tags[:3]
     return rows
 
 
@@ -378,6 +412,7 @@ def group_lunar_fertility_periods(
                 "best_score": peak.get("score"),
                 "phase_kind": first.get("phase_kind"),
                 "sex_label": first.get("sex_label"),
+                "moon_sign_polarity": first.get("moon_sign_polarity"),
                 "moon_sign": peak.get("moon_sign"),
                 "row_count": len(current),
             }
@@ -385,22 +420,22 @@ def group_lunar_fertility_periods(
 
     previous_ts: Optional[datetime] = None
     previous_phase = None
-    previous_sex = None
+    previous_polarity = None
     for row in ordered:
         ts = _parse_row_timestamp(row)
         if ts is None:
             continue
         phase_kind = row.get("phase_kind")
-        sex_label = row.get("sex_label")
+        polarity = row.get("moon_sign_polarity") or row.get("sex_label")
         contiguous = previous_ts is not None and abs((ts - (previous_ts + timedelta(hours=1))).total_seconds()) <= 1
-        same_flags = phase_kind == previous_phase and sex_label == previous_sex
+        same_flags = phase_kind == previous_phase and polarity == previous_polarity
         if current and (not contiguous or not same_flags):
             flush()
             current = []
         current.append(row)
         previous_ts = ts
         previous_phase = phase_kind
-        previous_sex = sex_label
+        previous_polarity = polarity
     flush()
     return {"periods": periods, "rows": rows_out}
 
@@ -443,7 +478,9 @@ def scan_lunar_fertility_windows(
         ephemeris=ephemeris,
     )
     passing_rows = [row for row in all_rows if float(row.get("score") or 0.0) >= level]
-    grouped = group_lunar_fertility_periods(passing_rows, timezone_name=timezone_name)
+    # Level is a visual inspection guide. Period exports use every nonzero
+    # favorable hour, matching the recovered SkyLiner workflow.
+    grouped = group_lunar_fertility_periods(all_rows, timezone_name=timezone_name)
     period_rows = grouped.get("rows") or []
     period_by_key = {
         (row.get("timestamp"), row.get("phase_kind"), row.get("sex_label")): row.get("period_id")
@@ -457,8 +494,7 @@ def scan_lunar_fertility_windows(
         if period_id:
             copy_row["period_id"] = period_id
         series.append(copy_row)
-    top_source = passing_rows if passing_rows else all_rows
-    top = sorted(top_source, key=lambda row: float(row.get("score") or 0.0), reverse=True)
+    top = sorted(all_rows, key=lambda row: float(row.get("score") or 0.0), reverse=True)
     attempted = int(((end - start).total_seconds() // 3600) + 1)
     return {
         "matter": "lunar_fertility",

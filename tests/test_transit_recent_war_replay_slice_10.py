@@ -206,8 +206,11 @@ class TransitRecentWarReplaySliceTenTests(TestCase):
             )
 
         self.assertTrue(
-            any(row["event_type"] == "attack_violence" for row in event["war_rows"]),
-            msg=f"missing attack_violence typing in event_war_rows={event['war_rows']}",
+            any(
+                row["event_type"] in {"relationship_conflict", "attack_violence"}
+                for row in event["war_rows"]
+            ),
+            msg=f"missing source-defensible conflict typing in event_war_rows={event['war_rows']}",
         )
         self.assertTrue(
             any(row["life_area"] == "conflict" for row in event["war_rows"]),

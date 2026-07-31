@@ -12,6 +12,7 @@ import {
   MARRIAGE_BETA_PARTICIPANT_HELP,
   buildBusinessBetaLineOptions,
   buildEstateLineOptions,
+  buildMarriageBetaLineOptions,
   buildLunarFertilityReportHtml,
   mergeElectionTimelineRows,
   parseElectionClockValue,
@@ -63,13 +64,31 @@ describe('ElectionModal helpers', () => {
     expect(MARRIAGE_BETA_PARTICIPANT_HELP).toContain('participant 2');
   });
 
+  it('builds separate marriage beta event and participant line options', () => {
+    const options = buildMarriageBetaLineOptions({
+      snaps: [
+        { id: 'snap-a', label: 'Partner A' },
+        { id: 'snap-b', label: 'Partner B' },
+      ],
+      participantASnapId: 'snap-a',
+      participantBSnapId: 'snap-b',
+    });
+
+    expect(options).toEqual([
+      { id: 'event', label: 'Event line', kind: 'event' },
+      { id: 'participant:1', label: 'Partner A', kind: 'participant' },
+      { id: 'participant:2', label: 'Partner B', kind: 'participant' },
+    ]);
+  });
+
   it('describes business beta as an event-plus-founder workflow', () => {
     expect(BUSINESS_ALPHA_DESCRIPTION).toContain('current business election path');
     expect(BUSINESS_BETA_DESCRIPTION).toContain('event line');
     expect(BUSINESS_BETA_DESCRIPTION).toContain('founder-owner fit line');
     expect(BUSINESS_BETA_PARTICIPANT_HELP).toContain('founder or owner');
     expect(BUSINESS_BETA_PARTICIPANT_HELP).toContain('saved charts');
-    expect(BUSINESS_BETA_PARTICIPANT_HELP).toContain('treated as certified');
+    expect(BUSINESS_BETA_PARTICIPANT_HELP).toContain('Birth-time-safe');
+    expect(BUSINESS_BETA_PARTICIPANT_HELP).not.toContain('treated as certified');
   });
 
   it('builds business beta line options from selected founder charts', () => {
@@ -151,8 +170,9 @@ describe('ElectionModal helpers', () => {
     expect(html).toContain('Graphic Timeline');
     expect(html).toContain('Grouped Fertility Periods');
     expect(html).toContain('Full Hourly Favorable Table');
-    expect(html).toContain('female, phase');
-    expect(html).toContain('male, antiphase');
+    expect(html).toContain('feminine-sign polarity, phase');
+    expect(html).toContain('masculine-sign polarity, antiphase');
+    expect(html).toContain('not medical advice');
     expect(html).not.toContain('<script>');
     expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
   });

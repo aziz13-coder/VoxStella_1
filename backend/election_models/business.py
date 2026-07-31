@@ -10,7 +10,7 @@ from .common import (
     HI_EXALTATION, HI_TRIPLICITY, _hi_element,
     compute_sect_info, compute_morin_combustion,
     _safe_float,
-    _sign_from_lon, _house_cusps, _collect_planets, _house_from_lon, _get_aspects_list, _ang_sep,
+    _sign_from_lon, _house_cusps, _collect_planets, _house_from_lon, _get_aspects_list, _ang_sep, _is_waxing,
 )
 
 # Business-specific dignities and helpers
@@ -361,8 +361,11 @@ def score_business_election(
             ml = _safe_float(m.get('longitude'))
             sl = _safe_float(s.get('longitude'))
             if ml is not None and sl is not None:
-                waxing = True if abs((((ml - sl) + 180.0) % 360.0) - 180.0) < 180.0 else False
-                if waxing: score += 0.5; tags.append('Moon waxing')
+                waxing = _is_waxing(ml, sl)
+                if waxing is True:
+                    score += 0.5; tags.append('Moon waxing')
+                elif waxing is False:
+                    tags.append('Moon waning')
             # House preference
             mh = int(m.get('house')) if m.get('house') is not None else _house_from_lon(ml, cusps) if ml is not None else None
             if isinstance(mh, int):
@@ -398,15 +401,66 @@ def score_business_election(
     except Exception:
         pass
 
-    # 5) Business mode tweaks
+    # 5) Business mode tweaks. These must vary with chart conditions; a
+    # constant added to every timestamp cannot alter election ranking.
     try:
         mode = str((options or {}).get('business_mode') or '').strip().lower()
         if mode == 'conservative':
-            if score > 3.0: score = 3.0; tags.append('Conservative cap')
+            risk_tokens = (
+                'retrograde', 'combust', 'under beams', 'afflict', '6/8/12',
+                'malefic', 'via combusta', 'eclipse',
+            )
+            risk_count = sum(
+                1 for tag in tags
+                if any(token in str(tag).lower() for token in risk_tokens)
+            )
+            if risk_count:
+                adjustment = min(2.0, 0.35 * risk_count)
+                score -= adjustment
+                tags.append(f'Conservative risk adjustment (-{adjustment:.2f})')
         elif mode == 'growth':
-            score += 0.5; tags.append('Growth mode (+0.5)')
+            growth = 0.0
+            jupiter = planets.get('Jupiter') or {}
+            jupiter_house = (
+                int(jupiter.get('house'))
+                if jupiter.get('house') is not None
+                else _house_from_lon(_safe_float(jupiter.get('longitude')), cusps)
+                if _safe_float(jupiter.get('longitude')) is not None
+                else None
+            )
+            if jupiter_house in (2, 10, 11):
+                growth += 0.7
+            if jupiter and not bool(jupiter.get('retrograde')):
+                growth += 0.2
+            moon = planets.get('Moon') or {}
+            sun = planets.get('Sun') or {}
+            moon_lon = _safe_float(moon.get('longitude'))
+            sun_lon = _safe_float(sun.get('longitude'))
+            if moon_lon is not None and sun_lon is not None and _is_waxing(moon_lon, sun_lon) is True:
+                growth += 0.5
+            if growth:
+                score += growth
+                tags.append(f'Growth conditions (+{growth:.2f})')
         if (options or {}).get('emphasize_commerce'):
-            score += 0.2; tags.append('Emphasize commerce (Mercury)')
+            commerce = 0.0
+            mercury = planets.get('Mercury') or {}
+            mercury_house = (
+                int(mercury.get('house'))
+                if mercury.get('house') is not None
+                else _house_from_lon(_safe_float(mercury.get('longitude')), cusps)
+                if _safe_float(mercury.get('longitude')) is not None
+                else None
+            )
+            if mercury:
+                commerce += -0.8 if bool(mercury.get('retrograde')) else 0.25
+            if mercury_house in (1, 2, 3, 10, 11):
+                commerce += 0.45
+            mercury_sign = str(mercury.get('sign') or '')
+            if mercury_sign in {'Gemini', 'Virgo'}:
+                commerce += 0.45
+            if commerce:
+                score += commerce
+                tags.append(f'Commerce conditions ({commerce:+.2f})')
     except Exception:
         pass
 

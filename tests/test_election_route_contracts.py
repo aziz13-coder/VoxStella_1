@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import sys
 import types
+from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -59,6 +60,15 @@ def _extract_done_payload(raw_sse: str) -> dict:
         if payload.get("type") == "done":
             return payload["data"]
     raise AssertionError("No done payload found in SSE response")
+
+
+def _extract_sse_payloads(raw_sse: str) -> list[dict]:
+    payloads = []
+    for chunk in raw_sse.split("\n\n"):
+        chunk = chunk.strip()
+        if chunk.startswith("data: "):
+            payloads.append(json.loads(chunk[6:]))
+    return payloads
 
 
 def _business_chart() -> dict:
@@ -151,6 +161,215 @@ def test_validate_and_stream_reject_zero_step_minutes_consistently(monkeypatch):
     assert stream_resp.status_code == 400
     assert validate_resp.get_json()["error"] == "step_minutes must be >= 1"
     assert stream_resp.get_json()["error"] == "step_minutes must be >= 1"
+
+
+def test_validate_and_stream_reject_unknown_matter_instead_of_falling_back():
+    app = _make_app()
+    client = app.test_client()
+    query = _base_query(matter="not-a-real-election-model")
+
+    validate_resp = client.get(f"/api/astro-clock/election/validate?{query}")
+    stream_resp = client.get(f"/api/astro-clock/election/suggest/stream?{query}")
+
+    assert validate_resp.status_code == 400
+    assert stream_resp.status_code == 400
+    assert "Unknown election matter" in validate_resp.get_json()["error"]
+    assert validate_resp.get_json()["error"] == stream_resp.get_json()["error"]
+
+
+def test_validate_and_stream_reject_invalid_limits_consistently(monkeypatch):
+    monkeypatch.setattr(astro_clock_api, "_ensure_coords_for_location", lambda location: (31.778, 35.235))
+    app = _make_app()
+    client = app.test_client()
+
+    for invalid_limit, expected_error in (
+        ("not-an-integer", "Invalid limit"),
+        ("0", "limit must be >= 1"),
+        ("-5", "limit must be >= 1"),
+    ):
+        query = _base_query(limit=invalid_limit)
+        validate_resp = client.get(f"/api/astro-clock/election/validate?{query}")
+        stream_resp = client.get(f"/api/astro-clock/election/suggest/stream?{query}")
+
+        assert validate_resp.status_code == 400
+        assert stream_resp.status_code == 400
+        assert validate_resp.get_json()["error"] == expected_error
+        assert stream_resp.get_json()["error"] == expected_error
+
+    assert astro_clock_api._parse_transit_limit("9999", max_value=200) == (200, None)
+
+
+def test_validate_and_stream_reject_invalid_line_extraction_options_consistently(monkeypatch):
+    monkeypatch.setattr(astro_clock_api, "_ensure_coords_for_location", lambda location: (31.778, 35.235))
+    app = _make_app()
+    client = app.test_client()
+    cases = (
+        (
+            _base_query(
+                matter="business",
+                business_algorithm="beta",
+                participant_snap_id="participant-a",
+                business_beta_display_mode="invalid",
+            ),
+            "business_beta_display_mode must be total or detail",
+        ),
+        (
+            _base_query(
+                matter="business",
+                business_algorithm="beta",
+                participant_snap_id="participant-a",
+                business_beta_scope="invalid",
+            ),
+            "business_beta_scope must be all, current, or selected",
+        ),
+        (
+            _base_query(
+                matter="estate",
+                estate_participant_snap_id="participant-a",
+                estate_display_mode="invalid",
+            ),
+            "estate_display_mode must be total or detail",
+        ),
+        (
+            _base_query(
+                matter="estate",
+                estate_participant_snap_id="participant-a",
+                estate_scope="invalid",
+            ),
+            "estate_scope must be all, current, or selected",
+        ),
+    )
+
+    for query, expected_error in cases:
+        validate_resp = client.get(f"/api/astro-clock/election/validate?{query}")
+        stream_resp = client.get(f"/api/astro-clock/election/suggest/stream?{query}")
+
+        assert validate_resp.status_code == 400
+        assert stream_resp.status_code == 400
+        assert validate_resp.get_json()["error"] == expected_error
+        assert stream_resp.get_json()["error"] == expected_error
+
+
+def test_reference_parity_validates_complete_thirty_day_minute_scan(monkeypatch):
+    monkeypatch.setattr(astro_clock_api, "_ensure_coords_for_location", lambda location: (31.778, 35.235))
+    monkeypatch.setattr(
+        astro_clock_api,
+        "_bundle_from_snap_id",
+        lambda snap_id, **kwargs: {
+            "chart_data": _business_chart(),
+            "meta": {"timestamp": "1990-01-01T00:00:00Z"},
+        },
+    )
+    app = _make_app()
+    client = app.test_client()
+    query = _base_query(
+        matter="marriage",
+        marriage_algorithm="beta",
+        participant_a_snap_id="participant-a",
+        participant_b_snap_id="participant-b",
+        start="2026-03-01T00:00:00Z",
+        end="2026-03-31T00:00:00Z",
+        step_minutes="60",
+        reference_parity="1",
+    )
+
+    response = client.get(f"/api/astro-clock/election/validate?{query}")
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["reference_parity"] is True
+    assert payload["step_minutes"] == 1
+    assert payload["total_steps"] == 43_201
+
+
+def test_stream_reports_aggregated_step_failures(monkeypatch):
+    monkeypatch.setattr(astro_clock_api, "_ensure_coords_for_location", lambda location: (31.778, 35.235))
+    monkeypatch.setattr(astro_clock_api, "_engine_instance", lambda: object())
+
+    def _raise_chart_failure(*args, **kwargs):
+        raise RuntimeError("synthetic chart failure")
+
+    monkeypatch.setattr(astro_clock_api, "_compute_chart_for", _raise_chart_failure)
+    app = _make_app()
+    client = app.test_client()
+    query = _base_query(end="2026-03-08T00:01:00Z", step_minutes="1", include_series="0")
+
+    response = client.get(f"/api/astro-clock/election/suggest/stream?{query}")
+
+    assert response.status_code == 200
+    payload = _extract_done_payload(response.get_data(as_text=True))
+    assert payload["top"] == []
+    assert payload["stats"]["attempted"] == 2
+    assert payload["stats"]["failed"] == 2
+    assert payload["stats"]["failure_reasons"] == {"RuntimeError": 2}
+    assert len(payload["stats"]["failure_samples"]) == 2
+    assert payload["stats"]["failure_samples"][0]["message"] == "synthetic chart failure"
+
+
+def test_stream_throttles_progress_events_for_dense_scans(monkeypatch):
+    monkeypatch.setattr(astro_clock_api, "_ensure_coords_for_location", lambda location: (31.778, 35.235))
+    monkeypatch.setattr(astro_clock_api, "_engine_instance", lambda: object())
+    monkeypatch.setattr(
+        astro_clock_api,
+        "_compute_chart_for",
+        lambda dt_iso, location, tz_name, house_system_code=None: (
+            _business_chart(),
+            {"timestamp": dt_iso},
+        ),
+    )
+    app = _make_app()
+    query = _base_query(
+        end="2026-03-08T10:00:00Z",
+        step_minutes="1",
+        include_series="0",
+        limit="1",
+    )
+
+    response = app.test_client().get(
+        f"/api/astro-clock/election/suggest/stream?{query}"
+    )
+
+    assert response.status_code == 200
+    payloads = _extract_sse_payloads(response.get_data(as_text=True))
+    progress = [item for item in payloads if item.get("type") == "progress"]
+    assert 2 <= len(progress) <= 501
+    assert progress[0]["progress"] == 0.0
+    assert progress[-1]["progress"] == 1.0
+    assert payloads[-1]["type"] == "done"
+
+
+def test_mercury_direct_station_timeline_bisects_speed_sign_change(monkeypatch):
+    class FakeSwissEphemeris:
+        GREG_CAL = 1
+        FLG_SWIEPH = 2
+        FLG_SPEED = 256
+        MERCURY = 2
+
+        @staticmethod
+        def julday(*args):
+            return 1000.0
+
+        @staticmethod
+        def calc_ut(jd, planet_id, flags):
+            assert planet_id == FakeSwissEphemeris.MERCURY
+            return ([0.0, 0.0, 0.0, jd - 1110.0], flags)
+
+    monkeypatch.setattr(astro_clock_api, "require_swisseph", lambda: FakeSwissEphemeris())
+    monkeypatch.setattr(astro_clock_api, "_resolve_synastry_ephemeris_path", lambda: "test-ephemeris")
+    monkeypatch.setattr(
+        astro_clock_api,
+        "swisseph_ephemeris_path",
+        lambda *args, **kwargs: nullcontext(),
+    )
+    start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+
+    stations = astro_clock_api._mercury_direct_station_times(
+        start,
+        start + timedelta(days=1),
+    )
+
+    assert len(stations) == 1
+    assert abs((stations[0] - (start - timedelta(days=10))).total_seconds()) < 1.0
 
 
 def test_validate_and_stream_reject_oversized_windows_consistently(monkeypatch):

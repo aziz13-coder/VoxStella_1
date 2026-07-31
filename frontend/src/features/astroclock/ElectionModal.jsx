@@ -8,10 +8,11 @@ import {
 } from './savedSnapViewModel.mjs';
 
 const ALL_WEEKDAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+const EMPTY_ELECTION_ROWS = Object.freeze([]);
 export const MARRIAGE_ALPHA_DESCRIPTION =
   'Alpha keeps the original wedding election path and can optionally layer one natal snap.';
 export const MARRIAGE_BETA_DESCRIPTION =
-  'Beta uses the separate event-plus-two-participant marriage path and requires chart A plus chart B.';
+  'Beta requires chart A and chart B, keeps their lines separate from the event, applies birth-time precision gates, and extracts shared favorable periods.';
 export const MARRIAGE_BETA_PARTICIPANT_HELP =
   'Beta uses two charts saved in Astro Clock. Chart A is participant 1 and chart B is participant 2.';
 export const BUSINESS_ALPHA_DESCRIPTION =
@@ -19,13 +20,13 @@ export const BUSINESS_ALPHA_DESCRIPTION =
 export const BUSINESS_BETA_DESCRIPTION =
   'Beta scans one event line plus one founder-owner fit line per selected saved chart and keeps those lines separate in the result.';
 export const BUSINESS_BETA_PARTICIPANT_HELP =
-  'Beta uses one or more saved charts from Astro Clock as founder or owner charts. It scores the event chart first, then checks founder fit for each selected chart. In this beta path the selected charts are treated as certified, so Ascendant-based founder fit stays active.';
+  'Beta uses one or more saved charts for a founder or owner. Birth-time-safe charts receive Ascendant and house fit; uncertain charts retain planet-only comparisons.';
 export const ESTATE_DESCRIPTION =
   'Estate scans one event line plus one buyer or seller fit line from a selected saved chart, with separate buy and sell direction rules.';
 export const ESTATE_PARTICIPANT_HELP =
   'Estate uses one saved Astro Clock chart as the buyer or seller chart. The scan scores the property event first, then checks the selected chart against the event Moon, Ascendant, Fortuna, and property set.';
 export const LUNAR_FERTILITY_DESCRIPTION =
-  'Lunar Fertility Windows scans natal Sun-Moon phase returns as hourly fertility windows with phase, antiphase, and Moon-sign polarity labels.';
+  'Traditional natal Sun-Moon phase recurrence windows with phase, antiphase, and Moon-sign polarity. Level is a visual guide, not a period filter; this is not medical or fetal-sex prediction.';
 
 function sanitizeWeightedElectionTagDisplay(tag) {
   const text = String(tag || '').trim();
@@ -193,6 +194,36 @@ function formatSavedSnapLabel(snap) {
   return formatCanonicalSavedSnapLabel(snap) || String(snap.id || 'Saved chart');
 }
 
+export function buildMarriageBetaLineOptions({
+  snaps = [],
+  participantASnapId = '',
+  participantBSnapId = '',
+  participantItems = [],
+} = {}) {
+  const options = [{ id: 'event', label: 'Event line', kind: 'event' }];
+  const ids = [participantASnapId, participantBSnapId].filter(Boolean);
+  const items = Array.isArray(participantItems) && participantItems.length
+    ? participantItems
+    : ids.map((snapId, index) => {
+        const snap = Array.isArray(snaps)
+          ? snaps.find((item) => String(item?.id || '') === String(snapId))
+          : null;
+        return {
+          label: String(snap?.label || '').trim()
+            || String(snap?.location || '').trim()
+            || `Participant ${index === 0 ? 'A' : 'B'}`,
+        };
+      });
+  items.slice(0, 2).forEach((item, index) => {
+    options.push({
+      id: `participant:${index + 1}`,
+      label: String(item?.label || '').trim() || `Participant ${index === 0 ? 'A' : 'B'}`,
+      kind: 'participant',
+    });
+  });
+  return options;
+}
+
 function formatSavedSnapOptionLabel(snap) {
   const reason = getSavedSnapIneligibilityLabel(snap);
   return `${formatSavedSnapLabel(snap)}${reason ? ` — ${reason}` : ''}`;
@@ -311,9 +342,13 @@ function reportModeLabel(mode) {
 }
 
 function reportSexPhase(row) {
-  const sex = String(row?.sex_label || 'unknown').trim() || 'unknown';
+  const legacySex = String(row?.sex_label || '').trim();
+  const polarity = String(
+    row?.moon_sign_polarity
+      || (legacySex === 'male' ? 'masculine' : legacySex === 'female' ? 'feminine' : 'unknown'),
+  ).trim() || 'unknown';
   const phase = row?.phase_kind === 'antiphase' ? 'antiphase' : row?.phase_kind === 'phase' ? 'phase' : 'unknown';
-  return `${sex}, ${phase}`;
+  return `${polarity}-sign polarity, ${phase}`;
 }
 
 function fertilityReportRows(rows) {
@@ -375,7 +410,7 @@ export function buildLunarFertilityReportHtml({
     ['Natal coordinates', natalCoords],
     ['House system', context.houseSystem || ''],
     ['Consider', reportModeLabel(result.consider_mode || context.considerMode)],
-    ['Level', `${level.toFixed(0)}%`],
+    ['Visual level guide', `${level.toFixed(0)}%`],
     ['Generated', reportTime(generatedAt, timezoneName)],
   ];
 
@@ -400,11 +435,11 @@ export function buildLunarFertilityReportHtml({
         <td>${reportCell(`${reportTime(period.start_local || period.start, timezoneName)} - ${reportTime(period.end_local || period.end, timezoneName)}`)}</td>
         <td>${reportCell(period.best_timestamp_local || period.best_timestamp ? reportTime(period.best_timestamp_local || period.best_timestamp, timezoneName) : '-')}</td>
         <td class="num">${reportCell(Number(period.best_score || 0).toFixed(0))}</td>
-        <td>${reportCell(`${period.sex_label || 'unknown'}, ${period.phase_kind || 'unknown'}`)}</td>
+        <td>${reportCell(reportSexPhase(period))}</td>
         <td>${reportCell(period.moon_sign || '-')}</td>
       </tr>
     `).join('')
-    : '<tr><td colspan="5">No grouped fertility periods reached the selected level.</td></tr>';
+    : '<tr><td colspan="5">No grouped favorable periods are available.</td></tr>';
 
   const hourlyHtml = rows.length
     ? rows.map((row) => `
@@ -468,26 +503,27 @@ export function buildLunarFertilityReportHtml({
     <div class="bars">${graphBars}</div>
   </div>
   <div class="legend">
-    <span><span class="swatch" style="background:#2563eb;"></span>male Moon-sign polarity</span>
-    <span><span class="swatch" style="background:#db2777;"></span>female Moon-sign polarity</span>
-    <span>solid = phase, faded = antiphase, dashed line = selected level</span>
+    <span><span class="swatch" style="background:#2563eb;"></span>masculine Moon-sign polarity</span>
+    <span><span class="swatch" style="background:#db2777;"></span>feminine Moon-sign polarity</span>
+    <span>solid = phase, faded = antiphase, dashed line = visual level guide</span>
   </div>
+  <p class="subtitle">Traditional timing display only. It is not medical advice, an ovulation estimate, or a fetal-sex prediction.</p>
 
   <h2>Grouped Fertility Periods</h2>
   <table>
-    <thead><tr><th>Period</th><th>Peak time</th><th>Peak</th><th>Sex, phase</th><th>Peak Moon sign</th></tr></thead>
+    <thead><tr><th>Period</th><th>Peak time</th><th>Peak</th><th>Polarity, phase</th><th>Peak Moon sign</th></tr></thead>
     <tbody>${periodHtml}</tbody>
   </table>
 
   <h2>Top Timepoints</h2>
   <table>
-    <thead><tr><th>Date time</th><th>Strength</th><th>Sex, phase</th><th>Moon sign</th></tr></thead>
+    <thead><tr><th>Date time</th><th>Strength</th><th>Polarity, phase</th><th>Moon sign</th></tr></thead>
     <tbody>${topHtml}</tbody>
   </table>
 
   <h2 class="page-break">Full Hourly Favorable Table</h2>
   <table>
-    <thead><tr><th>Date time</th><th>Strength bar</th><th>Strength</th><th>Sex, phase</th><th>Moon sign</th></tr></thead>
+    <thead><tr><th>Date time</th><th>Strength bar</th><th>Strength</th><th>Polarity, phase</th><th>Moon sign</th></tr></thead>
     <tbody>${hourlyHtml}</tbody>
   </table>
 </body>
@@ -581,7 +617,7 @@ export default function ElectionModal({
   onClose,
   onJumpToTime,
   defaultHouseSystem,
-  snaps: initialSnaps = [],
+  snaps: initialSnaps = EMPTY_ELECTION_ROWS,
   activeSnapId = '',
 }) {
   // Model selection (toggle). Supports 'marriage' and 'surgery'.
@@ -604,11 +640,17 @@ export default function ElectionModal({
   const [hourEnd, setHourEnd] = useState('');   // 'HH:MM'
   const [marriageAlgorithm, setMarriageAlgorithm] = useState('alpha');
   const [businessAlgorithm, setBusinessAlgorithm] = useState('alpha');
+  const [referenceParity, setReferenceParity] = useState(true);
   const [sourceMode, setSourceMode] = useState(activeSnapId ? 'snap' : 'none'); // 'none' | 'snap'
   const [snaps, setSnaps] = useState(() => (Array.isArray(initialSnaps) ? initialSnaps : []));
   const [selectedSnapId, setSelectedSnapId] = useState(activeSnapId || '');
   const [participantASnapId, setParticipantASnapId] = useState('');
   const [participantBSnapId, setParticipantBSnapId] = useState('');
+  const [marriageBetaDisplayMode, setMarriageBetaDisplayMode] = useState('total');
+  const [marriageBetaScope, setMarriageBetaScope] = useState('all');
+  const [marriageBetaLevelPercent, setMarriageBetaLevelPercent] = useState(67);
+  const [marriageBetaCurrentLineId, setMarriageBetaCurrentLineId] = useState('event');
+  const [marriageBetaSelectedLineIds, setMarriageBetaSelectedLineIds] = useState(['event']);
   const [businessParticipantSnapIds, setBusinessParticipantSnapIds] = useState([]);
   const [estateParticipantSnapId, setEstateParticipantSnapId] = useState('');
   const [includeSrLr, setIncludeSrLr] = useState(true);
@@ -645,6 +687,7 @@ export default function ElectionModal({
   const [battleAction, setBattleAction] = useState('battle'); // battle|attack|defense|siege|retreat
   // Hair options
   const [hairGoal, setHairGoal] = useState('balanced');
+  const [haircutType, setHaircutType] = useState('trim');
   // Beautification options
   const [beautyProcedureType, setBeautyProcedureType] = useState('fillers');
   const [beautyBodyParts, setBeautyBodyParts] = useState(() => [...(BEAUTY_PROCEDURE_DEFAULTS['fillers'] || [])]);
@@ -656,6 +699,7 @@ export default function ElectionModal({
   const progRef = React.useRef(null);
   const scanSrcRef = React.useRef(null);
   const scanTerminalRef = React.useRef(false);
+  const scanGenerationRef = React.useRef(0);
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
   const [selectedSeriesTimestamp, setSelectedSeriesTimestamp] = useState('');
@@ -736,40 +780,72 @@ export default function ElectionModal({
     }
   }, [businessAlgorithm, includeSrLr, marriageAlgorithm, matter]);
 
-  if (!open) return null;
-
   const isMarriageMatter = matter === 'marriage';
   const isBusinessMatter = matter === 'business';
   const isEstateMatter = matter === 'estate';
   const isLunarFertilityMatter = matter === 'lunar_fertility';
   const isMarriageBeta = isMarriageMatter && marriageAlgorithm === 'beta';
   const isBusinessBeta = isBusinessMatter && businessAlgorithm === 'beta';
+  const isReferenceLineModel = isMarriageBeta || isBusinessBeta || isEstateMatter;
+  const activeModelIdentity = isMarriageMatter
+    ? `marriage:${marriageAlgorithm}`
+    : isBusinessMatter
+      ? `business:${businessAlgorithm}`
+      : matter;
+  const previousModelIdentityRef = React.useRef(activeModelIdentity);
   const participantModeActive = isMarriageBeta || isBusinessBeta || isEstateMatter;
   const natalAvailable = !participantModeActive && (sourceMode === 'snap' && !!selectedSnapId);
   const hasSavedSnaps = eligibleSnaps.length > 0;
   const currentProcedureLabel = BEAUTY_PROCEDURE_LABELS[beautyProcedureType] || 'Selected procedure';
+  const marriageBetaExtraction = result?.marriage_beta_extraction || null;
+  const marriageBetaPeriods = Array.isArray(result?.marriage_beta_periods) ? result.marriage_beta_periods : [];
   const businessBetaExtraction = result?.business_beta_extraction || null;
   const businessBetaPeriods = Array.isArray(result?.business_beta_periods) ? result.business_beta_periods : [];
   const estateExtraction = result?.estate_extraction || null;
   const estatePeriods = Array.isArray(result?.estate_periods) ? result.estate_periods : [];
-  const lineExtraction = businessBetaExtraction || estateExtraction;
-  const extractedPeriods = businessBetaExtraction ? businessBetaPeriods : estatePeriods;
+  const lineExtraction = marriageBetaExtraction || businessBetaExtraction || estateExtraction;
+  const extractedPeriods = marriageBetaExtraction
+    ? marriageBetaPeriods
+    : businessBetaExtraction
+      ? businessBetaPeriods
+      : estatePeriods;
   const lunarFertilityPeriods = result?.matter === 'lunar_fertility' && Array.isArray(result?.periods)
     ? result.periods
     : [];
   const hasLunarFertilityResult = result?.matter === 'lunar_fertility';
-  const extractionPassKey = estateExtraction ? 'estate_pass' : 'business_beta_pass';
-  const extractionThresholdKey = estateExtraction ? 'estate_selected_threshold' : 'business_beta_selected_threshold';
-  const lineModelLabel = estateExtraction ? 'Estate lines' : 'Business beta lines';
+  const extractionPassKey = marriageBetaExtraction
+    ? 'marriage_beta_pass'
+    : estateExtraction
+      ? 'estate_pass'
+      : 'business_beta_pass';
+  const extractionThresholdKey = marriageBetaExtraction
+    ? 'marriage_beta_selected_threshold'
+    : estateExtraction
+      ? 'estate_selected_threshold'
+      : 'business_beta_selected_threshold';
+  const lineModelLabel = marriageBetaExtraction
+    ? 'Marriage beta lines'
+    : estateExtraction
+      ? 'Estate lines'
+      : 'Business beta lines';
+  const marriageBetaLineOptions = useMemo(
+    () => buildMarriageBetaLineOptions({
+      snaps,
+      participantASnapId,
+      participantBSnapId,
+      participantItems: result?.matter === 'marriage' ? (result?.participants?.items || []) : [],
+    }),
+    [participantASnapId, participantBSnapId, result?.matter, result?.participants?.items, snaps],
+  );
   const businessBetaLineOptions = useMemo(
     () => (
       buildBusinessBetaLineOptions({
         snaps,
         participantSnapIds: businessParticipantSnapIds,
-        participantItems: result?.participants?.items || [],
+        participantItems: result?.matter === 'business' ? (result?.participants?.items || []) : [],
       })
     ),
-    [businessParticipantSnapIds, result?.participants?.items, snaps],
+    [businessParticipantSnapIds, result?.matter, result?.participants?.items, snaps],
   );
   const estateLineOptions = useMemo(
     () => (
@@ -781,6 +857,25 @@ export default function ElectionModal({
     ),
     [estateParticipantSnapId, result?.matter, result?.participants?.items, snaps],
   );
+
+  useEffect(() => {
+    if (!isMarriageBeta) return;
+    const availableIds = marriageBetaLineOptions.map((item) => item.id);
+    if (!availableIds.length) {
+      setMarriageBetaCurrentLineId('event');
+      setMarriageBetaSelectedLineIds(['event']);
+      return;
+    }
+    setMarriageBetaCurrentLineId((current) => (
+      availableIds.includes(current) ? current : availableIds[0]
+    ));
+    setMarriageBetaSelectedLineIds((current) => {
+      const filtered = Array.isArray(current)
+        ? current.filter((lineId) => availableIds.includes(lineId))
+        : [];
+      return filtered.length ? filtered : availableIds;
+    });
+  }, [isMarriageBeta, marriageBetaLineOptions]);
 
   useEffect(() => {
     if (!isBusinessBeta) return;
@@ -816,6 +911,40 @@ export default function ElectionModal({
     });
   }, [estateLineOptions, isEstateMatter]);
 
+  useEffect(() => {
+    if (previousModelIdentityRef.current === activeModelIdentity) return;
+    previousModelIdentityRef.current = activeModelIdentity;
+    scanGenerationRef.current += 1;
+    scanTerminalRef.current = true;
+    if (progRef.current) {
+      clearInterval(progRef.current);
+      progRef.current = null;
+    }
+    if (scanSrcRef.current) {
+      try { scanSrcRef.current.close(); } catch (_) {}
+      scanSrcRef.current = null;
+    }
+    setLoading(false);
+    setProgress(0);
+    setResult(null);
+    setError(null);
+    setReportStatus('');
+    setSelectedSeriesTimestamp('');
+  }, [activeModelIdentity]);
+
+  useEffect(() => () => {
+    scanGenerationRef.current += 1;
+    scanTerminalRef.current = true;
+    if (progRef.current) {
+      clearInterval(progRef.current);
+      progRef.current = null;
+    }
+    if (scanSrcRef.current) {
+      try { scanSrcRef.current.close(); } catch (_) {}
+      scanSrcRef.current = null;
+    }
+  }, []);
+
   const updateWeekdaySelection = (nextDays, nextMode = null) => {
     const normalized = ALL_WEEKDAYS.filter((day) => Array.isArray(nextDays) && nextDays.includes(day));
     setWeekdays(normalized);
@@ -847,6 +976,7 @@ export default function ElectionModal({
 
   const close = () => {
     setResult(null); setError(null); setLoading(false); setReportStatus(''); onClose?.();
+    scanGenerationRef.current += 1;
     scanTerminalRef.current = false;
     if (progRef.current) { clearInterval(progRef.current); progRef.current = null; }
     if (scanSrcRef.current) { try { scanSrcRef.current.close(); } catch(_) {} scanSrcRef.current = null; }
@@ -855,6 +985,8 @@ export default function ElectionModal({
   };
 
   const doScan = async () => {
+    const scanGeneration = scanGenerationRef.current + 1;
+    scanGenerationRef.current = scanGeneration;
     setLoading(true); setError(null); setReportStatus(''); setProgress(0);
     scanTerminalRef.current = false;
     try {
@@ -893,6 +1025,7 @@ export default function ElectionModal({
             ? 'all'
             : 'custom')
       );
+      const effectiveStepMinutes = isReferenceLineModel && referenceParity ? 1 : stepMinutes;
 
       const base = {
         matter,
@@ -901,7 +1034,7 @@ export default function ElectionModal({
         location,
         timezone: timezone || undefined,
         houseSystem,
-        stepMinutes,
+        stepMinutes: effectiveStepMinutes,
         limit,
         weekdays,
         weekdayMode: effectiveWeekdayMode,
@@ -915,8 +1048,28 @@ export default function ElectionModal({
             : 33,
         } : {}),
       };
-      if (isMarriageMatter) base.marriageAlgorithm = marriageAlgorithm;
+      if (isMarriageMatter) {
+        base.marriageAlgorithm = marriageAlgorithm;
+        if (isMarriageBeta) {
+          base.marriageBetaDisplayMode = marriageBetaDisplayMode;
+          base.marriageBetaScope = marriageBetaScope;
+          base.marriageBetaLevelPercent = Number.isFinite(Number(marriageBetaLevelPercent))
+            ? Math.max(0, Math.min(100, Number(marriageBetaLevelPercent)))
+            : 67;
+          if (marriageBetaCurrentLineId) {
+            base.marriageBetaCurrentLineId = marriageBetaCurrentLineId;
+          }
+          if (
+            marriageBetaScope === 'selected'
+            && Array.isArray(marriageBetaSelectedLineIds)
+            && marriageBetaSelectedLineIds.length
+          ) {
+            base.marriageBetaSelectedLineIds = marriageBetaSelectedLineIds;
+          }
+        }
+      }
       if (isBusinessMatter) base.businessAlgorithm = businessAlgorithm;
+      if (isReferenceLineModel && referenceParity) base.referenceParity = true;
       if (natalAvailable) base.includeSrLr = includeSrLr;
       if (isEstateMatter) {
         base.estateDirection = estateDirection === 'sell' ? 'sell' : 'buy';
@@ -974,6 +1127,7 @@ export default function ElectionModal({
       }
       if (matter === 'haircut') {
         if (hairGoal) base.hairGoal = hairGoal;
+        if (haircutType) base.haircutType = haircutType;
       }
       if (matter === 'beautification') {
         if (beautyProcedureType) base.procedureType = beautyProcedureType;
@@ -1056,9 +1210,20 @@ export default function ElectionModal({
       if (scanSrcRef.current) { try { scanSrcRef.current.close(); } catch(_) {} scanSrcRef.current = null; }
       const es = await AstroClockAPI.electionStream(opts);
       if (!es) { throw new Error('Unable to open stream'); }
+      if (scanGenerationRef.current !== scanGeneration) {
+        try { es.close(); } catch (_) {}
+        return;
+      }
       scanSrcRef.current = es;
       let completed = false;
       es.onmessage = (ev) => {
+        if (
+          scanGenerationRef.current !== scanGeneration
+          || scanSrcRef.current !== es
+          || scanTerminalRef.current
+        ) {
+          return;
+        }
         try {
           const msg = JSON.parse(ev.data);
           if (msg?.type === 'progress') {
@@ -1074,6 +1239,7 @@ export default function ElectionModal({
         } catch (_) {}
       };
       es.onerror = async () => {
+        if (scanGenerationRef.current !== scanGeneration) return;
         if (shouldIgnoreElectionStreamError({
           currentSource: scanSrcRef.current,
           errorSource: es,
@@ -1088,12 +1254,20 @@ export default function ElectionModal({
         } catch (apiErr) {
           errMsg = apiErr?.message || errMsg;
         }
+        if (
+          scanGenerationRef.current !== scanGeneration
+          || scanSrcRef.current !== es
+          || scanTerminalRef.current
+        ) {
+          return;
+        }
         scanTerminalRef.current = true;
         setError(errMsg);
         setLoading(false);
         if (scanSrcRef.current) { try { scanSrcRef.current.close(); } catch(_) {} scanSrcRef.current = null; }
       };
     } catch (e) {
+      if (scanGenerationRef.current !== scanGeneration) return;
       setError(e?.message || String(e)); setLoading(false);
       if (scanSrcRef.current) { try { scanSrcRef.current.close(); } catch(_) {} scanSrcRef.current = null; }
     }
@@ -1111,11 +1285,15 @@ export default function ElectionModal({
     const rows = Array.isArray(result?.top) ? result.top : [];
     return usesWeightedTagSanitizer ? rows.map(sanitizeWeightedElectionRow) : rows;
   }, [result?.business_algorithm, result?.marriage_algorithm, result?.matter, result?.top, usesWeightedTagSanitizer]);
-  const series = result?.series || [];
+  const series = Array.isArray(result?.series) ? result.series : EMPTY_ELECTION_ROWS;
   const retainedSeries = useMemo(() => normalizeElectionSeriesRows(series), [series]);
   const timelineSeries = useMemo(() => mergeElectionTimelineRows(retainedSeries, top), [retainedSeries, top]);
   const displaySeries = useMemo(() => compressElectionSeriesRows(timelineSeries), [timelineSeries]);
-  const peakSeriesRows = useMemo(() => pickElectionPeakRows(timelineSeries, stepMinutes, 4), [timelineSeries, stepMinutes]);
+  const resultStepMinutes = Number(result?.model_metadata?.step_minutes || stepMinutes || 60);
+  const peakSeriesRows = useMemo(
+    () => pickElectionPeakRows(timelineSeries, resultStepMinutes, 4),
+    [resultStepMinutes, timelineSeries],
+  );
   const bestSeriesRow = peakSeriesRows[0] || timelineSeries.slice().sort((a, b) => Number(b.score || 0) - Number(a.score || 0))[0] || null;
   const selectedSeriesRow = useMemo(() => {
     if (!timelineSeries.length) return null;
@@ -1138,6 +1316,8 @@ export default function ElectionModal({
     });
   }, [bestSeriesRow, timelineSeries]);
 
+  if (!open) return null;
+
   const isCautionTag = (t) => {
     try {
       const s = String(t || '').toLowerCase();
@@ -1150,8 +1330,7 @@ export default function ElectionModal({
         s.includes('on asc') || s.includes('on desc') ||
         s.includes('dark moon') || s.includes('forbidden') || s.includes('softens posture') ||
         s.includes('debilitated') || s.includes('critical') ||
-        // Surgery-specific: classify waxing/bleeding risk as a caution
-        s.includes('bleeding risk') || (s.includes('waxing') && s.includes('(surgery)'))
+        s.includes('decreasing in light') || s.includes('direct-station age unavailable')
       );
     } catch { return false; }
   };
@@ -1421,6 +1600,93 @@ export default function ElectionModal({
                     ? MARRIAGE_BETA_DESCRIPTION
                     : MARRIAGE_ALPHA_DESCRIPTION}
                 </p>
+                {isMarriageBeta ? (
+                  <div className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50/80 p-3 dark:border-gray-700 dark:bg-gray-900/40">
+                    <div className="text-[11px] uppercase tracking-[0.24em] text-zinc-500 dark:text-zinc-400">
+                      Shared-period extraction
+                    </div>
+                    <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
+                      <div>
+                        <label className="block text-xs text-zinc-600 mb-1">Mode</label>
+                        <select
+                          className="px-2 py-1 border rounded w-full"
+                          value={marriageBetaDisplayMode}
+                          onChange={(e) => setMarriageBetaDisplayMode(e.target.value)}
+                        >
+                          <option value="total">Show total</option>
+                          <option value="detail">Show favorable detail</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-zinc-600 mb-1">Line scope</label>
+                        <select
+                          className="px-2 py-1 border rounded w-full"
+                          value={marriageBetaScope}
+                          onChange={(e) => setMarriageBetaScope(e.target.value)}
+                        >
+                          <option value="all">All three lines</option>
+                          <option value="current">Current line</option>
+                          <option value="selected">Selected subset</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-zinc-600 mb-1">Threshold %</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="1"
+                          className="px-2 py-1 border rounded w-full"
+                          value={marriageBetaLevelPercent}
+                          onChange={(e) => setMarriageBetaLevelPercent(Number(e.target.value || 67))}
+                        />
+                      </div>
+                    </div>
+                    {marriageBetaScope === 'current' ? (
+                      <div className="mt-3">
+                        <label className="block text-xs text-zinc-600 mb-1">Current line</label>
+                        <select
+                          className="px-2 py-1 border rounded w-full"
+                          value={marriageBetaCurrentLineId}
+                          onChange={(e) => setMarriageBetaCurrentLineId(e.target.value)}
+                        >
+                          {marriageBetaLineOptions.map((option) => (
+                            <option key={option.id} value={option.id}>{option.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    ) : null}
+                    {marriageBetaScope === 'selected' ? (
+                      <div className="mt-3">
+                        <label className="block text-xs text-zinc-600 mb-1">Selected lines</label>
+                        <div className="flex flex-wrap gap-2">
+                          {marriageBetaLineOptions.map((option) => {
+                            const checked = marriageBetaSelectedLineIds.includes(option.id);
+                            return (
+                              <label key={option.id} className="inline-flex items-center gap-2 text-xs">
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => {
+                                    setMarriageBetaSelectedLineIds((current) => {
+                                      const next = Array.isArray(current) ? [...current] : [];
+                                      if (next.includes(option.id)) {
+                                        const filtered = next.filter((lineId) => lineId !== option.id);
+                                        return filtered.length ? filtered : [option.id];
+                                      }
+                                      return [...next, option.id];
+                                    });
+                                  }}
+                                />
+                                {option.label}
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             )}
             {isBusinessMatter && (
@@ -1638,6 +1904,9 @@ export default function ElectionModal({
                     Fixed stars (1°) on angles/Moon
                   </label>
                 </div>
+                <div className="md:col-span-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+                  Source profile: Morin's body-sign exclusion plus Bonatti's increasing-light Moon preference. Mercury retrograde, VOC, Via Combusta, and angular Saturn are cautions rather than automatic exclusions.
+                </div>
                 {!hasSavedSnaps && (
                   <div className="md:col-span-2 text-[11px] text-zinc-500 dark:text-zinc-400">
                     No saved Astro Clock charts were found. Save a chart first, then it will appear here.
@@ -1718,8 +1987,15 @@ export default function ElectionModal({
                         <option value="lasting">Longer-lasting style</option>
                       </select>
                     </div>
+                    <div className="inline-flex items-center gap-2 text-sm">
+                      <span>Cut type</span>
+                      <select className="px-2 py-1 border rounded" value={haircutType} onChange={e=>setHaircutType(e.target.value)}>
+                        <option value="trim">Trim / ordinary haircut</option>
+                        <option value="shave">Complete head or beard shave</option>
+                      </select>
+                    </div>
                     <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                      Waxing favors growth; waning favors longevity.
+                      Bonatti favors common signs except Gemini. Aries is prohibited only for complete shaving.
                     </div>
                   </div>
                   {natalAvailable && (
@@ -1884,7 +2160,7 @@ export default function ElectionModal({
                     ))}
                   </div>
                   <p className="text-[11px] text-zinc-500 mt-1">
-                    Applies classical rules (Asc/5th/Moon/lot) to bias toward the selected sex; results still list highest overall fertility.
+                    Applies traditional Asc/5th/Moon testimonies only. This is not medical fertility guidance or a fetal-sex prediction.
                   </p>
                 </div>
               </>
@@ -1935,6 +2211,9 @@ export default function ElectionModal({
                 </div>
                 <div className="md:col-span-2 text-[11px] text-zinc-500 dark:text-zinc-400">
                   {LUNAR_FERTILITY_DESCRIPTION}
+                </div>
+                <div className="md:col-span-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+                  For traditional timing/entertainment only. Do not use these windows to estimate ovulation, plan medical care, or predict fetal sex.
                 </div>
               </>
             )}
@@ -2144,7 +2423,7 @@ export default function ElectionModal({
                           </div>
                         )}
                         <p className="mt-3 text-[11px] text-zinc-500 dark:text-zinc-400">
-                          Selected founder-owner charts are treated as certified in this beta path, so Ascendant resonance, Fortuna-to-Asc, and Asc-ruler placement stay active without adding new snap metadata.
+                          Birth-time precision is read from each saved chart. Ascendant, Fortuna-to-Asc, and house-placement rules are withheld when that precision is unsafe; planet-only comparisons remain active.
                         </p>
                       </div>
                     </>
@@ -2175,7 +2454,7 @@ export default function ElectionModal({
                       Allow Saturn binding (dignified)
                     </label>
                     <div className="inline-flex items-center gap-2 text-sm">
-                      <span>Min days after Mercury direct</span>
+                      <span>Exact minimum days after Mercury's direct station</span>
                       <input type="number" min="0" step="1" className="px-2 py-1 border rounded w-20" value={minMercuryDirectDays}
                         onChange={e=> setMinMercuryDirectDays(Number(e.target.value||0))} />
                     </div>
@@ -2193,12 +2472,35 @@ export default function ElectionModal({
             </div>
             <div>
               <label className="block text-xs mb-1">Step minutes</label>
-              <input type="number" min="5" step="5" className="px-3 py-1 border rounded w-full" value={stepMinutes} onChange={e=>setStepMinutes(Number(e.target.value||60))} />
+              <input
+                type="number"
+                min="1"
+                step="1"
+                className="px-3 py-1 border rounded w-full disabled:opacity-60"
+                value={isReferenceLineModel && referenceParity ? 1 : stepMinutes}
+                disabled={isReferenceLineModel && referenceParity}
+                onChange={e=>setStepMinutes(Number(e.target.value||60))}
+              />
             </div>
             <div>
               <label className="block text-xs mb-1">Limit</label>
               <input type="number" min="1" max="100" className="px-3 py-1 border rounded w-full" value={limit} onChange={e=>setLimit(Number(e.target.value||15))} />
             </div>
+            {isReferenceLineModel ? (
+              <div className="md:col-span-2 rounded-lg border border-zinc-200 px-3 py-2 dark:border-gray-700">
+                <label className="inline-flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={referenceParity}
+                    onChange={(e) => setReferenceParity(e.target.checked)}
+                  />
+                  Reference parity: scan every minute
+                </label>
+                <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                  Recommended for recovered Galaxy line models so short favorable periods are not skipped. The 30-day maximum contains 43,201 minute points.
+                </p>
+              </div>
+            ) : null}
             <div className="md:col-span-2">
               <label className="block text-xs mb-1">Days</label>
               <div className="flex flex-wrap gap-1">
@@ -2386,7 +2688,7 @@ export default function ElectionModal({
             <button className="px-4 py-1.5 rounded bg-zinc-900 text-white disabled:opacity-50" disabled={loading} onClick={doScan}>Scan</button>
             {loading && (
               <span className="text-xs text-zinc-500">
-                Scanning…{(rangeStartDate && rangeEndDate) ? ` (step ${stepMinutes}m)` : ''}
+                Scanning…{(rangeStartDate && rangeEndDate) ? ` (step ${isReferenceLineModel && referenceParity ? 1 : stepMinutes}m)` : ''}
               </span>
             )}
             {error && <span className="text-xs text-red-600">{error}</span>}
@@ -2396,6 +2698,24 @@ export default function ElectionModal({
               <div className="h-2 w-full bg-zinc-200 dark:bg-gray-700 rounded overflow-hidden">
                 <div className="h-full bg-zinc-900 transition-all" style={{ width: `${Math.max(0, Math.min(progress, 1))*100}%` }} />
               </div>
+            </div>
+          ) : null}
+          {result?.model_metadata ? (
+            <div className="mb-3 rounded-xl border border-zinc-200 bg-white/70 px-3 py-2 text-[11px] text-zinc-600 dark:border-gray-700 dark:bg-gray-900/40 dark:text-zinc-300">
+              <div className="flex flex-wrap gap-x-4 gap-y-1">
+                <span>Model {result.model_metadata.id} · v{result.model_metadata.version}</span>
+                <span>Source profile: {result.model_metadata.source_profile}</span>
+                <span>{result.model_metadata.natal_context_applied ? 'Natal/participant context applied' : 'Transit-only; natal remains optional'}</span>
+                <span>{result.model_metadata.scan_mode === 'reference_1m' ? 'Reference 1-minute scan' : `Step ${result.model_metadata.step_minutes}m`}</span>
+              </div>
+              <p className="mt-1">
+                Scores rank times within this model run only; they are not calibrated for comparison with another election model.
+              </p>
+            </div>
+          ) : null}
+          {result?.medical_disclaimer ? (
+            <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+              {result.medical_disclaimer}
             </div>
           ) : null}
 
@@ -2413,7 +2733,7 @@ export default function ElectionModal({
                     </div>
                   ) : hasLunarFertilityResult ? (
                     <div className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
-                      {lunarFertilityPeriods.length} period{lunarFertilityPeriods.length === 1 ? '' : 's'} at or above {Number(result?.level_percent || 0).toFixed(0)}%.
+                      {lunarFertilityPeriods.length} nonzero favorable period{lunarFertilityPeriods.length === 1 ? '' : 's'}; {Number(result?.level_percent || 0).toFixed(0)}% is the visual guide.
                     </div>
                   ) : null}
                 </div>
@@ -2529,7 +2849,14 @@ export default function ElectionModal({
                       {hasLunarFertilityResult ? (
                         <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-zinc-500 dark:text-zinc-400">
                           <span>{selectedSeriesRow.phase_kind === 'antiphase' ? 'Antiphase' : 'Phase'}</span>
-                          <span>{selectedSeriesRow.sex_label === 'male' ? 'Male sign' : selectedSeriesRow.sex_label === 'female' ? 'Female sign' : 'Unknown sign'}</span>
+                          <span>
+                            {selectedSeriesRow.moon_sign_polarity
+                              || (selectedSeriesRow.sex_label === 'male'
+                                ? 'Masculine sign polarity'
+                                : selectedSeriesRow.sex_label === 'female'
+                                  ? 'Feminine sign polarity'
+                                  : 'Unknown sign polarity')}
+                          </span>
                           {selectedSeriesRow.moon_sign ? <span>Moon in {selectedSeriesRow.moon_sign}</span> : null}
                           {selectedSeriesRow.anchor_offset_hours != null ? <span>{Number(selectedSeriesRow.anchor_offset_hours).toFixed(1)}h from anchor</span> : null}
                         </div>
@@ -2570,7 +2897,15 @@ export default function ElectionModal({
                                     <span>Favorable {Number(line.favorable || 0).toFixed(2)}</span>
                                     <span>Tense {Number(line.tense || 0).toFixed(2)}</span>
                                     {line.kind === 'participant' ? (
-                                      <span>{line.precision_class === 'certified' ? (estateExtraction ? 'Certified estate chart' : 'Certified founder chart') : `Precision: ${line.precision_class || 'unknown'}`}</span>
+                                      <span>
+                                        {line.precision_class === 'certified'
+                                          ? marriageBetaExtraction
+                                            ? 'Certified participant chart'
+                                            : estateExtraction
+                                              ? 'Certified estate chart'
+                                              : 'Certified founder chart'
+                                          : `Precision: ${line.precision_class || 'unknown'}`}
+                                      </span>
                                     ) : null}
                                   </div>
                                   {linePros.length > 0 ? (
@@ -2644,12 +2979,17 @@ export default function ElectionModal({
                               </span>
                               <span className="text-right text-[11px] text-zinc-500 dark:text-zinc-400">
                                 <span className="block font-medium text-zinc-700 dark:text-zinc-200">{Number(period.best_score || 0).toFixed(2)}</span>
-                                <span>{period.phase_kind === 'antiphase' ? 'Antiphase' : 'Phase'} / {period.sex_label || 'unknown'}</span>
+                                <span>
+                                  {period.phase_kind === 'antiphase' ? 'Antiphase' : 'Phase'} / {
+                                    period.moon_sign_polarity
+                                      || (period.sex_label === 'male' ? 'masculine polarity' : period.sex_label === 'female' ? 'feminine polarity' : 'unknown polarity')
+                                  }
+                                </span>
                               </span>
                             </button>
                           )) : (
                             <div className="rounded-lg border border-dashed border-zinc-300 px-3 py-4 text-sm text-zinc-500 dark:border-gray-700 dark:text-zinc-400">
-                              No periods reached the selected level.
+                              No nonzero favorable periods are available.
                             </div>
                           )}
                         </div>

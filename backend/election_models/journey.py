@@ -10,7 +10,7 @@ from .common import (
     HI_EXALTATION, HI_TRIPLICITY, _hi_element,
     compute_sect_info, compute_morin_combustion,
     _safe_float,
-    _sign_from_lon, _house_cusps, _collect_planets, _house_from_lon, _get_aspects_list, _ang_sep, _is_via_combusta,
+    _sign_from_lon, _house_cusps, _collect_planets, _house_from_lon, _get_aspects_list, _ang_sep, _is_via_combusta, _is_waxing,
 )
 
 
@@ -219,8 +219,11 @@ def score_journey_election(
             if s:
                 sun_lon = _safe_float(s.get('longitude'))
                 if mlon is not None and sun_lon is not None:
-                    waxing = abs((((mlon - sun_lon) + 180.0) % 360.0) - 180.0) < 180.0
-                    if waxing: score += 0.5; tags.append('Moon waxing')
+                    waxing = _is_waxing(mlon, sun_lon)
+                    if waxing is True:
+                        score += 0.5; tags.append('Moon waxing')
+                    elif waxing is False:
+                        tags.append('Moon waning')
             # Next applying aspect
             na = election_cd.get('moon_next_aspect')
             if isinstance(na, dict):

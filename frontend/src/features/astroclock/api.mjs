@@ -365,6 +365,7 @@ function appendElectionParams(params, opts = {}) {
   appendCoordinates(params, opts);
   if (opts.stepMinutes != null) params.set('step_minutes', String(opts.stepMinutes));
   if (opts.limit != null) params.set('limit', String(opts.limit));
+  if (opts.referenceParity) params.set('reference_parity', '1');
   if (opts.includeSrLr) params.set('include_sr_lr', '1');
   if (opts.weekdayMode) params.set('weekday_mode', String(opts.weekdayMode));
   if (Array.isArray(opts.weekdays) && opts.weekdayMode !== 'all') {
@@ -377,6 +378,19 @@ function appendElectionParams(params, opts = {}) {
   if (opts.marriageAlgorithm) params.set('marriage_algorithm', String(opts.marriageAlgorithm));
   if (opts.businessAlgorithm) params.set('business_algorithm', String(opts.businessAlgorithm));
   if (opts.estateDirection) params.set('estate_direction', String(opts.estateDirection));
+  if (opts.marriageBetaDisplayMode) params.set('marriage_beta_display_mode', String(opts.marriageBetaDisplayMode));
+  if (opts.marriageBetaScope) params.set('marriage_beta_scope', String(opts.marriageBetaScope));
+  if (opts.marriageBetaCurrentLineId) params.set('marriage_beta_current_line_id', String(opts.marriageBetaCurrentLineId));
+  if (opts.marriageBetaLevelPercent != null) {
+    params.set('marriage_beta_level_percent', String(opts.marriageBetaLevelPercent));
+  }
+  if (Array.isArray(opts.marriageBetaSelectedLineIds)) {
+    opts.marriageBetaSelectedLineIds.forEach((lineId) => {
+      if (String(lineId || '').trim()) {
+        params.append('marriage_beta_selected_line_id', String(lineId).trim());
+      }
+    });
+  }
   if (opts.businessBetaDisplayMode) params.set('business_beta_display_mode', String(opts.businessBetaDisplayMode));
   if (opts.businessBetaScope) params.set('business_beta_scope', String(opts.businessBetaScope));
   if (opts.businessBetaCurrentLineId) params.set('business_beta_current_line_id', String(opts.businessBetaCurrentLineId));
@@ -419,6 +433,7 @@ function appendElectionParams(params, opts = {}) {
   if (opts.levelPercent != null) params.set('level_percent', String(opts.levelPercent));
   if (opts.gender && String(opts.matter || '') === 'conception') params.set('gender', String(opts.gender));
   if (opts.hairGoal) params.set('hair_goal', String(opts.hairGoal));
+  if (opts.haircutType) params.set('haircut_type', String(opts.haircutType));
   if (opts.surgerySign) params.set('surgery_sign', String(opts.surgerySign));
   if (opts.procedure) params.set('procedure', String(opts.procedure));
   if (opts.includeLunationScreen) params.set('include_lunation_screen', '1');

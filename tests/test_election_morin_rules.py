@@ -109,5 +109,5 @@ def test_surgery_rule13_is_not_double_counted():
 
     score = score_surgery_election(chart, options={"procedure": "diagnostic"})
 
-    assert score.value == 6.2
+    assert score.value == 6.45
     assert score.tags.count("Rule13: Moon conj Jupiter/Saturn while waxing (good)") == 1

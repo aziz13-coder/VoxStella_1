@@ -4,6 +4,7 @@ import contextlib
 import io
 import json
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -53,7 +54,19 @@ def _reasoning_rules(final_or_result: Dict[str, Any]) -> List[str]:
 def replay_serialized_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
     engine = EnhancedTraditionalHoraryJudgmentEngine()
     chart = deserialize_chart_for_evaluation(payload["chart_data"])
-    question_analysis = engine.question_analyzer.analyze_question(payload["question"])
+    local_time = (
+        ((payload.get("chart_data") or {}).get("timezone_info") or {}).get("local_time")
+        or payload.get("asked_at_utc")
+    )
+    reference_datetime = (
+        datetime.fromisoformat(local_time.replace("Z", "+00:00"))
+        if local_time
+        else None
+    )
+    question_analysis = engine.question_analyzer.analyze_question(
+        payload["question"],
+        reference_datetime=reference_datetime,
+    )
     if payload.get("category"):
         analyzed_category = _normalize_category(question_analysis.get("question_type"))
         if payload["category"] != "general" or analyzed_category == "general":
