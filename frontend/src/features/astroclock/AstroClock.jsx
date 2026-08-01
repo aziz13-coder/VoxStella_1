@@ -4114,7 +4114,7 @@ function ForensicDashboard({
       const ascSignName = (()=>{ try { const L = Number(cusps[0]); const signs=['Aries','Taurus','Gemini','Cancer','Leo','Virgo','Libra','Scorpio','Sagittarius','Capricorn','Aquarius','Pisces']; return isFinite(L)? signs[Math.floor(((L%360)+360)%360/30)] : null; } catch{ return null; } })();
       const rulers = f.house_rulers || {};
       const primaryRuler = f.houses?.first_ruler || rulers['1'] || rulers[1] || null;
-      const coRulers = ['Moon', ...(caseType==='child'? ['Mercury']: []), ...(caseType==='adult_female'? ['Venus']: [])].filter((v,i,arr)=> arr.indexOf(v)===i);
+      const coRulers = ['Moon', ...(caseType==='child'? ['Mercury']: [])].filter((v,i,arr)=> arr.indexOf(v)===i);
       const moon = f.planets?.['Moon'] || {};
       const mt = dash.moon_timeline || {};
       const voc = (typeof mt.in_voc === 'boolean') ? mt.in_voc : Boolean((dash.moon || f.moon || {}).void_of_course);
@@ -4182,14 +4182,14 @@ function ForensicDashboard({
       // Light mediation
       const lm = dash.light_mediation || {};
 
-      const header = `You are a forensic astrologer/investigator. Using the chart-derived data below, produce a concise, auditable report with these sections: Victim Analysis, Perpetrator Analysis, Witness & Accomplice Detection, Deception Configuration, Final outcome determination${abductionMode? ', Abduction cues':''}.`;
+      const header = `Summarize the symbolic astrological rule output below in an auditable way. This is not scientific forensic evidence or a statistical prediction. Do not identify a person, infer physical appearance or personality, assign guilt, recommend investigative action, or present location, safety, or outcome claims as facts. Use these sections: Victim Significators, 7th-house Counterpart Signals, Witness Symbols, Deception Symbols, Outcome Rule Classification${abductionMode? ', Symbolic Direction Cues':''}.`;
       lines.push(header, '');
       lines.push('Victim Analysis');
       lines.push(`ASC Sign: ${ascSignName||'-'}`);
       lines.push(`Primary Ruler: ${primaryRuler||'-'}; Co-rulers: ${coRulers.join(', ')||'-'}`);
       lines.push(`Moon: ${moonPos}; VoC ${voc? 'Yes':'No'}`);
       lines.push('');
-      lines.push('Perpetrator Signals');
+      lines.push('7th-house Counterpart Signals');
       lines.push(`7th-house ruler: ${seventhRuler||'-'} · Degree markers: ${degFlags.join(', ')||'-'}`);
       lines.push(`Light mediation: ${lm.translation? `Translation${lm.translator? ' via '+lm.translator:''}` : (lm.collection? `Collection${lm.collector? ' by '+lm.collector:''}` : '-')}`);
       if (fsSunMoon.length) lines.push(`Sun/Moon fixed stars: ${fsSunMoon.map(x=> `${x.name}↔${x.target}`).join('; ')}`);
@@ -4201,22 +4201,6 @@ function ForensicDashboard({
         if (domArr.length){
           const top2 = domArr.slice(0,2).map(d=> `${d.name} ${d.score} (${d.level})`).join(', ');
           lines.push(`Dominant signals: ${top2}`);
-          // Behavioral profile + image prompt suggestion
-          const profiles = dash.perpetrator_profiles?.behavioral_trait_matrix || dash.perpetrator_profiles || {};
-          let chosen = null;
-          for (const d of domArr){ const key = `${d.name}_dominated`; const entry = profiles?.[key] || profiles?.[d.name] || null; if (entry){ chosen = { planet: d.name, entry }; break; } }
-          if (chosen && chosen.entry){
-            const bc = chosen.entry.behavioral_characteristics || {};
-            const hints = [];
-            ['motive','method','temperament','public_behavior','profession'].forEach(k=> { if (bc[k]) hints.push(String(bc[k])); });
-            if (bc.physical) hints.unshift(String(bc.physical));
-            if (hints.length) lines.push(`Behavioral read: ${chosen.planet} - ${hints.slice(0,2).join(' · ')}`);
-            const phys = bc.physical || '';
-            const temp = bc.temperament || '';
-            const meth = bc.method || '';
-            const imgPrompt = `forensic composite portrait of a ${chosen.planet}-dominated perpetrator, ${phys} ${temp? '- '+temp:''}${meth? ' - '+meth:''}, realistic, neutral lighting, investigative sketch style`;
-            lines.push(`Visualize (profiling image): Provide a short verbal composite and an image prompt. Example prompt: ${imgPrompt}`);
-          }
         }
       } catch(_){ /* ignore dominant errors */ }
       // Relationship Link Determination (Algorithm)
@@ -4408,11 +4392,11 @@ function ForensicDashboard({
       lines.push('Deception Configuration');
       lines.push(`Indicators: ${deceFlags.join('; ')||'-'}`);
       lines.push('');
-      lines.push('Final outcome determination');
+      lines.push('Outcome Rule Classification');
       lines.push(`IC sign: ${icSign||'-'}${icExpl? ' - '+icExpl:''}`);
       lines.push(`4th ruler: ${r4? `${r4} in H${r4h??'-'}`:'-'}${r4Expl? ' - '+r4Expl:''}`);
       lines.push(`Planets in 4th: ${in4Expl.join('; ')||'-'}${nodesIn4.length? ' · Node modifier present':''}`);
-      lines.push('Final outcome verbal composite: Provide a concise narrative of how the matter ends (who/what determines closure, tone of the ending, and likely setting), integrating IC sign, 4th‑ruler placement, and 4th‑house occupants.');
+      lines.push('Summarize only what the symbolic rule set associates with these placements; do not present a real outcome, actor, or location as likely or established.');
       if (abductionMode){ lines.push(''); lines.push(abdBlock); }
 
       if (includeRawValues) {
@@ -4454,7 +4438,7 @@ function ForensicDashboard({
       'Directional Findings': { kicker: '§2', meta: `${replayAxes.length} primary axes · ${rawFindings.length} findings` },
       'Outcome Determination': { kicker: '§3', meta: 'IC and 4th-house matrix' },
       'Victim Analysis': { kicker: '§4', meta: activeCaseTypeLabel },
-      'Perpetrator Analysis': { kicker: '§5', meta: '7th-house and behavioral signals' },
+      'Counterpart Signals': { kicker: '§5', meta: '7th-house symbolic signals' },
       'Relationship Signals': { kicker: '§6', meta: relationshipSnapshot.relationshipType || 'Connection matrix' },
       'Witness & Accomplice Detection': { kicker: '§7', meta: 'Witness pool' },
       'Deception Configuration': { kicker: '§8', meta: 'Coverup and mute signatures' },
@@ -4599,7 +4583,7 @@ function ForensicDashboard({
           const ascSign = isFinite(ascLon) ? signFromLon(ascLon) : '-';
           const rulers = f?.house_rulers || {};
           const firstRuler = f?.houses?.first_ruler || rulers['1'] || rulers[1] || null;
-          const co = ['Moon', ...(caseType==='child'? ['Mercury']: []), ...(caseType==='adult_female'? ['Venus']: [])];
+          const co = ['Moon', ...(caseType==='child'? ['Mercury']: [])];
           const mi = f?.planets?.Moon || {};
           const mSign = mi?.sign || '-';
           const mDeg = isFinite(mi?.longitude) ? degreeTextFromLon(mi.longitude) : '-';
@@ -4642,7 +4626,7 @@ function ForensicDashboard({
             .filter(([k, v]) => v && (k.includes(`_to_${planet}`) || k.startsWith(`${planet}_to_`)))
             .map(([, v]) => ({ type: v?.type, applying: v?.applying }));
           const aspectBucket = (planet) => formatForensicAspectLabels(collectBy(planet));
-          return `<h2>Perpetrator Signals</h2>
+          return `<h2>7th-house Counterpart Signals</h2>
             <table class=\"tbl\"><tbody>
               <tr><td>7th-house cusp</td><td>${h(`${cusp7Sign} ${cusp7Deg} | ruler ${seventhRuler||'-'}`)}</td></tr>
               <tr><td>7th-house co-signifiers</td><td>${h(h7List.length? h7List.join(', '): '-')}</td></tr>
@@ -4788,10 +4772,11 @@ function ForensicDashboard({
         .text div { margin: 4px 0; }
       `;
       const safeBrief = brief ? h(brief) : '-';
-      return `<!doctype html><html><head><meta charset=\"utf-8\" /><title>Forensic Report</title><style>${css}</style></head>
+      return `<!doctype html><html><head><meta charset=\"utf-8\" /><title>Forensic Astrology Report</title><style>${css}</style></head>
         <body><div class=\"container\">
-          <h1>Forensic Report</h1>
+          <h1>Forensic Astrology Report</h1>
           <div class=\"muted\">Generated ${h(ts)}${caseHeader? ` · ${caseHeader}`:''}</div>
+          <p class=\"muted\">Symbolic astrological interpretation only. Not scientific forensic evidence, an identification method, or a probability of location, safety, or outcome.</p>
           <div class=\"sep\"></div>
           <h2>Summary</h2>
           <pre>${safeBrief}</pre>
@@ -4810,7 +4795,6 @@ function ForensicDashboard({
     const list = ['Moon'];
     if (ascSign === 'Cancer') return list; // special case (avoid over-adding here; we will dedupe later)
     if (caseType === 'child' && !list.includes('Mercury')) list.push('Mercury');
-    if (caseType === 'adult_female' && !list.includes('Venus')) list.push('Venus');
     return list;
   })();
   // Dominance helpers from API
@@ -5084,25 +5068,9 @@ function ForensicDashboard({
   );
   const lightMediationImpactTone = lightMediationImpact?.effect === 'fatal_pressure' ? 'is-rose' : 'is-teal';
   const categoryCount = (name) => Number(data?.categories?.[name] || 0);
-  const clampMetric = (value, min = 0, max = 100) => Math.max(min, Math.min(max, Number(value) || 0));
-  const fatalPressureValue = Number(survivalBreakdown?.fatal_pressure || 0);
-  const dangerValue = Number(survivalBreakdown?.danger || 0);
-  const violenceIndex = Math.round(clampMetric((categoryCount('Violence') * 12) + (dangerValue * 8) + (fatalPressureValue * 3), 0, 99));
-  const deceptionIndex = Math.round(clampMetric((categoryCount('Deception') * 8) + (categoryCount('Stressors') * 3), 0, 99));
-  const caseSignalScore = Math.round(clampMetric(
-    (fatalPressureValue * 8.5) +
-    (dangerValue * 7) +
-    (categoryCount('Violence') * 6) +
-    (categoryCount('Deception') * 3) +
-    (fatalPressureDominant ? 10 : 0),
-    0,
-    100,
-  ));
-  const survivabilityPercent = Math.round(clampMetric(
-    Number.isFinite(Number(survival.score)) ? 50 + (Number(survival.score) * 6) : 50,
-    5,
-    95,
-  ));
+  const symbolicRuleScore = Number.isFinite(Number(survival.score))
+    ? `${Number(survival.score) >= 0 ? '+' : ''}${Number(survival.score)}`
+    : '-';
   const survivalToneClass = survival.level === 'Lower' ? 'is-rose' : survival.level === 'Higher' ? 'is-teal' : 'is-amber';
   const outcomeBandLabel = survival.outcomeBand ? formatSurvivabilityBandLabel(survival.outcomeBand) : 'Pending';
   const caseTypeOptions = [
@@ -5113,7 +5081,7 @@ function ForensicDashboard({
   const forensicTabs = [
     { id: 'findings', label: 'Findings', count: rawFindings.length || null },
     { id: 'victim', label: 'Victim' },
-    { id: 'perpetrator', label: 'Perpetrator' },
+    { id: 'perpetrator', label: 'Counterpart' },
     { id: 'relationship', label: 'Relationship' },
     { id: 'witnesses', label: 'Witnesses', count: categoryCount('Witness') || null },
     { id: 'deception', label: 'Deception', count: categoryCount('Deception') || null },
@@ -5263,7 +5231,7 @@ function ForensicDashboard({
               <div className="forensic-dossier-breadcrumb">
                 <span>ASTRO CLOCK</span>
                 <span>/</span>
-                <strong>FORENSIC</strong>
+                <strong>FORENSIC ASTROLOGY</strong>
               </div>
             </div>
           </div>
@@ -5419,7 +5387,7 @@ function ForensicDashboard({
                 } catch(_){/*noop*/}
               }}
             >
-              {copiedBrief ? 'Copied' : 'AI Brief · Copy'}
+              {copiedBrief ? 'Copied' : 'Symbolic Brief · Copy'}
             </button>
             <button
               type="button"
@@ -5453,6 +5421,11 @@ function ForensicDashboard({
           </div>
         )}
 
+        <div className="mt-2 text-[11px] text-amber-800" role="note">
+          Symbolic astrological interpretation only. It is not scientific forensic evidence or a probability,
+          and must not be used to identify people, assign guilt, direct a search, or decide safety or outcome.
+        </div>
+
         <div className="forensic-dossier-tabs" role="tablist" aria-label="Forensic sections">
           {forensicTabs.map((tab) => (
             <button
@@ -5481,17 +5454,10 @@ function ForensicDashboard({
           loading ? <div className="text-sm text-zinc-500">Loading…</div> : (
             <div className="forensic-dossier-verdict">
               <div className="forensic-dossier-verdict-lead">
-                <div className="forensic-dossier-label mb-1">Case Signal</div>
+                <div className="forensic-dossier-label mb-1">Rule Classification</div>
                 <div className={`forensic-dossier-score ${survivalToneClass}`}>
-                  <span>{caseSignalScore}</span>
-                  <small>/100 pressure</small>
-                </div>
-                <div className={`forensic-dossier-scale ${survivalToneClass}`} aria-hidden="true">
-                  <span style={{ width: `${caseSignalScore}%` }} />
-                </div>
-                <div className="forensic-dossier-scale-labels">
-                  <span>Low</span>
-                  <span>Pressure</span>
+                  <span>{survival.level || '-'}</span>
+                  <small>symbolic rule band</small>
                 </div>
                 <div className="forensic-dossier-card-note">
                   <span className="sr-only">{survivabilitySummaryText}</span>
@@ -5504,18 +5470,18 @@ function ForensicDashboard({
                 <h4 className="forensic-dossier-verdict-title">{relationshipInsight?.summary?.relationshipType || relationshipSnapshot.relationshipType}</h4>
                 <div className="forensic-dossier-index-grid">
                   <div className="forensic-dossier-index-card">
-                    <div className="forensic-dossier-label">Violence Index</div>
-                    <div className="forensic-dossier-stat-value is-rose">+{violenceIndex}</div>
+                    <div className="forensic-dossier-label">Violence Findings</div>
+                    <div className="forensic-dossier-stat-value is-rose">{categoryCount('Violence')}</div>
                     <div className="forensic-dossier-stat-line is-rose" />
                   </div>
                   <div className="forensic-dossier-index-card">
-                    <div className="forensic-dossier-label">Deception Index</div>
-                    <div className="forensic-dossier-stat-value is-amber">+{deceptionIndex}</div>
+                    <div className="forensic-dossier-label">Deception Findings</div>
+                    <div className="forensic-dossier-stat-value is-amber">{categoryCount('Deception')}</div>
                     <div className="forensic-dossier-stat-line is-amber" />
                   </div>
                   <div className="forensic-dossier-index-card">
-                    <div className="forensic-dossier-label">Survivability</div>
-                    <div className={`forensic-dossier-stat-value ${survivalToneClass}`}>{survivabilityPercent}%</div>
+                    <div className="forensic-dossier-label">Symbolic Rule Score</div>
+                    <div className={`forensic-dossier-stat-value ${survivalToneClass}`}>{symbolicRuleScore}</div>
                     <div className={`forensic-dossier-stat-line ${survivalToneClass}`} />
                   </div>
                 </div>
@@ -6046,7 +6012,7 @@ function ForensicDashboard({
           })()
         ))}
 
-        {showForensicSection('perpetrator') && card('Perpetrator Analysis', (
+        {showForensicSection('perpetrator') && card('Counterpart Signals', (
           loading ? <div className="text-sm text-zinc-500">Loading…</div> : (
             <div className="text-sm space-y-3">
               {(() => {
@@ -6214,7 +6180,7 @@ function ForensicDashboard({
                 return (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div className="border rounded p-2">
-                      <div className="font-medium mb-1">Perpetrator Signals</div>
+                      <div className="font-medium mb-1">7th-house Counterpart Signals</div>
                       <div className="text-xs">7th-house cusp: {cusp7Sign} {cusp7Deg} | ruler <span className="font-semibold">{seventhRuler || '-'}</span></div>
                       <div className="text-xs">7th-house co-signifiers: {seventhHousePlanets.length? seventhHousePlanets.join(', '): '-'}</div>
                       <div className="text-xs">Ruler placement: {(() => { const lon = rulerInfo?.longitude; const s = rulerInfo?.sign || '-'; const deg = isFinite(lon)? degreeTextFromLon(lon) : '-'; const h = rulerInfo?.house ?? '-'; return `${s} ${deg} (H${h} | ${houseGroup(h)})`; })()}</div>
@@ -6327,7 +6293,7 @@ function ForensicDashboard({
                       <div className="text-xs mt-1">Derived-house links: money H{derived.money.house}{derived.money.planets.length? ` -> ${derived.money.planets.join(', ')}`: ''} | home H{derived.home.house}{derived.home.planets.length? ` -> ${derived.home.planets.join(', ')}`: ''} | route/vehicle H{derived.comms.house}{derived.comms.planets.length? ` -> ${derived.comms.planets.join(', ')}`: ''} | friends H{derived.friends.house}{derived.friends.planets.length? ` -> ${derived.friends.planets.join(', ')}`: ''}</div>
                     </div>
                     <div className="border rounded p-2">
-                      <div className="font-medium mb-1">Behavioral Signals</div>
+                      <div className="font-medium mb-1">Counterpart Chart Signals</div>
                       <ul className="text-xs list-disc ml-4 space-y-1">
                         <li>Mars contacts: {formatForensicAspectLabels(bpf.Mars)}</li>
                         <li>Saturn contacts: {formatForensicAspectLabels(bpf.Saturn)}</li>
@@ -6343,51 +6309,10 @@ function ForensicDashboard({
                       const domArr = Object.entries(domPlanets).map(([name, v]) => ({ name, score: Number(v?.score)||0, level: String(v?.level||'') }));
                       domArr.sort((a,b)=> b.score - a.score);
                       const top2 = domArr.slice(0,2);
-                      const profiles = data?.perpetrator_profiles || {};
-                      let chosen = null;
-                      for (const d of domArr) {
-                        const key = `${d.name}_dominated`;
-                        const pmatrix = profiles?.behavioral_trait_matrix || {};
-                        const entry = (profiles && profiles[key]) || pmatrix?.[key];
-                        if (entry) { chosen = { planet: d.name, entry }; break; }
-                      }
-                      const hints = [];
-                      if (chosen && chosen.entry && typeof chosen.entry === 'object') {
-                        const bc = chosen.entry.behavioral_characteristics;
-                        if (bc && typeof bc === 'object') {
-                          Object.values(bc).forEach(v=> { if (v && hints.length < 4) hints.push(String(v)); });
-                        }
-                        if (hints.length === 0) {
-                          const mf = chosen.entry.manifestations;
-                          if (mf && typeof mf === 'object') Object.values(mf).forEach(v=> { if (v && hints.length < 4) hints.push(String(v)); });
-                        }
-                        if (hints.length === 0) {
-                          const ws = chosen.entry.warning_signs;
-                          if (ws && typeof ws === 'object') Object.values(ws).forEach(v=> { if (v && hints.length < 4) hints.push(String(v)); });
-                        }
-                      }
                       return (
                         <div className="mt-2 pt-2 border-t border-zinc-200">
                           <div className="font-medium mb-1">Dominant signals</div>
                           <div className="text-xs mb-1">{top2.length ? top2.map(d=> `${d.name}: ${d.score} (${d.level})`).join(' · ') : '-'}</div>
-                          {(() => {
-                            // Brief one-line gloss for the top profiled planet
-                            try {
-                              if (!chosen) return null;
-                              const bc = chosen.entry?.behavioral_characteristics || {};
-                              const order = ['motive','method','temperament','public_behavior','profession'];
-                              const parts = [];
-                              for (const k of order) { if (bc && bc[k]) parts.push(String(bc[k])); }
-                              const gloss = parts.slice(0,2).join(' · ');
-                              return (
-                                <div className="text-xs mb-1">Behavioral read: {chosen.planet} - {gloss || '-'}</div>
-                              );
-                            } catch(_) { return null; }
-                          })()}
-                          <div className="font-medium mb-1">Pattern hints{chosen ? ` (${chosen.planet})` : ''}</div>
-                          <ul className="text-xs list-disc ml-4 space-y-1">
-                            {hints.length ? hints.map((h,i)=> <li key={i}>{h}</li>) : <li>-</li>}
-                          </ul>
                           {/* Relationship Signals */}
                           <div className="font-medium mt-2 mb-1">Relationship Signals</div>
                           {(() => {
@@ -6620,7 +6545,7 @@ function ForensicDashboard({
                   <div className="forensic-dossier-label mb-1">Relationship Score</div>
                   <div className="forensic-dossier-score is-teal">
                     <span>{relationshipInsight?.score ?? 0}</span>
-                    <small>{relationshipInsight?.summary?.confidence || relationshipSnapshot.confidence} confidence</small>
+                    <small>{relationshipInsight?.summary?.confidence || relationshipSnapshot.confidence} rule strength</small>
                   </div>
                   <div className="forensic-dossier-card-note">
                     {relationshipInsight?.summary?.relationshipType || relationshipSnapshot.relationshipType}
@@ -8504,7 +8429,7 @@ function CurrentAspectCard({ data, onOpenAnalysis, useMorin, setUseMorin }){
   const morinAntiList = (data?.morin_antiscia || []).slice(0,4);
   const morinList = Array.isArray(data?.morin_aspects) ? data.morin_aspects.slice(0,4) : [];
   const aspects = useDecl ? (useMorin ? morinAntiList : declList) : (useMorin ? morinList : listStandard);
-  const title = useDecl
+  const scopeLabel = useDecl
     ? (useMorin ? 'Antiscia (Morin)' : 'Declination (∥ / antiparallel)')
     : (useMorin ? 'Morin Aspects' : 'Current Aspects');
   const filteredAspects = aspects.filter((row) => {
@@ -8539,34 +8464,14 @@ function CurrentAspectCard({ data, onOpenAnalysis, useMorin, setUseMorin }){
     return pieces.join(' · ');
   };
   return (
-    <div data-testid="current-aspects-card" className={`${panelCls} aspect-square flex flex-col overflow-hidden`}>
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-400" style={monoStyle}>
-            Live Signal
-          </div>
-          <h3 className="mt-1 font-semibold text-sm">{title}</h3>
-        </div>
-        <div className="flex flex-wrap items-center justify-end gap-3 text-[11px] text-zinc-600">
-          <div className="flex items-center gap-1">
-            <span className="hidden sm:inline">Morin</span>
-            <label className="relative inline-flex items-center cursor-pointer select-none">
-              <input data-testid="current-aspects-morin-toggle" type="checkbox" className="sr-only peer" checked={useMorin} onChange={()=> { setUseMorin(v=>!v); }} />
-              <div className="w-10 h-5 bg-zinc-300 peer-checked:bg-zinc-800 rounded-full transition-colors"></div>
-              <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
-            </label>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="hidden sm:inline">Decl</span>
-            <label className="relative inline-flex items-center cursor-pointer select-none">
-              <input type="checkbox" className="sr-only peer" checked={useDecl} onChange={()=> { setUseDecl(v=>!v); }} />
-              <div className="w-10 h-5 bg-zinc-300 peer-checked:bg-zinc-800 rounded-full transition-colors"></div>
-              <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
-            </label>
-          </div>
-        </div>
-      </div>
-      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+    <div
+      data-testid="current-aspects-card"
+      role="region"
+      aria-label={`Live Signal · ${scopeLabel}`}
+      className={`${panelCls} aspect-square flex flex-col overflow-hidden`}
+    >
+      <h3 className={tileEyebrowCls} style={monoStyle}>Live Signal</h3>
+      <div className="mt-3 flex flex-wrap items-center gap-1.5">
         {['any', 'applying', 'separating'].map((filterKey) => (
           <button
             key={filterKey}
@@ -8587,60 +8492,73 @@ function CurrentAspectCard({ data, onOpenAnalysis, useMorin, setUseMorin }){
         {filteredAspects.length} active{phaseFilter !== 'any' ? ` · ${phaseFilter}` : ''}
       </div>
       {filteredAspects.length === 0 ? (
-        <div className="mt-3 flex min-h-0 flex-1 flex-col">
-          <div className="text-sm text-zinc-500">No aspects in this scope.</div>
-          <div className="mt-auto flex items-center justify-end border-t border-zinc-100 pt-2">
-            <button type="button" onClick={onOpenAnalysis}
-                    className="shrink-0 rounded border border-zinc-300 bg-white/80 px-2 py-0.5 text-[11px] hover:bg-white/90"
-                    title="Open comprehensive aspect analysis">More</button>
-          </div>
+        <div className="mt-3 min-h-0 flex-1 text-sm text-zinc-500">
+          No aspects in this scope.
         </div>
       ) : (
-        <>
-          <div className="astro-scroll-shell mt-2 min-h-0 flex-1">
-            <div data-testid="current-aspects-scroll" className="astro-scroll min-h-0 flex-1 pr-1">
-              <div className="space-y-0 pb-2">
-                {filteredAspects.map((a, idx) => {
-                  const percent = getExactnessPct(a);
-                  const tone = getTone(a?.aspect);
-                  return (
-                    <div key={idx} className="border-b border-zinc-100 py-2 first:pt-0 last:border-b-0 last:pb-0">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className={`truncate text-[13px] font-medium ${tone.accent}`} style={serifStyle}>
-                            {a.planet1} {a.symbol || ''} {a.planet2}
-                          </div>
-                          <div className="mt-0.5 text-[9px] leading-4 text-zinc-500">
-                            {formatMeta(a)}
-                          </div>
+        <div className="astro-scroll-shell mt-2 min-h-0 flex-1">
+          <div data-testid="current-aspects-scroll" className="astro-scroll min-h-0 flex-1 pr-1">
+            <div className="space-y-0 pb-2">
+              {filteredAspects.map((a, idx) => {
+                const percent = getExactnessPct(a);
+                const tone = getTone(a?.aspect);
+                return (
+                  <div key={idx} className="border-b border-zinc-100 py-2 first:pt-0 last:border-b-0 last:pb-0">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className={`truncate text-[13px] font-medium ${tone.accent}`} style={serifStyle}>
+                          {a.planet1} {a.symbol || ''} {a.planet2}
                         </div>
-                        <div className="shrink-0 text-right">
-                          <div className="text-[1rem] leading-none tracking-[-0.03em] text-zinc-900" style={serifStyle}>
-                            {percent}
-                            <span className="ml-0.5 text-[0.6rem] text-zinc-400">%</span>
-                          </div>
-                          <div className="mt-0.5 text-[8px] font-semibold uppercase tracking-[0.16em] text-zinc-400" style={monoStyle}>
-                            Exactness
-                          </div>
+                        <div className="mt-0.5 text-[9px] leading-4 text-zinc-500">
+                          {formatMeta(a)}
                         </div>
                       </div>
-                      <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-zinc-200">
-                        <div className={`h-full ${tone.bar}`} style={{ width: `${percent}%` }} />
+                      <div className="shrink-0 text-right">
+                        <div className="text-[1rem] leading-none tracking-[-0.03em] text-zinc-900" style={serifStyle}>
+                          {percent}
+                          <span className="ml-0.5 text-[0.6rem] text-zinc-400">%</span>
+                        </div>
+                        <div className="mt-0.5 text-[8px] font-semibold uppercase tracking-[0.16em] text-zinc-400" style={monoStyle}>
+                          Exactness
+                        </div>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
+                    <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-zinc-200">
+                      <div className={`h-full ${tone.bar}`} style={{ width: `${percent}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
-          <div className="mt-2 flex shrink-0 items-end justify-between gap-3 border-t border-zinc-100 pt-2">
-            <div className="text-[9px] leading-4 text-zinc-500">Exactness emphasizes the tightest live contacts in the current scope.</div>
-            <button type="button" onClick={onOpenAnalysis}
-                    className="shrink-0 rounded border border-zinc-300 bg-white/80 px-2 py-0.5 text-[10px] hover:bg-white/90"
-                    title="Open comprehensive aspect analysis">More</button>
-          </div>
-        </>
+        </div>
       )}
+      <div
+        data-testid="current-aspects-footer"
+        className="mt-2 flex shrink-0 items-center justify-between gap-3 border-t border-zinc-100 pt-2"
+      >
+        <div className="flex flex-wrap items-center gap-3 text-[11px] text-zinc-600">
+          <label className="inline-flex cursor-pointer select-none items-center gap-1.5">
+            <span>Morin</span>
+            <span className="relative inline-flex items-center">
+              <input data-testid="current-aspects-morin-toggle" type="checkbox" className="sr-only peer" checked={useMorin} onChange={()=> { setUseMorin(v=>!v); }} />
+              <span className="h-5 w-10 rounded-full bg-zinc-300 transition-colors peer-checked:bg-zinc-800 peer-focus-visible:ring-2 peer-focus-visible:ring-zinc-400 peer-focus-visible:ring-offset-2"></span>
+              <span className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white transition-transform peer-checked:translate-x-5"></span>
+            </span>
+          </label>
+          <label className="inline-flex cursor-pointer select-none items-center gap-1.5">
+            <span>Decl</span>
+            <span className="relative inline-flex items-center">
+              <input data-testid="current-aspects-decl-toggle" type="checkbox" className="sr-only peer" checked={useDecl} onChange={()=> { setUseDecl(v=>!v); }} />
+              <span className="h-5 w-10 rounded-full bg-zinc-300 transition-colors peer-checked:bg-zinc-800 peer-focus-visible:ring-2 peer-focus-visible:ring-zinc-400 peer-focus-visible:ring-offset-2"></span>
+              <span className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white transition-transform peer-checked:translate-x-5"></span>
+            </span>
+          </label>
+        </div>
+        <button type="button" onClick={onOpenAnalysis}
+                className="shrink-0 rounded border border-zinc-300 bg-white/80 px-2 py-0.5 text-[10px] hover:bg-white/90"
+                title="Open comprehensive aspect analysis">More</button>
+      </div>
     </div>
   );
 }

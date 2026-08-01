@@ -1,5 +1,6 @@
 {
   "generated_at": "2026-05-20T00:00:00+00:00",
+  "evaluation_role": "development",
   "purpose": "FBI active-shooter extension set for forensic statistical benchmark expansion from 14 to 29 runnable cases.",
   "benchmark_policy": {
     "status": "verified_outcome_extension",

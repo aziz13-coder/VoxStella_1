@@ -82,6 +82,68 @@ def test_extract_features_accepts_precise_aspect_phase_as_applying():
     assert aspects["Mercury_to_Neptune"]["applying"] is True
 
 
+def test_extract_features_keeps_tightest_duplicate_for_both_aspect_directions():
+    dashboard = {
+        "planets": [],
+        "all_aspects": [
+            {
+                "planet1": "Mercury",
+                "planet2": "Neptune",
+                "aspect": "Square",
+                "applying": False,
+                "orb": 4.0,
+            },
+            {
+                "planet1": "Neptune",
+                "planet2": "Mercury",
+                "aspect": "Square",
+                "applying": True,
+                "orb": -1.25,
+                "degrees_to_exact": 1.25,
+            },
+        ],
+    }
+
+    aspects = extract_features(dashboard)["aspects"]
+
+    assert aspects["Mercury_to_Neptune"] == aspects["Neptune_to_Mercury"]
+    assert aspects["Mercury_to_Neptune"]["orb"] == 1.25
+    assert aspects["Mercury_to_Neptune"]["applying"] is True
+
+
+def test_extract_features_falls_back_when_all_aspects_is_an_empty_list():
+    dashboard = {
+        "planets": [],
+        "all_aspects": [],
+        "top_aspects": [
+            {
+                "planet1": "Moon",
+                "planet2": "Mars",
+                "aspect": "Opposition",
+                "orb": 2.0,
+            }
+        ],
+    }
+
+    aspects = extract_features(dashboard)["aspects"]
+
+    assert aspects["Moon_to_Mars"]["type"] == "opposition"
+
+
+def test_extract_features_normalizes_string_house_numbers_for_angularity():
+    features = extract_features(
+        {
+            "planets": [{"planet": "Moon", "longitude": 10.0, "house": "1"}],
+            "asteroids": {
+                "items": [{"name": "Juno", "longitude": 180.0, "house": "7"}],
+            },
+        }
+    )
+
+    assert features["planets"]["Moon"]["angular"] is True
+    assert features["asteroids"]["Juno"]["angular"] is True
+
+
 def test_extract_features_preserves_asteroids_and_angles_for_forensic_auxiliary_rules():
     dashboard = {
         "planets": [

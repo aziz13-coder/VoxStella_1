@@ -1,9 +1,11 @@
 {
   "generated_at": "2026-05-20T00:00:00+00:00",
-  "purpose": "Untouched 30-case forensic holdout benchmark for one-shot evaluation of case-axis detection, survivability outcome direction, and relationship status after the 29-case development/calibration set.",
+  "purpose": "Retrospective 30-case benchmark. This dataset was subsequently used during healthcare-child calibration and is no longer eligible as an untouched holdout.",
   "benchmark_policy": {
-    "status": "untouched_holdout_evaluation",
-    "protocol": "Labels were assigned from source facts before running the engine against this fixture. Do not tune or calibrate against this file before using it as an evaluation set.",
+    "status": "contaminated_retrospective_evaluation",
+    "evaluation_role": "development_retrospective_only",
+    "protocol": "Do not report this dataset as holdout performance or use it for model selection. It may be used only for regression diagnostics with its contamination disclosed.",
+    "contamination_note": "docs/FORENSIC_HEALTHCARE_CHILD_CALIBRATION_2026-05-20.md records calibration and regression work on the default 29 cases plus this 30-case file.",
     "notes": "Cases use FBI active-shooter annual reports as the factual source for local time, location, casualties, location category, and visible relationship context. Coordinates are event-location approximations used for chart replay, not exact survey coordinates."
   },
   "comparison_axes": [

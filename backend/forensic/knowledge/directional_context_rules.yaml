@@ -234,6 +234,8 @@
   title: Family axis activated by Moon and home houses
   category: Family
   weight: 3
+  scoring: false
+  validation_status: contextual_indicator_unvalidated
   condition:
     all:
       - any:
@@ -256,7 +258,9 @@
             - houses.fourth_ruler_in_8_or_12: true
             - houses.fifth_ruler_in_8_or_12: true
             - houses.counts.5<=: 0
-  rationale: Family involvement should require a real home-axis signature plus separate death or malefic pressure; Moon-in-Cancer alone is too broad.
+  rationale: This is home-axis pressure, not independent evidence that a relative participated in the event. Keep it as visible context; a family label requires a relationship-specific rule.
+  source_refs:
+    - "local: forensic house_meanings.yaml (4th-house home and family meanings)"
   evidence:
     - planets.Moon
     - houses.fourth_ruler
@@ -266,6 +270,8 @@
   title: Home and family axis under pressure
   category: Family
   weight: 2
+  scoring: false
+  validation_status: contextual_indicator_unvalidated
   condition:
     all:
       - any:
@@ -301,7 +307,9 @@
             - houses.fourth_ruler_in_8_or_12: true
             - houses.fifth_ruler_in_8_or_12: true
             - houses.counts.5<=: 0
-  rationale: Occupied or pressured family houses can point to family involvement, but only when the home axis is separately anchored and under strong malefic pressure. Public-place seizure testimony should stay with the abduction/public axes unless there is separate household or relationship evidence.
+  rationale: Occupied or pressured home houses describe setting or family themes, not independent evidence of a relative's participation. Keep the finding visible, while reserving the family label for relationship-specific rules.
+  source_refs:
+    - "local: forensic house_meanings.yaml (4th-house home and family meanings)"
   evidence:
     - houses.counts
     - houses.fourth_ruler_house
@@ -601,6 +609,8 @@
   title: Family homicide and child-house harm cluster is active
   category: Family
   weight: 4
+  scoring: false
+  validation_status: contextual_indicator_unvalidated
   condition:
     all:
       - any:
@@ -655,7 +665,9 @@
             - houses.fourth_ruler_in_8_or_12: true
             - houses.fifth_ruler_in_8_or_12: true
             - houses.counts.5<=: 0
-  rationale: Family homicide labels need a family/child structure plus separate harm pressure. This restores filial, parental, and familicide charts where the 4th-house family axis and 5th-house child axis share rulers, share houses, or are clustered with the victim/opponent rulers under Mars, Saturn, Moon, or death-ruler pressure.
+  rationale: This compound identifies overlapping family/child and harm symbolism, but shared rulers or houses do not independently identify a relative as the actor. Keep it visible until a relationship-specific family-harm rule corroborates it.
+  source_refs:
+    - "local: forensic house_meanings.yaml (4th-house family and 5th-house children meanings)"
   evidence:
     - houses.first_ruler
     - houses.first_ruler_house
@@ -718,9 +730,7 @@
           - moon.hard_malefic_contact: true
       - all:
           - houses.neptune_present: true
-          - any:
-              - houses.neptune_in_4_8_12: true
-              - houses.neptune_water_sign: true
+          - houses.neptune_in_4_8_12: true
           - any:
               - moon.water_sign: true
               - houses.water_cusp_4_8_12>=: 1
@@ -730,7 +740,11 @@
           - any:
               - moon.hard_malefic_contact: true
               - houses.neptune_present: true
-  rationale: Water classification should rest on compound water testimony; a single Moon-in-water signature is too weak for a drowning or water-disposal label.
+  rationale: Water classification requires compound, case-relevant water testimony. Neptune's sign is generational and cannot substitute for placement in a relevant 4th/8th/12th house; a lone water-sign Moon is also insufficient.
+  validation_status: doctrinal_compound_unvalidated
+  source_refs:
+    - "local: Salerno, Forensics by the Stars, water and disappearance examples"
+    - "local: forensic house_meanings.yaml (4th/8th/12th and water-sign meanings)"
   evidence:
     - moon
     - houses.signs
@@ -1032,6 +1046,8 @@
   title: Abduction or social-gathering seizure pattern is active
   category: Abduction
   weight: 4
+  scoring: false
+  validation_status: contextual_indicator_unvalidated
   condition:
     all:
       - any:
@@ -1051,7 +1067,10 @@
           - houses.mute_sign_on_3rd_or_9th: true
           - solar.combustion: [Mercury, Venus]
           - solar.under_beams: [Mercury, Venus]
-  rationale: The local corpus treats the 5th as adult social life, entertainment, parties, and outside interests, the 11th as friends and associates, the 7th as the abductor or other person, and the 12th as confinement. When a social setting is tightly tied to the 7th or 11th and separate hidden-custody testimony is present, the chart supports a social or group-gathering seizure rather than mere deception noise.
+  rationale: The pattern can describe a social setting plus hidden or restrictive context, but it does not independently establish unlawful seizure, transport, or detention. Keep it visible until a distinct coercion/custody rule corroborates abduction.
+  source_refs:
+    - "local: forensic house_meanings.yaml (5th-house entertainment, 11th-house groups, 12th-house confinement)"
+    - "FBI, 2025 NIBRS User Manual, Kidnapping/Abduction definition, pp. 57-58"
   evidence:
     - houses.seventh_ruler
     - houses.seventh_ruler_house
@@ -1530,39 +1549,72 @@
     - houses.tenth_ruler_house
     - planets.Sun
 
+- id: public_crowd_entertainment_axis
+  title: Public crowd and entertainment axes converge
+  category: Public
+  weight: 3
+  validation_status: doctrinal_compound_unvalidated
+  condition:
+    all:
+      - houses.counts.5>=: 3
+      - houses.eleventh_ruler_house: 5
+      - houses.counts.10>=: 1
+  rationale: "A public crowd or entertainment label requires three distinct channels: concentrated 5th-house recreation/entertainment, an 11th-house group ruler entering that setting, and independent 10th-house public visibility. A party or group signature alone remains contextual."
+  axis_hints:
+    - party_entertainment_context
+    - friends_social_circle_context
+  source_refs:
+    - "local: forensic house_meanings.yaml (5th-house recreation, 10th-house public standing, 11th-house groups/crowds)"
+  evidence:
+    - houses.counts
+    - houses.eleventh_ruler
+    - houses.eleventh_ruler_house
+
+- id: public_crowd_crisis_axis
+  title: Public crowd and entertainment crisis axes converge
+  category: Disaster
+  weight: 4
+  validation_status: doctrinal_compound_unvalidated
+  condition:
+    all:
+      - houses.counts.5>=: 4
+      - houses.eleventh_ruler_house: 5
+      - houses.counts.10>=: 1
+      - houses.malefics_angular_count>=: 1
+  rationale: A public crowd crisis requires the same independent entertainment, group, and public channels as the crowd-context rule, plus foregrounded malefic pressure. This classifies a public disaster context without implying transport or lethality.
+  source_refs:
+    - "local: forensic house_meanings.yaml (5th-house recreation, 10th-house public standing, 11th-house groups/crowds)"
+  evidence:
+    - houses.counts
+    - houses.eleventh_ruler
+    - houses.eleventh_ruler_house
+    - houses.malefics_angular_count
+
 - id: vehicle_crash_or_transport_harm_pattern
   title: Vehicle crash or transport harm pattern is active
   category: Disaster
   weight: 4
+  validation_status: doctrinal_compound_unvalidated
   condition:
     all:
       - any:
           - houses.sixth_ruler_house: 9
-          - houses.ninth_ruler_house: 9
-          - planets.Mars.house: 10
+          - houses.ninth_ruler_house: 6
+      - houses.malefics_angular_count>=: 1
       - any:
           - all:
-              - aspects.Mercury_to_Mars.type: [conjunction, square, opposition]
-              - aspects.Mercury_to_Mars.orb<=: 6
+              - houses.first_ruler_hard_afflicted: true
+              - moon.hard_malefic_contact: true
           - all:
-              - aspects.Mars_to_Mercury.type: [conjunction, square, opposition]
-              - aspects.Mars_to_Mercury.orb<=: 6
-          - all:
-              - aspects.Mercury_to_Saturn.type: [conjunction, square, opposition]
-              - aspects.Mercury_to_Saturn.orb<=: 6
-          - all:
-              - aspects.Saturn_to_Mercury.type: [conjunction, square, opposition]
-              - aspects.Saturn_to_Mercury.orb<=: 6
-          - houses.malefics_in_8th>=: 1
-      - any:
-          - houses.malefics_angular_count>=: 1
-          - planets.Mars.angular: true
-          - planets.Saturn.angular: true
-          - houses.first_ruler_in_8_or_12: true
-          - houses.seventh_ruler_in_8_or_12: true
-      - not:
-          houses.first_ruler_rules_8th: true
-  rationale: The local location doctrine treats the 3rd/9th as vehicles, roads, and transport. For a crash/transport-harm label, the route axis should be reinforced by accident/body houses or Mars in a public crash position, plus hard Mercury-Mars/Saturn or 8th-house malefic pressure; generic travel or 6th-house stress alone remains too broad.
+              - houses.counts.10>=: 2
+              - houses.tenth_ruler_house: 10
+              - houses.malefics_angular_count>=: 2
+  rationale: "A transport-accident label requires reciprocal linkage between the long-travel and accident/injury houses (6th and 9th), angular malefic pressure, and either hard pressure on both the Ascendant ruler and Moon or a separately saturated public-event axis. Generic short-distance movement is not enough."
+  axis_hints:
+    - route_vehicle_transport
+  source_refs:
+    - "local: Salerno, Forensics by the Stars, chapter 4, pp. 61-62"
+    - "local: Salerno, Forensics by the Stars, Costa Concordia discussion, pp. 78-81"
   evidence:
     - houses.third_ruler
     - houses.third_ruler_house
@@ -1579,57 +1631,27 @@
   title: Travel accident or disaster pattern is active
   category: Disaster
   weight: 4
+  scoring: false
+  validation_status: contextual_indicator_unvalidated
   condition:
     all:
       - any:
           - houses.first_ruler_house: 9
-          - houses.seventh_ruler_house: 9
           - houses.third_ruler_house: 9
+          - houses.ninth_ruler_house: 1
+          - houses.sixth_ruler_house: 9
+          - houses.ninth_ruler_house: 6
       - any:
-          - houses.water_cusp_4_8_12>=: 1
-          - houses.neptune_in_4_8_12: true
-          - moon.water_sign: true
-      - any:
+          - houses.first_ruler_hard_afflicted: true
           - moon.hard_malefic_contact: true
-          - houses.malefics_angular_count>=: 1
-      - not:
-          any:
-            - houses.first_ruler_rules_8th: true
-            - houses.first_ruler_in_8_or_12: true
-            - houses.fifth_ruler_in_8_or_12: true
-            - houses.fourth_ruler_in_4_8_12: true
-            - planets.Moon.house: [4, 8]
-            - all:
-                - houses.seventh_and_tenth_same_ruler: true
-                - any:
-                    - planets.Mercury.retrograde: true
-                    - solar.combustion: [Mercury]
-                    - solar.under_beams: [Mercury]
-                    - houses.mute_signs_on_angles: true
-                - any:
-                    - houses.third_ruler_house: [3, 9]
-                    - houses.ninth_ruler_house: [3, 9]
-                    - moon.in_3_or_9: true
-            - all:
-                - any:
-                    - houses.seventh_ruler_house: 5
-                    - houses.eleventh_ruler_house: 5
-                - any:
-                    - houses.fifth_ruler_in_8_or_12: true
-                    - houses.emphasis12_count>=: 1
-                    - planets.Sun.house: 12
-                    - planets.Moon.house: 12
-            - all:
-                - houses.seventh_and_eleventh_same_ruler: true
-                - any:
-                    - houses.first_and_fifth_rulers_same_house: true
-                    - houses.counts.5>=: 2
-                    - houses.fifth_ruler_house: [5, 7, 11]
-                - any:
-                    - planets.Sun.house: 12
-                    - planets.Moon.house: 12
-                    - houses.emphasis12_count>=: 1
-  rationale: Travel houses under water or ending pressure point more toward accident or disaster than toward a domestic homicide narrative.
+          - houses.third_ruler_hard_afflicted: true
+          - houses.ninth_ruler_hard_afflicted: true
+      - houses.malefics_angular_count>=: 1
+  rationale: Travel houses under hard pressure establish a travel-crisis context, but do not independently distinguish accident, attack, abduction, or an uneventful journey. Keep the finding visible and require a mechanism-specific scoring rule.
+  axis_hints:
+    - route_vehicle_transport
+  source_refs:
+    - "local: Salerno, Forensics by the Stars, chapter 4, pp. 61-62"
   evidence:
     - houses.first_ruler_house
     - houses.seventh_ruler_house
@@ -1643,56 +1665,21 @@
   title: Waterborne accident or disaster signatures are foregrounded
   category: Disaster
   weight: 4
+  validation_status: doctrinal_compound_unvalidated
   condition:
     all:
       - houses.water_cusp_4_8_12>=: 2
-      - any:
-          - houses.third_ruler_house: [3, 7, 9]
-          - houses.first_ruler_house: [3, 5, 9]
-      - any:
-          - moon.hard_malefic_contact: true
-          - all:
-              - moon.water_sign: true
-              - houses.malefics_angular_count>=: 1
-      - not:
-          any:
-            - houses.first_ruler_rules_8th: true
-            - houses.first_ruler_in_8_or_12: true
-            - houses.fifth_ruler_in_8_or_12: true
-            - planets.Moon.house: [4, 8]
-            - houses.fourth_ruler_in_4_8_12: true
-            - houses.fourth_ruler_hard_afflicted: true
-            - all:
-                - houses.seventh_and_tenth_same_ruler: true
-                - any:
-                    - planets.Mercury.retrograde: true
-                    - solar.combustion: [Mercury]
-                    - solar.under_beams: [Mercury]
-                    - houses.mute_signs_on_angles: true
-                - any:
-                    - houses.third_ruler_house: [3, 9]
-                    - houses.ninth_ruler_house: [3, 9]
-                    - moon.in_3_or_9: true
-            - all:
-                - any:
-                    - houses.seventh_ruler_house: 5
-                    - houses.eleventh_ruler_house: 5
-                - any:
-                    - houses.fifth_ruler_in_8_or_12: true
-                    - houses.emphasis12_count>=: 1
-                    - planets.Sun.house: 12
-                    - planets.Moon.house: 12
-            - all:
-                - houses.seventh_and_eleventh_same_ruler: true
-                - any:
-                    - houses.first_and_fifth_rulers_same_house: true
-                    - houses.counts.5>=: 2
-                    - houses.fifth_ruler_house: [5, 7, 11]
-                - any:
-                    - planets.Sun.house: 12
-                    - planets.Moon.house: 12
-                    - houses.emphasis12_count>=: 1
-  rationale: Strong water-house emphasis tied to movement or public transport markers describes a waterborne accident or disaster more than a family-abduction scenario.
+      - houses.counts.9>=: 1
+      - houses.ninth_ruler_hard_afflicted: true
+      - houses.first_ruler_house: [1, 4, 7, 10]
+      - houses.malefics_angular_count>=: 1
+  rationale: A waterborne-disaster label requires concentrated water-house testimony, an occupied long-travel house, a separately afflicted 9th-house ruler, an angular victim ruler, and angular malefic pressure. Water symbolism or an afflicted short-distance ruler alone is not an accident classifier.
+  axis_hints:
+    - water_disappearance_or_drowning
+    - route_vehicle_transport
+  source_refs:
+    - "local: Salerno, Forensics by the Stars, chapter 4, pp. 61-62"
+    - "local: Salerno, Forensics by the Stars, Costa Concordia discussion, pp. 78-81"
   evidence:
     - houses.water_cusp_4_8_12
     - houses.third_ruler_house
@@ -1705,6 +1692,8 @@
   title: Air-disaster launch pattern is active
   category: Disaster
   weight: 4
+  scoring: false
+  validation_status: case_derived_exploratory
   condition:
     all:
       - houses.angles_signs.C1: [Aquarius]
@@ -1737,6 +1726,8 @@
   title: Structural catastrophe pattern is active
   category: Disaster
   weight: 4
+  scoring: false
+  validation_status: case_derived_exploratory
   condition:
     all:
       - houses.angles_signs.C7: [Capricorn]

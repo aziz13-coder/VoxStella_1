@@ -337,3 +337,19 @@ def test_light_mediation_without_participant_detail_is_damped_but_not_zeroed():
     assert result["breakdown"]["light_mediation"] == 0.45
     assert result["breakdown"]["recovery_support"] == 0.45
     assert "limited participant detail" in " ".join(result["evidence"]["light_mediation"])
+
+
+def test_child_case_adds_mercury_but_adult_sex_does_not_force_venus():
+    features = copy.deepcopy(BASE_FEATURES)
+    features["houses"]["first_ruler"] = "Saturn"
+    features["planets"]["Saturn"] = {"house": 1, "dignity_score": 0}
+    features["planets"]["Mercury"] = {"house": 3, "dignity_score": 0}
+    features["planets"]["Venus"] = {"house": 5, "dignity_score": 0}
+
+    child = compute_survivability(features, case_type="child")
+    adult_female = compute_survivability(features, case_type="adult_female")
+
+    assert child["victim_significators"] == ["Saturn", "Moon", "Mercury"]
+    assert adult_female["victim_significators"] == ["Saturn", "Moon"]
+    assert adult_female["is_statistical_probability"] is False
+    assert adult_female["score_basis"] == "symbolic_rule_total_not_probability"

@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import json
 import random
-import re
 import statistics
 import sys
 from collections import Counter
@@ -29,10 +28,8 @@ for import_path in (CURRENT_ROOT, BACKEND_ROOT, REPO_ROOT):
         sys.path.insert(0, import_value)
 
 
-from forensic_roommate_benchmark_runner import (  # noqa: E402
-    AXIS_KEYWORDS,
-    _call_forensic_route as _roommate_call_forensic_route,
-)
+from forensic_roommate_benchmark_runner import _call_forensic_route as _roommate_call_forensic_route  # noqa: E402
+from forensic.axis_assessment import AXIS_ORDER, assess_axes  # noqa: E402
 from forensic.benchmark_policy import benchmark_exclusion_reason  # noqa: E402
 
 
@@ -70,13 +67,6 @@ def _round4(value: Any) -> Optional[float]:
         return round(float(value), 4)
     except Exception:
         return None
-
-
-def _keyword_matches(blob: str, keyword: str) -> bool:
-    if not blob or not keyword:
-        return False
-    escaped = re.escape(keyword.lower())
-    return re.search(rf"(?<![a-z0-9]){escaped}(?![a-z0-9])", blob) is not None
 
 
 def _case_benchmark(case: Dict[str, Any]) -> Dict[str, Any]:
@@ -159,7 +149,7 @@ def _expected_relationship_labels(case: Dict[str, Any]) -> List[str]:
             if label:
                 labels.append(label)
     labels = [label for label in dict.fromkeys(labels) if label in RELATIONSHIP_LABELS]
-    return labels or ["stranger_public"]
+    return labels
 
 
 def _primary_relationship_label(labels: Sequence[str]) -> str:
@@ -167,7 +157,7 @@ def _primary_relationship_label(labels: Sequence[str]) -> str:
     for label in RELATIONSHIP_LABELS:
         if label in label_set:
             return label
-    return "stranger_public"
+    return ""
 
 
 def build_forensic_query(case: Dict[str, Any]) -> Dict[str, str]:
@@ -198,50 +188,13 @@ def _is_runnable_case(case: Dict[str, Any]) -> bool:
     return bool(build_forensic_query(case))
 
 
-def _payload_text_blob(forensic_result: Dict[str, Any], *, include_rationales: bool = True) -> str:
-    findings = forensic_result.get("findings") or []
-    categories = forensic_result.get("categories") or {}
-    dominance = forensic_result.get("dominance") or {}
-    survivability = forensic_result.get("survivability") or {}
-    text_parts: List[str] = []
-
-    for finding in findings:
-        if not isinstance(finding, dict):
-            continue
-        keys = ("title", "category", "rationale", "evidence") if include_rationales else ("title", "category")
-        for key in keys:
-            value = finding.get(key)
-            if not value:
-                continue
-            if isinstance(value, (dict, list)):
-                text_parts.append(json.dumps(value, sort_keys=True))
-            else:
-                text_parts.append(str(value))
-
-    if isinstance(categories, dict):
-        text_parts.extend(str(key) for key in categories.keys())
-
-    if isinstance(dominance, dict):
-        text_parts.extend(str(key) for key in dominance.keys())
-        for value in dominance.values():
-            if isinstance(value, dict):
-                text_parts.extend(str(item) for item in value.values() if item)
-
-    if isinstance(survivability, dict):
-        text_parts.append(str(survivability.get("level") or ""))
-        text_parts.append(str(survivability.get("outcome_band") or ""))
-        text_parts.append(str(survivability.get("note") or ""))
-
-    return " ".join(text_parts).lower()
-
-
 def derive_predicted_axes(forensic_result: Dict[str, Any]) -> List[str]:
-    blob = _payload_text_blob(forensic_result, include_rationales=True)
-    predicted: List[str] = []
-    for axis, keywords in AXIS_KEYWORDS.items():
-        if any(_keyword_matches(blob, keyword) for keyword in keywords):
-            predicted.append(axis)
-    return predicted
+    explicit = forensic_result.get("axis_assessment") or {}
+    explicit_axes = explicit.get("predicted_axes") if isinstance(explicit, dict) else None
+    if isinstance(explicit_axes, list):
+        values = {str(axis) for axis in explicit_axes}
+        return [axis for axis in AXIS_ORDER if axis in values]
+    return assess_axes(forensic_result.get("findings") or [])["predicted_axes"]
 
 
 def _alignment_from_axes(
@@ -332,11 +285,11 @@ def compute_axis_metrics(rows: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
     macro_recall = statistics.mean(recalls) if recalls else None
     negative_total = sum(negative_counter.values())
     true_negative_total = sum(true_negative_counter.values())
-    specificity = true_negative_total / negative_total if negative_total else None
-    if micro_recall is not None and specificity is not None:
-        balanced_accuracy = (micro_recall + specificity) / 2.0
+    explicit_contradiction_specificity = true_negative_total / negative_total if negative_total else None
+    if micro_recall is not None and explicit_contradiction_specificity is not None:
+        labeled_balanced_accuracy = (micro_recall + explicit_contradiction_specificity) / 2.0
     else:
-        balanced_accuracy = micro_recall
+        labeled_balanced_accuracy = micro_recall
     runnable_count = len(rows)
 
     return {
@@ -351,9 +304,15 @@ def compute_axis_metrics(rows: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
         "macro_recall": _round4(macro_recall) if macro_recall is not None else None,
         "negative_axis_count": negative_total,
         "true_negative_axis_count": true_negative_total,
-        "specificity": _round4(specificity) if specificity is not None else None,
-        "balanced_accuracy": _round4(balanced_accuracy) if balanced_accuracy is not None else None,
-        "primary_axis_score": _round4(balanced_accuracy) if balanced_accuracy is not None else None,
+        # These negatives are explicitly labeled contradictions only. Unlisted
+        # axes are unknown, so this must not be described as full specificity.
+        "explicit_contradiction_specificity": _round4(explicit_contradiction_specificity) if explicit_contradiction_specificity is not None else None,
+        "labeled_balanced_accuracy": _round4(labeled_balanced_accuracy) if labeled_balanced_accuracy is not None else None,
+        "negative_label_scope": "explicit_contradictory_axes_only",
+        # Backward-compatible aliases retained for existing report consumers.
+        "specificity": _round4(explicit_contradiction_specificity) if explicit_contradiction_specificity is not None else None,
+        "balanced_accuracy": _round4(labeled_balanced_accuracy) if labeled_balanced_accuracy is not None else None,
+        "primary_axis_score": _round4(labeled_balanced_accuracy) if labeled_balanced_accuracy is not None else None,
         "false_positive_contradiction_count": sum(contradiction_counter.values()),
         "false_positive_contradictions": dict(sorted(contradiction_counter.items())),
         "per_axis": per_axis,
@@ -393,6 +352,20 @@ def compute_survivability_metrics(rows: Sequence[Dict[str, Any]]) -> Dict[str, A
     }
 
 
+def survivability_alignment(row: Dict[str, Any]) -> str:
+    expected_levels = set(row.get("expected_levels") or [])
+    expected_bands = set(row.get("expected_bands") or [])
+    if not expected_levels and not expected_bands:
+        return "not_scored"
+    level_match = bool(expected_levels and row.get("actual_level") in expected_levels)
+    band_match = bool(expected_bands and row.get("actual_band") in expected_bands)
+    if level_match and band_match:
+        return "aligned"
+    if level_match or band_match:
+        return "partially_aligned"
+    return "misaligned"
+
+
 def derive_predicted_relationship_labels(forensic_result: Dict[str, Any]) -> List[str]:
     relationship_status = forensic_result.get("relationship_status") or {}
     raw_labels = relationship_status.get("labels") if isinstance(relationship_status, dict) else None
@@ -425,8 +398,9 @@ def compute_relationship_status_metrics(rows: Sequence[Dict[str, Any]]) -> Dict[
     exact = 0
     primary = 0
 
-    for row in rows:
-        expected = set(row.get("expected_relationship_labels") or ["stranger_public"])
+    scored_rows = [row for row in rows if row.get("expected_relationship_labels")]
+    for row in scored_rows:
+        expected = set(row.get("expected_relationship_labels") or [])
         predicted = set(row.get("predicted_relationship_labels") or ["stranger_public"])
         if expected == predicted:
             exact += 1
@@ -473,7 +447,7 @@ def compute_relationship_status_metrics(rows: Sequence[Dict[str, Any]]) -> Dict[
     micro_precision = _precision(total_tp, total_fp)
     micro_recall = _recall(total_tp, total_fn)
     micro_f1 = _f1(micro_precision, micro_recall)
-    case_count = len(rows)
+    case_count = len(scored_rows)
     return {
         "case_count": case_count,
         "exact_match_count": exact,
@@ -593,12 +567,13 @@ def bootstrap_relationship_macro_f1_ci(
     iterations: int = 1000,
     seed: int = 29,
 ) -> Dict[str, Any]:
-    if not rows:
+    scored_rows = [row for row in rows if row.get("expected_relationship_labels")]
+    if not scored_rows:
         return {"mean": None, "ci95": [None, None], "iterations": 0}
     rng = random.Random(seed)
     boot: List[float] = []
     for _ in range(max(1, iterations)):
-        sample = [rng.choice(rows) for _ in rows]
+        sample = [rng.choice(scored_rows) for _ in scored_rows]
         value = compute_relationship_status_metrics(sample).get("macro_f1")
         if value is not None:
             boot.append(float(value))
@@ -608,7 +583,7 @@ def bootstrap_relationship_macro_f1_ci(
     lower_idx = int(0.025 * (len(boot) - 1))
     upper_idx = int(0.975 * (len(boot) - 1))
     return {
-        "mean": _round4(compute_relationship_status_metrics(rows).get("macro_f1")),
+        "mean": _round4(compute_relationship_status_metrics(scored_rows).get("macro_f1")),
         "ci95": [_round4(boot[lower_idx]), _round4(boot[upper_idx])],
         "iterations": len(boot),
     }
@@ -619,15 +594,19 @@ def _permutation_control_metric(
     *,
     metric_key: str,
     max_controls: int = 100,
+    seed: int = 1729,
 ) -> List[float]:
     if len(rows) < 2:
         return []
     controls: List[float] = []
-    shift_count = min(len(rows) - 1, max(0, int(max_controls)))
-    for shift in range(1, shift_count + 1):
+    rng = random.Random(seed)
+    control_count = max(0, int(max_controls))
+    for _ in range(control_count):
+        donor_order = list(range(len(rows)))
+        rng.shuffle(donor_order)
         null_rows: List[Dict[str, Any]] = []
         for idx, row in enumerate(rows):
-            donor = rows[(idx + shift) % len(rows)]
+            donor = rows[donor_order[idx]]
             null_rows.append(
                 {
                     "expected_axes": list(row.get("expected_axes") or []),
@@ -646,15 +625,20 @@ def _permutation_relationship_control_metric(
     *,
     metric_key: str,
     max_controls: int = 100,
+    seed: int = 2718,
 ) -> List[float]:
-    if len(rows) < 2:
+    scored_rows = [row for row in rows if row.get("expected_relationship_labels")]
+    if len(scored_rows) < 2:
         return []
     controls: List[float] = []
-    shift_count = min(len(rows) - 1, max(0, int(max_controls)))
-    for shift in range(1, shift_count + 1):
+    rng = random.Random(seed)
+    control_count = max(0, int(max_controls))
+    for _ in range(control_count):
+        donor_order = list(range(len(scored_rows)))
+        rng.shuffle(donor_order)
         null_rows: List[Dict[str, Any]] = []
-        for idx, row in enumerate(rows):
-            donor = rows[(idx + shift) % len(rows)]
+        for idx, row in enumerate(scored_rows):
+            donor = scored_rows[donor_order[idx]]
             null_rows.append(
                 {
                     "expected_relationship_labels": list(row.get("expected_relationship_labels") or []),
@@ -708,6 +692,8 @@ def load_statistical_cases(
                     "query": build_forensic_query(case),
                     "expected_survivability": _expected_survivability(case),
                     "expected_relationship_labels": _expected_relationship_labels(case),
+                    "known_outcome": case.get("known_outcome") if isinstance(case.get("known_outcome"), dict) else {},
+                    "family": case.get("family"),
                 }
             )
     if normalized_case_id and not cases:
@@ -725,6 +711,7 @@ def run_statistical_benchmark_suite(
     include_control_cases: bool = True,
     control_iterations: int = 100,
     bootstrap_iterations: int = 1000,
+    control_seed: int = 1729,
 ) -> Dict[str, Any]:
     cases = load_statistical_cases(dataset_paths, case_id=case_id)
     if case_limit is not None:
@@ -786,7 +773,7 @@ def run_statistical_benchmark_suite(
         }
         survival_rows.append(survival_row)
 
-        expected_relationship = list(item.get("expected_relationship_labels") or ["stranger_public"])
+        expected_relationship = list(item.get("expected_relationship_labels") or [])
         predicted_relationship = derive_predicted_relationship_labels(payload)
         relationship_row = {
             "case_id": item["case_id"],
@@ -810,12 +797,14 @@ def run_statistical_benchmark_suite(
                     "status": relationship_row["relationship_status"],
                 },
                 "survivability": {
+                    "known_outcome": item.get("known_outcome") or {},
                     "expected_levels": survival_row["expected_levels"],
                     "expected_bands": survival_row["expected_bands"],
                     "actual_level": survival_row["actual_level"],
                     "actual_band": survival_row["actual_band"],
                     "actual_score": survival_row["actual_score"],
                     "light_mediation_impact": survival_row["light_mediation_impact"],
+                    "comparison": survivability_alignment(survival_row),
                 },
                 "top_findings": [
                     {
@@ -835,12 +824,12 @@ def run_statistical_benchmark_suite(
     relationship_metrics = compute_relationship_status_metrics(relationship_rows)
     light_mediation_calibration_metrics = compute_light_mediation_calibration_metrics(survival_rows)
     control_recalls = (
-        _permutation_control_metric(axis_rows, metric_key="micro_recall", max_controls=control_iterations)
+        _permutation_control_metric(axis_rows, metric_key="micro_recall", max_controls=control_iterations, seed=control_seed)
         if include_control_cases
         else []
     )
     control_balanced_scores = (
-        _permutation_control_metric(axis_rows, metric_key="balanced_accuracy", max_controls=control_iterations)
+        _permutation_control_metric(axis_rows, metric_key="balanced_accuracy", max_controls=control_iterations, seed=control_seed)
         if include_control_cases
         else []
     )
@@ -849,6 +838,7 @@ def run_statistical_benchmark_suite(
             relationship_rows,
             metric_key="macro_f1",
             max_controls=control_iterations,
+            seed=control_seed + 1,
         )
         if include_control_cases
         else []
@@ -856,6 +846,18 @@ def run_statistical_benchmark_suite(
 
     report = {
         "benchmark_id": "forensic_statistical_axis_detection_v1",
+        "evaluation_design": {
+            "mode": "known_outcome_conditional_replay",
+            "axis_prediction_basis": "explicit_rule_id_category_mapping_v1",
+            "uses_free_text_for_axis_prediction": False,
+            "null_control": "seeded_monte_carlo_label_permutation",
+            "control_seed": int(control_seed),
+            "limitations": [
+                "Curated known cases are not a prospective blind validation sample.",
+                "Chart inputs may include contextual labels such as case type and location.",
+                "Metrics characterize this fixture set only and do not establish real-world forensic validity.",
+            ],
+        },
         "dataset_paths": sorted({item["dataset_path"] for item in cases}),
         "primary_target": "case_axis_detection",
         "secondary_target": "survivability_outcome_direction",
@@ -910,6 +912,10 @@ def render_markdown_report(report: Dict[str, Any]) -> str:
         lines.append("- Asteroid/special-degree secondary factors: enabled")
     lines.append(f"- Runnable cases: {report.get('case_count')}")
     lines.append(f"- Route errors: {report.get('route_error_count')}")
+    design = report.get("evaluation_design") or {}
+    if design:
+        lines.append(f"- Evaluation mode: {design.get('mode')}")
+        lines.append(f"- Axis basis: {design.get('axis_prediction_basis')}")
     lines.append("")
 
     axis = report.get("primary_axis_metrics") or {}
@@ -919,7 +925,10 @@ def render_markdown_report(report: Dict[str, Any]) -> str:
         "- Micro recall: "
         f"{axis.get('matched_axis_count')}/{axis.get('expected_axis_count')} = {axis.get('micro_recall')}"
     )
-    lines.append(f"- Specificity on labeled negative axes: {axis.get('specificity')}")
+    lines.append(
+        f"- Explicit-contradiction specificity (not full specificity): "
+        f"{axis.get('explicit_contradiction_specificity')}"
+    )
     lines.append(f"- Balanced accuracy: {axis.get('balanced_accuracy')}")
     lines.append(f"- Macro recall: {axis.get('macro_recall')}")
     lines.append(f"- Case statuses: `{axis.get('comparison_status_counts')}`")
@@ -927,12 +936,13 @@ def render_markdown_report(report: Dict[str, Any]) -> str:
     lines.append("")
 
     significance = ((report.get("significance") or {}).get("axis_balanced_accuracy") or {})
-    lines.append("## Significance")
+    lines.append("## Conditional Permutation Comparison")
     lines.append("")
     lines.append(f"- Observed primary axis score: {significance.get('observed')}")
     lines.append(f"- Null-control mean: {significance.get('control_mean')}")
     lines.append(f"- Null-control count: {significance.get('control_count')}")
-    lines.append(f"- Empirical p-value: {significance.get('empirical_p_value')}")
+    lines.append(f"- Fixture-level empirical p-value: {significance.get('empirical_p_value')}")
+    lines.append("- This conditional replay comparison is not evidence of real-world forensic validity.")
     ci = ((report.get("confidence_intervals") or {}).get("axis_case_recall_bootstrap") or {})
     lines.append(f"- Bootstrap case-recall 95% CI: `{ci.get('ci95')}`")
     lines.append("")
@@ -991,13 +1001,25 @@ def render_markdown_report(report: Dict[str, Any]) -> str:
     lines.append("")
     for result in report.get("case_results") or []:
         survival_result = result.get("survivability") or {}
+        relationship_result = result.get("relationship") or {}
+        relationship_text = (
+            f"relationship={relationship_result.get('predicted_primary')}/{relationship_result.get('expected_primary')}; "
+            if relationship_result.get("expected_labels")
+            else "relationship=not_scored; "
+        )
+        known_outcome = survival_result.get("known_outcome") or {}
+        outcome_text = (
+            f"known={known_outcome.get('class')} "
+            f"({known_outcome.get('survivors')}/{known_outcome.get('occupants')} survived); "
+            if known_outcome else ""
+        )
         lines.append(
             f"- `{result.get('case_id')}` ({result.get('dataset_name')}): {result.get('status')}; "
             f"matched={result.get('matched_axes')}; missed={result.get('missed_axes')}; "
             f"contradicted={result.get('contradicted_axes')}; "
-            f"relationship={(result.get('relationship') or {}).get('predicted_primary')}/"
-            f"{(result.get('relationship') or {}).get('expected_primary')}; "
-            f"survivability={survival_result.get('actual_level')}/{survival_result.get('actual_band')}"
+            f"{relationship_text}"
+            f"{outcome_text}survivability={survival_result.get('actual_level')}/{survival_result.get('actual_band')} "
+            f"[{survival_result.get('comparison')}]"
         )
 
     return "\n".join(lines).strip() + "\n"
@@ -1033,7 +1055,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "--control-iterations",
         type=int,
         default=100,
-        help="Maximum permutation null-control rotations to evaluate.",
+        help="Number of seeded Monte Carlo label permutations to evaluate.",
     )
     parser.add_argument(
         "--bootstrap-iterations",

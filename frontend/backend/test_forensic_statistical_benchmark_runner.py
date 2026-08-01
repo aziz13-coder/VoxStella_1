@@ -63,8 +63,10 @@ def test_predicted_axes_include_trafficking_or_possession_context():
     payload = {
         "findings": [
             {
+                "id": "victim_possession_context",
                 "title": "Possession Or Value Motive",
                 "category": "Victim Context",
+                "axis_hints": ["trafficking_or_possession_context"],
                 "rationale": "Victim ruler in the 2nd house: consider trafficking because the person is treated as a possession.",
             }
         ]
@@ -75,12 +77,12 @@ def test_predicted_axes_include_trafficking_or_possession_context():
     assert "trafficking_or_possession_context" in axes
 
 
-def test_predicted_axes_include_all_mcintosh_house_context_axes():
+def test_predicted_axes_do_not_mine_alternative_outcomes_from_rationales():
     payload = {
         "findings": [
             {
-                "title": "McIntosh H1-H12 doctrine checks",
-                "category": "Victim Context",
+                "title": "House context doctrine check",
+                "category": "General",
                 "rationale": (
                     "Victim near the immediate scene or residence; taken for trafficking as a possession; "
                     "communication issue with vehicle and short distance; family home and end of the matter; "
@@ -92,22 +94,34 @@ def test_predicted_axes_include_all_mcintosh_house_context_axes():
         ]
     }
 
-    axes = set(runner.derive_predicted_axes(payload))
+    assert runner.derive_predicted_axes(payload) == []
 
-    assert {
-        "immediate_scene_or_vicinity_context",
-        "trafficking_or_possession_context",
-        "communication_vehicle_short_distance_context",
-        "family_home_end_matter_context",
-        "party_entertainment_context",
-        "routine_disruption_stalker_context",
-        "suspect_territory_context",
-        "death_financial_entanglement_context",
-        "far_distance_departure_context",
-        "public_authority_witness_context",
-        "friends_social_circle_context",
-        "hidden_captive_kidnapped_context",
-    }.issubset(axes)
+
+def test_seeded_permutation_controls_honor_requested_count_and_are_reproducible():
+    rows = [
+        {
+            "expected_axes": ["violence_homicide"] if index % 2 else ["accident_or_disaster"],
+            "predicted_axes": ["violence_homicide"] if index < 3 else ["accident_or_disaster"],
+            "contradictory_axes": [],
+        }
+        for index in range(6)
+    ]
+
+    first = runner._permutation_control_metric(
+        rows,
+        metric_key="micro_recall",
+        max_controls=40,
+        seed=123,
+    )
+    second = runner._permutation_control_metric(
+        rows,
+        metric_key="micro_recall",
+        max_controls=40,
+        seed=123,
+    )
+
+    assert len(first) == 40
+    assert first == second
 
 
 def test_statistical_runner_prioritizes_axis_detection_and_tracks_survivability(monkeypatch):
@@ -153,6 +167,8 @@ def test_statistical_runner_prioritizes_axis_detection_and_tracks_survivability(
 
     assert report["primary_target"] == "case_axis_detection"
     assert report["secondary_target"] == "survivability_outcome_direction"
+    assert report["evaluation_design"]["axis_prediction_basis"] == "explicit_rule_id_category_mapping_v1"
+    assert report["evaluation_design"]["uses_free_text_for_axis_prediction"] is False
     assert report["primary_axis_metrics"]["runnable_case_count"] == 1
     assert report["primary_axis_metrics"]["expected_axis_count"] >= 1
     assert report["primary_axis_metrics"]["matched_axis_count"] >= 1
@@ -284,6 +300,22 @@ def test_relationship_status_metrics_prioritize_precision_and_exact_labels():
     assert metrics["per_label"]["stranger_public"]["false_negative"] == 1
 
 
+def test_relationship_metrics_ignore_cases_without_relationship_ground_truth():
+    metrics = runner.compute_relationship_status_metrics(
+        [
+            {
+                "case_id": "outcome_only",
+                "expected_relationship_labels": [],
+                "predicted_relationship_labels": ["stranger_public"],
+            }
+        ]
+    )
+
+    assert metrics["case_count"] == 0
+    assert metrics["primary_accuracy"] is None
+    assert metrics["macro_f1"] is None
+
+
 def test_markdown_report_names_targets_and_significance():
     report = {
         "benchmark_id": "unit",
@@ -344,4 +376,5 @@ def test_markdown_report_names_targets_and_significance():
     assert "Secondary target: survivability/outcome direction" in markdown
     assert "Relationship Status" in markdown
     assert "Light Mediation Calibration" in markdown
-    assert "Empirical p-value" in markdown
+    assert "Fixture-level empirical p-value" in markdown
+    assert "not evidence of real-world forensic validity" in markdown

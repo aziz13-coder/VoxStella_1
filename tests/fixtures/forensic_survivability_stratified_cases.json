@@ -1,5 +1,6 @@
 {
   "generated_at": "2026-04-07T00:00:00+00:00",
+  "evaluation_role": "development_calibration",
   "purpose": "Stratified survivability benchmark that extends the resolved journalist-abduction calibration into fatal abduction, public survivor attacks, known-person homicide, and mixed disappearance-homicide families.",
   "source_basis": {
     "doctrine": [

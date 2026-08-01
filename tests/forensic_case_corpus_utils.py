@@ -244,9 +244,19 @@ def load_forensic_case_corpus(path=CORPUS_PATH):
 
 
 def _result_text_blob(forensic_result, include_rationales=True):
-    findings = forensic_result.get("findings") or []
-    categories = forensic_result.get("categories") or {}
-    dominance = forensic_result.get("dominance") or {}
+    context_only_rule_ids = {
+        "family_domestic_moon_signature",
+        "family_home_axis_under_pressure",
+        "family_child_homicide_axis_cluster",
+        "abduction_social_or_group_gathering_seizure_signature",
+        "travel_accident_or_disaster_pattern",
+    }
+    findings = [
+        finding
+        for finding in (forensic_result.get("findings") or [])
+        if finding.get("id") not in context_only_rule_ids
+    ]
+    categories = {str(finding.get("category")) for finding in findings if finding.get("category")}
     text_parts = []
     for finding in findings:
         keys = ("title", "category", "rationale") if include_rationales else ("title", "category")
@@ -254,14 +264,7 @@ def _result_text_blob(forensic_result, include_rationales=True):
             value = finding.get(key)
             if value:
                 text_parts.append(str(value))
-    text_parts.extend(str(k) for k in categories.keys())
-    if isinstance(dominance, dict):
-        text_parts.extend(str(k) for k in dominance.keys())
-        for value in dominance.values():
-            if isinstance(value, dict):
-                for sub in value.values():
-                    if sub:
-                        text_parts.append(str(sub))
+    text_parts.extend(categories)
     return " ".join(text_parts).lower()
 
 

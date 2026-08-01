@@ -15,6 +15,7 @@ balance of:
 That makes this a better fit than a frontend-only dignity heuristic.
 """
 
+from dataclasses import asdict, dataclass
 from typing import Any, Dict, Iterable, List, Tuple
 
 
@@ -51,6 +52,38 @@ LIGHT_MEDIATION_SOFT_ASPECTS = {"trine", "sextile"}
 LIGHT_MEDIATION_HARD_ASPECTS = {"square", "opposition"}
 LIGHT_MEDIATION_POSITIVE_CAP = 1.1
 LIGHT_MEDIATION_NEGATIVE_CAP = -1.2
+
+
+@dataclass(frozen=True)
+class SurvivabilityPolicy:
+    """Versioned classification thresholds, separate from feature scoring."""
+
+    version: str = "deduplicated_v2"
+    abduction_higher_net: float = 2.75
+    abduction_max_fatal: float = 1.5
+    abduction_max_danger: float = 2.0
+    abduction_low_violence_multiplier: float = 0.45
+    abduction_high_violence_multiplier: float = 0.6
+    abduction_high_violence_min_count: int = 3
+    rescue_min_recovery: float = 1.0
+    rescue_min_support: float = 4.5
+    rescue_max_fatal: float = 9.0
+    fatal_gate_pressure: float = 4.5
+    fatal_gate_max_net: float = 1.5
+    mechanism_gate_pressure: float = 2.0
+    mechanism_gate_max_net: float = 5.0
+    weak_rescue_max_recovery: float = 1.0
+    weak_rescue_max_support: float = 2.0
+    violent_gate_danger: float = 3.0
+    violent_gate_fatal: float = 1.5
+    violent_gate_max_net: float = 0.5
+    higher_net: float = 3.0
+    higher_max_fatal: float = 3.0
+    lower_net: float = -4.0
+    nonfatal_band_net: float = 2.0
+
+
+DEFAULT_SURVIVABILITY_POLICY = SurvivabilityPolicy()
 
 
 def _normalize_case_type(value: Any) -> str:
@@ -101,6 +134,8 @@ def _aspect_iter(aspects: Dict[str, Dict[str, Any]], planet: str) -> Iterable[Tu
 
 def _house_group(house: Any) -> str:
     h = _to_int(house)
+    if h is None or h < 1 or h > 12:
+        return "unknown"
     if h in (1, 4, 7, 10):
         return "angular"
     if h in (2, 5, 8, 11):
@@ -131,65 +166,87 @@ def _format_signed(value: float) -> str:
     return f"{rounded:g}"
 
 
-def _finding_titles(findings: List[Dict[str, Any]]) -> List[str]:
-    return [str((finding or {}).get("title") or "").strip().lower() for finding in findings or []]
+def _finding_ids(findings: List[Dict[str, Any]]) -> set[str]:
+    return {
+        str((finding or {}).get("id") or "").strip()
+        for finding in findings or []
+        if str((finding or {}).get("id") or "").strip()
+        and (finding or {}).get("scoring_eligible", True) is not False
+    }
 
 
-def _has_any_title(titles: List[str], needles: Tuple[str, ...]) -> bool:
-    return any(needle in title for title in titles for needle in needles)
+_KNOWN_PERSON_VIOLENCE_IDS = {
+    "violence_known_person_social_concealment_pattern",
+    "violence_known_person_home_axis_pressure",
+    "domestic_partner_known_spouse_homicide",
+    "family_home_opponent_homicide_axis",
+    "family_parental_axis_homicide",
+    "family_parricide_homicide_cluster",
+}
+_TRANSPORT_HARM_IDS = {
+    "vehicle_crash_or_transport_harm_pattern",
+    "travel_accident_or_disaster_pattern",
+    "waterborne_accident_or_disaster_pattern",
+}
+_CHILD_CONTEXT_IDS = {
+    "child_house_under_stress",
+    "child_family_overlap",
+    "child_parental_harm_cluster",
+    "context_child_case_axis",
+    "family_custody_child_violence_axis",
+    "family_child_homicide_axis_cluster",
+}
+_FAMILY_FATAL_IDS = {
+    "family_home_opponent_homicide_axis",
+    "family_parental_axis_homicide",
+    "domestic_partner_known_spouse_homicide",
+}
+
+_FATAL_RULE_FAMILIES = {
+    "direct lethal-harm testimony": {
+        "violence_life_death_overlap": 2.2,
+        "domestic_partner_known_spouse_homicide": 2.4,
+        "family_child_homicide_axis_cluster": 2.4,
+        "family_home_opponent_homicide_axis": 2.2,
+        "family_parental_axis_homicide": 2.2,
+        "family_parricide_homicide_cluster": 2.4,
+        "violence_proxy_or_contract_attack_pattern": 2.0,
+        "violence_known_person_social_concealment_pattern": 1.8,
+        "violence_known_person_home_axis_pressure": 1.8,
+        "violence_home_entry_service_pretext_pattern": 1.8,
+        "violence_water_death_under_malefic_pressure": 1.8,
+    },
+    "concealed-harm testimony": {
+        "violence_hidden_victim_with_angular_malefic": 1.5,
+        "violence_malefic_in_8th_with_hidden_context": 1.5,
+    },
+    "water danger/recovery testimony": {
+        "water_death_edge_disappearance_signature": 1.5,
+        "water_disappearance_signatures": 0.8,
+    },
+}
 
 
 def _mechanism_flags(
     findings: List[Dict[str, Any]],
     categories: Dict[str, int],
 ) -> Dict[str, bool]:
-    titles = _finding_titles(findings)
-    category_counts = categories or {}
-    abduction_count = int(category_counts.get("Abduction", 0) or 0)
-    violence_count = int(category_counts.get("Violence", 0) or 0)
-    child_or_witness_count = int(category_counts.get("Children", 0) or 0) + int(category_counts.get("Witness", 0) or 0)
-    deception_count = int(category_counts.get("Deception", 0) or 0)
-    disaster_count = int(category_counts.get("Disaster", 0) or 0)
-
-    family_household = _has_any_title(
-        titles,
-        (
-            "family or household relationship cluster",
-            "family homicide pressure",
-        ),
-    )
-    relationship_malefic = any(
-        ("venus" in title and "saturn" in title and ("hard" in title or "detriment" in title))
-        or "malefic in the 6th" in title
-        or "malefic in the 8th" in title
-        or "malefic contrary" in title
-        for title in titles
-    )
-    known_person_title = _has_any_title(
-        titles,
-        (
-            "known-person home-axis violence pattern",
-            "known-person violence pattern",
-        ),
-    )
-    fatal_known_person_title = _has_any_title(
-        titles,
-        (
-            "violence or homicide",
-            "homicide",
-            "life/death overlap",
-            "hidden victim with angular violence markers",
-        ),
-    )
+    del categories  # Rule IDs are the stable scoring interface.
+    ids = _finding_ids(findings)
+    violence_ids = {rule_id for rule_id in ids if rule_id.startswith("violence_")}
+    abduction_ids = {rule_id for rule_id in ids if rule_id.startswith("abduction_") or rule_id.startswith("missing_person_")}
 
     return {
-        "known_person_violence": violence_count > 0
-        and known_person_title
-        and (disaster_count <= 0 or fatal_known_person_title),
-        "transport_harm": _has_any_title(titles, ("vehicle crash or transport harm pattern",)),
-        "child_witness_violence": violence_count > 0 and abduction_count <= 0 and child_or_witness_count > 0,
-        "family_household_harm": family_household
-        and (violence_count > 0 or relationship_malefic or deception_count >= 2),
+        "known_person_violence": bool(ids & _KNOWN_PERSON_VIOLENCE_IDS),
+        "transport_harm": bool(ids & _TRANSPORT_HARM_IDS),
+        "child_witness_violence": bool(violence_ids and ids & _CHILD_CONTEXT_IDS and not abduction_ids),
+        "family_household_harm": bool(
+            ids & _FAMILY_FATAL_IDS
+            or (
+                "family_household_relationship_cluster" in ids
+                and bool(violence_ids or ids & {"malefics_in_6th", "venus_detriment_with_saturn"})
+            )
+        ),
     }
 
 
@@ -197,7 +254,12 @@ def _derive_victim_significators(features: Dict[str, Any], case_type: str) -> Li
     houses = (features.get("houses") or {}) if isinstance(features, dict) else {}
     primary = houses.get("first_ruler") or SIGN_RULERS.get((houses.get("signs") or {}).get("1"))
     out: List[str] = []
-    for item in [primary, "Moon"]:
+    # Local forensic doctrine consistently treats the Moon as a co-significator
+    # and explicitly adds Mercury for a missing or harmed child. It also warns
+    # against inferring a person's sex from Venus/Mars, so adult_female does not
+    # receive a sex-based natural co-ruler here.
+    contextual = ["Mercury"] if _normalize_case_type(case_type) == "child" else []
+    for item in [primary, "Moon", *contextual]:
         if item and item not in out:
             out.append(item)
     return out
@@ -246,7 +308,7 @@ def _vitality_component(
         elif group == "succedent":
             score += 0.5
             evidence.append(f"{planet} succedent +0.5")
-        else:
+        elif group == "cadent":
             score -= 0.75
             evidence.append(f"{planet} cadent -0.75")
 
@@ -868,8 +930,8 @@ def _fatal_pressure_component(
 ) -> Tuple[float, List[str]]:
     houses = features.get("houses") or {}
     moon = features.get("moon") or {}
-    titles = _finding_titles(findings)
-    mechanism_flags = _mechanism_flags(findings, categories)
+    del categories
+    finding_ids = _finding_ids(findings)
     score = 0.0
     evidence: List[str] = []
 
@@ -883,59 +945,25 @@ def _fatal_pressure_component(
         score += 1.0
         evidence.append("Moon under death pressure +1")
 
-    violence_count = int((categories or {}).get("Violence", 0) or 0)
-    if violence_count:
-        pts = min(2.5, violence_count * 0.8)
-        score += pts
-        evidence.append(f"violence findings +{pts:g}")
+    # Correlated rules often encode the same underlying chart testimony. Score
+    # the strongest fired rule once per evidence family instead of adding the
+    # category count, title substring, and mechanism bonus for the same rule.
+    for family, rule_points in _FATAL_RULE_FAMILIES.items():
+        matches = [(rule_id, points) for rule_id, points in rule_points.items() if rule_id in finding_ids]
+        if not matches:
+            continue
+        rule_id, points = max(matches, key=lambda item: (item[1], item[0]))
+        score += points
+        evidence.append(f"{family} ({rule_id}) +{points:g}")
 
-    disaster_count = int((categories or {}).get("Disaster", 0) or 0)
-    if disaster_count:
-        pts = min(1.5, disaster_count * 0.6)
-        score += pts
-        evidence.append(f"disaster findings +{pts:g}")
-
-    if any("life/death overlap" in title for title in titles):
-        score += 2.2
-        evidence.append("life/death overlap +2.2")
-    if any("violence or homicide" in title for title in titles):
-        score += 1.8
-        evidence.append("homicide testimony +1.8")
-    elif any("homicide" in title for title in titles):
-        score += 1.6
-        evidence.append("explicit homicide testimony +1.6")
-    title_rules = (
-        ("known-person violence pattern", 1.6, "known-person violence"),
-        ("malefic contrary to sect", 1.25, "malefic contrary to sect"),
-        ("hidden victim with angular violence markers", 1.5, "hidden victim under violence"),
-        ("moon under death pressure", 1.2, "Moon under death pressure"),
-        ("violent fixed star", 1.0, "violent fixed star"),
-        ("catastrophic", 1.5, "catastrophic testimony"),
-    )
-    for needle, pts, label in title_rules:
-        if any(needle in title for title in titles):
-            score += pts
-            evidence.append(f"{label} +{pts:g}")
-
-    if any(
-        "water death" in title or "water disappearance or recovery context" in title
-        for title in titles
+    if (
+        "family_household_relationship_cluster" in finding_ids
+        and finding_ids & {"malefics_in_6th", "venus_detriment_with_saturn"}
     ):
         score += 1.5
-        evidence.append("water fatal mechanism +1.5")
+        evidence.append("family/household harm compound (relationship cluster + malefic access) +1.5")
 
-    mechanism_rules = (
-        ("known_person_violence", 3.2, "known-person violent injury mechanism"),
-        ("transport_harm", 3.0, "transport crash/impact mechanism"),
-        ("child_witness_violence", 1.6, "child/witness violent-event mechanism"),
-        ("family_household_harm", 3.2, "family/household fatal-harm mechanism"),
-    )
-    for flag, pts, label in mechanism_rules:
-        if mechanism_flags.get(flag):
-            score += pts
-            evidence.append(f"{label} +{pts:g}")
-
-    return score, evidence
+    return round(score, 2), evidence
 
 
 def _adjust_fatal_pressure_for_context(
@@ -943,9 +971,15 @@ def _adjust_fatal_pressure_for_context(
     *,
     abduction_context: bool,
     violence_count: int,
+    policy: SurvivabilityPolicy = DEFAULT_SURVIVABILITY_POLICY,
 ) -> float:
     if abduction_context and fatal_pressure:
-        return round(fatal_pressure * (0.45 if violence_count <= 2 else 0.6), 2)
+        multiplier = (
+            policy.abduction_high_violence_multiplier
+            if violence_count >= policy.abduction_high_violence_min_count
+            else policy.abduction_low_violence_multiplier
+        )
+        return round(fatal_pressure * multiplier, 2)
     return round(fatal_pressure, 2)
 
 
@@ -959,34 +993,47 @@ def _classify_survivability_level(
     abduction_context: bool,
     violent_context: bool,
     fatal_mechanism_context: bool,
+    policy: SurvivabilityPolicy = DEFAULT_SURVIVABILITY_POLICY,
 ) -> str:
     if abduction_context:
-        if net_score >= 2.75 and adjusted_fatal_pressure < 1.5 and danger_score < 2.0:
+        if (
+            net_score >= policy.abduction_higher_net
+            and adjusted_fatal_pressure < policy.abduction_max_fatal
+            and danger_score < policy.abduction_max_danger
+        ):
             return "Higher"
         return "Moderate"
 
     rescue_override = (
-        recovery_support_score >= 1.0
-        and support_score >= 4.5
+        recovery_support_score >= policy.rescue_min_recovery
+        and support_score >= policy.rescue_min_support
         and support_score >= danger_score
-        and adjusted_fatal_pressure < 9.0
+        and adjusted_fatal_pressure < policy.rescue_max_fatal
     )
-    weak_rescue_context = recovery_support_score < 1.0 and support_score < 2.0
-    if adjusted_fatal_pressure >= 4.5 and net_score <= 1.5 and not rescue_override:
+    weak_rescue_context = (
+        recovery_support_score < policy.weak_rescue_max_recovery
+        and support_score < policy.weak_rescue_max_support
+    )
+    if adjusted_fatal_pressure >= policy.fatal_gate_pressure and net_score <= policy.fatal_gate_max_net and not rescue_override:
         return "Lower"
     if (
         fatal_mechanism_context
-        and adjusted_fatal_pressure >= 2.8
-        and net_score <= 4.0
+        and adjusted_fatal_pressure >= policy.mechanism_gate_pressure
+        and net_score <= policy.mechanism_gate_max_net
         and weak_rescue_context
         and not rescue_override
     ):
         return "Lower"
-    if violent_context and (danger_score >= 3.0 or adjusted_fatal_pressure >= 1.5) and net_score <= 0.5 and not rescue_override:
+    if (
+        violent_context
+        and (danger_score >= policy.violent_gate_danger or adjusted_fatal_pressure >= policy.violent_gate_fatal)
+        and net_score <= policy.violent_gate_max_net
+        and not rescue_override
+    ):
         return "Lower"
-    if net_score >= 3.0 and adjusted_fatal_pressure < 3.0:
+    if net_score >= policy.higher_net and adjusted_fatal_pressure < policy.higher_max_fatal:
         return "Higher"
-    if net_score <= -4.0 and not rescue_override:
+    if net_score <= policy.lower_net and not rescue_override:
         return "Lower"
     return "Moderate"
 
@@ -998,17 +1045,22 @@ def _classify_survivability_band(
     adjusted_fatal_pressure: float,
     danger_score: float,
     abduction_context: bool,
+    policy: SurvivabilityPolicy = DEFAULT_SURVIVABILITY_POLICY,
 ) -> str:
     if abduction_context:
         if level == "Lower":
             return "fatal_pressure_dominant"
-        if net_score >= 2.0 and adjusted_fatal_pressure < 1.5 and danger_score < 2.0:
+        if (
+            net_score >= policy.nonfatal_band_net
+            and adjusted_fatal_pressure < policy.abduction_max_fatal
+            and danger_score < policy.abduction_max_danger
+        ):
             return "release_favored"
         return "risk_loaded_survival"
 
     if level == "Lower":
         return "fatal_pressure_dominant"
-    if net_score >= 2.0 and adjusted_fatal_pressure < 1.5:
+    if net_score >= policy.nonfatal_band_net and adjusted_fatal_pressure < policy.abduction_max_fatal:
         return "nonfatal_tilt"
     return "mixed_nonfatal"
 
@@ -1022,53 +1074,54 @@ def _light_mediation_threshold_margin(
     abduction_context: bool,
     violent_context: bool,
     fatal_mechanism_context: bool,
+    policy: SurvivabilityPolicy = DEFAULT_SURVIVABILITY_POLICY,
 ) -> Dict[str, Any]:
     if abduction_context:
         if level == "Higher":
             return {
                 "boundary": "higher_floor",
-                "margin": round(net_score - 2.75, 2),
+                "margin": round(net_score - policy.abduction_higher_net, 2),
             }
         return {
             "boundary": "higher_requires_score_2.75_low_fatal_danger",
-            "score_margin": round(2.75 - net_score, 2),
-            "fatal_pressure_margin": round(adjusted_fatal_pressure - 1.5, 2),
-            "danger_margin": round(danger_score - 2.0, 2),
+            "score_margin": round(policy.abduction_higher_net - net_score, 2),
+            "fatal_pressure_margin": round(adjusted_fatal_pressure - policy.abduction_max_fatal, 2),
+            "danger_margin": round(danger_score - policy.abduction_max_danger, 2),
         }
 
     if level == "Higher":
         return {
             "boundary": "higher_floor",
-            "margin": round(net_score - 3.0, 2),
+            "margin": round(net_score - policy.higher_net, 2),
         }
     if level == "Lower":
-        if adjusted_fatal_pressure >= 4.5:
+        if adjusted_fatal_pressure >= policy.fatal_gate_pressure:
             return {
                 "boundary": "fatal_pressure_gate",
-                "fatal_pressure_margin": round(adjusted_fatal_pressure - 4.5, 2),
-                "score_margin": round(1.5 - net_score, 2),
+                "fatal_pressure_margin": round(adjusted_fatal_pressure - policy.fatal_gate_pressure, 2),
+                "score_margin": round(policy.fatal_gate_max_net - net_score, 2),
             }
-        if fatal_mechanism_context and adjusted_fatal_pressure >= 2.8:
+        if fatal_mechanism_context and adjusted_fatal_pressure >= policy.mechanism_gate_pressure:
             return {
                 "boundary": "fatal_mechanism_gate",
-                "fatal_pressure_margin": round(adjusted_fatal_pressure - 2.8, 2),
-                "score_margin": round(4.0 - net_score, 2),
+                "fatal_pressure_margin": round(adjusted_fatal_pressure - policy.mechanism_gate_pressure, 2),
+                "score_margin": round(policy.mechanism_gate_max_net - net_score, 2),
             }
         if violent_context:
             return {
                 "boundary": "violent_lower_gate",
-                "score_margin": round(0.5 - net_score, 2),
+                "score_margin": round(policy.violent_gate_max_net - net_score, 2),
             }
         return {
             "boundary": "lower_score_floor",
-            "margin": round(-4.0 - net_score, 2),
+            "margin": round(policy.lower_net - net_score, 2),
         }
 
     return {
         "boundary": "moderate_band",
-        "higher_score_margin": round(3.0 - net_score, 2),
-        "lower_score_margin": round(net_score - (-4.0), 2),
-        "violent_lower_score_margin": round(net_score - 0.5, 2) if violent_context else None,
+        "higher_score_margin": round(policy.higher_net - net_score, 2),
+        "lower_score_margin": round(net_score - policy.lower_net, 2),
+        "violent_lower_score_margin": round(net_score - policy.violent_gate_max_net, 2) if violent_context else None,
     }
 
 
@@ -1097,7 +1150,9 @@ def compute_survivability(
     categories: Dict[str, int] | None = None,
     *,
     case_type: str = "general",
+    policy: SurvivabilityPolicy | None = None,
 ) -> Dict[str, Any]:
+    policy = policy or DEFAULT_SURVIVABILITY_POLICY
     normalized_case_type = _normalize_case_type(case_type)
     planets = (features.get("planets") or {}) if isinstance(features, dict) else {}
     solar = (features.get("solar") or {}) if isinstance(features, dict) else {}
@@ -1157,13 +1212,20 @@ def compute_survivability(
     )
     abduction_context = abduction_count > 0 and not domestic_fatal_context and not institutional_child_fatal_context
     violent_context = violence_count > 0
-    fatal_mechanism_context = any(mechanism_flags.values()) or institutional_child_fatal_context
+    # Event mechanism and outcome severity are separate targets. A detected
+    # crash/transport event is not, by itself, evidence that the outcome was
+    # fatal. Other mechanism flags encode explicit interpersonal harm context.
+    fatal_mechanism_context = (
+        any(value for key, value in mechanism_flags.items() if key != "transport_harm")
+        or institutional_child_fatal_context
+    )
 
     danger_weight = 0.55 if abduction_context else 0.85
     adjusted_fatal_pressure = _adjust_fatal_pressure_for_context(
         fatal_pressure,
         abduction_context=abduction_context,
         violence_count=violence_count,
+        policy=policy,
     )
     if abduction_context and fatal_pressure:
         fatal_evidence = list(fatal_evidence) + [
@@ -1181,11 +1243,13 @@ def compute_survivability(
         fatal_pressure_without_light,
         abduction_context=abduction_context,
         violence_count=violence_count,
+        policy=policy,
     )
     adjusted_fatal_before_secondary = _adjust_fatal_pressure_for_context(
         fatal_pressure_before_secondary,
         abduction_context=abduction_context,
         violence_count=violence_count,
+        policy=policy,
     )
 
     net_score = round(
@@ -1210,6 +1274,7 @@ def compute_survivability(
         abduction_context=abduction_context,
         violent_context=violent_context,
         fatal_mechanism_context=fatal_mechanism_context,
+        policy=policy,
     )
     outcome_band = _classify_survivability_band(
         level=level,
@@ -1217,6 +1282,7 @@ def compute_survivability(
         adjusted_fatal_pressure=adjusted_fatal_pressure,
         danger_score=danger_score,
         abduction_context=abduction_context,
+        policy=policy,
     )
     level_without_light = _classify_survivability_level(
         net_score=net_score_without_light,
@@ -1227,6 +1293,7 @@ def compute_survivability(
         abduction_context=abduction_context,
         violent_context=violent_context,
         fatal_mechanism_context=fatal_mechanism_context,
+        policy=policy,
     )
     outcome_band_without_light = _classify_survivability_band(
         level=level_without_light,
@@ -1234,6 +1301,7 @@ def compute_survivability(
         adjusted_fatal_pressure=adjusted_fatal_without_light,
         danger_score=danger_score,
         abduction_context=abduction_context,
+        policy=policy,
     )
     level_before_secondary = _classify_survivability_level(
         net_score=net_score_before_secondary,
@@ -1244,6 +1312,7 @@ def compute_survivability(
         abduction_context=abduction_context,
         violent_context=violent_context,
         fatal_mechanism_context=fatal_mechanism_context,
+        policy=policy,
     )
     outcome_band_before_secondary = _classify_survivability_band(
         level=level_before_secondary,
@@ -1251,6 +1320,7 @@ def compute_survivability(
         adjusted_fatal_pressure=adjusted_fatal_before_secondary,
         danger_score=danger_score,
         abduction_context=abduction_context,
+        policy=policy,
     )
 
     score_delta_from_light = round(net_score - net_score_without_light, 2)
@@ -1292,6 +1362,7 @@ def compute_survivability(
             abduction_context=abduction_context,
             violent_context=violent_context,
             fatal_mechanism_context=fatal_mechanism_context,
+            policy=policy,
         ),
     }
     secondary_factor_impact = {
@@ -1322,9 +1393,19 @@ def compute_survivability(
     return {
         "level": level,
         "score": net_score,
+        "score_basis": "symbolic_rule_total_not_probability",
+        "classification_policy": asdict(policy),
+        "is_statistical_probability": False,
         "outcome_band": outcome_band,
         "case_type": normalized_case_type,
         "victim_significators": victim_significators,
+        "classification_context": {
+            "abduction_context": bool(abduction_context),
+            "violent_context": bool(violent_context),
+            "fatal_mechanism_context": bool(fatal_mechanism_context),
+            "mechanism_flags": mechanism_flags,
+            "danger_weight": danger_weight,
+        },
         "light_mediation_impact": light_mediation_impact,
         "secondary_factor_impact": secondary_factor_impact,
         "context_calibration": context_calibration,

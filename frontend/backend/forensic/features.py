@@ -138,7 +138,7 @@ def extract_features(dashboard: Dict[str, Any]) -> Dict[str, Any]:
                 "dignities": p.get("dignities") or [],
                 "essential_dignity_raw": p.get("essential_dignity"),
                 "retrograde": bool(p.get("retrograde", False)),
-                "angular": bool(p.get("house") in [1,4,7,10]),
+                "angular": _house_number(p.get("house")) in (1, 4, 7, 10),
                 "anaretic": deg >= 29.0,
                 "ingress": deg < 1.0,
                 "middegree": 14.5 <= deg <= 15.5,
@@ -175,7 +175,7 @@ def extract_features(dashboard: Dict[str, Any]) -> Dict[str, Any]:
                 "latitude": item.get("latitude"),
                 "speed": item.get("speed"),
                 "retrograde": bool(item.get("retrograde", False)),
-                "angular": bool(item.get("house") in [1, 4, 7, 10]),
+                "angular": _house_number(item.get("house")) in (1, 4, 7, 10),
                 "anaretic": deg >= 29.0,
                 "ingress": deg < 1.0,
                 "middegree": 14.5 <= deg <= 15.5,
@@ -191,7 +191,7 @@ def extract_features(dashboard: Dict[str, Any]) -> Dict[str, Any]:
     # Build aspects map for easy matching
     # Prefer full aspects when available; otherwise use top_aspects + tightest
     aspects_list = []
-    if isinstance(dashboard.get("all_aspects"), list):
+    if isinstance(dashboard.get("all_aspects"), list) and dashboard.get("all_aspects"):
         aspects_list = dashboard.get("all_aspects") or []
     else:
         aspects_list = (dashboard.get("top_aspects") or []) + ([dashboard.get("tightest_aspect")] if dashboard.get("tightest_aspect") else [])
@@ -210,7 +210,7 @@ def extract_features(dashboard: Dict[str, Any]) -> Dict[str, Any]:
             entry = {
                 "type": (a.get("aspect") or a.get("type") or "").strip().lower(),
                 "applying": applying,
-                "orb": float(a.get("orb", 999.0)),
+                "orb": abs(float(a.get("orb", 999.0))),
                 # Propagate horary engine perfection metrics when present
                 "time_to_perfection": (float(a.get("time_to_perfection")) if a.get("time_to_perfection") is not None else None),
                 "perfection_within_sign": (True if a.get("perfection_within_sign") in (True, 'true', 'True', 1, '1') else (False if a.get("perfection_within_sign") in (False, 'false', 'False', 0, '0') else None)),
@@ -219,10 +219,25 @@ def extract_features(dashboard: Dict[str, Any]) -> Dict[str, Any]:
             }
             key = f"{p1}_to_{p2}"
             rev_key = f"{p2}_to_{p1}"
-            aspects[key] = entry
-            if rev_key not in aspects:
-                # Keep a reverse alias so rules are not sensitive to serialization order.
-                aspects[rev_key] = dict(entry)
+            current = aspects.get(key) or aspects.get(rev_key)
+            # The route can expose the same contact from compact, chart-data, and
+            # precise aspect collections. Keep one deterministic canonical record:
+            # the tightest row, with the richer perfection metadata as a tie-breaker.
+            current_orb = float((current or {}).get("orb", 999.0))
+            current_detail = sum(
+                (current or {}).get(field) is not None
+                for field in ("time_to_perfection", "perfection_within_sign", "degrees_to_exact", "exact_time")
+            )
+            entry_detail = sum(
+                entry.get(field) is not None
+                for field in ("time_to_perfection", "perfection_within_sign", "degrees_to_exact", "exact_time")
+            )
+            if current and (current_orb < entry["orb"] or (current_orb == entry["orb"] and current_detail >= entry_detail)):
+                entry = dict(current)
+            # Always replace both aliases together. Otherwise a later reversed row
+            # can leave A->B and B->A describing different contacts.
+            aspects[key] = dict(entry)
+            aspects[rev_key] = dict(entry)
         except Exception:
             continue
 

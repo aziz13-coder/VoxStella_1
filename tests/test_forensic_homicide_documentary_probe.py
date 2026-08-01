@@ -48,7 +48,7 @@ class HomicideDocumentaryProbeSmokeTests(unittest.TestCase):
                 self.assertEqual(response.status_code, 200)
                 payload = response.get_json() or {}
                 self.assertTrue(payload.get("success"))
-                categories = set((payload.get("categories") or {}).keys())
+                categories = set((payload.get("scoring_categories") or {}).keys())
                 self.assertTrue(expected[anchor_id].issubset(categories), msg=payload.get("categories"))
                 self.assertNotIn("Disaster", categories, msg=payload.get("categories"))
 

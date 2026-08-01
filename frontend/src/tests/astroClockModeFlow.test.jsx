@@ -1956,16 +1956,23 @@ describe('AstroClock mode flow', () => {
       />
     );
 
-    await screen.findByText('Current Aspects');
+    await screen.findByText('Live Signal');
 
     const card = screen.getByTestId('current-aspects-card');
-    fireEvent.click(within(card).getByTestId('current-aspects-morin-toggle'));
+    const morinToggle = within(card).getByTestId('current-aspects-morin-toggle');
+    const footer = within(card).getByTestId('current-aspects-footer');
 
-    expect(await screen.findByText('Morin Aspects')).toBeInTheDocument();
+    expect(within(footer).getByText('Morin')).toBeInTheDocument();
+    expect(within(footer).getByText('Decl')).toBeInTheDocument();
+    expect(within(footer).getByRole('button', { name: 'More' })).toBeInTheDocument();
+    expect(within(card).queryByText(/Exactness emphasizes/)).not.toBeInTheDocument();
+
+    fireEvent.click(morinToggle);
+
+    expect(morinToggle).toBeChecked();
     expect(within(card).getByTestId('current-aspects-scroll')).toBeInTheDocument();
     expect(within(card).getByText(/Mercury/)).toBeInTheDocument();
     expect(within(card).getAllByText(/Mars/).length).toBeGreaterThan(0);
-    expect(within(card).getByRole('button', { name: 'More' })).toBeInTheDocument();
   });
 
   it('keeps the last Morin rows visible for the same chart while a repeat Morin refresh is pending', async () => {
@@ -2001,18 +2008,21 @@ describe('AstroClock mode flow', () => {
       />
     );
 
-    await screen.findByText('Current Aspects');
+    await screen.findByText('Live Signal');
 
     const card = screen.getByTestId('current-aspects-card');
     const morinToggle = within(card).getByTestId('current-aspects-morin-toggle');
 
     fireEvent.click(morinToggle);
-    expect(await screen.findByText('Morin Aspects')).toBeInTheDocument();
+    expect(morinToggle).toBeChecked();
     expect(within(card).getByText(/platic/)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(astroClockApiMock.getDashboard).toHaveBeenCalledTimes(2);
+    });
 
     fireEvent.click(morinToggle);
     await waitFor(() => {
-      expect(screen.getByText('Current Aspects')).toBeInTheDocument();
+      expect(morinToggle).not.toBeChecked();
       expect(astroClockApiMock.getDashboard).toHaveBeenCalledTimes(3);
     });
 
@@ -2022,7 +2032,7 @@ describe('AstroClock mode flow', () => {
       expect(resolvePendingMorin).toBeTypeOf('function');
     });
     expect(astroClockApiMock.getDashboard.mock.calls.at(-1)?.[0]).toMatchObject({ morin: true });
-    expect(screen.getByText('Morin Aspects')).toBeInTheDocument();
+    expect(morinToggle).toBeChecked();
     expect(within(card).getByText(/platic/)).toBeInTheDocument();
 
     resolvePendingMorin?.(morinDashboard);
@@ -2041,7 +2051,7 @@ describe('AstroClock mode flow', () => {
       />
     );
 
-    await screen.findByText('Current Aspects');
+    await screen.findByText('Live Signal');
 
     astroClockApiMock.getDashboard.mockClear();
 
@@ -3815,6 +3825,16 @@ describe('AstroClock mode flow', () => {
     expect(await screen.findByText(/Associate\/public-network link/i)).toBeInTheDocument();
     expect(await screen.findByText(/Survivability signal:/i)).toBeInTheDocument();
     expect(await screen.findByText(/\(fatal pressure dominates\)/i)).toBeInTheDocument();
+    expect(await screen.findByRole('note')).toHaveTextContent(/not scientific forensic evidence or a probability/i);
+    expect(screen.getByText('Symbolic Rule Score')).toBeInTheDocument();
+    expect(screen.queryByText(/\/100 pressure/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Symbolic Brief · Copy' }));
+    await waitFor(() => expect(window.navigator.clipboard.writeText).toHaveBeenCalled());
+    const copiedBrief = String(window.navigator.clipboard.writeText.mock.calls.at(-1)?.[0] || '');
+    expect(copiedBrief).toMatch(/not scientific forensic evidence or a statistical prediction/i);
+    expect(copiedBrief).toMatch(/do not identify a person, infer physical appearance/i);
+    expect(copiedBrief).not.toMatch(/composite portrait|profiling image/i);
   });
 
   it('shows forensic fetch failures in the dossier findings view', async () => {

@@ -1,0 +1,298 @@
+{
+  "generated_at": "2026-08-01T00:00:00+03:00",
+  "evaluation_role": "locked_external_holdout_v1",
+  "purpose": "Outcome stress test using real aviation events with independently documented minute-level anchors and known occupant outcomes. The fixture was frozen before its first engine replay and is not a tuning set.",
+  "target_definition": {
+    "unit": "people aboard the aircraft",
+    "survival_dominant": "at least 98 percent of occupants survived",
+    "fatal_dominant": "all occupants died",
+    "scope_note": "The chart is compared with the aggregate occupant outcome, not with an individual passenger. This is a deliberate out-of-domain stress test for the engine and not evidence that an event chart can predict individual survival."
+  },
+  "source_policy": {
+    "primary_authority": "United States National Transportation Safety Board",
+    "anchor_rule": "Use the NTSB event time and reported accident locality. Coordinates are stable representative points for that locality where the public summary does not publish an impact coordinate.",
+    "outcome_rule": "Use final NTSB occupant counts; do not count perpetrators, responders, or unrelated ground populations in the onboard target."
+  },
+  "cases": [
+    {
+      "id": "holdout_us_airways_1549_survival_dominant",
+      "title": "US Airways Flight 1549 Hudson River ditching",
+      "family": "aviation_survival_dominant",
+      "query": {
+        "mode": "manual",
+        "datetime": "2009-01-15T15:27:00",
+        "location": "Hudson River near Weehawken, New Jersey, USA",
+        "timezone": "America/New_York",
+        "latitude": "40.7695",
+        "longitude": "-74.0047",
+        "house_system_code": "R",
+        "case_type": "general"
+      },
+      "anchor_precision": "minute",
+      "known_outcome": { "occupants": 155, "survivors": 155, "fatalities": 0, "class": "survival_dominant" },
+      "expected_primary_axes": ["accident_or_disaster"],
+      "contradictory_axes": ["abduction_missing_person", "child_victim", "violence_homicide"],
+      "expected_survivability": {
+        "levels": ["Moderate", "Higher"],
+        "bands": ["release_favored", "risk_loaded_survival", "mixed_nonfatal", "nonfatal_tilt"]
+      },
+      "sources": [
+        {
+          "title": "NTSB DCA09MA026 investigation",
+          "url": "https://www.ntsb.gov/investigations/Pages/DCA09MA026.aspx",
+          "supports": "Hudson River event and evacuation of all 150 passengers and five crew."
+        },
+        {
+          "title": "NTSB public hearing transcript",
+          "url": "https://data.ntsb.gov/Docket/Document/docBLOB?FileExtension=.PDF&FileName=Transcript+-+Public+Hearing+Day+1+%2806%2F09%2F09%29-Master.PDF&ID=40315650",
+          "supports": "3:27 p.m. event time and rescue of all 155 occupants."
+        }
+      ]
+    },
+    {
+      "id": "holdout_aloha_243_survival_dominant",
+      "title": "Aloha Airlines Flight 243 decompression",
+      "family": "aviation_survival_dominant",
+      "query": {
+        "mode": "manual",
+        "datetime": "1988-04-28T13:46:00",
+        "location": "Near Kahului, Maui, Hawaii, USA",
+        "timezone": "Pacific/Honolulu",
+        "latitude": "20.8893",
+        "longitude": "-156.4729",
+        "house_system_code": "R",
+        "case_type": "general"
+      },
+      "anchor_precision": "minute",
+      "known_outcome": { "occupants": 95, "survivors": 94, "fatalities": 1, "class": "survival_dominant" },
+      "expected_primary_axes": ["accident_or_disaster"],
+      "contradictory_axes": ["abduction_missing_person", "child_victim", "violence_homicide"],
+      "expected_survivability": {
+        "levels": ["Moderate", "Higher"],
+        "bands": ["release_favored", "risk_loaded_survival", "mixed_nonfatal", "nonfatal_tilt"]
+      },
+      "sources": [
+        {
+          "title": "NTSB DCA88MA054 investigation",
+          "url": "https://www.ntsb.gov/investigations/Pages/DCA88MA054.aspx",
+          "supports": "13:46 decompression near Maui, 95 occupants, and one fatality."
+        },
+        {
+          "title": "NTSB DCA88MA054 final report record",
+          "url": "https://data.ntsb.gov/carol-repgen/api/Aviation/ReportMain/GenerateNewestReport/15898/pdf",
+          "supports": "Local time and final injury distribution."
+        }
+      ]
+    },
+    {
+      "id": "holdout_asiana_214_survival_dominant",
+      "title": "Asiana Airlines Flight 214 crash",
+      "family": "aviation_survival_dominant",
+      "query": {
+        "mode": "manual",
+        "datetime": "2013-07-06T11:28:00",
+        "location": "San Francisco International Airport, California, USA",
+        "timezone": "America/Los_Angeles",
+        "latitude": "37.6130",
+        "longitude": "-122.3570",
+        "house_system_code": "R",
+        "case_type": "general"
+      },
+      "anchor_precision": "minute",
+      "known_outcome": { "occupants": 307, "survivors": 304, "fatalities": 3, "class": "survival_dominant" },
+      "expected_primary_axes": ["accident_or_disaster"],
+      "contradictory_axes": ["abduction_missing_person", "child_victim", "violence_homicide"],
+      "expected_survivability": {
+        "levels": ["Moderate", "Higher"],
+        "bands": ["release_favored", "risk_loaded_survival", "mixed_nonfatal", "nonfatal_tilt"]
+      },
+      "sources": [
+        {
+          "title": "NTSB DCA13MA120 investigation",
+          "url": "https://www.ntsb.gov/investigations/pages/DCA13MA120.aspx",
+          "supports": "11:28 crash time, 307 occupants, three fatalities, and 304 survivors."
+        },
+        {
+          "title": "NTSB DCA13MA120 final-report docket",
+          "url": "https://data.ntsb.gov/Docket/?NTSBNumber=DCA13MA120",
+          "supports": "Final accident-report provenance and investigation record."
+        }
+      ]
+    },
+    {
+      "id": "holdout_southwest_1380_survival_dominant",
+      "title": "Southwest Airlines Flight 1380 engine failure",
+      "family": "aviation_survival_dominant",
+      "query": {
+        "mode": "manual",
+        "datetime": "2018-04-17T11:03:00",
+        "location": "Near Bernville, Pennsylvania, USA",
+        "timezone": "America/New_York",
+        "latitude": "40.4334",
+        "longitude": "-76.1122",
+        "house_system_code": "R",
+        "case_type": "general"
+      },
+      "anchor_precision": "minute",
+      "known_outcome": { "occupants": 149, "survivors": 148, "fatalities": 1, "class": "survival_dominant" },
+      "expected_primary_axes": ["accident_or_disaster"],
+      "contradictory_axes": ["abduction_missing_person", "child_victim", "violence_homicide"],
+      "expected_survivability": {
+        "levels": ["Moderate", "Higher"],
+        "bands": ["release_favored", "risk_loaded_survival", "mixed_nonfatal", "nonfatal_tilt"]
+      },
+      "sources": [
+        {
+          "title": "NTSB DCA18MA142 investigation",
+          "url": "https://www.ntsb.gov/investigations/Pages/DCA18MA142.aspx",
+          "supports": "11:03 engine failure and depressurization."
+        },
+        {
+          "title": "NTSB Flight 1380 safety recommendations release",
+          "url": "https://www.ntsb.gov/news/press-releases/Pages/NR20191119.aspx",
+          "supports": "One passenger fatality; remaining occupants survived."
+        }
+      ]
+    },
+    {
+      "id": "holdout_valujet_592_fatal_dominant",
+      "title": "ValuJet Airlines Flight 592 crash",
+      "family": "aviation_fatal_dominant",
+      "query": {
+        "mode": "manual",
+        "datetime": "1996-05-11T14:13:42",
+        "location": "Florida Everglades west of Miami, Florida, USA",
+        "timezone": "America/New_York",
+        "latitude": "25.9100",
+        "longitude": "-80.5740",
+        "house_system_code": "R",
+        "case_type": "general"
+      },
+      "anchor_precision": "second",
+      "known_outcome": { "occupants": 110, "survivors": 0, "fatalities": 110, "class": "fatal_dominant" },
+      "expected_primary_axes": ["accident_or_disaster"],
+      "contradictory_axes": ["abduction_missing_person", "child_victim", "violence_homicide"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      },
+      "sources": [
+        {
+          "title": "NTSB DCA96MA054 investigation",
+          "url": "https://www.ntsb.gov/investigations/Pages/DCA96MA054.aspx",
+          "supports": "14:13:42 impact time and all 110 occupants killed."
+        },
+        {
+          "title": "NTSB cargo-compartment fire safety history",
+          "url": "https://www.ntsb.gov/Advocacy/mwl/Pages/was5.aspx",
+          "supports": "Independent NTSB summary of the Flight 592 fire and crash."
+        }
+      ]
+    },
+    {
+      "id": "holdout_twa_800_fatal_dominant",
+      "title": "TWA Flight 800 in-flight breakup",
+      "family": "aviation_fatal_dominant",
+      "query": {
+        "mode": "manual",
+        "datetime": "1996-07-17T20:31:00",
+        "location": "Atlantic Ocean near East Moriches, New York, USA",
+        "timezone": "America/New_York",
+        "latitude": "40.6500",
+        "longitude": "-72.6400",
+        "house_system_code": "R",
+        "case_type": "general"
+      },
+      "anchor_precision": "minute",
+      "known_outcome": { "occupants": 230, "survivors": 0, "fatalities": 230, "class": "fatal_dominant" },
+      "expected_primary_axes": ["accident_or_disaster"],
+      "contradictory_axes": ["abduction_missing_person", "child_victim", "violence_homicide"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      },
+      "sources": [
+        {
+          "title": "NTSB DCA96MA070 investigation",
+          "url": "https://www.ntsb.gov/investigations/Pages/DCA96MA070.aspx",
+          "supports": "20:31 breakup near East Moriches and all 230 occupants killed."
+        },
+        {
+          "title": "U.S. Navy salvage report for TWA Flight 800",
+          "url": "https://data.ntsb.gov/Docket/Document/docBLOB?FileExtension=.PDF&FileName=U.S.+Navy+Salvage+Report+-+TWA+Flight+800-Master.PDF&ID=40058965",
+          "supports": "Corroborates the event time, offshore location, and absence of survivors."
+        }
+      ]
+    },
+    {
+      "id": "holdout_american_eagle_4184_fatal_dominant",
+      "title": "American Eagle Flight 4184 crash",
+      "family": "aviation_fatal_dominant",
+      "query": {
+        "mode": "manual",
+        "datetime": "1994-10-31T15:59:00",
+        "location": "Roselawn, Indiana, USA",
+        "timezone": "America/Chicago",
+        "latitude": "40.9514",
+        "longitude": "-87.1509",
+        "house_system_code": "R",
+        "case_type": "general"
+      },
+      "anchor_precision": "minute",
+      "known_outcome": { "occupants": 68, "survivors": 0, "fatalities": 68, "class": "fatal_dominant" },
+      "expected_primary_axes": ["accident_or_disaster"],
+      "contradictory_axes": ["abduction_missing_person", "child_victim", "violence_homicide"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      },
+      "sources": [
+        {
+          "title": "NTSB DCA95MA001 investigation",
+          "url": "https://www.ntsb.gov/investigations/Pages/DCA95MA001.aspx",
+          "supports": "15:59 crash time near Roselawn and fatal injuries to all 68 occupants."
+        },
+        {
+          "title": "NTSB AAR-96-01 report listing",
+          "url": "https://www.ntsb.gov/Advocacy/mwl/Pages/mwl-2.aspx",
+          "supports": "Final report provenance for Flight 4184."
+        }
+      ]
+    },
+    {
+      "id": "holdout_alaska_261_fatal_dominant",
+      "title": "Alaska Airlines Flight 261 crash",
+      "family": "aviation_fatal_dominant",
+      "query": {
+        "mode": "manual",
+        "datetime": "2000-01-31T16:21:00",
+        "location": "Pacific Ocean north of Anacapa Island, California, USA",
+        "timezone": "America/Los_Angeles",
+        "latitude": "34.0580",
+        "longitude": "-119.3330",
+        "house_system_code": "R",
+        "case_type": "general"
+      },
+      "anchor_precision": "minute",
+      "known_outcome": { "occupants": 88, "survivors": 0, "fatalities": 88, "class": "fatal_dominant" },
+      "expected_primary_axes": ["accident_or_disaster"],
+      "contradictory_axes": ["abduction_missing_person", "child_victim", "violence_homicide"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      },
+      "sources": [
+        {
+          "title": "NTSB AAR-02/01 final report",
+          "url": "https://www.ntsb.gov/investigations/AccidentReports/Reports/AAR0201.pdf",
+          "supports": "16:21 Pacific time, location north of Anacapa Island, and all 88 occupants killed."
+        },
+        {
+          "title": "NTSB 2000 and 2001 Annual Report to Congress",
+          "url": "https://www.ntsb.gov/about/Documents/SPC0201.pdf",
+          "supports": "Corroborates the Flight 261 crash and all 88 fatalities."
+        }
+      ]
+    }
+  ]
+}

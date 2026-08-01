@@ -1,5 +1,6 @@
 {
   "generated_at": "2026-05-08T00:00:00+00:00",
+  "evaluation_role": "development",
   "purpose": "Worst Ex Ever forensic event benchmark cases comparing live forensic output against source-backed real event families.",
   "benchmark_policy": {
     "status": "current_engine_baseline",

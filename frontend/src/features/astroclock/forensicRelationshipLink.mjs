@@ -247,7 +247,9 @@ export function scoreLightMediationRelationshipImpact(
     };
   }
 
-  let delta = kind === 'translation' ? 1.25 : 1.0;
+  // Keep the client-side detail view numerically aligned with the backend
+  // relationship rubric (translation 1.25, collection 0.75).
+  let delta = kind === 'translation' ? 1.25 : 0.75;
   const evidence = [
     kind === 'translation'
       ? 'Translation of light bridges victim/perpetrator significators'
@@ -466,7 +468,7 @@ export function buildRelationshipDisplayRows({
     traditionalCues: joinOrNone(traditionalCues),
     aspectTies: joinOrNone(aspectTies),
     degreeStarCues: joinOrNone(degreeStarCues),
-    connectionSummary: `Score ${score} | ${relationshipType} | ${confidence} confidence`,
+    connectionSummary: `Rule score ${score} | ${relationshipType} | ${confidence} rule strength`,
   };
 }
 

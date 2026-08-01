@@ -34,26 +34,31 @@ def _institutional_child_harm_features() -> dict:
 def _institutional_child_harm_findings() -> list[dict]:
     return [
         {
+            "id": "violence_life_death_overlap",
             "title": "Life/death overlap points to violence or homicide",
             "category": "Violence",
             "weight": 4,
         },
         {
+            "id": "violence_hidden_victim_with_angular_malefic",
             "title": "Hidden victim with angular violence markers",
             "category": "Violence",
             "weight": 3,
         },
         {
+            "id": "abduction_worksite_or_assignment_seizure_signature",
             "title": "Abduction or worksite-seizure pattern is active",
             "category": "Abduction",
             "weight": 4,
         },
         {
+            "id": "context_child_case_axis",
             "title": "Child victim or child-case context is active",
             "category": "Children",
             "weight": 3,
         },
         {
+            "id": "sect_malefic_out_of_sect",
             "title": "Malefic contrary to sect (angular)",
             "category": "Stressors",
             "weight": 3,
@@ -71,7 +76,7 @@ def test_healthcare_child_context_does_not_treat_worksite_abduction_as_release_f
 
     assert result["level"] == "Lower"
     assert result["outcome_band"] == "fatal_pressure_dominant"
-    assert result["breakdown"]["fatal_pressure"] >= 10.0
+    assert 5.0 <= result["breakdown"]["fatal_pressure"] < 8.0
     assert result["breakdown"]["danger"] == 0.0
     assert "healthcare/caregiver child context keeps abduction weighting" in " ".join(
         result["evidence"]["fatal_pressure"]

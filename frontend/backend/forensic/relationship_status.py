@@ -563,6 +563,8 @@ def compute_relationship_status(
         "labels": labels,
         "scores": {label: round(value, 2) for label, value in scores.items()},
         "confidence": confidence,
+        "confidence_basis": "symbolic_rule_strength_not_empirical_probability",
+        "is_statistical_probability": False,
         "evidence": evidence,
         "direct_aspect_component": direct_aspect_component,
         "reception_component": reception_component,

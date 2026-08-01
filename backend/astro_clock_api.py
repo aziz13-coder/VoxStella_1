@@ -13644,6 +13644,72 @@ def auto_context():
     return _json_ok(out)
 
 
+_FORENSIC_INTERPRETATION_METADATA = {
+    'method': 'astrological_symbolic_rule_interpretation',
+    'scientifically_validated_for_forensic_use': False,
+    'is_statistical_probability': False,
+    'intended_use': 'symbolic_research_only',
+    'prohibited_inferences': [
+        'identity',
+        'physical_or_behavioral_profile',
+        'investigative_guilt',
+        'real_world_location',
+        'survival_or_outcome_probability',
+    ],
+    'warning': (
+        'Do not use this output as evidence or as the basis for identification, '
+        'search deployment, accusations, or safety and outcome decisions.'
+    ),
+}
+
+
+def _forensic_default_house_system_override() -> Optional[str]:
+    """Return the forensic default only for an unsnapped, implicit request.
+
+    Explicit query choices remain authoritative. Saved snaps retain their own
+    confirmed house system unless the caller explicitly requests a recompute.
+    """
+    explicit = request.args.get('house_system_code') or request.args.get('house_system')
+    if explicit or str(request.args.get('snap_id') or '').strip():
+        return None
+    from forensic.house_system import DEFAULT_FORENSIC_HOUSE_SYSTEM_CODE
+
+    return DEFAULT_FORENSIC_HOUSE_SYSTEM_CODE
+
+
+def _forensic_interpretation_metadata(
+    active_settings: Any,
+    *,
+    default_applied: bool,
+) -> Dict[str, Any]:
+    from forensic.house_system import (
+        DEFAULT_FORENSIC_HOUSE_SYSTEM_CODE,
+        FORENSIC_HOUSE_SYSTEM_LABELS,
+        FORENSIC_HOUSE_SYSTEM_SELECTION_BASIS,
+    )
+
+    metadata = copy.deepcopy(_FORENSIC_INTERPRETATION_METADATA)
+    explicit = request.args.get('house_system_code') or request.args.get('house_system')
+    effective = str(getattr(active_settings, 'house_system_code', None) or '').strip().upper()
+    if explicit:
+        source = 'request_override'
+    elif str(request.args.get('snap_id') or '').strip():
+        source = 'saved_snap'
+    elif default_applied:
+        source = 'forensic_default'
+    else:
+        source = 'active_clock_context'
+    metadata['house_system'] = {
+        'default_code': DEFAULT_FORENSIC_HOUSE_SYSTEM_CODE,
+        'default_label': FORENSIC_HOUSE_SYSTEM_LABELS[DEFAULT_FORENSIC_HOUSE_SYSTEM_CODE],
+        'effective_code': effective or None,
+        'effective_label': FORENSIC_HOUSE_SYSTEM_LABELS.get(effective),
+        'source': source,
+        'development_selection': dict(FORENSIC_HOUSE_SYSTEM_SELECTION_BASIS),
+    }
+    return metadata
+
+
 @astro_clock_bp.route('/forensic', methods=['GET'])
 @_error_handler
 def forensic_analysis():
@@ -13655,6 +13721,9 @@ def forensic_analysis():
     q_mode = str(request.args.get('mode') or '').strip().lower()
     if q_mode and q_mode not in {'realtime', 'manual', 'paused'}:
         return jsonify({'success': False, 'error': 'Invalid mode'}), 400
+    survival_case_type = str(request.args.get('case_type') or 'general').strip().lower()
+    if survival_case_type not in {'child', 'adult_female', 'general'}:
+        return jsonify({'success': False, 'error': 'Invalid case_type'}), 400
     abd_requested = (request.args.get('abduction','0').lower() in {'1','true','yes'})
     parsed_abduction_origin = None
     parsed_corridor_deg = 6.0
@@ -13676,12 +13745,19 @@ def forensic_analysis():
                 parsed_corridor_deg = float(str(corridor_raw).strip())
             except Exception:
                 return jsonify({'success': False, 'error': 'Invalid corridor_deg'}), 400
-            if not math.isfinite(parsed_corridor_deg) or parsed_corridor_deg <= 0:
+            if not math.isfinite(parsed_corridor_deg) or not (0 < parsed_corridor_deg <= 180):
                 return jsonify({'success': False, 'error': 'Invalid corridor_deg'}), 400
 
     with _astro_perf_span('route.forensic.prepare_chart', mode=q_mode or None):
         eng = _engine_instance()
-        data, _active_settings = _data_for_optional_confirmed_snap(eng)
+        forensic_house_override = _forensic_default_house_system_override()
+        if forensic_house_override:
+            data, _active_settings = _data_for_optional_confirmed_snap(
+                eng,
+                house_system_override=forensic_house_override,
+            )
+        else:
+            data, _active_settings = _data_for_optional_confirmed_snap(eng)
         dash = _build_dashboard_payload(
             eng,
             data,
@@ -13726,6 +13802,7 @@ def forensic_analysis():
     from forensic.relationship_status import compute_relationship_status
     from forensic.secondary_factors import compute_secondary_factor_analysis
     from forensic.survivability import compute_survivability
+    from forensic.axis_assessment import assess_axes
     from forensic.engine import load_knowledge, load_planetary_meanings, load_dictionary
     with _astro_perf_span('route.forensic.evaluate_knowledge'):
         knowledge_dir = os.path.join(os.path.dirname(__file__), 'forensic', 'knowledge')
@@ -13739,9 +13816,6 @@ def forensic_analysis():
                 'detail': 'Forensic knowledge rules could not be loaded.',
             }), 500
         features = extract_features(dash)
-        survival_case_type = str(request.args.get('case_type') or 'general').strip().lower()
-        if survival_case_type not in {'child', 'adult_female', 'general'}:
-            survival_case_type = 'general'
         secondary_factors_arg = request.args.get('secondary_factors')
         secondary_factors_requested = True if secondary_factors_arg is None else str(secondary_factors_arg).strip().lower() in {'1', 'true', 'yes'}
         try:
@@ -13915,7 +13989,6 @@ def forensic_analysis():
     house_meanings = _ld('house_meanings.yaml')
     fixed_star_meanings = _ld('fixed_star_meanings.yaml')
     aspect_meanings = _ld('aspect_meanings.yaml')
-    perpetrator_profiles = _ld('perpetrator_profiles.yaml')
     degree_special = _ld('degree_special.yaml')
     witness_accomplice = _ld('witness_accomplice.yaml')
     ic_sign_meanings = _ld('ic_sign_meanings.yaml')
@@ -14192,9 +14265,14 @@ def forensic_analysis():
         except Exception:
             return {}
 
-    scoring_findings = list(findings or [])
+    scoring_findings = [
+        finding
+        for finding in (findings or [])
+        if isinstance(finding, dict) and finding.get('scoring_eligible', True) is not False
+    ]
     scoring_cats = _rollup_categories(scoring_findings)
-    display_findings = list(scoring_findings)
+    display_findings = list(findings or [])
+    axis_assessment = assess_axes(display_findings)
 
     # Keep asteroid/special-degree testimony as auxiliary analysis, not core
     # findings, unless a later benchmark proves axis-level benefit.
@@ -14256,19 +14334,24 @@ def forensic_analysis():
 
     out = {
         'success': True,
+        'analysis_metadata': _forensic_interpretation_metadata(
+            _active_settings,
+            default_applied=bool(forensic_house_override),
+        ),
         'timestamp': dash.get('timestamp'),
         'location': dash.get('location'),
         'timezone_label': dash.get('timezone_label'),
         'moon': dash.get('moon'),
         'moon_timeline': dash.get('moon_timeline'),
         'categories': cats,
+        'scoring_categories': scoring_cats,
         'findings': display_findings,
+        'axis_assessment': axis_assessment,
         # Knowledge dictionaries and lookups
         'planetary_meanings': planetary_meanings,
         'house_meanings': house_meanings,
         'fixed_star_meanings': fixed_star_meanings,
         'aspect_meanings': aspect_meanings,
-        'perpetrator_profiles': perpetrator_profiles,
         'degree_special': degree_special,
         'witness_accomplice': witness_accomplice,
         'ic_sign_meanings': ic_sign_meanings,

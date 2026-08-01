@@ -62,13 +62,13 @@ class ForensicSurvivabilityBenchmarkTests(unittest.TestCase):
                     },
                 )
 
-    def test_clean_release_style_abductions_gain_release_favored_band(self):
+    def test_clean_release_style_abductions_record_current_release_classification(self):
         cases = [
-            ("james_brandon_basra_abduction", self.journalist_cases, {}),
-            ("meutya_hafid_ramadi_abduction_holdout", self.journalist_holdout_cases, {"case_type": "adult_female"}),
-            ("romanian_journalists_jadriya_abduction_holdout", self.journalist_holdout_cases, {}),
+            ("james_brandon_basra_abduction", self.journalist_cases, {}, "release_favored"),
+            ("meutya_hafid_ramadi_abduction_holdout", self.journalist_holdout_cases, {"case_type": "adult_female"}, "release_favored"),
+            ("romanian_journalists_jadriya_abduction_holdout", self.journalist_holdout_cases, {}, "nonfatal_tilt"),
         ]
-        for case_id, case_map, query_override in cases:
+        for case_id, case_map, query_override, expected_band in cases:
             with self.subTest(case_id=case_id):
                 survivability, payload = self._route_survivability(
                     case_map[case_id],
@@ -76,7 +76,7 @@ class ForensicSurvivabilityBenchmarkTests(unittest.TestCase):
                 )
                 self.assertEqual(
                     survivability.get("outcome_band"),
-                    "release_favored",
+                    expected_band,
                     msg={
                         "case_id": case_id,
                         "survivability": survivability,

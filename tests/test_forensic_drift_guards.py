@@ -366,7 +366,12 @@ class ForensicDriftGuardTests(unittest.TestCase):
 
         ids = _rule_ids(evaluate(extract_features(dashboard), self.rules))
         self.assertIn("abduction_deceptive_public_or_assignment_seizure_signature", ids)
-        self.assertNotIn("travel_accident_or_disaster_pattern", ids)
+        travel = next(
+            finding
+            for finding in evaluate(extract_features(dashboard), self.rules)
+            if finding["id"] == "travel_accident_or_disaster_pattern"
+        )
+        self.assertFalse(travel["scoring_eligible"])
         self.assertNotIn("waterborne_accident_or_disaster_pattern", ids)
 
     def test_disaster_rules_back_off_when_known_person_social_concealment_pattern_is_present(self):

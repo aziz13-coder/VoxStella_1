@@ -19,7 +19,11 @@ Both are known nonfatal violent-event benchmarks and should remain outside the f
 
 ## Fix Direction
 
-`_build_dashboard_payload()` now keeps synthetic modern-body enrichment as the default behavior for dashboard consumers, but exposes `extend_modern_chart_data`. The forensic route passes `extend_modern_chart_data=False`, so it remains calibrated against the native chart payload while still allowing any modern bodies already present in the chart result to flow through.
+At the time of this April regression fix, `_build_dashboard_payload()` exposed `extend_modern_chart_data` so consumers could opt out of synthetic modern-body enrichment.
+
+## Current behavior
+
+This historical note no longer describes the live route. The forensic route now intentionally passes `extend_modern_chart_data=True`, and the route contract test requires modern-body placements and precise aspects to reach feature extraction. Treat any calibration numbers in this note as historical; use the current statistical benchmark and locked known-outcome holdout for present behavior.
 
 Regression command:
 

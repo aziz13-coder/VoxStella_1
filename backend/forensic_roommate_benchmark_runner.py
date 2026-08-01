@@ -540,9 +540,19 @@ def _call_forensic_route(query: Dict[str, str]) -> Dict[str, Any]:
 
 
 def _result_text_blob(forensic_result: Dict[str, Any], *, include_rationales: bool = True) -> str:
-    findings = forensic_result.get("findings") or []
-    categories = forensic_result.get("categories") or {}
-    dominance = forensic_result.get("dominance") or {}
+    context_only_rule_ids = {
+        "family_domestic_moon_signature",
+        "family_home_axis_under_pressure",
+        "family_child_homicide_axis_cluster",
+        "abduction_social_or_group_gathering_seizure_signature",
+        "travel_accident_or_disaster_pattern",
+    }
+    findings = [
+        finding
+        for finding in (forensic_result.get("findings") or [])
+        if (finding or {}).get("id") not in context_only_rule_ids
+    ]
+    categories = {str(finding.get("category")) for finding in findings if (finding or {}).get("category")}
     text_parts: List[str] = []
 
     for finding in findings:
@@ -557,16 +567,7 @@ def _result_text_blob(forensic_result: Dict[str, Any], *, include_rationales: bo
                 else:
                     text_parts.append(str(value))
 
-    if isinstance(categories, dict):
-        text_parts.extend(str(key) for key in categories.keys())
-
-    if isinstance(dominance, dict):
-        text_parts.extend(str(key) for key in dominance.keys())
-        for value in dominance.values():
-            if isinstance(value, dict):
-                for subvalue in value.values():
-                    if subvalue:
-                        text_parts.append(str(subvalue))
+    text_parts.extend(categories)
 
     survivability = forensic_result.get("survivability") or {}
     if isinstance(survivability, dict):

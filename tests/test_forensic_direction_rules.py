@@ -375,17 +375,20 @@ class ForensicDirectionalRuleTests(unittest.TestCase):
     def test_waterborne_disaster_rule_avoids_abduction_and_child_false_positive(self):
         dashboard = {
             "planets": [
-                {"planet": "Sun", "longitude": 125.0, "house": 5, "sign": "Leo"},
+                {"planet": "Sun", "longitude": 125.0, "house": 10, "sign": "Leo"},
                 {"planet": "Moon", "longitude": 170.0, "house": 2, "sign": "Virgo"},
                 {"planet": "Mercury", "longitude": 302.0, "house": 7, "sign": "Aquarius"},
                 {"planet": "Venus", "longitude": 50.0, "house": 7, "sign": "Taurus"},
                 {"planet": "Mars", "longitude": 40.0, "house": 2, "sign": "Taurus"},
-                {"planet": "Saturn", "longitude": 333.0, "house": 3, "sign": "Pisces"},
+                {"planet": "Saturn", "longitude": 333.0, "house": 10, "sign": "Pisces"},
+                {"planet": "Jupiter", "longitude": 250.0, "house": 9, "sign": "Sagittarius"},
             ],
-            "house_rulers": {"1": "Sun", "3": "Venus", "4": "Mars", "5": "Jupiter", "7": "Saturn", "8": "Jupiter", "10": "Venus"},
+            "house_rulers": {"1": "Sun", "3": "Venus", "4": "Mars", "5": "Jupiter", "7": "Saturn", "8": "Jupiter", "9": "Mars", "10": "Venus"},
             "house_cusps": [120.0, 150.0, 180.0, 210.0, 240.0, 270.0, 300.0, 330.0, 0.0, 30.0, 60.0, 90.0],
             "all_aspects": [
                 {"planet1": "Moon", "planet2": "Mars", "aspect": "Square", "applying": True, "orb": 1.5},
+                {"planet1": "Venus", "planet2": "Saturn", "aspect": "Square", "applying": True, "orb": 1.0},
+                {"planet1": "Mars", "planet2": "Saturn", "aspect": "Square", "applying": True, "orb": 2.0},
             ],
         }
 

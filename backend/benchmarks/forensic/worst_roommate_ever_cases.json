@@ -1,6 +1,7 @@
 {
   "schema_version": "1.0.0",
   "generated_at": "2026-05-13T00:00:00+03:00",
+  "evaluation_role": "development",
   "benchmark_id": "netflix_worst_roommate_ever_forensic_2026_05_13",
   "purpose": "Source-backed forensic event replay benchmark for Netflix's Worst Roommate Ever cases. Netflix is used as the episode inventory; factual truth labels come from official, court, law-enforcement, and reputable journalism sources.",
   "coverage": {
@@ -505,7 +506,7 @@
           "status": "aligned",
           "level": "Lower",
           "outcome_band": "fatal_pressure_dominant",
-          "score": -5.82
+          "score": -5.41
         },
         "baseline_observation": "The last-seen anchor aligns directionally on homicide, missing-person, and known-roommate axes. It also emits extra family, water, and witness categories that should be read as broad context rather than exact narrative reconstruction."
       }
@@ -862,7 +863,7 @@
           "status": "aligned",
           "level": "Lower",
           "outcome_band": "fatal_pressure_dominant",
-          "score": -5.43
+          "score": 0.5
         },
         "baseline_observation": "The welfare-check discovery anchor finds the fatal family homicide axis, but misses the vehicle/transport detail tied to the reported Ford Escape theft."
       }
@@ -1129,7 +1130,7 @@
           "status": "aligned",
           "level": "Lower",
           "outcome_band": "fatal_pressure_dominant",
-          "score": -10.22
+          "score": -4.21
         },
         "baseline_observation": "The disturbance/welfare-check anchor aligns on fatal violence, roommate/known-associate context, and the pool/water death scene."
       }
@@ -1424,7 +1425,7 @@
           "status": "misaligned",
           "level": "Moderate",
           "outcome_band": "risk_loaded_survival",
-          "score": -1.55
+          "score": 1.38
         },
         "baseline_observation": "The probable homicide-sequence anchor aligns on double-homicide, tenant/known-associate, and concealment axes, but survivability undercalls a fatal known double-homicide as risk-loaded survival."
       }

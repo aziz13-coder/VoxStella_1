@@ -46,7 +46,7 @@ class HomicideSeason3ProbeTests(unittest.TestCase):
                     self.assertEqual(response.status_code, 200)
                     payload = response.get_json() or {}
                     self.assertTrue(payload.get("success"))
-                    categories = set((payload.get("categories") or {}).keys())
+                    categories = set((payload.get("scoring_categories") or {}).keys())
                     if required:
                         self.assertTrue(required.issubset(categories), msg=payload.get("categories"))
                     for category in forbidden:

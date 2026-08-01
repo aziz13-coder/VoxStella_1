@@ -105,8 +105,18 @@ class ForensicRouteContractTests(TestCase):
         self.assertIn("features", payload)
         self.assertIn("dominance", payload)
         self.assertIn("survivability", payload)
+        self.assertIn("axis_assessment", payload)
+        self.assertIn("scoring_categories", payload)
+        self.assertEqual(payload["axis_assessment"]["method"], "explicit_rule_id_category_mapping_v1")
+        self.assertFalse(payload["axis_assessment"]["uses_free_text"])
+        self.assertEqual(payload["analysis_metadata"]["intended_use"], "symbolic_research_only")
+        self.assertFalse(payload["analysis_metadata"]["scientifically_validated_for_forensic_use"])
+        self.assertFalse(payload["analysis_metadata"]["is_statistical_probability"])
+        self.assertEqual(payload["analysis_metadata"]["house_system"]["effective_code"], "W")
+        self.assertEqual(payload["analysis_metadata"]["house_system"]["source"], "request_override")
         self.assertIn("level", payload["survivability"])
         self.assertIn("outcome_band", payload["survivability"])
+        self.assertEqual(payload["survivability"]["classification_policy"]["version"], "deduplicated_v2")
         self.assertIn("recovery_support", payload["survivability"].get("breakdown") or {})
         self.assertEqual(
             captured,
@@ -117,6 +127,41 @@ class ForensicRouteContractTests(TestCase):
                 "timezone": "Asia/Jerusalem",
                 "house_system_code": "W",
             },
+        )
+
+    def test_forensic_route_applies_development_selected_default_house_system(self):
+        captured = {}
+        data = _stub_data()
+
+        def _fake_context(_eng, *, house_system_override=None):
+            captured["house_system_override"] = house_system_override
+            data.settings.house_system_code = house_system_override
+            return data, data.settings
+
+        app = _make_app()
+        client = app.test_client()
+
+        with mock.patch.object(astro_clock_api, "_engine_instance", return_value=object()), mock.patch.object(
+            astro_clock_api,
+            "_data_for_request_clock_context",
+            side_effect=_fake_context,
+        ), mock.patch.object(
+            astro_clock_api,
+            "_build_dashboard_payload",
+            side_effect=lambda *_args, **_kwargs: _stub_dashboard_payload(),
+        ):
+            response = client.get("/api/astro-clock/forensic?mode=manual")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json() or {}
+        self.assertEqual(captured["house_system_override"], "R")
+        house_policy = (payload.get("analysis_metadata") or {}).get("house_system") or {}
+        self.assertEqual(house_policy.get("default_code"), "R")
+        self.assertEqual(house_policy.get("effective_code"), "R")
+        self.assertEqual(house_policy.get("source"), "forensic_default")
+        self.assertEqual(
+            (house_policy.get("development_selection") or {}).get("evaluation_scope"),
+            "development_only_not_holdout_validation",
         )
 
     def test_forensic_route_reports_rule_load_failures(self):
@@ -341,6 +386,20 @@ class ForensicRouteContractTests(TestCase):
         payload = response.get_json()
         self.assertFalse(payload["success"])
         self.assertEqual(payload["error"], "Invalid mode")
+
+    def test_forensic_route_rejects_invalid_case_type_before_context_resolution(self):
+        app = _make_app()
+        client = app.test_client()
+
+        with mock.patch.object(
+            astro_clock_api,
+            "_engine_instance",
+            side_effect=AssertionError("chart context must not be resolved"),
+        ):
+            response = client.get("/api/astro-clock/forensic?case_type=unknown")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.get_json()["error"], "Invalid case_type")
 
     def test_forensic_route_rejects_malformed_abduction_origin_before_context_resolution(self):
         app = _make_app()

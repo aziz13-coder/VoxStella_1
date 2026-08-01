@@ -91,7 +91,7 @@ describe('forensic relationship link classification', () => {
     expect(rows.mutualReception).toBe('none');
     expect(rows.sharedTriplicity).toBe('shared triplicity');
     expect(rows.termBoundsTies).toBe('term/bounds tie present');
-    expect(rows.connectionSummary).toBe('Score 12 | Associate/public-network link | Moderate confidence');
+    expect(rows.connectionSummary).toBe('Rule score 12 | Associate/public-network link | Moderate rule strength');
   });
 
   it('compresses two-way rulership into a single readable phrase', () => {
@@ -167,6 +167,21 @@ describe('forensic relationship link classification', () => {
     expect(bridged.score).toBeGreaterThan(0);
     expect(bridged.lightMediationImpact.role).toBe('victim_perpetrator_bridge');
     expect(bridged.reasons).toContain('Translation of light bridges victim/perpetrator significators');
+  });
+
+  it('keeps collection-of-light scoring aligned with the backend rubric', () => {
+    const collected = scoreForensicRelationshipLink({
+      lightMediation: {
+        collection: true,
+        collector: 'Sun',
+        participants: ['Moon', 'Sun', 'Saturn'],
+      },
+      victimSignificators: ['Moon'],
+      perpetratorSignificators: ['Saturn'],
+    });
+
+    expect(collected.lightMediationImpact.scoreDelta).toBe(0.75);
+    expect(collected.score).toBe(0.75);
   });
 
   it('treats light prohibition as blocking testimony instead of relationship inflation', () => {

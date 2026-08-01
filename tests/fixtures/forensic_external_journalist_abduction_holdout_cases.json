@@ -252,7 +252,7 @@
         "accident_or_disaster",
         "domestic_partner_involvement"
       ],
-      "expected_comparison_status": "aligned",
+      "expected_comparison_status": "misaligned",
       "execution_tier": "tier_3_manual_review",
       "current_status": "holdout_probe",
       "chart_capture_status": "source_explicit_evening_anchor",
@@ -268,7 +268,7 @@
           "later evidence of coordinated deception by insiders"
         ]
       },
-      "engine_vs_reality_summary": "The live route now aligns directionally. It keeps the strong deception testimony, but it also surfaces a social-gathering seizure pattern that matches the real hotel-area kidnapping and prolonged hidden custody without drifting into family or disaster labels.",
+      "engine_vs_reality_summary": "After the generalization audit, the social-setting indicator remains visible but is context-only because the chart lacks a distinct coercion/custody classifier. The known abduction is therefore retained as a directional miss.",
       "tested_anchors": [
         {
           "id": "romanian_2005_03_28_2030",
@@ -285,7 +285,7 @@
           },
           "status_code": 200,
           "success": true,
-          "comparison_status": "aligned",
+          "comparison_status": "misaligned",
           "categories": {
             "Abduction": 1,
             "Deception": 4,

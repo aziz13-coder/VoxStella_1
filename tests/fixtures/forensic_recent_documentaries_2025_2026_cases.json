@@ -1,0 +1,277 @@
+{
+  "generated_at": "2026-08-01T00:00:00+03:00",
+  "evaluation_role": "development",
+  "purpose": "Independent source-backed development cases from recent documentaries. Documentary pages establish the title and release; official court, police, transportation-safety, and government records establish each event anchor and hard outcome.",
+  "benchmark_policy": {
+    "status": "development_house_system_selection_v1",
+    "selection_use": "May be used for house-system model selection, but not as a holdout or as evidence of real-world forensic validity.",
+    "contamination_note": "The fixture was added for the August 2026 development replay and is immediately considered development data. Any reported score on it is in-sample after the first replay.",
+    "anchor_rule": "Never invent a death time. Use an official incident interval midpoint, occurrence time, response marker, or exact transport impact time and label the proxy explicitly."
+  },
+  "target_definition": {
+    "axis_target": "Documented event family and scene context, not the documentary's narrative framing.",
+    "survivability_target": "The stated direct-victim or occupant group. Cases without a defensible denominator are left unscored for survivability.",
+    "scope_note": "Aggregate event-chart replay cannot establish an individual's survival probability and is used only as a symbolic engine regression test."
+  },
+  "sources": [
+    {
+      "id": "netflix_idaho_murders_2026",
+      "kind": "official_documentary_listing",
+      "title": "A New Idaho Murders Documentary Spotlights the Victims of a Senseless Crime",
+      "url": "https://www.netflix.com/tudum/articles/the-idaho-murders-college-nightmare-release-date-trailer-news",
+      "supports": "The three-part Netflix series The Idaho Murders: College Nightmare premiered July 29, 2026 and concerns the four University of Idaho students killed in Moscow."
+    },
+    {
+      "id": "idaho_court_homicide_window",
+      "kind": "official_court_record",
+      "title": "State's Response to Defendant's Motion in Limine 12",
+      "url": "https://coi.isc.idaho.gov/docs/CR01-24-31665/2025/031725-States-Response-Defendants-MiL-12-RE-Make-Model-Suspect-Vehicle.pdf",
+      "supports": "Investigators' 4:00-4:25 a.m. homicide window, based on witness statements, phone downloads, and surveillance video."
+    },
+    {
+      "id": "moscow_police_king_road_outcome",
+      "kind": "official_law_enforcement_record",
+      "title": "Arrest made in Moscow homicides investigation",
+      "url": "https://www.ci.moscow.id.us/DocumentCenter/View/24998/12-30-22-Arrest-Made-In-Moscow-Homicides",
+      "supports": "1122 King Road, 11:58 a.m. response, four deceased people, and homicide ruling."
+    },
+    {
+      "id": "netflix_titan_2025",
+      "kind": "official_documentary_listing",
+      "title": "Titan Examines the True Events Leading to OceanGate's Doomed Expedition",
+      "url": "https://www.netflix.com/tudum/articles/titan-documentary-release-date-news",
+      "supports": "Titan: The OceanGate Submersible Disaster premiered June 11, 2025 and covers the fatal 2023 expedition."
+    },
+    {
+      "id": "ntsb_titan_final_report",
+      "kind": "official_transportation_safety_report",
+      "title": "Hull Failure and Implosion of Submersible Titan, MIR-25-36",
+      "url": "https://www.ntsb.gov/investigations/AccidentReports/Reports/MIR2536.pdf",
+      "supports": "About 10:47 a.m. local occurrence time, implosion near the Titanic wreck, and all five occupants killed."
+    },
+    {
+      "id": "netflix_astroworld_2025",
+      "kind": "official_documentary_listing",
+      "title": "The Astroworld Tragedy Examines the Fatal Concert Through Survivors' Eyes",
+      "url": "https://www.netflix.com/tudum/articles/trainwreck-the-astroworld-tragedy-release-date-news",
+      "supports": "Trainwreck: The Astroworld Tragedy was released in the 2025 Trainwreck anthology and documents ten deaths and hundreds of injuries."
+    },
+    {
+      "id": "houston_police_astroworld_timeline",
+      "kind": "official_law_enforcement_report",
+      "title": "Houston Police Department Astroworld Final Report",
+      "url": "https://houstontx.gov/police/pdfs/Astroworld_Redacted_Final.pdf",
+      "supports": "Video timeline: show began at 9:02 p.m.; at 9:38 p.m. the show stopped and lights came on; show ended at 10:13 p.m."
+    },
+    {
+      "id": "texas_astroworld_safety_report",
+      "kind": "official_government_safety_report",
+      "title": "Governor Abbott's Texas Task Force on Concert Safety Report",
+      "url": "https://gov.texas.gov/music/page/governor-abbotts-texas-task-force-on-concert-safety-april-2022-report",
+      "supports": "Crowd compression, mass-casualty response, ten deaths including a child, and hundreds of serious injuries."
+    },
+    {
+      "id": "netflix_shipwrecked_2026",
+      "kind": "official_documentary_listing",
+      "title": "Shipwrecked: Nightmare at Sea",
+      "url": "https://www.netflix.com/title/81757898",
+      "supports": "The 2026 documentary covers the 2012 luxury-cruise shipwreck."
+    },
+    {
+      "id": "italy_costa_concordia_report",
+      "kind": "official_transportation_safety_report",
+      "title": "Cruise Ship Costa Concordia Marine Casualty Safety Technical Investigation",
+      "url": "https://www.sintef.no/globalassets/project/hfc/documents/costa_concordia_-_full_investigation_report.pdf",
+      "supports": "Exact 21:45:07 local collision with Scole Rocks; 4,229 people aboard, 4,197 rescued, and 32 victims."
+    }
+  ],
+  "cases": [
+    {
+      "id": "netflix_idaho_murders_college_nightmare_2026",
+      "title": "The Idaho Murders: College Nightmare",
+      "family": "stranger_home_invasion_homicide",
+      "documentary_source_ids": ["netflix_idaho_murders_2026"],
+      "event_source_ids": ["idaho_court_homicide_window", "moscow_police_king_road_outcome"],
+      "event_anchor": {
+        "date_local": "2022-11-13",
+        "time_local": "04:12:30",
+        "timezone": "America/Los_Angeles",
+        "location": "1122 King Road, Moscow, ID, USA",
+        "latitude": 46.7218499,
+        "longitude": -117.010732,
+        "anchor_kind": "official_incident_interval_midpoint",
+        "uncertainty_minutes": 12.5,
+        "metadata_confidence": "high_interval_medium_point",
+        "notes": "Midpoint of the official 4:00-4:25 a.m. homicide window. It is not asserted as any victim's exact time of death. Coordinates are an address-level geocode, not a survey point."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2022-11-13T04:12:30",
+        "location": "1122 King Road, Moscow, ID, USA",
+        "timezone": "America/Los_Angeles",
+        "house_system_code": "R",
+        "case_type": "general",
+        "latitude": "46.7218499",
+        "longitude": "-117.010732"
+      },
+      "known_outcome": {
+        "unit": "four direct homicide victims",
+        "occupants": 4,
+        "survivors": 0,
+        "fatalities": 4,
+        "class": "fatal_dominant"
+      },
+      "hard_outcome": {
+        "event_family": "fatal home-invasion stabbing homicide",
+        "outcome": "four homicide deaths",
+        "known_scene_markers": ["occupied residence", "four adult victims", "edged-weapon wounds", "surviving witness"]
+      },
+      "expected_primary_axes": ["violence_homicide"],
+      "expected_secondary_axes": ["accomplice_or_witness"],
+      "contradictory_axes": ["accident_or_disaster", "water_disappearance_or_drowning", "domestic_partner_involvement", "family_involvement", "child_victim"],
+      "expected_relationship_labels": ["stranger_public"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      }
+    },
+    {
+      "id": "netflix_titan_oceangate_submersible_disaster_2025",
+      "title": "Titan: The OceanGate Submersible Disaster",
+      "family": "marine_transport_fatal_disaster",
+      "documentary_source_ids": ["netflix_titan_2025"],
+      "event_source_ids": ["ntsb_titan_final_report"],
+      "event_anchor": {
+        "date_local": "2023-06-18",
+        "time_local": "10:47:00",
+        "timezone": "America/St_Johns",
+        "location": "North Atlantic near the RMS Titanic wreck",
+        "latitude": 41.731944,
+        "longitude": -49.945833,
+        "anchor_kind": "official_occurrence_time",
+        "uncertainty_minutes": 1,
+        "metadata_confidence": "high",
+        "notes": "NTSB occurrence time for hull failure and implosion. Coordinate is the nearby Titanic wreck reference point; the Titan debris field was offset from the bow."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2023-06-18T10:47:00",
+        "location": "North Atlantic near the RMS Titanic wreck",
+        "timezone": "America/St_Johns",
+        "house_system_code": "R",
+        "case_type": "general",
+        "latitude": "41.731944",
+        "longitude": "-49.945833"
+      },
+      "known_outcome": {
+        "unit": "people aboard Titan",
+        "occupants": 5,
+        "survivors": 0,
+        "fatalities": 5,
+        "class": "fatal_dominant"
+      },
+      "hard_outcome": {
+        "event_family": "fatal submersible implosion",
+        "outcome": "all five occupants died",
+        "known_scene_markers": ["underwater voyage", "pressure-hull failure", "catastrophic implosion", "transport loss"]
+      },
+      "expected_primary_axes": ["accident_or_disaster", "water_disappearance_or_drowning", "route_vehicle_transport"],
+      "contradictory_axes": ["violence_homicide", "abduction_missing_person", "domestic_partner_involvement", "family_involvement", "child_victim"],
+      "expected_survivability": {
+        "levels": ["Lower"],
+        "bands": ["fatal_pressure_dominant"]
+      }
+    },
+    {
+      "id": "netflix_trainwreck_astroworld_tragedy_2025",
+      "title": "Trainwreck: The Astroworld Tragedy",
+      "family": "public_crowd_disaster",
+      "documentary_source_ids": ["netflix_astroworld_2025"],
+      "event_source_ids": ["houston_police_astroworld_timeline", "texas_astroworld_safety_report"],
+      "event_anchor": {
+        "date_local": "2021-11-05",
+        "time_local": "21:38:00",
+        "timezone": "America/Chicago",
+        "location": "NRG Park, Houston, TX, USA",
+        "latitude": 29.6842785,
+        "longitude": -95.4094315,
+        "anchor_kind": "documented_stage_stop_response_marker",
+        "uncertainty_minutes": 10,
+        "metadata_confidence": "medium",
+        "notes": "HPD video timeline records a show stop and lights at 9:38 p.m. This is a stable response marker inside a developing crowd emergency, not the exact onset of every injury."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2021-11-05T21:38:00",
+        "location": "NRG Park, Houston, TX, USA",
+        "timezone": "America/Chicago",
+        "house_system_code": "R",
+        "case_type": "general",
+        "latitude": "29.6842785",
+        "longitude": "-95.4094315"
+      },
+      "known_outcome": {
+        "unit": "festival crowd",
+        "occupants": null,
+        "survivors": null,
+        "fatalities": 10,
+        "injured": "more than 300",
+        "class": "mixed_public_mass_casualty"
+      },
+      "hard_outcome": {
+        "event_family": "public crowd-compression disaster",
+        "outcome": "ten deaths and hundreds injured",
+        "known_scene_markers": ["large public concert", "crowd compression", "mass-casualty response", "survivors and fatalities"]
+      },
+      "expected_primary_axes": ["accident_or_disaster", "authority_or_public_case"],
+      "contradictory_axes": ["violence_homicide", "abduction_missing_person", "domestic_partner_involvement", "family_involvement", "water_disappearance_or_drowning"]
+    },
+    {
+      "id": "netflix_shipwrecked_costa_concordia_2026",
+      "title": "Shipwrecked: Nightmare at Sea",
+      "family": "marine_transport_survival_dominant_disaster",
+      "documentary_source_ids": ["netflix_shipwrecked_2026"],
+      "event_source_ids": ["italy_costa_concordia_report"],
+      "event_anchor": {
+        "date_local": "2012-01-13",
+        "time_local": "21:45:07",
+        "timezone": "Europe/Rome",
+        "location": "Scole Rocks near Isola del Giglio, Italy",
+        "latitude": 42.3641,
+        "longitude": 10.9215,
+        "anchor_kind": "official_voyage_data_recorder_impact_time",
+        "uncertainty_minutes": 0,
+        "metadata_confidence": "high",
+        "notes": "Official VDR-derived collision time. Coordinate is a stable representative point near Scole Rocks and the final grounding, not a claimed survey coordinate for first hull contact."
+      },
+      "query": {
+        "mode": "manual",
+        "datetime_local": "2012-01-13T21:45:07",
+        "location": "Scole Rocks near Isola del Giglio, Italy",
+        "timezone": "Europe/Rome",
+        "house_system_code": "R",
+        "case_type": "general",
+        "latitude": "42.3641",
+        "longitude": "10.9215"
+      },
+      "known_outcome": {
+        "unit": "people aboard Costa Concordia",
+        "occupants": 4229,
+        "survivors": 4197,
+        "fatalities": 32,
+        "class": "survival_dominant"
+      },
+      "hard_outcome": {
+        "event_family": "cruise-ship collision, flooding, and grounding",
+        "outcome": "4,197 rescued and 32 victims",
+        "known_scene_markers": ["water transport", "rock collision", "flooding and blackout", "mass evacuation"]
+      },
+      "expected_primary_axes": ["accident_or_disaster", "water_disappearance_or_drowning", "route_vehicle_transport"],
+      "contradictory_axes": ["violence_homicide", "abduction_missing_person", "domestic_partner_involvement", "family_involvement"],
+      "expected_survivability": {
+        "levels": ["Moderate", "Higher"],
+        "bands": ["release_favored", "risk_loaded_survival", "mixed_nonfatal", "nonfatal_tilt"]
+      }
+    }
+  ]
+}

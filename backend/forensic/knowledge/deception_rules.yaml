@@ -4,10 +4,17 @@
   title: Mercury–Neptune deceptive aspect
   category: Deception
   weight: 3
+  validation_status: doctrinal_compound_unvalidated
   condition:
-    any:
-      - aspects.Mercury_to_Neptune.type: [conjunction, square, opposition, trine, sextile]
-      - aspects.Neptune_to_Mercury.type: [conjunction, square, opposition, trine, sextile]
+    all:
+      - aspects.Mercury_to_Neptune.type: [conjunction, square, opposition]
+      - aspects.Mercury_to_Neptune.orb<=: 3
+      - any:
+          - planets.Mercury.angular: true
+          - planets.Neptune.angular: true
+          - houses.first_ruler: Mercury
+          - houses.seventh_ruler: Mercury
+          - houses.tenth_ruler: Mercury
   rationale: Mercury–Neptune contacts indicate confusion, lies, deliberate deception, or cover-ups.
   evidence:
     - aspects.Mercury_to_Neptune
@@ -17,6 +24,8 @@
   title: Mercury retrograde
   category: Deception
   weight: 2
+  scoring: false
+  validation_status: contextual_indicator_unvalidated
   condition:
     planets.Mercury.retrograde: true
   rationale: Withholding information, misstatements, and evidence problems are more likely.
@@ -27,6 +36,8 @@
   title: Mercury combust the Sun
   category: Deception
   weight: 2
+  scoring: false
+  validation_status: contextual_indicator_unvalidated
   condition:
     solar.combustion: [Mercury]
   rationale: Impaired judgment and hidden facts; communications are obscured by the Sun’s beams.
@@ -37,6 +48,8 @@
   title: Mercury combust (applying)
   category: Deception
   weight: 3
+  scoring: false
+  validation_status: contextual_indicator_unvalidated
   condition:
     solar_phase.combustion_applying: [Mercury]
   rationale: Applying combustion heightens concealment and impairs clarity more than separating.
@@ -47,6 +60,8 @@
   title: Mercury in the 12th house
   category: Deception
   weight: 2
+  scoring: false
+  validation_status: contextual_indicator_unvalidated
   condition:
     planets.Mercury.house: 12
   rationale: Secrets and lies told behind the scenes; private channels of information.
@@ -57,6 +72,8 @@
   title: Mercury in a mute sign
   category: Deception
   weight: 1
+  scoring: false
+  validation_status: contextual_indicator_unvalidated
   condition:
     planets.Mercury.mute_sign: true
   rationale: Silence or refusal to speak plainly (Cancer, Scorpio, Pisces).
@@ -67,13 +84,42 @@
   title: Neptune to personal planets
   category: Deception
   weight: 2
+  validation_status: doctrinal_compound_unvalidated
   condition:
     any:
-      - aspects.Neptune_to_Sun.type: [conjunction, square, opposition, trine, sextile]
-      - aspects.Neptune_to_Moon.type: [conjunction, square, opposition, trine, sextile]
-      - aspects.Neptune_to_Mercury.type: [conjunction, square, opposition, trine, sextile]
-      - aspects.Neptune_to_Venus.type: [conjunction, square, opposition, trine, sextile]
-      - aspects.Neptune_to_Mars.type: [conjunction, square, opposition, trine, sextile]
+      - all:
+          - aspects.Neptune_to_Sun.type: [conjunction, square, opposition]
+          - aspects.Neptune_to_Sun.orb<=: 3
+          - any:
+              - planets.Neptune.angular: true
+              - planets.Sun.angular: true
+      - all:
+          - aspects.Neptune_to_Moon.type: [conjunction, square, opposition]
+          - aspects.Neptune_to_Moon.orb<=: 3
+          - any:
+              - planets.Neptune.angular: true
+              - planets.Moon.angular: true
+      - all:
+          - aspects.Neptune_to_Mercury.type: [conjunction, square, opposition]
+          - aspects.Neptune_to_Mercury.orb<=: 3
+          - any:
+              - planets.Neptune.angular: true
+              - planets.Mercury.angular: true
+              - houses.first_ruler: Mercury
+              - houses.seventh_ruler: Mercury
+              - houses.tenth_ruler: Mercury
+      - all:
+          - aspects.Neptune_to_Venus.type: [conjunction, square, opposition]
+          - aspects.Neptune_to_Venus.orb<=: 3
+          - any:
+              - planets.Neptune.angular: true
+              - planets.Venus.angular: true
+      - all:
+          - aspects.Neptune_to_Mars.type: [conjunction, square, opposition]
+          - aspects.Neptune_to_Mars.orb<=: 3
+          - any:
+              - planets.Neptune.angular: true
+              - planets.Mars.angular: true
   rationale: Illusion, fantasy, and deliberate confusion involving key players.
   evidence:
     - aspects.Neptune_to_Sun
@@ -86,6 +132,8 @@
   title: Neptune in 7th or 12th house
   category: Deception
   weight: 2
+  scoring: false
+  validation_status: contextual_indicator_unvalidated
   condition:
     any:
       - planets.Neptune.house: 7
@@ -98,6 +146,8 @@
   title: Strong Neptune signature
   category: Deception
   weight: 2
+  scoring: false
+  validation_status: contextual_indicator_unvalidated
   condition:
     houses.neptune_angular: true
   rationale: Major deception covering the entire situation; staged or disguised events.
@@ -105,6 +155,8 @@
     - houses.neptune_angular
 
 - id: mars_neptune_opposition
+  scoring: false
+  validation_status: contextual_indicator_unvalidated
   title: Mars–Neptune opposition
   category: Deception
   weight: 2
@@ -118,6 +170,8 @@
     - aspects.Neptune_to_Mars
 
 - id: mars_neptune_square
+  scoring: false
+  validation_status: contextual_indicator_unvalidated
   title: Mars–Neptune square
   category: Deception
   weight: 2
@@ -131,6 +185,8 @@
     - aspects.Neptune_to_Mars
 
 - id: venus_saturn_hard
+  scoring: false
+  validation_status: contextual_indicator_unvalidated
   title: Venus–Saturn hard aspects
   category: Deception
   weight: 2
@@ -161,6 +217,8 @@
     - aspects.Venus_to_Saturn
 
 - id: twelfth_house_emphasis_deception
+  scoring: false
+  validation_status: contextual_indicator_unvalidated
   title: 12th house emphasis
   category: Deception
   weight: 2
@@ -171,6 +229,8 @@
     - houses.emphasis12_count
 
 - id: seventh_ruler_in_12th
+  scoring: false
+  validation_status: contextual_indicator_unvalidated
   title: 7th ruler in 12th house
   category: Deception
   weight: 2
@@ -182,6 +242,8 @@
     - houses.seventh_ruler_house
 
 - id: sun_or_moon_in_12th
+  scoring: false
+  validation_status: contextual_indicator_unvalidated
   title: Sun/Moon in 12th house
   category: Deception
   weight: 2
@@ -195,6 +257,8 @@
     - planets.Moon
 
 - id: mute_signs_on_angles
+  scoring: false
+  validation_status: contextual_indicator_unvalidated
   title: Mute signs on angles
   category: Deception
   weight: 1
@@ -205,6 +269,8 @@
     - houses.angles_signs
 
 - id: mute_signs_on_3rd_or_9th
+  scoring: false
+  validation_status: contextual_indicator_unvalidated
   title: Mute signs on 3rd/9th
   category: Deception
   weight: 1
@@ -215,6 +281,8 @@
     - houses.angles_signs
 
 - id: north_node_in_8th
+  scoring: false
+  validation_status: contextual_indicator_unvalidated
   title: North Node in the 8th house
   category: Deception
   weight: 1
@@ -226,6 +294,8 @@
 
 # Authority cover-up: Saturn–Neptune patterns
 - id: saturn_neptune_coverup
+  scoring: false
+  validation_status: contextual_indicator_unvalidated
   title: Saturn–Neptune cover-up (authority/institution)
   category: Deception
   weight: 2
@@ -243,6 +313,8 @@
   title: Node with Neptune/Mercury (karmic ruse/lie scheme)
   category: Deception
   weight: 2
+  scoring: false
+  validation_status: contextual_indicator_unvalidated
   condition:
     any:
       - "aspects.North Node_to_Neptune.type": [conjunction, square, opposition, trine, sextile]
@@ -259,6 +331,8 @@
 
 # Domestic deception staging – NN in 4th
 - id: north_node_in_4th
+  scoring: false
+  validation_status: contextual_indicator_unvalidated
   title: North Node in the 4th house (staged-location deception)
   category: Deception
   weight: 2

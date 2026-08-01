@@ -1,5 +1,6 @@
 {
   "generated_at": "2026-04-23T00:00:00+00:00",
+  "evaluation_role": "development",
   "purpose": "Netflix true-crime benchmark cases comparing live forensic output against real-world event families and exact or near-exact event anchors.",
   "benchmark_policy": {
     "status": "current_engine_baseline",

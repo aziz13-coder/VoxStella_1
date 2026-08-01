@@ -65,6 +65,8 @@ def test_soft_applying_direct_aspect_and_reception_boost_known_person_status():
     assert status["direct_aspect_component"]["score_delta"] > 1.0
     assert status["reception_component"]["score_delta"] > 0.0
     assert "mutual reception between victim/perpetrator rulers" in status["evidence"]["reception"]
+    assert status["confidence_basis"] == "symbolic_rule_strength_not_empirical_probability"
+    assert status["is_statistical_probability"] is False
 
 
 def test_hard_separating_wide_aspect_stays_below_label_without_other_support():
