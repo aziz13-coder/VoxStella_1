@@ -1,4 +1,32 @@
 export const WHATS_NEW_RELEASES = {
+  '3.1.8': {
+    version: '3.1.8',
+    publishedAt: '2026-08-01',
+    headline: 'Stronger forensic case analysis',
+    summary: 'This update makes Forensic case classifications more careful, source-aware, and dependable across homicide, abduction, travel-disaster, water, public-event, and survivability readings.',
+    items: [
+      {
+        title: 'Fewer false case labels',
+        tag: 'Improved',
+        body: 'Home, social, travel, and water symbolism now stays contextual until independent evidence supports a specific family, abduction, accident, or drowning classification.',
+      },
+      {
+        title: 'Better documentary case matching',
+        tag: 'Improved',
+        body: 'The Forensic engine now performs more dependably across a wider range of documented homicide, disaster, crowd, and transport cases.',
+      },
+      {
+        title: 'Clearer accident and outcome logic',
+        tag: 'Fixed',
+        body: 'Detecting a crash or transport event no longer automatically implies a fatal outcome; event type and survivability are evaluated separately.',
+      },
+      {
+        title: 'Auditable source-backed rules',
+        tag: 'Improved',
+        body: 'New and revised rules expose their source basis and use corroborating evidence channels instead of case-specific exclusions.',
+      },
+    ],
+  },
   '3.1.7': {
     version: '3.1.7',
     publishedAt: '2026-07-31',
