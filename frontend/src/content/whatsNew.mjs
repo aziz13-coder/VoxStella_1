@@ -1,4 +1,27 @@
 export const WHATS_NEW_RELEASES = {
+  '3.1.9': {
+    version: '3.1.9',
+    publishedAt: '2026-08-01',
+    headline: 'Cleaner forensic reports',
+    summary: 'This update removes repetitive warning copy from the Forensic workspace, generated reports, and copied analysis briefs. It also adds a source-backed Idaho murders benchmark for ongoing regression testing.',
+    items: [
+      {
+        title: 'A cleaner forensic workspace',
+        tag: 'Polished',
+        body: 'The persistent warning beneath the Forensic controls has been removed so the dossier moves directly into its findings and evidence panels.',
+      },
+      {
+        title: 'Cleaner reports and briefs',
+        tag: 'Polished',
+        body: 'PDF exports and copied analysis briefs no longer repeat the removed warning language.',
+      },
+      {
+        title: 'Source-backed Idaho benchmark',
+        tag: 'Tested',
+        body: 'The Forensic regression suite now compares the engine with adjudicated facts and the official event-time interval from the Idaho student murders case.',
+      },
+    ],
+  },
   '3.1.8': {
     version: '3.1.8',
     publishedAt: '2026-08-01',
