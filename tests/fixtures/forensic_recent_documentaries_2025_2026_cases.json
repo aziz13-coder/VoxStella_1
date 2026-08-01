@@ -29,11 +29,32 @@
       "supports": "Investigators' 4:00-4:25 a.m. homicide window, based on witness statements, phone downloads, and surveillance video."
     },
     {
+      "id": "idaho_court_surviving_roommates_order",
+      "kind": "official_court_record",
+      "title": "Order on State's Motions in Limine Re: Text Messages and 911 Call",
+      "url": "https://coi.isc.idaho.gov/docs/CR01-24-31665/2025/042425%2BOrder%2Bon%2BStates%2BMotions%2Bin%2BLimine%2BRE%2BText%2BMessages%2Band%2B911%2BCall.pdf",
+      "supports": "D.M. and B.F. were the two surviving roommates at 1122 King Road; D.M. reported seeing a masked person inside the house. The order does not say either roommate witnessed a killing."
+    },
+    {
+      "id": "idaho_court_plea_agreement",
+      "kind": "official_court_record",
+      "title": "Plea Agreement, State of Idaho v. Bryan C. Kohberger",
+      "url": "https://coi.isc.idaho.gov/docs/CR01-24-31665/2025/070225%2BPlea%2BAgreement.pdf",
+      "supports": "The July 2, 2025 agreement records guilty pleas to one burglary count and four first-degree murder counts."
+    },
+    {
       "id": "moscow_police_king_road_outcome",
       "kind": "official_law_enforcement_record",
       "title": "Arrest made in Moscow homicides investigation",
       "url": "https://www.ci.moscow.id.us/DocumentCenter/View/24998/12-30-22-Arrest-Made-In-Moscow-Homicides",
       "supports": "1122 King Road, 11:58 a.m. response, four deceased people, and homicide ruling."
+    },
+    {
+      "id": "moscow_kohberger_sentencing_outcome",
+      "kind": "official_law_enforcement_record",
+      "title": "Law Enforcement Agencies Issue Statement Following Kohberger Sentencing",
+      "url": "https://www.ci.moscow.id.us/CivicSend/ViewMessage/Message/265798",
+      "supports": "The July 23, 2025 statement records sentencing for the murders of four University of Idaho students and the conclusion of the adjudicated case."
     },
     {
       "id": "netflix_titan_2025",
@@ -91,7 +112,13 @@
       "title": "The Idaho Murders: College Nightmare",
       "family": "stranger_home_invasion_homicide",
       "documentary_source_ids": ["netflix_idaho_murders_2026"],
-      "event_source_ids": ["idaho_court_homicide_window", "moscow_police_king_road_outcome"],
+      "event_source_ids": [
+        "idaho_court_homicide_window",
+        "idaho_court_surviving_roommates_order",
+        "idaho_court_plea_agreement",
+        "moscow_police_king_road_outcome",
+        "moscow_kohberger_sentencing_outcome"
+      ],
       "event_anchor": {
         "date_local": "2022-11-13",
         "time_local": "04:12:30",
@@ -102,6 +129,7 @@
         "anchor_kind": "official_incident_interval_midpoint",
         "uncertainty_minutes": 12.5,
         "metadata_confidence": "high_interval_medium_point",
+        "sensitivity_times_local": ["04:00:00", "04:12:30", "04:25:00"],
         "notes": "Midpoint of the official 4:00-4:25 a.m. homicide window. It is not asserted as any victim's exact time of death. Coordinates are an address-level geocode, not a survey point."
       },
       "query": {
@@ -121,15 +149,34 @@
         "fatalities": 4,
         "class": "fatal_dominant"
       },
+      "known_facts": {
+        "legal_status": "adjudicated_by_guilty_plea_and_sentencing",
+        "offenses": ["one burglary count", "four first-degree murder counts"],
+        "event_date_local": "2022-11-13",
+        "event_time_window_local": "04:00-04:25",
+        "scene": "occupied off-campus residence at 1122 King Road",
+        "cause_and_manner": "four homicide deaths by stabbing",
+        "surviving_roommates": 2,
+        "observation_context": "one surviving roommate reported seeing a masked person inside the house",
+        "eyewitness_to_killings_established": false
+      },
       "hard_outcome": {
         "event_family": "fatal home-invasion stabbing homicide",
-        "outcome": "four homicide deaths",
-        "known_scene_markers": ["occupied residence", "four adult victims", "edged-weapon wounds", "surviving witness"]
+        "outcome": "four homicide deaths and four first-degree murder convictions",
+        "known_scene_markers": ["occupied residence", "four adult victims", "edged-weapon wounds", "two surviving roommates", "reported masked-person sighting"]
       },
       "expected_primary_axes": ["violence_homicide"],
-      "expected_secondary_axes": ["accomplice_or_witness"],
       "contradictory_axes": ["accident_or_disaster", "water_disappearance_or_drowning", "domestic_partner_involvement", "family_involvement", "child_victim"],
       "expected_relationship_labels": ["stranger_public"],
+      "relationship_target": {
+        "confidence": "limited",
+        "meaning": "No intimate-partner, family, or friend relationship is established in the benchmark sources. This broad label does not assert motive, random selection, or the absence of every prior contact."
+      },
+      "comparison_policy": {
+        "hard_scored_outputs": ["violence_homicide", "explicit_contradictory_axes", "survivability_outcome_direction"],
+        "secondary_observations": ["relationship_status"],
+        "unscored_outputs": ["deception_coverup", "accomplice_or_witness", "motive", "exact_individual_death_time", "direction_or_distance"]
+      },
       "expected_survivability": {
         "levels": ["Lower"],
         "bands": ["fatal_pressure_dominant"]

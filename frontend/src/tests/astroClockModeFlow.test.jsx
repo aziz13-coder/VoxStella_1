@@ -3825,15 +3825,17 @@ describe('AstroClock mode flow', () => {
     expect(await screen.findByText(/Associate\/public-network link/i)).toBeInTheDocument();
     expect(await screen.findByText(/Survivability signal:/i)).toBeInTheDocument();
     expect(await screen.findByText(/\(fatal pressure dominates\)/i)).toBeInTheDocument();
-    expect(await screen.findByRole('note')).toHaveTextContent(/not scientific forensic evidence or a probability/i);
+    expect(screen.queryByText(/not scientific forensic evidence/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/must not be used to identify people/i)).not.toBeInTheDocument();
     expect(screen.getByText('Symbolic Rule Score')).toBeInTheDocument();
     expect(screen.queryByText(/\/100 pressure/i)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Symbolic Brief · Copy' }));
     await waitFor(() => expect(window.navigator.clipboard.writeText).toHaveBeenCalled());
     const copiedBrief = String(window.navigator.clipboard.writeText.mock.calls.at(-1)?.[0] || '');
-    expect(copiedBrief).toMatch(/not scientific forensic evidence or a statistical prediction/i);
-    expect(copiedBrief).toMatch(/do not identify a person, infer physical appearance/i);
+    expect(copiedBrief).toMatch(/summarize the forensic astrology rule output below/i);
+    expect(copiedBrief).not.toMatch(/not scientific forensic evidence|statistical prediction/i);
+    expect(copiedBrief).not.toMatch(/do not identify|assign guilt|investigative action/i);
     expect(copiedBrief).not.toMatch(/composite portrait|profiling image/i);
   });
 
@@ -3901,6 +3903,8 @@ describe('AstroClock mode flow', () => {
     expect(html).not.toContain('<b>Unsafe TZ</b>');
     expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;');
     expect(html).toContain('&lt;b&gt;Unsafe TZ&lt;/b&gt;');
+    expect(html).not.toMatch(/symbolic astrological interpretation only|not scientific forensic evidence/i);
+    expect(html).not.toMatch(/identification method|probability of location, safety, or outcome/i);
     expect(await screen.findByText('Export failed: PDF generation failed')).toBeInTheDocument();
     expect(openSpy).not.toHaveBeenCalled();
 

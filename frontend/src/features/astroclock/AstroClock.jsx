@@ -4182,7 +4182,7 @@ function ForensicDashboard({
       // Light mediation
       const lm = dash.light_mediation || {};
 
-      const header = `Summarize the symbolic astrological rule output below in an auditable way. This is not scientific forensic evidence or a statistical prediction. Do not identify a person, infer physical appearance or personality, assign guilt, recommend investigative action, or present location, safety, or outcome claims as facts. Use these sections: Victim Significators, 7th-house Counterpart Signals, Witness Symbols, Deception Symbols, Outcome Rule Classification${abductionMode? ', Symbolic Direction Cues':''}.`;
+      const header = `Summarize the forensic astrology rule output below in an auditable way. Use these sections: Victim Significators, 7th-house Counterpart Signals, Witness Symbols, Deception Symbols, Outcome Rule Classification${abductionMode? ', Direction Cues':''}.`;
       lines.push(header, '');
       lines.push('Victim Analysis');
       lines.push(`ASC Sign: ${ascSignName||'-'}`);
@@ -4776,7 +4776,6 @@ function ForensicDashboard({
         <body><div class=\"container\">
           <h1>Forensic Astrology Report</h1>
           <div class=\"muted\">Generated ${h(ts)}${caseHeader? ` · ${caseHeader}`:''}</div>
-          <p class=\"muted\">Symbolic astrological interpretation only. Not scientific forensic evidence, an identification method, or a probability of location, safety, or outcome.</p>
           <div class=\"sep\"></div>
           <h2>Summary</h2>
           <pre>${safeBrief}</pre>
@@ -5420,11 +5419,6 @@ function ForensicDashboard({
             {abdMsg}
           </div>
         )}
-
-        <div className="mt-2 text-[11px] text-amber-800" role="note">
-          Symbolic astrological interpretation only. It is not scientific forensic evidence or a probability,
-          and must not be used to identify people, assign guilt, direct a search, or decide safety or outcome.
-        </div>
 
         <div className="forensic-dossier-tabs" role="tablist" aria-label="Forensic sections">
           {forensicTabs.map((tab) => (
