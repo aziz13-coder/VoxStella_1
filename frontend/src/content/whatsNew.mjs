@@ -1,4 +1,32 @@
 export const WHATS_NEW_RELEASES = {
+  '3.1.13': {
+    version: '3.1.13',
+    publishedAt: '2026-08-02',
+    headline: 'Clearer transit exactness and dependable AI scans',
+    summary: 'This update separates Morin three-dimensional contacts from zodiacal longitude exactness, corrects activation timing, and keeps licensed AI transit scans compact enough to return reliably.',
+    items: [
+      {
+        title: 'Two clear transit orbs',
+        tag: 'Improved',
+        body: 'Transit results now show Morin three-dimensional orb and zodiacal longitude orb separately, so physical-space proximity is never mistaken for longitude exactness.',
+      },
+      {
+        title: 'Accurate activation windows',
+        tag: 'Fixed',
+        body: 'Applying, exact, and separating timing now follows zodiacal longitude, producing activation windows around the actual aspect crossing.',
+      },
+      {
+        title: 'Reliable MCP transit scans',
+        tag: 'Improved',
+        body: 'Licensed local AI clients now receive compact transit scans by default while retaining the evidence, timing, and ranking needed for interpretation.',
+      },
+      {
+        title: 'Expanded forensic verification',
+        tag: 'Tested',
+        body: 'The Idaho student murders benchmark now includes a reproducible runner, documented facts, exact-window checks, and stability cases for regression testing.',
+      },
+    ],
+  },
   '3.1.12': {
     version: '3.1.12',
     publishedAt: '2026-08-02',
