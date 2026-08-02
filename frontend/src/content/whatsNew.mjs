@@ -1,4 +1,32 @@
 export const WHATS_NEW_RELEASES = {
+  '3.1.12': {
+    version: '3.1.12',
+    publishedAt: '2026-08-02',
+    headline: 'Licensed AI access across Astro Clock',
+    summary: 'This update lets licensed local AI clients use Synastry, Trait Profile, Transits, Astrocartography, Election, Chinese Astrology, Forensic, and Certification through the Vox Stella calculation engine.',
+    items: [
+      {
+        title: 'Eight Astro Clock feature families',
+        tag: 'New',
+        body: 'The local MCP integration now offers focused tools for chart comparison, traits, timing, place analysis, elections, Chinese Astrology, forensic event charts, and birth-time certification.',
+      },
+      {
+        title: 'Private explicit inputs',
+        tag: 'Privacy',
+        body: 'AI calculations use the dates, times, coordinates, and timezones you provide without giving the client a way to browse saved charts, notes, account details, or license credentials.',
+      },
+      {
+        title: 'Reliable long calculations',
+        tag: 'Improved',
+        body: 'Transit windows, atlas searches, Election scans, and Certification now use bounded inputs and longer calculation deadlines, with streaming Election results returned as a normal structured response.',
+      },
+      {
+        title: 'Stricter licensed access',
+        tag: 'Security',
+        body: 'Every request requires a fresh short-lived licensed session and can reach only its declared local calculation route, method, and input fields.',
+      },
+    ],
+  },
   '3.1.11': {
     version: '3.1.11',
     publishedAt: '2026-08-02',
