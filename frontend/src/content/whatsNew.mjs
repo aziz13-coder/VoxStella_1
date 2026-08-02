@@ -1,4 +1,32 @@
 export const WHATS_NEW_RELEASES = {
+  '3.1.11': {
+    version: '3.1.11',
+    publishedAt: '2026-08-02',
+    headline: 'Local AI access with safer MCP setup',
+    summary: 'This update adds guided MCP setup for licensed local AI clients and strengthens startup, cancellation, input validation, and private backend access.',
+    items: [
+      {
+        title: 'Guided MCP setup',
+        tag: 'New',
+        body: 'Settings now shows whether local MCP access is ready, lists the available read-only tools, and copies tested JSON or Codex configuration for the installed launcher.',
+      },
+      {
+        title: 'More dependable connections',
+        tag: 'Improved',
+        body: 'MCP startup now allows the licensed calculation engine to complete its full readiness sequence, while cancelled requests stop their pending local work promptly.',
+      },
+      {
+        title: 'Stricter calculation inputs',
+        tag: 'Fixed',
+        body: 'Chart requests now require an explicit date and time instead of silently treating a date-only value as midnight.',
+      },
+      {
+        title: 'Stronger local boundaries',
+        tag: 'Security',
+        body: 'Licensed MCP calls now validate and canonicalize their private loopback destination before any short-lived access token is attached.',
+      },
+    ],
+  },
   '3.1.10': {
     version: '3.1.10',
     publishedAt: '2026-08-02',
