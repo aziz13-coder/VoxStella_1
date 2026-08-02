@@ -8,7 +8,7 @@ if (MCP_MODE) {
   console.info = writeMcpDiagnostic;
   console.debug = writeMcpDiagnostic;
 }
-const { app, BrowserWindow, ipcMain, dialog, shell, session } = require('electron');
+const { app, BrowserWindow, clipboard, ipcMain, dialog, shell, session } = require('electron');
 const path = require('path');
 const crypto = require('crypto');
 const net = require('net');
@@ -44,6 +44,10 @@ const {
   verifyBackendInstanceProof,
 } = require('./main/backend-instance-auth');
 const { createBackendParentState } = require('./main/backend-parent-state');
+const {
+  buildMcpSetupStatus,
+  resolveMcpLauncherPath,
+} = require('./main/mcp/setup');
 const {
   acquireSingleInstanceLock,
   focusWindow,
@@ -912,6 +916,25 @@ function registerTrustedIpcHandler(channel, handler) {
   });
 }
 
+async function getMcpSetupStatus() {
+  const launcherPath = resolveMcpLauncherPath({
+    appIsPackaged: app.isPackaged,
+    executablePath: process.execPath,
+    frontendRoot: __dirname,
+  });
+  const licenseStatus = licenseManager?.getStatus
+    ? await licenseManager.getStatus().catch(() => ({ active: false }))
+    : { active: !app.isPackaged };
+  return buildMcpSetupStatus({
+    appIsPackaged: app.isPackaged,
+    appVersion: app.getVersion(),
+    launcherExists: app.isPackaged && fs.existsSync(launcherPath),
+    launcherPath,
+    licenseActive: licenseStatus?.active === true,
+    platform: process.platform,
+  });
+}
+
 function registerCoreIpcHandlers() {
   if (ipcHandlersRegistered) return;
   ipcHandlersRegistered = true;
@@ -999,6 +1022,26 @@ function registerCoreIpcHandlers() {
     } catch (err) {
       return { ok: false, error: String(err?.message || err), path: paths.logDir };
     }
+  });
+  registerTrustedIpcHandler('mcp:get-setup', async () => getMcpSetupStatus());
+  registerTrustedIpcHandler('mcp:copy-config', async (_event, format) => {
+    if (format !== 'json' && format !== 'codex') {
+      return { ok: false, error: 'invalid_format' };
+    }
+    const setup = await getMcpSetupStatus();
+    if (!setup.supported || !setup.launcherExists) {
+      return { ok: false, error: setup.state };
+    }
+    clipboard.writeText(setup.configurations[format]);
+    return { ok: true, format };
+  });
+  registerTrustedIpcHandler('mcp:open-launcher-folder', async () => {
+    const setup = await getMcpSetupStatus();
+    if (!setup.supported || !setup.launcherExists) {
+      return { ok: false, error: setup.state };
+    }
+    shell.showItemInFolder(setup.launcherPath);
+    return { ok: true, path: setup.launcherPath };
   });
   registerTrustedIpcHandler('report:export', handleReportExport);
 }

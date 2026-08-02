@@ -71,6 +71,11 @@ const electronAPI = Object.freeze({
   openLogFolder: () => invokeWithStartupRetry('diagnostics:open-log-folder'),
   openExternal: (url) => invokeWithStartupRetry('shell:open-external', url),
 
+  // Licensed local MCP setup
+  getMcpSetup: () => invokeWithStartupRetry('mcp:get-setup'),
+  copyMcpConfig: (format) => invokeWithStartupRetry('mcp:copy-config', format),
+  openMcpLauncherFolder: () => invokeWithStartupRetry('mcp:open-launcher-folder'),
+
   // Reporting
   exportReport: (payload) => invokeWithStartupRetry('report:export', payload),
 });

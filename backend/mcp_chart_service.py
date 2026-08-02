@@ -10,6 +10,7 @@ from __future__ import annotations
 from datetime import datetime, timezone as datetime_timezone
 import math
 import os
+import re
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -85,6 +86,7 @@ SIGN_NAMES = (
     "Aquarius",
     "Pisces",
 )
+ISO_DATETIME_WITH_TIME_RE = re.compile(r"^\d{4}-\d{2}-\d{2}[Tt ]\d{2}:\d{2}")
 
 
 class McpInputError(ValueError):
@@ -175,6 +177,8 @@ def _unique_enum_list(
 
 def _normalized_datetime(value: Any, timezone_name: str, zone: ZoneInfo) -> datetime:
     text = _required_text(value, "datetime", maximum=80)
+    if ISO_DATETIME_WITH_TIME_RE.match(text) is None:
+        raise McpInputError("datetime must be an ISO-8601 date and time")
     try:
         parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
     except ValueError as exc:

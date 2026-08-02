@@ -15,6 +15,12 @@ const {
   createLicensedBackendClient,
 } = require('../main/mcp/licensed-backend-client');
 const { createVoxStellaMcpServer } = require('../main/mcp/server');
+const {
+  MCP_STARTUP_TIMEOUT_SECONDS,
+  buildMcpClientConfigurations,
+  buildMcpSetupStatus,
+  resolveMcpLauncherPath,
+} = require('../main/mcp/setup');
 
 
 function listen(server) {
@@ -63,6 +69,27 @@ test('JSON helper sends bounded POST bodies and parses the response', async () =
 });
 
 
+test('JSON helper aborts an in-flight backend request when MCP is cancelled', async () => {
+  const server = http.createServer(() => {});
+  const port = await listen(server);
+  const controller = new AbortController();
+  try {
+    const pending = requestJson(`http://127.0.0.1:${port}/api/mcp/chart`, {
+      method: 'POST',
+      body: {},
+      signal: controller.signal,
+      timeoutMs: 5000,
+    });
+    controller.abort();
+    const result = await pending;
+    assert.equal(result.ok, false);
+    assert.equal(result.error, 'aborted');
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+
 test('packaging installs the console bridge and broker secrets cannot reach the backend child', () => {
   const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
   const launcher = fs.readFileSync(
@@ -79,11 +106,78 @@ test('packaging installs the console bridge and broker secrets cannot reach the 
   );
   assert.match(launcher, /ELECTRON_RUN_AS_NODE=1/);
   assert.match(launcher, /app\.asar\.unpacked\\main\\mcp\\stdio-bridge\.js/);
+  const bridgeSource = fs.readFileSync(
+    path.join(__dirname, '..', 'main', 'mcp', 'stdio-bridge.js'),
+    'utf8',
+  );
+  assert.match(bridgeSource, /DEFAULT_CONNECT_TIMEOUT_MS = 180000/);
   assert.ok(
     mcpStart.indexOf('delete process.env.VOX_STELLA_MCP_BRIDGE_SECRET') <
       mcpStart.indexOf('backendProc = await startInitialBackend(logDir);'),
     'the one-time bridge secret must be deleted before the backend environment is cloned',
   );
+});
+
+
+test('MCP setup emits direct, quote-safe client configurations and readiness state', () => {
+  const launcherPath = resolveMcpLauncherPath({
+    appIsPackaged: true,
+    executablePath: 'C:\\Program Files\\Vox Stella\\Vox Stella.exe',
+    frontendRoot: path.join(__dirname, '..'),
+  });
+  const configurations = buildMcpClientConfigurations(launcherPath);
+  const json = JSON.parse(configurations.json);
+
+  assert.equal(launcherPath, 'C:\\Program Files\\Vox Stella\\VoxStella-MCP.cmd');
+  assert.deepEqual(json.mcpServers['vox-stella'], { command: launcherPath });
+  assert.doesNotMatch(configurations.json, /cmd\.exe|\"\\\"C:/i);
+  assert.match(configurations.codex, /^command = "C:\\\\Program Files/m);
+  assert.equal(MCP_STARTUP_TIMEOUT_SECONDS, 210);
+
+  const setup = buildMcpSetupStatus({
+    appIsPackaged: true,
+    appVersion: '3.1.10',
+    launcherExists: true,
+    launcherPath,
+    licenseActive: true,
+    platform: 'win32',
+  });
+  assert.equal(setup.ready, true);
+  assert.equal(setup.tools.length, 4);
+  assert.equal(setup.scope.excluded.some((value) => value.includes('transit')), true);
+});
+
+
+test('licensed backend client canonicalizes loopback URLs before attaching a token', async () => {
+  let tokenCalls = 0;
+  const licenseManager = {
+    getToken: async () => { tokenCalls += 1; return 'short-session'; },
+  };
+
+  assert.throws(
+    () => createLicensedBackendClient({
+      apiBaseUrl: 'http://127.0.0.1:123@evil.example',
+      licenseManager,
+    }),
+    /IPv4 loopback/,
+  );
+
+  const call = createLicensedBackendClient({
+    apiBaseUrl: 'http://127.0.0.1:52525',
+    licenseManager,
+    requestJsonImpl: async () => {
+      throw new Error('request must not be reached');
+    },
+  });
+  for (const pathname of [
+    '/api/mcp/../../api/calculate-chart',
+    '/api/mcp/%2F..%2Fapi/calculate-chart',
+    '//evil.example/api/mcp/chart',
+    '/api/mcp/chart?redirect=1',
+  ]) {
+    await assert.rejects(call(pathname, {}), /restricted to \/api\/mcp/);
+  }
+  assert.equal(tokenCalls, 0);
 });
 
 
@@ -202,6 +296,7 @@ test('MCP protocol exposes versioned read-only tools and resources', async () =>
     assert.equal(chartResult.structuredContent.schema_version, 'voxstella.astrology.v1');
     assert.equal(calls.at(-1).pathname, '/api/mcp/chart');
     assert.equal(calls.at(-1).body.house_system_code, 'R');
+    assert.equal(calls.at(-1).options.signal instanceof AbortSignal, true);
 
     const resources = await client.listResources();
     assert.deepEqual(resources.resources.map((resource) => resource.uri), [
@@ -254,6 +349,28 @@ test('stdio entry negotiates the current 2026 protocol and retains legacy fallba
     assert.equal(client.getProtocolEra(), 'modern');
     const toolList = await client.listTools();
     assert.equal(toolList.tools.some((tool) => tool.name === 'calculate_astrological_chart'), true);
+  } finally {
+    await client.close();
+  }
+});
+
+
+test('official Node MCP client can launch the documented direct Windows batch command', {
+  skip: process.platform !== 'win32',
+}, async () => {
+  const client = new Client(
+    { name: 'vox-stella-direct-launch-test', version: '1.0.0' },
+    { versionNegotiation: { mode: 'auto' } },
+  );
+  const transport = new StdioClientTransport({
+    command: path.join(__dirname, 'fixtures', 'mcpDirectLauncher.cmd'),
+    stderr: 'pipe',
+  });
+  await client.connect(transport, { timeout: 10000 });
+  try {
+    assert.equal(client.getProtocolEra(), 'modern');
+    const tools = await client.listTools();
+    assert.equal(tools.tools.length, 4);
   } finally {
     await client.close();
   }

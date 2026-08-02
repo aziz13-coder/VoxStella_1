@@ -30,6 +30,7 @@ import {
 } from './utils/licenseFlow.mjs';
 import ErrorBoundary from './ErrorBoundary.jsx';
 import LicenseActivationSection from './components/LicenseActivationSection.jsx';
+import McpIntegrationSection from './components/McpIntegrationSection.jsx';
 import WhatsNewModal from './components/WhatsNewModal.jsx';
 import AstroClockPage from './features/astroclock/AstroClock.jsx';
 import LostObjectLocationPanel from './features/horary/LostObjectLocationPanel.jsx';
@@ -6679,6 +6680,11 @@ const Settings = ({ darkMode, toggleDarkMode, setCurrentView, apiStatus, onRefre
           electronAPI={window.electronAPI}
           onInvalidateToken={() => LicenseTokenProvider.invalidate()}
           onLicenseChanged={onLicenseChanged}
+        />
+
+        <McpIntegrationSection
+          darkMode={darkMode}
+          electronAPI={typeof window !== 'undefined' ? window.electronAPI : undefined}
         />
 
 

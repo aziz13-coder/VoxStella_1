@@ -129,7 +129,11 @@ function createVoxStellaMcpServer({ appVersion, licensedBackendCall }) {
       idempotentHint: true,
       openWorldHint: false,
     },
-  }, async () => resultContent(await licensedBackendCall('/api/mcp/capabilities', undefined, { method: 'GET' })));
+  }, async (ctx) => resultContent(await licensedBackendCall(
+    '/api/mcp/capabilities',
+    undefined,
+    { method: 'GET', signal: ctx.mcpReq.signal },
+  )));
 
   server.registerTool('calculate_astrological_chart', {
     title: 'Calculate astrological chart',
@@ -146,7 +150,11 @@ function createVoxStellaMcpServer({ appVersion, licensedBackendCall }) {
       idempotentHint: true,
       openWorldHint: false,
     },
-  }, async (args) => resultContent(await licensedBackendCall('/api/mcp/chart', args)));
+  }, async (args, ctx) => resultContent(await licensedBackendCall(
+    '/api/mcp/chart',
+    args,
+    { signal: ctx.mcpReq.signal },
+  )));
 
   server.registerTool('get_current_astrological_positions', {
     title: 'Get current astrological positions',
@@ -162,7 +170,11 @@ function createVoxStellaMcpServer({ appVersion, licensedBackendCall }) {
       idempotentHint: false,
       openWorldHint: false,
     },
-  }, async (args) => resultContent(await licensedBackendCall('/api/mcp/current-positions', args)));
+  }, async (args, ctx) => resultContent(await licensedBackendCall(
+    '/api/mcp/current-positions',
+    args,
+    { signal: ctx.mcpReq.signal },
+  )));
 
   server.registerTool('calculate_planetary_hours', {
     title: 'Calculate planetary hours',
@@ -178,7 +190,11 @@ function createVoxStellaMcpServer({ appVersion, licensedBackendCall }) {
       idempotentHint: false,
       openWorldHint: false,
     },
-  }, async (args) => resultContent(await licensedBackendCall('/api/mcp/planetary-hours', args)));
+  }, async (args, ctx) => resultContent(await licensedBackendCall(
+    '/api/mcp/planetary-hours',
+    args,
+    { signal: ctx.mcpReq.signal },
+  )));
 
   server.registerResource(
     'astrological-capabilities',
@@ -188,9 +204,12 @@ function createVoxStellaMcpServer({ appVersion, licensedBackendCall }) {
       description: 'Versioned calculation parameters supported by this licensed installation.',
       mimeType: 'application/json',
     },
-    async () => resourceContent(
+    async (_uri, ctx) => resourceContent(
       'voxstella://capabilities',
-      await licensedBackendCall('/api/mcp/capabilities', undefined, { method: 'GET' }),
+      await licensedBackendCall('/api/mcp/capabilities', undefined, {
+        method: 'GET',
+        signal: ctx.mcpReq.signal,
+      }),
     ),
   );
 
@@ -202,8 +221,11 @@ function createVoxStellaMcpServer({ appVersion, licensedBackendCall }) {
       description: 'Installed MCP server and calculation schema version.',
       mimeType: 'application/json',
     },
-    async () => {
-      const capabilities = await licensedBackendCall('/api/mcp/capabilities', undefined, { method: 'GET' });
+    async (_uri, ctx) => {
+      const capabilities = await licensedBackendCall('/api/mcp/capabilities', undefined, {
+        method: 'GET',
+        signal: ctx.mcpReq.signal,
+      });
       return resourceContent('voxstella://engine/version', {
         app_version: capabilities.app_version || version,
         schema_version: capabilities.schema_version,

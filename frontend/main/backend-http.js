@@ -8,6 +8,7 @@ function requestJson(requestUrl, {
   httpModule = http,
   maxResponseBytes = DEFAULT_MAX_RESPONSE_BYTES,
   method = 'GET',
+  signal,
   timeoutMs = 2000,
 } = {}) {
   const deadlineMs = Number(timeoutMs);
@@ -32,6 +33,7 @@ function requestJson(requestUrl, {
     let response = null;
     let settled = false;
     let deadlineTimer = null;
+    let abortListener = null;
 
     const finish = (result) => {
       if (settled) return;
@@ -39,6 +41,10 @@ function requestJson(requestUrl, {
       if (deadlineTimer) {
         clearTimeout(deadlineTimer);
         deadlineTimer = null;
+      }
+      if (signal && abortListener) {
+        signal.removeEventListener('abort', abortListener);
+        abortListener = null;
       }
       resolve(result);
     };
@@ -61,6 +67,18 @@ function requestJson(requestUrl, {
     deadlineTimer = setTimeout(() => abortRequest('timeout'), deadlineMs);
     if (typeof deadlineTimer.unref === 'function') {
       deadlineTimer.unref();
+    }
+    if (signal) {
+      if (typeof signal.addEventListener !== 'function' || typeof signal.removeEventListener !== 'function') {
+        finish({ ok: false, error: 'invalid_abort_signal' });
+        return;
+      }
+      abortListener = () => abortRequest('aborted');
+      if (signal.aborted) {
+        abortListener();
+        return;
+      }
+      signal.addEventListener('abort', abortListener, { once: true });
     }
 
     try {

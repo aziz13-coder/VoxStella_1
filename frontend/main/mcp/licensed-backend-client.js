@@ -54,15 +54,58 @@ function createLicensedBackendClient({
   requestJsonImpl = requestJson,
   timeoutMs = DEFAULT_TIMEOUT_MS,
 }) {
-  if (typeof apiBaseUrl !== 'string' || !apiBaseUrl.startsWith('http://127.0.0.1:')) {
+  let canonicalBaseUrl;
+  try {
+    canonicalBaseUrl = new URL(apiBaseUrl);
+  } catch (_) {
+    throw new TypeError('MCP backend URL must be a valid IPv4 loopback URL');
+  }
+  const portNumber = Number(canonicalBaseUrl.port);
+  if (
+    canonicalBaseUrl.protocol !== 'http:' ||
+    canonicalBaseUrl.hostname !== '127.0.0.1' ||
+    canonicalBaseUrl.username ||
+    canonicalBaseUrl.password ||
+    canonicalBaseUrl.pathname !== '/' ||
+    canonicalBaseUrl.search ||
+    canonicalBaseUrl.hash ||
+    !Number.isInteger(portNumber) ||
+    portNumber < 1 ||
+    portNumber > 65535
+  ) {
     throw new TypeError('MCP backend URL must use the IPv4 loopback interface');
   }
   if (!licenseManager || typeof licenseManager.getToken !== 'function') {
     throw new TypeError('licenseManager with getToken() is required');
   }
 
-  return async function licensedBackendCall(pathname, body = undefined, { method = 'POST' } = {}) {
-    if (typeof pathname !== 'string' || !pathname.startsWith('/api/mcp/')) {
+  const canonicalOrigin = canonicalBaseUrl.origin;
+
+  return async function licensedBackendCall(pathname, body = undefined, { method = 'POST', signal } = {}) {
+    let requestUrl;
+    try {
+      requestUrl = new URL(pathname, `${canonicalOrigin}/`);
+    } catch (_) {
+      throw new TypeError('MCP backend path must be a valid URL pathname');
+    }
+    let decodedPathname;
+    try {
+      decodedPathname = decodeURIComponent(requestUrl.pathname);
+    } catch (_) {
+      throw new TypeError('MCP backend path must use valid URL encoding');
+    }
+    const decodedSegments = decodedPathname.split('/');
+    if (
+      typeof pathname !== 'string' ||
+      requestUrl.origin !== canonicalOrigin ||
+      requestUrl.username ||
+      requestUrl.password ||
+      requestUrl.search ||
+      requestUrl.hash ||
+      !requestUrl.pathname.startsWith('/api/mcp/') ||
+      !decodedPathname.startsWith('/api/mcp/') ||
+      decodedSegments.some((segment) => segment === '.' || segment === '..')
+    ) {
       throw new TypeError('MCP backend calls are restricted to /api/mcp/*');
     }
     // Deliberately mint/refresh immediately before every request. Durable
@@ -74,11 +117,12 @@ function createLicensedBackendClient({
         'The Vox Stella license is inactive, expired, or requires verification.',
       );
     }
-    const response = await requestJsonImpl(new URL(`${apiBaseUrl}${pathname}`), {
+    const response = await requestJsonImpl(requestUrl, {
       body,
       headers: { 'X-License-Token': sessionToken },
       maxResponseBytes,
       method,
+      signal,
       timeoutMs,
     });
     if (response.statusCode === 402 || response.statusCode === 403) {

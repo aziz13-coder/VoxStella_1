@@ -13,7 +13,14 @@ const { spawn } = require('node:child_process');
 
 
 const HANDSHAKE_PROTOCOL = 'vox-stella-mcp-bridge-v1';
-const CONNECT_TIMEOUT_MS = 60000;
+// Packaged backend startup intentionally permits three 45-second readiness
+// attempts. Keep the console bridge alive long enough for that retry contract,
+// plus license initialization and the final named-pipe connection.
+const DEFAULT_CONNECT_TIMEOUT_MS = 180000;
+const configuredConnectTimeoutMs = Number(process.env.VOX_STELLA_MCP_CONNECT_TIMEOUT_MS);
+const CONNECT_TIMEOUT_MS = Number.isFinite(configuredConnectTimeoutMs) && configuredConnectTimeoutMs >= 60000
+  ? Math.floor(configuredConnectTimeoutMs)
+  : DEFAULT_CONNECT_TIMEOUT_MS;
 const MAX_HANDSHAKE_BYTES = 4096;
 
 

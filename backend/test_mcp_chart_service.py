@@ -69,6 +69,21 @@ def test_calculate_chart_requires_explicit_coordinates_and_timezone():
             service.calculate_chart(payload)
 
 
+@pytest.mark.parametrize("timestamp", ["2026-08-01", "20260801"])
+def test_mcp_datetime_rejects_date_only_values(timestamp):
+    with pytest.raises(service.McpInputError, match="ISO-8601 date and time"):
+        service.calculate_chart({**JERUSALEM_CHART, "datetime": timestamp})
+
+    planetary_payload = {
+        key: value
+        for key, value in JERUSALEM_CHART.items()
+        if key != "house_system_code"
+    }
+    planetary_payload["datetime"] = timestamp
+    with pytest.raises(service.McpInputError, match="ISO-8601 date and time"):
+        service.calculate_planetary_hours(planetary_payload)
+
+
 @pytest.mark.parametrize(
     ("timestamp", "message"),
     [

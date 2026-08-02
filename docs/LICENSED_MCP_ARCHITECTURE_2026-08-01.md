@@ -81,11 +81,15 @@ Packaged Electron is a Windows GUI-subsystem executable and does not reliably re
 
 The two processes communicate through a random per-launch Windows named pipe authenticated by a 256-bit one-time secret delivered only in the broker child's environment and deleted after startup validation. The bridge only forwards MCP bytes and never reads license storage or receives a backend license token. Electron still performs the license-first startup and per-call token minting. MCP logs remain on stderr.
 
+The bridge allows 180 seconds for the licensed broker to connect. This covers license initialization, all three packaged backend readiness attempts (up to 45 seconds each), and the final pipe connection. Client examples use a 210-second startup timeout so the host does not expire first.
+
 ### Backend gate
 
 All `/api/mcp/*` routes are included in `PROTECTED_ENDPOINT_PREFIXES`. Flask rejects a request before its route handler when the local session is missing, malformed, expired, overlong, or bound to another device.
 
-The backend binds only to `127.0.0.1`. The MCP bridge can call only `/api/mcp/*`; it cannot be used as a general authenticated proxy into other Vox Stella endpoints.
+The backend binds only to `127.0.0.1`. The MCP bridge can call only `/api/mcp/*`; it cannot be used as a general authenticated proxy into other Vox Stella endpoints. The client parses and canonicalizes the base URL and final request URL before minting or attaching a local license session. It rejects credentials, non-loopback hosts, missing or invalid ports, query strings, fragments, encoded traversal, and normalized paths outside `/api/mcp/*`.
+
+MCP request cancellation is propagated from the SDK handler context into the local HTTP request. Cancellation destroys the pending bridge request immediately instead of waiting for its 30-second deadline.
 
 ### Development behavior
 
@@ -125,6 +129,8 @@ All calculation tools require:
 
 `calculate_astrological_chart` additionally requires `datetime`. It accepts ISO-8601 timestamps with offsets. A timestamp without an offset is interpreted as local civil time in the supplied IANA timezone, with nonexistent daylight-saving wall times rejected.
 
+A date without a time component is rejected. Vox Stella never silently interprets `YYYY-MM-DD` as midnight because that produces a plausible but unintended chart.
+
 ### House systems
 
 The default is Regiomontanus (`R`). Supported codes are:
@@ -150,7 +156,9 @@ The response schema is `voxstella.astrology.v1`. Numeric longitudes and speeds r
 
 ## Client configuration
 
-On Windows, use the installed `VoxStella-MCP.cmd` launcher as the MCP command. Do not point a client directly at `Vox Stella.exe` because a GUI-subsystem process may lose stdin, and do not point it at `horary_backend.exe`; direct backend access has no durable-license authority and is intentionally rejected.
+On Windows, use the installed `VoxStella-MCP.cmd` launcher directly as the MCP command. Do not wrap it in `cmd.exe /c`: several Node-based MCP hosts escape embedded quotes literally when the installation path contains spaces. Do not point a client directly at `Vox Stella.exe` because a GUI-subsystem process may lose stdin, and do not point it at `horary_backend.exe`; direct backend access has no durable-license authority and is intentionally rejected.
+
+The installed application exposes the tested configuration in **Settings → Model Context Protocol (MCP)**. That surface reports launcher/license readiness, lists the exact tools, copies JSON or Codex configuration, opens the launcher folder, and documents the data boundary.
 
 Replace the command with the actual installation path chosen by the user.
 
@@ -160,13 +168,7 @@ Replace the command with the actual installation path chosen by the user.
 {
   "mcpServers": {
     "vox-stella": {
-      "command": "C:\\Windows\\System32\\cmd.exe",
-      "args": [
-        "/d",
-        "/s",
-        "/c",
-        "\"C:\\Users\\YOUR_USER\\AppData\\Local\\Programs\\Vox Stella\\VoxStella-MCP.cmd\""
-      ]
+      "command": "C:\\Users\\YOUR_USER\\AppData\\Local\\Programs\\Vox Stella\\VoxStella-MCP.cmd"
     }
   }
 }
@@ -176,9 +178,8 @@ Replace the command with the actual installation path chosen by the user.
 
 ```toml
 [mcp_servers.vox_stella]
-command = 'C:\Windows\System32\cmd.exe'
-args = ['/d', '/s', '/c', '"C:\Users\YOUR_USER\AppData\Local\Programs\Vox Stella\VoxStella-MCP.cmd"']
-startup_timeout_sec = 60
+command = "C:\\Users\\YOUR_USER\\AppData\\Local\\Programs\\Vox Stella\\VoxStella-MCP.cmd"
+startup_timeout_sec = 210
 tool_timeout_sec = 120
 ```
 
@@ -203,9 +204,11 @@ Activate Vox Stella normally in the desktop application before the first MCP lau
 | `frontend/main/license.js` | Encrypted durable token ownership and local session minting |
 | `frontend/main/mcp/server.js` | MCP v2 tools, resources, Zod schemas, stdio era negotiation |
 | `frontend/main/mcp/licensed-backend-client.js` | Fresh-token-per-call policy and restricted backend client |
+| `frontend/main/mcp/setup.js` | Quote-safe client configuration, readiness state, and advertised scope |
 | `frontend/main/mcp/stdio-bridge.js` | Windows console stdio to authenticated named-pipe proxy |
 | `frontend/packaging/VoxStella-MCP.cmd` | Installed MCP launcher |
 | `frontend/main/backend-http.js` | Deadline, response-size, GET/POST JSON transport |
+| `frontend/src/components/McpIntegrationSection.jsx` | Customer-facing Settings setup, status, tools, and privacy boundary |
 | `backend/app.py` | Global license middleware and MCP blueprint registration |
 | `backend/mcp_api.py` | Private licensed HTTP routes |
 | `backend/mcp_chart_service.py` | Public input validation, engine invocation, compact versioned output |
@@ -218,6 +221,10 @@ Run the focused tests:
 python -m pytest -q backend/test_mcp_chart_service.py backend/test_mcp_api.py backend/test_planetary_hours.py
 Set-Location frontend
 node --test tests/electronRuntimeSecurity.test.cjs tests/mcpServer.test.cjs
+npx vitest run --config vitest.config.mjs src/tests/mcpIntegrationSection.test.jsx
+
+Set-Location ..\website-source
+npm run test:mcp
 ```
 
 The test coverage includes:
@@ -230,8 +237,14 @@ The test coverage includes:
 - no token detail in MCP license errors;
 - Zod rejection before backend invocation;
 - MCP tools/resources through an in-memory client;
-- a real child-process stdio negotiation proving the 2026 protocol path while legacy fallback remains enabled; and
-- a Windows console-bridge round trip through an authenticated private broker pipe.
+- a real child-process stdio negotiation proving the 2026 protocol path while legacy fallback remains enabled;
+- a Windows console-bridge round trip through an authenticated private broker pipe;
+- direct `.cmd` startup through the official Node MCP client;
+- canonical URL and path-boundary rejection before token minting;
+- cancellation of an in-flight backend request;
+- date-only timestamp rejection;
+- rendered Settings setup and copy interactions; and
+- public Streamable HTTP protocol-version and server-card conformance.
 
 Before a release, also run the full backend/frontend suites, package only through `package-app-new.bat`, then test the packaged executable in these states:
 
@@ -243,7 +256,7 @@ Before a release, also run the full backend/frontend suites, package only throug
 
 ## Deliberate non-goals for the first release
 
-- No remote Streamable HTTP endpoint.
+- No remote Streamable HTTP endpoint for the licensed calculation engine. The separate website endpoint exposes public discovery resources only.
 - No API keys separate from the Vox Stella device license.
 - No activation, purchase, deactivation, or license-status tools.
 - No file, snap, notebook, or user-data access.

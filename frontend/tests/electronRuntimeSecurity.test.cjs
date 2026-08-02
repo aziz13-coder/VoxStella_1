@@ -560,10 +560,16 @@ test('preload bridge is exposed only to the main frame and routes sensitive call
   assert.equal(Object.isFrozen(api), true);
   await api.openPayPalCheckout('https://attacker.example/override');
   await api.openExternal('https://example.com');
+  await api.getMcpSetup();
+  await api.copyMcpConfig('json');
+  await api.openMcpLauncherFolder();
   await api.exportReport({ html: '<p>safe</p>' });
   assert.deepEqual(main.invocations.map((entry) => entry.channel), [
     'license:open-paypal-checkout',
     'shell:open-external',
+    'mcp:get-setup',
+    'mcp:copy-config',
+    'mcp:open-launcher-folder',
     'report:export',
   ]);
   assert.deepEqual(main.invocations[0].args, []);
