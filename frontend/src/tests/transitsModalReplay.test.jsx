@@ -102,6 +102,9 @@ function makeSingleTransitResponse({
   keywords,
   predictionTags,
   significance,
+  orb = 0.24,
+  longitudeOrb,
+  orbBasis,
   tone = 'positive',
   revolutions = null,
   evidenceLevel = null,
@@ -134,7 +137,9 @@ function makeSingleTransitResponse({
           target_label: targetLabel,
           natal: targetLabel,
           aspect,
-          orb: 0.24,
+          orb,
+          longitude_orb: longitudeOrb,
+          orb_basis: orbBasis,
           phase: 'applying',
           direction: 'sinister',
           effectiveWindow: {
@@ -533,6 +538,47 @@ describe('TransitsModal replay rendering', () => {
     expect(endTime.className).toContain('min-w-[7.5rem]');
     expect(screen.getByRole('button', { name: 'Compute Exact Time' })).toBeInTheDocument();
     expect(screen.getByText(/compute the exact time entered above or click a peak below/i)).toBeInTheDocument();
+  });
+
+  it('distinguishes Morin 3D orb from longitude exactness in exact results', async () => {
+    astroClockApiMock.getTransits.mockResolvedValue(
+      makeSingleTransitResponse({
+        natalLocation: 'Tehran, Iran',
+        timezone: 'Asia/Tehran',
+        transitTimestamp: '2026-11-18T10:10:00+03:30',
+        transiting: 'Mars',
+        targetLabel: 'Mars',
+        aspect: 'Conjunction',
+        lifeArea: 'action',
+        eventType: 'activation',
+        description: 'Longitude is exact while the latitude-aware contact remains wider.',
+        significance: 70,
+        orb: 0.7278,
+        longitudeOrb: 0.0003,
+        orbBasis: 'great_circle_3d',
+      })
+    );
+
+    const { container } = render(
+      <TransitsModal open={true} onClose={() => {}} defaultHouseSystem="W" />
+    );
+    fillManualInputs(container, {
+      natalDate: '1990-01-01',
+      natalTime: '12:00',
+      natalLocation: 'Tehran, Iran',
+      natalTimezone: 'Asia/Tehran',
+      transitDate: '2026-11-18',
+      transitTime: '10:10',
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Compute Exact Time' }));
+
+    expect(await screen.findByText(/Morin 3D orb includes celestial latitude/i)).toBeInTheDocument();
+    expect(screen.getByText(/3D 0\.73/)).toBeInTheDocument();
+    expect(screen.getByText(/Lon 0\.00/)).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Orbs' })).toHaveAttribute(
+      'title',
+      expect.stringMatching(/great-circle distance/i),
+    );
   });
 
   it('labels a low-concordance event token as a theme rather than a prediction', async () => {

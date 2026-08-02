@@ -507,7 +507,21 @@ test('every licensed feature tool accepts its documented minimal explicit input'
       assert.equal(result.structuredContent.mcp_schema_version, 'voxstella.features.v1');
       assert.equal(result.structuredContent.feature_tool, name);
     }
-    assert.equal(calls.length, featureCalls.length);
+    const exactTransitCall = calls.find((call) => call.pathname === '/api/astro-clock/transits');
+    const windowTransitCall = calls.find((call) => call.pathname === '/api/astro-clock/transits/window');
+    assert.equal(exactTransitCall.options.query.response_detail, 'compact');
+    assert.equal(windowTransitCall.options.query.response_detail, 'compact');
+
+    await client.callTool({
+      name: 'analyze_transits',
+      arguments: {
+        ...natal,
+        transit_datetime: '2026-08-01T12:00:00+03:00',
+        detail_level: 'full',
+      },
+    });
+    assert.equal(calls.at(-1).options.query.response_detail, 'full');
+    assert.equal(calls.length, featureCalls.length + 1);
   } finally {
     await client.close();
   }

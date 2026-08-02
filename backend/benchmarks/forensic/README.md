@@ -23,6 +23,17 @@ python backend\forensic_statistical_benchmark_runner.py `
   --dataset tests\fixtures\forensic_recent_documentaries_2025_2026_cases.json
 ```
 
+Run the source-mapped Idaho fact comparison, including the full official event
+window sensitivity check:
+
+```powershell
+python backend\forensic_idaho_benchmark_runner.py
+python backend\forensic_idaho_benchmark_runner.py --json
+```
+
+The Idaho hard score intentionally excludes relationship, motive, witness, and
+deception/cover-up claims that the benchmark sources do not establish.
+
 ## Forensic house-system default
 
 Compare all eight supported systems on declared development data:

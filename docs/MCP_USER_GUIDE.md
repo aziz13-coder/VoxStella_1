@@ -52,6 +52,8 @@ Synastry accepts two explicit chart objects and does not create or read saved ch
 
 Transit, Election, Astrocartography atlas, and Certification calculations are bounded. MCP defaults to compact outputs where the desktop workflow offers a series toggle; callers must deliberately request larger series data.
 
+`analyze_transits` and `scan_transit_window` default to `detail_level: summary`. This keeps the meaningful transit, prediction, dual-orb, and timing fields while omitting repeated direction and revolution internals that can exceed an MCP client's response limit. Use `detail_level: full` only when those diagnostic internals are required.
+
 Ranked Astrocartography atlas searches require a canonical `goal_id` (for example `love`, `career`, `home`, `education`, or `travel_relax`). Their resolution is one of `coarse`, `standard`, `fine`, or `ultra`, and each call returns at most 20 ranked locations.
 
 ## Deliberate boundary

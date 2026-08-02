@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from pathlib import Path
+import json
 import os
 import sys
 
@@ -157,6 +158,57 @@ def test_prediction_payload_distinguishes_rule_support_from_probability():
     assert prediction["is_statistical_probability"] is False
     assert prediction["evidence_level"] == "theme_only"
     assert prediction["is_event_prediction"] is False
+
+
+def test_compact_transit_payload_keeps_orb_evidence_and_drops_heavy_context():
+    heavy_matches = [{"description": "x" * 500}] * 200
+    hit = {
+        "transiting": "Mars",
+        "natal": "Mars",
+        "target_label": "Mars",
+        "target_type": "planet",
+        "aspect": "Conjunction",
+        "orb": 0.7278,
+        "orb_basis": "great_circle_3d",
+        "longitude_orb": 0.0003,
+        "effectiveWindow": {
+            "start": "2026-11-17T06:40:00+00:00",
+            "end": "2026-11-19T06:40:00+00:00",
+            "timing_reference": "ecliptic_longitude",
+        },
+        "concordance": {
+            "overall_score": 120.0,
+            "direction_matches": heavy_matches,
+        },
+        "prediction": {
+            "label": "Mars Conjunction Mars",
+            "description": "Activation",
+            "eventType": "activation",
+            "private_payload": heavy_matches,
+        },
+    }
+    row = {
+        "timestamp": "2026-11-18T06:40:00+00:00",
+        "count": 1,
+        "top": [hit],
+        "_prediction_hits": [hit] * 20,
+        "predictions": [
+            {
+                "label": "Mars Conjunction Mars",
+                "event_type": "activation",
+                "factors": {"transit": "Mars Conjunction Mars", "laws": heavy_matches},
+            }
+        ],
+    }
+
+    compact = astro_clock_api._compact_transit_series_row(row)
+
+    assert compact["top"][0]["orb_basis"] == "great_circle_3d"
+    assert compact["top"][0]["longitude_orb"] == 0.0003
+    assert "direction_matches" not in compact["top"][0]["concordance"]
+    assert "private_payload" not in compact["top"][0]["prediction"]
+    assert "_prediction_hits" not in compact
+    assert len(json.dumps(compact)) < len(json.dumps(row)) / 20
 
 
 def test_retry_enrichment_restores_request_history_before_fallback(monkeypatch):
@@ -487,12 +539,14 @@ def test_exact_transits_route_applies_serialized_filters(monkeypatch):
             "transiting": "Saturn",
             "natal": "Sun",
             "aspect": "Square",
+            "response_detail": "compact",
         },
     )
     payload = response.get_json()
 
     assert response.status_code == 200
     assert payload["success"] is True
+    assert payload["data"]["response_detail"] == "compact"
     rows = payload["data"]["transits"]
     assert len(rows) == 1
     assert rows[0]["transiting"] == "Saturn"

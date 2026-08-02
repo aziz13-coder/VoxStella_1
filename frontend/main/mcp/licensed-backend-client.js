@@ -20,11 +20,11 @@ const FEATURE_ROUTE_RULES = Object.freeze({
   },
   '/api/astro-clock/transits': {
     methods: ['GET'],
-    query: ['natal_snap_id', 'natal_datetime', 'natal_location', 'natal_timezone', 'house_system_code', 'latitude', 'longitude', 'transit_datetime', 'include_modern', 'include_natal_modern', 'include_cusps', 'include_antiscia', 'include_lots', 'focus_house', 'focus_planet', 'sensitive_house', 'sensitive_planet', 'transiting', 'natal', 'aspect', 'pd_start', 'pd_end', 'prog_start', 'prog_end', 'sa_start', 'sa_end', 'sig_beta'],
+    query: ['natal_snap_id', 'natal_datetime', 'natal_location', 'natal_timezone', 'house_system_code', 'latitude', 'longitude', 'transit_datetime', 'include_modern', 'include_natal_modern', 'include_cusps', 'include_antiscia', 'include_lots', 'focus_house', 'focus_planet', 'sensitive_house', 'sensitive_planet', 'transiting', 'natal', 'aspect', 'pd_start', 'pd_end', 'prog_start', 'prog_end', 'sa_start', 'sa_end', 'sig_beta', 'response_detail'],
   },
   '/api/astro-clock/transits/window': {
     methods: ['GET'],
-    query: ['natal_snap_id', 'natal_datetime', 'natal_location', 'natal_timezone', 'house_system_code', 'latitude', 'longitude', 'start', 'end', 'center', 'range_hours', 'step_minutes', 'include_modern', 'include_natal_modern', 'include_cusps', 'include_antiscia', 'include_lots', 'focus_house', 'focus_planet', 'sensitive_house', 'sensitive_planet', 'transiting', 'natal', 'aspect', 'pd_start', 'pd_end', 'prog_start', 'prog_end', 'sa_start', 'sa_end', 'sig_beta'],
+    query: ['natal_snap_id', 'natal_datetime', 'natal_location', 'natal_timezone', 'house_system_code', 'latitude', 'longitude', 'start', 'end', 'center', 'range_hours', 'step_minutes', 'include_modern', 'include_natal_modern', 'include_cusps', 'include_antiscia', 'include_lots', 'focus_house', 'focus_planet', 'sensitive_house', 'sensitive_planet', 'transiting', 'natal', 'aspect', 'pd_start', 'pd_end', 'prog_start', 'prog_end', 'sa_start', 'sa_end', 'sig_beta', 'response_detail'],
   },
   '/api/astro-clock/astrocartography/location': {
     methods: ['GET'],

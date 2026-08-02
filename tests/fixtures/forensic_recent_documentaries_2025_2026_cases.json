@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-01T00:00:00+03:00",
+  "generated_at": "2026-08-02T00:00:00+03:00",
   "evaluation_role": "development",
   "purpose": "Independent source-backed development cases from recent documentaries. Documentary pages establish the title and release; official court, police, transportation-safety, and government records establish each event anchor and hard outcome.",
   "benchmark_policy": {
@@ -41,6 +41,27 @@
       "title": "Plea Agreement, State of Idaho v. Bryan C. Kohberger",
       "url": "https://coi.isc.idaho.gov/docs/CR01-24-31665/2025/070225%2BPlea%2BAgreement.pdf",
       "supports": "The July 2, 2025 agreement records guilty pleas to one burglary count and four first-degree murder counts."
+    },
+    {
+      "id": "idaho_court_case_summary",
+      "kind": "official_court_record",
+      "title": "Current Case Summary, State of Idaho v. Bryan C. Kohberger",
+      "url": "https://coi.isc.idaho.gov/docs/CR01-24-31665/Summary/Current-Case-Summary.pdf",
+      "supports": "The current official case summary records guilty dispositions on one burglary count and four first-degree murder counts and the July 23, 2025 sentences."
+    },
+    {
+      "id": "moscow_police_homicide_facts",
+      "kind": "official_law_enforcement_record",
+      "title": "Moscow Homicide Update, December 12, 2022",
+      "url": "https://www.ci.moscow.id.us/CivicSend/ViewMessage/message/188862",
+      "supports": "The official investigative timeline records two surviving roommates, four victims found inside 1122 King Road, and the coroner's determination of homicide by stabbing."
+    },
+    {
+      "id": "moscow_police_victim_ages",
+      "kind": "official_law_enforcement_record",
+      "title": "City of Moscow Homicide Victims",
+      "url": "https://www.ci.moscow.id.us/CivicSend/ViewMessage/Message/186660",
+      "supports": "The official release identifies the four deceased University of Idaho students and gives their ages as 20, 20, 21, and 21."
     },
     {
       "id": "moscow_police_king_road_outcome",
@@ -116,6 +137,9 @@
         "idaho_court_homicide_window",
         "idaho_court_surviving_roommates_order",
         "idaho_court_plea_agreement",
+        "idaho_court_case_summary",
+        "moscow_police_homicide_facts",
+        "moscow_police_victim_ages",
         "moscow_police_king_road_outcome",
         "moscow_kohberger_sentencing_outcome"
       ],
@@ -156,6 +180,7 @@
         "event_time_window_local": "04:00-04:25",
         "scene": "occupied off-campus residence at 1122 King Road",
         "cause_and_manner": "four homicide deaths by stabbing",
+        "victim_ages": [20, 20, 21, 21],
         "surviving_roommates": 2,
         "observation_context": "one surviving roommate reported seeing a masked person inside the house",
         "eyewitness_to_killings_established": false
@@ -166,8 +191,7 @@
         "known_scene_markers": ["occupied residence", "four adult victims", "edged-weapon wounds", "two surviving roommates", "reported masked-person sighting"]
       },
       "expected_primary_axes": ["violence_homicide"],
-      "contradictory_axes": ["accident_or_disaster", "water_disappearance_or_drowning", "domestic_partner_involvement", "family_involvement", "child_victim"],
-      "expected_relationship_labels": ["stranger_public"],
+      "contradictory_axes": ["accident_or_disaster", "water_disappearance_or_drowning", "abduction_missing_person", "child_victim"],
       "relationship_target": {
         "confidence": "limited",
         "meaning": "No intimate-partner, family, or friend relationship is established in the benchmark sources. This broad label does not assert motive, random selection, or the absence of every prior contact."
@@ -175,8 +199,47 @@
       "comparison_policy": {
         "hard_scored_outputs": ["violence_homicide", "explicit_contradictory_axes", "survivability_outcome_direction"],
         "secondary_observations": ["relationship_status"],
-        "unscored_outputs": ["deception_coverup", "accomplice_or_witness", "motive", "exact_individual_death_time", "direction_or_distance"]
+        "unscored_outputs": ["deception_coverup", "accomplice_or_witness", "domestic_partner_involvement", "family_involvement", "friend_or_close_associate", "motive", "exact_individual_death_time", "direction_or_distance"],
+        "notes": "An unestablished relationship is unknown, not a verified negative. Relationship labels therefore remain observations and are excluded from the hard score."
       },
+      "fact_checks": [
+        {
+          "id": "homicide_event_family",
+          "fact": "The documented event was a four-victim stabbing homicide.",
+          "source_ids": ["moscow_police_homicide_facts", "idaho_court_case_summary"],
+          "engine_assertion": {"kind": "axis_present", "axis": "violence_homicide"}
+        },
+        {
+          "id": "not_accident_or_disaster",
+          "fact": "The documented event family was intentional homicide, not an accident or disaster.",
+          "source_ids": ["moscow_police_homicide_facts", "idaho_court_case_summary"],
+          "engine_assertion": {"kind": "axis_absent", "axis": "accident_or_disaster"}
+        },
+        {
+          "id": "not_water_or_drowning",
+          "fact": "The victims were found in the residence and the documented cause and manner was homicide by stabbing, not a water event.",
+          "source_ids": ["moscow_police_homicide_facts"],
+          "engine_assertion": {"kind": "axis_absent", "axis": "water_disappearance_or_drowning"}
+        },
+        {
+          "id": "not_abduction_or_missing_person",
+          "fact": "The four victims were found inside the residence; this benchmark event was not an abduction or missing-person event.",
+          "source_ids": ["moscow_police_homicide_facts"],
+          "engine_assertion": {"kind": "axis_absent", "axis": "abduction_missing_person"}
+        },
+        {
+          "id": "no_child_victim",
+          "fact": "The four victims were ages 20, 20, 21, and 21.",
+          "source_ids": ["moscow_police_victim_ages"],
+          "engine_assertion": {"kind": "axis_absent", "axis": "child_victim"}
+        },
+        {
+          "id": "fatal_outcome_direction",
+          "fact": "All four members of the direct-victim group died.",
+          "source_ids": ["moscow_police_homicide_facts", "idaho_court_case_summary"],
+          "engine_assertion": {"kind": "survivability_matches_expected"}
+        }
+      ],
       "expected_survivability": {
         "levels": ["Lower"],
         "bands": ["fatal_pressure_dominant"]

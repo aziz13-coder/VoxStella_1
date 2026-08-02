@@ -79,3 +79,9 @@ Different orb values between standard mode and Morin mode are expected.
 - Morin mode uses Morin-style corrected rays and combined moieties.
 
 So the same named aspect can legitimately have a different orb in Morin mode than it has in standard mode. That is not the bug fixed here.
+
+Transit results make that distinction explicit:
+
+- `orb` is the Morin latitude-aware great-circle distance and carries `orb_basis: great_circle_3d`.
+- `longitude_orb` is the conventional zodiacal aspect distance in ecliptic longitude.
+- `effectiveWindow` is centered from `longitude_orb`, because latitude separation can keep a valid Morin 3D contact from ever reaching zero. Its `timing_reference` is `ecliptic_longitude`.

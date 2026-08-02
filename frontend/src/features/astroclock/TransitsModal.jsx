@@ -3971,6 +3971,9 @@ export default function TransitsModal({
                 Show enriched tokens
               </label>
             </div>
+            <p className="mb-2 text-[11px] text-zinc-600">
+              Morin 3D orb includes celestial latitude. Longitude orb marks zodiacal exactness and drives the timing estimate.
+            </p>
             <div className="max-h-80 overflow-auto border rounded-lg">
               <table className="w-full text-sm">
               <thead className="bg-zinc-50">
@@ -3978,12 +3981,17 @@ export default function TransitsModal({
                   <th className="text-left p-2">Transiting</th>
                   <th className="text-left p-2">Target</th>
                   <th className="text-left p-2">Aspect</th>
-                  <th className="text-right p-2">Orb</th>
+                  <th
+                    className="text-right p-2"
+                    title="3D is Morin great-circle distance; Lon is conventional ecliptic-longitude orb"
+                  >
+                    Orbs
+                  </th>
                   <th className="text-left p-2">Phase</th>
                   <th className="text-left p-2">Dir.</th>
                   <th
                     className="text-left p-2"
-                    title="Estimated partile activation: Moon ±6 hours; other planets ±1 day"
+                    title="Estimated from longitude exactness: Moon ±6 hours; other planets ±1 day"
                   >
                     Timing
                   </th>
@@ -4006,7 +4014,12 @@ export default function TransitsModal({
                       <span className={targetColor(row)}>{renderTargetLabel(row)}</span>
                     </td>
                     <td className="p-2">{aspectSymbol(row.aspect)} {row.aspect}</td>
-                    <td className="p-2 text-right">{degText(row.orb)}</td>
+                    <td className="p-2 text-right whitespace-nowrap">
+                      <div>3D {degText(row.orb)}</div>
+                      {finiteNumberOrUndefined(row.longitude_orb) !== undefined ? (
+                        <div className="text-[10px] text-zinc-500">Lon {degText(row.longitude_orb)}</div>
+                      ) : null}
+                    </td>
                     <td className="p-2">{row.phase}</td>
                     <td className="p-2">{row.direction}</td>
                     <td className="p-2 text-xs text-zinc-600">

@@ -193,6 +193,12 @@ def _classify_quality(transiting: str, aspect: str) -> str:
     return 'mixed'
 
 
+def _longitude_aspect_orb(lon_a: float, lon_b: float, aspect_angle: float) -> float:
+    """Return conventional zodiacal orb for an aspect in ecliptic longitude."""
+    separation = abs(((_norm360(float(lon_a) - float(lon_b)) + 180.0) % 360.0) - 180.0)
+    return abs(separation - abs(float(aspect_angle)))
+
+
 def _estimate_effective_window(
     ts_iso: str,
     sep_now: float,
@@ -201,11 +207,14 @@ def _estimate_effective_window(
     max_orb: float,
     transiting: Optional[str] = None,
 ) -> Optional[Dict[str, str]]:
-    """Estimate Morin's partile activation window around an exact transit.
+    """Estimate Morin's partile activation window around longitude exactness.
 
     Book 24, chapter 13 gives the Moon six hours before and after the
     partile transit and the other planets one day before and after.  The
-    exact instant is estimated from the local separation slope.  A nearly
+    exact instant is estimated from the local longitude-orb slope.  The
+    caller must supply longitude aspect orbs rather than the latitude-aware
+    great-circle distance used to qualify Morin hits: a 3D distance may
+    never reach zero when the bodies have different latitudes.  A nearly
     stationary separation has no defensible linear exact-time estimate, so
     it returns ``None`` instead of inventing an arbitrary window.
 
@@ -241,6 +250,7 @@ def _estimate_effective_window(
             'end': (center + half_width).isoformat(),
             'exact_estimate': center.isoformat(),
             'basis': 'morin_partile_activation',
+            'timing_reference': 'ecliptic_longitude',
         }
     except Exception:
         return None
@@ -1969,12 +1979,16 @@ def compute_morin_transits_to_natal(
 
                 # Meta
                 natal_house = tmeta.get('natal_house')
+                longitude_orb = _longitude_aspect_orb(lonA, lonB, ang)
+                longitude_orb_future = _longitude_aspect_orb(lonA2, lonB, ang)
 
                 row = {
                     'transiting': A,
                     'natal': B,
                     'aspect': label,
                     'orb': round(float(sep), 4),
+                    'orb_basis': 'great_circle_3d',
+                    'longitude_orb': round(float(longitude_orb), 4),
                     'max_orb': round(float(combined), 4),
                     'partile': bool(partile),
                     'bodily_contact': bool(bodily_contact),
@@ -2002,8 +2016,8 @@ def compute_morin_transits_to_natal(
                 try:
                     row['effectiveWindow'] = _estimate_effective_window(
                         transit_timestamp_iso,
-                        float(sep),
-                        float(sep_future),
+                        float(longitude_orb),
+                        float(longitude_orb_future),
                         float(dt_days),
                         float(combined),
                         A,
@@ -6611,11 +6625,15 @@ def _compute_hits_with_ctx(
                     phase = 'stationary'
 
                 natal_house = tmeta.get('natal_house')
+                longitude_orb = _longitude_aspect_orb(lonA, lonB, ang)
+                longitude_orb_future = _longitude_aspect_orb(lonA2, lonB, ang)
                 row = {
                     'transiting': A,
                     'natal': B,
                     'aspect': label,
                     'orb': round(float(sep), 4),
+                    'orb_basis': 'great_circle_3d',
+                    'longitude_orb': round(float(longitude_orb), 4),
                     'max_orb': round(float(combined), 4),
                     'partile': bool(partile),
                     'bodily_contact': bool(bodily_contact),
@@ -6628,6 +6646,12 @@ def _compute_hits_with_ctx(
                     'target_type': ttype,
                     'target_label': B,
                     'natal_house': natal_house,
+                    'transit_longitude': _norm360(float(lonA)),
+                    'transit_latitude': float(latA),
+                    'transit_sign': _sign_from_lon(lonA),
+                    'target_longitude': _norm360(float(lonB)),
+                    'target_latitude': float(latB),
+                    'target_sign': _sign_from_lon(lonB),
                 }
                 # Quality & effective window
                 try:
@@ -6637,8 +6661,8 @@ def _compute_hits_with_ctx(
                 try:
                     row['effectiveWindow'] = _estimate_effective_window(
                         transit_timestamp_iso,
-                        float(sep),
-                        float(sep_future),
+                        float(longitude_orb),
+                        float(longitude_orb_future),
                         float(dt_days),
                         float(combined),
                         A,

@@ -68,6 +68,7 @@ const NATAL_FIELDS = {
 };
 
 const TRANSIT_OPTIONS = {
+  detail_level: z.enum(['summary', 'full']).default('summary'),
   include_modern: z.boolean().default(false),
   include_natal_modern: z.boolean().default(false),
   include_cusps: z.boolean().default(false),
@@ -144,7 +145,7 @@ function queryFrom(args, {
 }
 
 function transitQuery(args) {
-  return queryFrom(args, {
+  const query = queryFrom(args, {
     aliases: {
       focus_houses: 'focus_house',
       focus_planets: 'focus_planet',
@@ -162,7 +163,10 @@ function transitQuery(args) {
       'include_modern', 'include_natal_modern', 'include_cusps',
       'include_antiscia', 'include_lots', 'sig_beta',
     ],
+    omit: ['detail_level'],
   });
+  query.response_detail = args?.detail_level === 'full' ? 'full' : 'compact';
+  return query;
 }
 
 function astrocartographyQuery(args, extra = {}) {

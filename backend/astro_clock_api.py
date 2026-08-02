@@ -2377,6 +2377,104 @@ def _predictions_from_hits(hits: List[Dict[str, Any]], timestamp: str) -> List[D
     return sorted(predictions, key=_prediction_sort_key)
 
 
+def _compact_transit_prediction(prediction: Dict[str, Any]) -> Dict[str, Any]:
+    """Keep the evidence an MCP consumer needs without repeating heavy context."""
+    if not isinstance(prediction, dict):
+        return {}
+    keys = (
+        'date', 'label', 'description', 'event_type', 'evidence_level',
+        'life_area', 'probability', 'rule_support', 'probability_basis',
+        'is_statistical_probability', 'is_event_prediction', 'score', 'tags',
+    )
+    compact = {key: prediction.get(key) for key in keys if key in prediction}
+    factors = prediction.get('factors')
+    if isinstance(factors, dict):
+        factor_keys = (
+            'transit', 'direction', 'significance', 'passIndex',
+            'concordance_score', 'determination_strength',
+        )
+        compact['factors'] = {
+            key: factors.get(key) for key in factor_keys if key in factors
+        }
+    return compact
+
+
+def _compact_transit_hit(hit: Dict[str, Any]) -> Dict[str, Any]:
+    if not isinstance(hit, dict):
+        return {}
+    keys = (
+        'transiting', 'natal', 'target_label', 'target_type', 'aspect',
+        'orb', 'orb_basis', 'longitude_orb', 'max_orb', 'partile',
+        'bodily_contact', 'complete_platic', 'phase', 'direction', 'quality',
+        'tone', 'score', 'significance', 'determination_strength',
+        'event_domain', 'life_area', 'effectiveWindow', 'effective_window',
+        'prediction_score', 'prediction_tags', 'passIndex', 'keywords',
+        'enriched_keywords', 'tech_tags',
+    )
+    compact = {key: hit.get(key) for key in keys if key in hit}
+    prediction = hit.get('prediction')
+    if isinstance(prediction, dict):
+        prediction_keys = (
+            'label', 'description', 'eventType', 'evidenceLevel',
+            'isEventPrediction', 'lifeArea', 'score', 'tags', 'confidence',
+            'confidenceBasis',
+        )
+        compact['prediction'] = {
+            key: prediction.get(key) for key in prediction_keys if key in prediction
+        }
+    laws = hit.get('laws_applied')
+    if isinstance(laws, list):
+        compact['laws_applied'] = [
+            {
+                key: law.get(key)
+                for key in ('applies', 'lawNumber', 'lawName', 'tone')
+                if key in law
+            }
+            for law in laws[:12]
+            if isinstance(law, dict)
+        ]
+    concordance = hit.get('concordance')
+    if isinstance(concordance, dict):
+        concordance_keys = (
+            'overall_score', 'overall_concordance', 'threshold_met',
+            'direction_score', 'solar_score', 'lunar_score', 'confidence',
+        )
+        compact['concordance'] = {
+            key: concordance.get(key)
+            for key in concordance_keys
+            if key in concordance
+        }
+    return compact
+
+
+def _compact_transit_series_row(row: Dict[str, Any]) -> Dict[str, Any]:
+    if not isinstance(row, dict):
+        return {}
+    keys = (
+        'timestamp', 'count', 'step_score', 'raw_step_score', 'tone',
+        'moon_support', 'localization_score', 'window_localization_score',
+        'step_tags',
+    )
+    compact = {key: row.get(key) for key in keys if key in row}
+    compact['top'] = [
+        _compact_transit_hit(hit) for hit in (row.get('top') or [])
+        if isinstance(hit, dict)
+    ]
+    compact['predictions'] = [
+        _compact_transit_prediction(prediction)
+        for prediction in (row.get('predictions') or [])
+        if isinstance(prediction, dict)
+    ]
+    return compact
+
+
+def _compact_revolution_context(context: Dict[str, Any]) -> Dict[str, Any]:
+    if not isinstance(context, dict):
+        return {}
+    keys = ('solar', 'lunar', 'solar_score', 'lunar_score', 'solar_domains', 'lunar_domains')
+    return {key: context.get(key) for key in keys if key in context}
+
+
 def _retry_enrich_transit_hits(
     natal_cd: Dict[str, Any],
     hits: List[Dict[str, Any]],
@@ -12772,12 +12870,20 @@ def transits_compute():
     hits = _apply_transit_hit_filters(hits, flt_transiting, flt_natal, flt_aspects)
     hits = _sort_transit_hits_for_display(hits)
     predictions = _predictions_from_hits(hits or [], ts)
+    compact_response = str(request.args.get('response_detail') or 'full').lower() == 'compact'
     return _json_ok({
         'natal': natal_meta,
         'transit_timestamp': ts,
-        'transits': hits,
-        'predictions': predictions,
-        'revolutions': revolution_context,
+        'transits': [_compact_transit_hit(hit) for hit in hits] if compact_response else hits,
+        'predictions': (
+            [_compact_transit_prediction(prediction) for prediction in predictions]
+            if compact_response else predictions
+        ),
+        'revolutions': (
+            _compact_revolution_context(revolution_context)
+            if compact_response else revolution_context
+        ),
+        'response_detail': 'compact' if compact_response else 'full',
     })
 
 
@@ -12902,13 +13008,23 @@ def transits_window():
     except Exception:
         peaks = []
     ranked_predictions = sorted(all_predictions, key=_prediction_sort_key)
+    compact_response = str(request.args.get('response_detail') or 'full').lower() == 'compact'
+    response_series = (
+        [_compact_transit_series_row(row) for row in series]
+        if compact_response else series
+    )
+    response_predictions = (
+        [_compact_transit_prediction(prediction) for prediction in ranked_predictions[:50]]
+        if compact_response else ranked_predictions[:50]
+    )
     return _json_ok({
-        'series': series,
+        'series': response_series,
         'peaks': _serialize_peak_rows(peaks),
         'context_window': {'start': start, 'end': end},
         'natal': natal_meta,
-        'predictions': ranked_predictions[:50],
+        'predictions': response_predictions,
         'prediction_card': None,
+        'response_detail': 'compact' if compact_response else 'full',
         'context_filters': {
             'pd': {'start': pd_start, 'end': pd_end} if (pd_start and pd_end) else None,
             'sa': {'start': sa_start, 'end': sa_end} if (sa_start and sa_end) else None,

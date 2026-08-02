@@ -157,13 +157,70 @@ def test_effective_window_uses_morin_partile_activation_periods():
         "end": "2026-01-02T06:00:00+00:00",
         "exact_estimate": "2026-01-02T00:00:00+00:00",
         "basis": "morin_partile_activation",
+        "timing_reference": "ecliptic_longitude",
     }
     assert saturn_window == {
         "start": "2026-01-01T00:00:00+00:00",
         "end": "2026-01-03T00:00:00+00:00",
         "exact_estimate": "2026-01-02T00:00:00+00:00",
         "basis": "morin_partile_activation",
+        "timing_reference": "ecliptic_longitude",
     }
+
+
+def test_longitude_aspect_orb_handles_exact_and_wrapped_aspects():
+    assert transits_morin._longitude_aspect_orb(359.9, 0.1, 0.0) == pytest.approx(0.2)
+    assert transits_morin._longitude_aspect_orb(100.0, 10.0, 90.0) == pytest.approx(0.0)
+    assert transits_morin._longitude_aspect_orb(190.0, 10.0, 180.0) == pytest.approx(0.0)
+    assert transits_morin._longitude_aspect_orb(130.5, 10.0, 120.0) == pytest.approx(0.5)
+
+
+def test_effective_window_uses_longitude_orb_when_3d_orb_cannot_reach_zero():
+    longitude_window = transits_morin._estimate_effective_window(
+        "2026-11-18T10:10:00+03:30",
+        sep_now=0.0003,
+        sep_future=0.25,
+        dt_days=0.5,
+        max_orb=6.0,
+        transiting="Mars",
+    )
+
+    assert longitude_window is not None
+    exact = datetime.fromisoformat(longitude_window["exact_estimate"])
+    requested = datetime.fromisoformat("2026-11-18T10:10:00+03:30").astimezone(timezone.utc)
+    assert abs((exact - requested).total_seconds()) < 120
+    assert longitude_window["timing_reference"] == "ecliptic_longitude"
+
+
+def test_real_transit_reports_dual_orbs_and_centers_longitude_exactness():
+    if transits_morin.swe is None:
+        pytest.skip("Swiss Ephemeris is unavailable")
+    timestamp = "2026-11-18T10:10:00+03:30"
+    jd = transits_morin._jd_from_iso(timestamp)
+    transit_lon, transit_lat = transits_morin._lon_lat_at(jd, "Mars")
+    prepared = (
+        {"Mars": (transit_lon, transit_lat - 0.75)},
+        {"Mars": {"target_type": "planet", "natal_house": 1}},
+        {"Mars": 1},
+        {"1": "Mars"},
+        {},
+        {},
+    )
+
+    hits = transits_morin.compute_morin_transits_to_natal(
+        {},
+        timestamp,
+        planet_names=["Mars"],
+        _prepared_ctx=prepared,
+    )
+    conjunction = next(hit for hit in hits if hit["aspect"] == "Conjunction")
+
+    assert conjunction["orb"] == pytest.approx(0.75, abs=0.01)
+    assert conjunction["orb_basis"] == "great_circle_3d"
+    assert conjunction["longitude_orb"] == pytest.approx(0.0, abs=0.0001)
+    exact = datetime.fromisoformat(conjunction["effectiveWindow"]["exact_estimate"])
+    requested = datetime.fromisoformat(timestamp).astimezone(timezone.utc)
+    assert abs((exact - requested).total_seconds()) < 1
 
 
 def test_effective_window_does_not_invent_stationary_exact_time():
