@@ -172,6 +172,9 @@ def test_dashboard_and_hours_use_cached_coords_when_geocoder_is_unavailable(monk
                 current_hour=hour,
             )
 
+        def calculate_daily_hours_for_local_date(self, target_date, _timezone_name):
+            return self.calculate_daily_hours(target_date)
+
         def get_current_planetary_hour(self, _target_dt):
             target_date = date(2026, 4, 5)
             return SimpleNamespace(
@@ -182,6 +185,9 @@ def test_dashboard_and_hours_use_cached_coords_when_geocoder_is_unavailable(monk
                 duration_minutes=60,
                 is_day_hour=True,
             )
+
+        def get_planetary_hour_for_local_datetime(self, target_dt, _timezone_name):
+            return self.get_current_planetary_hour(target_dt)
 
     monkeypatch.setattr(astro_clock_api, "_ph_instance", lambda _lat, _lon: _FakePlanetaryHours())
 

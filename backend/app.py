@@ -286,6 +286,7 @@ PROTECTED_ENDPOINT_PREFIXES = (
     "/api/calculate-chart",
     "/api/moon-debug",
     "/api/metrics",
+    "/api/mcp",
 )
 LICENSE_EXEMPT_PATHS = {
     "/api/health",
@@ -579,6 +580,20 @@ def _register_astro_clock_blueprint():
 
 
 _register_astro_clock_blueprint()
+
+
+def _register_mcp_blueprint():
+    """Register the loopback MCP calculation API behind the global license guard."""
+    try:
+        from mcp_api import mcp_bp
+
+        app.register_blueprint(mcp_bp)
+    except Exception:
+        logger.exception("Licensed MCP API could not be registered")
+        raise
+
+
+_register_mcp_blueprint()
 
 
 def _readiness_snapshot() -> dict:

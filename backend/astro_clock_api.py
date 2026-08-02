@@ -2387,6 +2387,7 @@ def _retry_enrich_transit_hits(
     observer_location: Optional[str] = None,
     observer_timezone: Optional[str] = None,
     context_out: Optional[Dict[str, Any]] = None,
+    registry_context: Optional[Dict[str, Any]] = None,
     route_label: str = "astro-clock/transits",
 ) -> List[Dict[str, Any]]:
     """Enrich transit hits, retrying without PD/context if the richer pass fails."""
@@ -2394,6 +2395,18 @@ def _retry_enrich_transit_hits(
         return hits
 
     from transits_morin import enrich_hits_with_concordance
+
+    registry_snapshot = None
+    if isinstance(registry_context, dict):
+        try:
+            registry_snapshot = copy.deepcopy(registry_context)
+        except Exception:
+            registry_snapshot = None
+
+    def _restore_registry_context() -> None:
+        if isinstance(registry_context, dict) and isinstance(registry_snapshot, dict):
+            registry_context.clear()
+            registry_context.update(copy.deepcopy(registry_snapshot))
 
     try:
         return enrich_hits_with_concordance(
@@ -2405,12 +2418,14 @@ def _retry_enrich_transit_hits(
             observer_location=observer_location,
             observer_timezone=observer_timezone,
             context_out=context_out,
+            registry_context=registry_context,
         )
     except Exception:
         logger.exception(
             "[astro-clock] Concordance enrichment failed for %s; retrying without PD/context.",
             route_label,
         )
+        _restore_registry_context()
 
     fallback_context: Optional[Dict[str, Any]] = {} if isinstance(context_out, dict) else None
     try:
@@ -2423,6 +2438,7 @@ def _retry_enrich_transit_hits(
             observer_location=observer_location,
             observer_timezone=observer_timezone,
             context_out=fallback_context,
+            registry_context=registry_context,
         )
         if isinstance(context_out, dict):
             context_out.clear()
@@ -2434,6 +2450,7 @@ def _retry_enrich_transit_hits(
             "[astro-clock] Concordance enrichment fallback failed for %s; returning raw hits.",
             route_label,
         )
+        _restore_registry_context()
         if isinstance(context_out, dict):
             context_out.clear()
         return hits
@@ -5011,19 +5028,16 @@ def get_planetary_hours():
     else:
         lat, lon = coords
     calc = _ph_instance(lat, lon)
-    tz = active_timezone
-    if _is_placeholder_tz(tz) and (lat is not None and lon is not None):
-        try:
-            guess = _tz_instance().get_timezone_for_location(lat, lon)
-            if guess:
-                tz = guess
-        except Exception:
-            pass
+    tz = _resolve_timezone_for_context(
+        active_timezone,
+        active_location,
+        coords=(lat, lon),
+    ) or 'UTC'
     target_local = _localize(target_dt, tz)
-    daily = calc.calculate_daily_hours(target_local.date())
+    daily = calc.calculate_daily_hours_for_local_date(target_local.date(), tz)
     # try locate current hour
     try:
-        daily.current_hour = calc.get_current_planetary_hour(target_local)
+        daily.current_hour = calc.get_planetary_hour_for_local_datetime(target_local, tz)
     except Exception:
         pass
     return _json_ok(_serialize_daily_hours(daily))
@@ -13018,8 +13032,9 @@ def transits_window_stream():
     - {type:'done', series, peaks, context_window, natal}
     """
     from transits_morin import _prepare_natal_context as _prep_ctx  # type: ignore
+    from transits_morin import _new_transit_registry_context  # type: ignore
+    from transits_morin import _select_morin_transit_step_candidates  # type: ignore
     from transits_morin import compute_morin_transits_to_natal  # type: ignore
-    from transits_morin import enrich_hits_with_concordance
     import json as _json
     natal_cd, natal_meta = _natal_from_query(request.args)
     start = request.args.get('start')
@@ -13107,6 +13122,7 @@ def transits_window_stream():
         series_dropped = 0
         rows_total = 0
         retro_pass_tracker: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
+        registry_context = _new_transit_registry_context()
         all_predictions: List[Dict[str, Any]] = []
         total_predictions = 0
 
@@ -13131,16 +13147,6 @@ def transits_window_stream():
                 _prepared_ctx=ctx,
             )
             hits = _apply_transit_hit_filters(hits, flt_transiting, flt_natal, flt_aspects)
-            hits = _retry_enrich_transit_hits(
-                natal_cd,
-                hits,
-                ts_iso,
-                pd_windows=pd_windows,
-                sig_beta=sig_beta,
-                observer_location=natal_meta.get('location'),
-                observer_timezone=natal_meta.get('timezone'),
-                route_label='transits/window/stream',
-            )
             for h in hits:
                 key = (
                     str(h.get('transiting') or ''),
@@ -13157,17 +13163,33 @@ def transits_window_stream():
                     count = 1
                 retro_pass_tracker[key] = {'count': count, 'last_phase': phase}
                 h['passIndex'] = count
-            # pick top planets & points
+            # Enrich the complete active set once, matching the HTTP window scan.
+            # Candidate limits affect presentation only; simultaneous-transit
+            # analysis must see the same sky regardless of transport.
+            enriched_hits = _retry_enrich_transit_hits(
+                natal_cd,
+                [dict(hit) for hit in hits],
+                ts_iso,
+                pd_windows=pd_windows,
+                sig_beta=sig_beta,
+                observer_location=natal_meta.get('location'),
+                observer_timezone=natal_meta.get('timezone'),
+                registry_context=registry_context,
+                route_label='transits/window/stream',
+            )
             top_n = 3
             prediction_n = max(top_n, _TRANSIT_WINDOW_PREDICTION_HITS_PER_TYPE)
-            top_planets = [h for h in hits if str(h.get('target_type')) == 'planet'][:top_n]
-            top_points = [h for h in hits if str(h.get('target_type')) != 'planet'][:top_n]
-            prediction_planets = [h for h in hits if str(h.get('target_type')) == 'planet'][:prediction_n]
-            prediction_points = [h for h in hits if str(h.get('target_type')) != 'planet'][:prediction_n]
+            top_hits, prediction_hits = _select_morin_transit_step_candidates(
+                enriched_hits,
+                top_n_per_type=top_n,
+                prediction_n_per_type=prediction_n,
+            )
+            top_planets = [h for h in top_hits if str(h.get('target_type')) == 'planet']
+            top_points = [h for h in top_hits if str(h.get('target_type')) != 'planet']
             try:
-                step_signif = sum(float(h.get('significance') or 0.0) for h in (top_planets + top_points))
+                step_signif = sum(float(h.get('significance') or 0.0) for h in top_hits)
             except Exception:
-                step_signif = sum(float(h.get('score') or 0.0) for h in (top_planets + top_points))
+                step_signif = sum(float(h.get('score') or 0.0) for h in top_hits)
             # Aggregate step tone from top hits if available
             def _step_tone(hits_list):
                 try:
@@ -13189,7 +13211,7 @@ def transits_window_stream():
                 'top_planets': top_planets,
                 'top_cusps': top_points,
                 'step_score': round(float(step_signif), 3),
-                'tone': _step_tone(top_planets + top_points),
+                'tone': _step_tone(top_hits),
             }
             include_row = True
             if context_ranges:
@@ -13197,7 +13219,7 @@ def transits_window_stream():
                     _filter_transit_series_to_context_ranges([row], context_ranges)
                 )
             if include_row:
-                row_predictions = _predictions_from_hits((prediction_planets + prediction_points), ts_iso)
+                row_predictions = _predictions_from_hits(prediction_hits, ts_iso)
                 row['predictions'] = row_predictions
                 _apply_row_localization(row)
                 total_predictions += len(row_predictions)

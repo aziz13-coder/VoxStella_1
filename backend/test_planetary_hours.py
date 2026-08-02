@@ -1,6 +1,7 @@
 from pathlib import Path
 import sys
 from datetime import date, datetime, timezone
+from zoneinfo import ZoneInfo
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -63,3 +64,37 @@ def test_sunset_rolls_forward_when_same_local_day_wraps_utc(monkeypatch):
     assert sunrise == converted[201.75]
     assert sunset == datetime(2026, 4, 19, 9, 15, tzinfo=timezone.utc)
     assert sunset > sunrise
+
+
+def test_local_date_resolution_does_not_skip_eastern_longitude_sunrise(monkeypatch):
+    calc = planetary_hours.PlanetaryHoursCalculator(latitude=35.6762, longitude=139.6503)
+    zone = ZoneInfo("Asia/Tokyo")
+
+    def fake_events(seed_date):
+        events = {
+            date(2026, 7, 30): (
+                datetime(2026, 7, 30, 19, 50, tzinfo=timezone.utc),
+                datetime(2026, 7, 31, 9, 45, tzinfo=timezone.utc),
+            ),
+            date(2026, 7, 31): (
+                datetime(2026, 7, 31, 19, 51, tzinfo=timezone.utc),
+                datetime(2026, 8, 1, 9, 44, tzinfo=timezone.utc),
+            ),
+            date(2026, 8, 1): (
+                datetime(2026, 8, 1, 19, 52, tzinfo=timezone.utc),
+                datetime(2026, 8, 2, 9, 43, tzinfo=timezone.utc),
+            ),
+            date(2026, 8, 2): (
+                datetime(2026, 8, 2, 19, 53, tzinfo=timezone.utc),
+                datetime(2026, 8, 3, 9, 42, tzinfo=timezone.utc),
+            ),
+        }
+        return events[seed_date]
+
+    monkeypatch.setattr(calc, "_calculate_sunrise_sunset", fake_events)
+    daily = calc.calculate_daily_hours_for_local_date(date(2026, 8, 1), "Asia/Tokyo")
+
+    assert daily.sunrise.astimezone(zone).date() == date(2026, 8, 1)
+    assert daily.sunset.astimezone(zone).date() == date(2026, 8, 1)
+    assert daily.hours[-1].end_time.astimezone(zone).date() == date(2026, 8, 2)
+    assert daily.hours[-1].end_time.hour == 19

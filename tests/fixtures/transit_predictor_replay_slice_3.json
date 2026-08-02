@@ -40,7 +40,8 @@
     "expected_exact_event_descriptions": [
       "Jupiter Conjunction Asc"
     ],
-    "max_step_score_rank": 10,
+    "max_step_score_rank": 12,
+    "step_score_contract": "bounded_top_3_per_target_type",
     "max_peak_distance_hours": 7.0,
     "sources": {
       "natal": "https://www.astro.com/astro-databank/Obama%2C_Barack",

@@ -23,6 +23,8 @@ from swisseph_state import swisseph as swe
 
 logger = logging.getLogger(__name__)
 
+_PARTILE_ORB_DEG = 1.0
+
 # Reuse Morin helpers (underscore utilities are module-private but importable)
 from morin_aspects import (
     CLASSICAL,
@@ -69,6 +71,27 @@ def _safe_float(value: Any, default: float = 0.0) -> float:
         return float(value)
     except Exception:
         return default
+
+
+def _parse_iso_datetime_utc(value: Any) -> datetime:
+    """Parse an ISO instant, applying the API convention that naive means UTC."""
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError("ISO datetime must be a non-empty string")
+    parsed = datetime.fromisoformat(value.strip().replace('Z', '+00:00'))
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _is_partile_orb(orb: Any) -> bool:
+    """Return whether an aspect is within the product's one-degree partile band."""
+    try:
+        value = abs(float(orb))
+    except (TypeError, ValueError):
+        return False
+    return math.isfinite(value) and value <= _PARTILE_ORB_DEG
+
+
 def _norm360(x: float) -> float:
     return x % 360.0
 
@@ -180,7 +203,7 @@ def _estimate_effective_window(
 ) -> Optional[Dict[str, str]]:
     """Estimate Morin's partile activation window around an exact transit.
 
-    Book 22, chapter 13 gives the Moon six hours before and after the
+    Book 24, chapter 13 gives the Moon six hours before and after the
     partile transit and the other planets one day before and after.  The
     exact instant is estimated from the local separation slope.  A nearly
     stationary separation has no defensible linear exact-time estimate, so
@@ -192,11 +215,7 @@ def _estimate_effective_window(
     period are different concepts.
     """
     try:
-        t0 = datetime.fromisoformat(str(ts_iso).replace('Z','+00:00'))
-        if t0.tzinfo is None:
-            t0 = t0.replace(tzinfo=timezone.utc)
-        else:
-            t0 = t0.astimezone(timezone.utc)
+        t0 = _parse_iso_datetime_utc(str(ts_iso))
         step_days = float(dt_days)
         current_sep = abs(float(sep_now))
         future_sep = abs(float(sep_future))
@@ -379,13 +398,24 @@ _SLOW_WEIGHT: Dict[str, float] = {
     'Moon': 0.8,
 }
 
-_SIMULTANEOUS_REGISTRY: Dict[str, Deque[Dict[str, Any]]] = collections.defaultdict(collections.deque)
-_MALEFIC_REGISTRY: Dict[str, Deque[Dict[str, Any]]] = collections.defaultdict(collections.deque)
 _SIMULTANEOUS_HORIZON_DAYS = 2.5  # days; per-planet windows applied when evaluating
 _SUCCESSIVE_HORIZON_DAYS = 35.0   # days; covers Morin's "short interval" requirement
 _SR_LR_MEMO: Dict[tuple, Dict[str, Any]] = {}
 _SR_LR_MEMO_MAX = 64
 _CLUSTER_MIN_COUNT = 3
+
+
+def _new_transit_registry_context() -> Dict[str, Dict[str, Deque[Dict[str, Any]]]]:
+    """Create isolated history for one exact calculation or window scan.
+
+    Transit history is natal- and request-specific.  Keeping these registries
+    at module scope allowed unrelated charts and concurrent users to affect one
+    another's multiple/successive-transit multipliers.
+    """
+    return {
+        'simultaneous': collections.defaultdict(collections.deque),
+        'malefic': collections.defaultdict(collections.deque),
+    }
 
 _POSITIVE_DOMAINS = {
     'life', 'character', 'intellect', 'wealth', 'money', 'relationships', 'marriage',
@@ -1191,7 +1221,7 @@ def _register_registry_event(
     entry: Dict[str, Any],
     horizon_days: float,
 ) -> None:
-    dq = registry[key]
+    dq = registry.setdefault(key, collections.deque())
     dq.append(entry)
     cutoff = entry['timestamp'] - timedelta(days=horizon_days)
     while dq and dq[0]['timestamp'] < cutoff:
@@ -1209,6 +1239,11 @@ def _score_hit(
     orb = float(hit.get('orb') or 0.0)
     max_orb = float(hit.get('max_orb') or 0.0)
     partile = bool(hit.get('partile'))
+    bodily_contact = (
+        bool(hit.get('bodily_contact'))
+        if 'bodily_contact' in hit
+        else partile
+    )
     platic = bool(hit.get('complete_platic'))
     target_type = str(hit.get('target_type') or 'planet')
     natal_house = hit.get('natal_house') if hit.get('natal_house') is not None else natal_house_of.get(B)
@@ -1226,12 +1261,15 @@ def _score_hit(
     else:
         clos = 0.0
         bd['orb_proximity'] = 0.0
-    # Partile/platic bonuses
-    if partile:
-        bd['partile'] = 2.0
+    # Exactness is already represented continuously by orb proximity.  Retain
+    # the engine's historical physical-contact bonus without conflating that
+    # much tighter condition with the public one-degree ``partile`` flag.
+    bd['partile'] = 0.0
+    if bodily_contact:
+        bd['bodily_contact'] = 2.0
         score += 2.0
     else:
-        bd['partile'] = 0.0
+        bd['bodily_contact'] = 0.0
     if platic:
         bd['platic'] = 1.0
         score += 1.0
@@ -1448,6 +1486,58 @@ def _natal_aspect_map(chart_data: Dict[str, Any]) -> Dict[frozenset, str]:
     return out
 
 
+def _transit_hit_key(hit: Dict[str, Any]) -> Tuple[str, str, str]:
+    return (
+        str(hit.get('transiting') or ''),
+        str(hit.get('aspect') or ''),
+        str(hit.get('target_label') or hit.get('natal') or ''),
+    )
+
+
+def _select_morin_transit_step_candidates(
+    hits: List[Dict[str, Any]],
+    *,
+    top_n_per_type: int = 3,
+    prediction_n_per_type: Optional[int] = None,
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """Select identical display/predictor candidates for every scan transport."""
+    top_n = max(1, int(top_n_per_type or 1))
+    prediction_n = max(top_n, int(prediction_n_per_type or top_n))
+    planet_hits = [h for h in hits if str(h.get('target_type')) == 'planet']
+    point_hits = [h for h in hits if str(h.get('target_type')) != 'planet']
+    top_planets = planet_hits[:top_n]
+    top_points = point_hits[:top_n]
+    prediction_planets = planet_hits[:prediction_n]
+    prediction_points = point_hits[:prediction_n]
+
+    def _base_label(hit: Dict[str, Any]) -> str:
+        label = str(hit.get('target_label') or hit.get('natal') or '')
+        return label.replace(' (contra-antiscia)', '').replace(' (antiscia)', '')
+
+    asc_hits = [hit for hit in hits if _base_label(hit) == 'Asc']
+
+    def _append_unique(
+        base: List[Dict[str, Any]],
+        extra: List[Dict[str, Any]],
+    ) -> List[Dict[str, Any]]:
+        seen = {_transit_hit_key(hit) for hit in base}
+        for hit in extra:
+            key = _transit_hit_key(hit)
+            if key not in seen:
+                base.append(hit)
+                seen.add(key)
+        return base
+
+    # Ascendant variants are retained for prediction extraction even when they
+    # rank below the normal per-type limit.  They must not inflate the display
+    # ``top`` set or its aggregate step score beyond the documented limit.
+    prediction_points = _append_unique(prediction_points, asc_hits)
+    return (
+        [dict(hit) for hit in (top_planets + top_points)],
+        [dict(hit) for hit in (prediction_planets + prediction_points)],
+    )
+
+
 def scan_morin_transits_window(
     natal_chart_data: Dict[str, Any],
     start_iso: str,
@@ -1519,6 +1609,7 @@ def scan_morin_transits_window(
         natal_include_modern=natal_include_modern,
     )
     retro_pass_tracker: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
+    registry_context = _new_transit_registry_context()
     while cur <= edt and steps < max_steps:
         ts_iso = cur.replace(tzinfo=cur.tzinfo or timezone.utc).isoformat()
         hits = compute_morin_transits_to_natal(
@@ -1543,7 +1634,11 @@ def scan_morin_transits_window(
         if flt_transiting:
             hits = [h for h in hits if str(h.get('transiting')) in flt_transiting]
         if flt_natal:
-            hits = [h for h in hits if str(h.get('natal')) in flt_natal]
+            hits = [
+                h for h in hits
+                if str(h.get('natal')) in flt_natal
+                or str(h.get('target_label')) in flt_natal
+            ]
         if flt_aspects:
             hits = [h for h in hits if str(h.get('aspect')) in flt_aspects]
         for h in hits:
@@ -1562,72 +1657,35 @@ def scan_morin_transits_window(
                 count = 1
             retro_pass_tracker[key] = {'count': count, 'last_phase': phase}
             h['passIndex'] = count
-        # Split by target type: planets vs. cusps/lots/(contra-)antiscia/angles.
-        # Keep the displayed step view narrow, but preserve a deeper candidate set
-        # for predictor/window event extraction so lower-ranked but still meaningful
-        # crisis/public hits are not dropped before predictions are derived.
-        prediction_n_per_step = max(top_n_per_step, int(prediction_n_per_step or top_n_per_step))
-        top_planets = [h for h in hits if str(h.get('target_type')) == 'planet'][:top_n_per_step]
-        top_points = [h for h in hits if str(h.get('target_type')) != 'planet'][:top_n_per_step]
-        prediction_planets = [h for h in hits if str(h.get('target_type')) == 'planet'][:prediction_n_per_step]
-        prediction_points = [h for h in hits if str(h.get('target_type')) != 'planet'][:prediction_n_per_step]
-        # Augment: always include Asc, Asc (antiscia), Asc (contra-antiscia) hits in points (beyond top_n)
-        try:
-            def _base_label(h):
-                lab = str(h.get('target_label') or h.get('natal') or '')
-                if lab.endswith(' (antiscia)'):
-                    return lab[:-11]
-                if lab.endswith(' (contra-antiscia)'):
-                    return lab[:-18]
-                return lab
-            asc_hits = [h for h in hits if _base_label(h) == 'Asc']
-            # Deduplicate by key
-            def _key(h):
-                return (str(h.get('transiting') or ''), str(h.get('aspect') or ''), str(h.get('target_label') or h.get('natal') or ''))
-            def _append_unique(base, extra):
-                seen_keys = {_key(h) for h in base}
-                for hit in extra:
-                    k = _key(hit)
-                    if k not in seen_keys:
-                        base.append(hit)
-                        seen_keys.add(k)
-                return base
-            top_points = _append_unique(top_points, asc_hits)
-            prediction_points = _append_unique(prediction_points, asc_hits)
-        except Exception:
-            pass
-        top_sel = [dict(h) for h in (top_planets + top_points)]
-        prediction_sel = [dict(h) for h in (prediction_planets + prediction_points)]
-        # Enrich with concordance + significance per hit
-        try:
-            top_sel = enrich_hits_with_concordance(
-                natal_chart_data, top_sel, ts_iso, pd_windows=pd_windows,
-                use_new_significance=use_new_significance,
-                observer_location=observer_location,
-                observer_timezone=observer_timezone,
-            )
-        except Exception:
-            pass
-        if prediction_sel:
+        # Enrich the complete active set once so Morin's simultaneous-transit
+        # analysis sees the whole sky.  Display/predictor limits are presentation
+        # concerns and must not change the astrological result.
+        enriched_hits: List[Dict[str, Any]] = [dict(hit) for hit in hits]
+        if enriched_hits:
             try:
-                prediction_sel = enrich_hits_with_concordance(
-                    natal_chart_data, prediction_sel, ts_iso, pd_windows=pd_windows,
+                enriched_hits = enrich_hits_with_concordance(
+                    natal_chart_data, enriched_hits, ts_iso, pd_windows=pd_windows,
                     use_new_significance=use_new_significance,
                     observer_location=observer_location,
                     observer_timezone=observer_timezone,
+                    registry_context=registry_context,
                 )
             except Exception:
                 pass
-        if not isinstance(top_sel, list):
+        if not isinstance(enriched_hits, list):
             try:
-                top_sel = list(top_sel) if top_sel is not None else []
+                enriched_hits = list(enriched_hits) if enriched_hits is not None else []
             except Exception:
-                top_sel = []
-        if not isinstance(prediction_sel, list):
-            try:
-                prediction_sel = list(prediction_sel) if prediction_sel is not None else []
-            except Exception:
-                prediction_sel = []
+                enriched_hits = [dict(hit) for hit in hits]
+        # Split by target type only after enrichment.  Keep the displayed step
+        # narrow while retaining a deeper predictor candidate set.
+        top_sel, prediction_sel = _select_morin_transit_step_candidates(
+            enriched_hits,
+            top_n_per_type=top_n_per_step,
+            prediction_n_per_type=prediction_n_per_step,
+        )
+        top_planets = [h for h in top_sel if str(h.get('target_type')) == 'planet']
+        top_points = [h for h in top_sel if str(h.get('target_type')) != 'planet']
         # Step aggregates based on significance
         try:
             step_signif = sum(float(h.get('significance') or 0.0) for h in top_sel)
@@ -1884,11 +1942,14 @@ def compute_morin_transits_to_natal(
                 except Exception:
                     pass
 
-                # Partile / complete platic using apparent semi-diameters
+                # Partile is the documented one-degree exactness band.  Keep
+                # physical disc contact as separate evidence rather than using
+                # it to redefine the traditional/product-facing term.
                 sd_sum = _semi_diameter_deg(A, jd0)
                 if ttype == 'planet':
                     sd_sum += _semi_diameter_deg(B, jd0)
-                partile = sep <= sd_sum
+                partile = _is_partile_orb(sep)
+                bodily_contact = sep <= sd_sum
                 complete_platic = (sep <= (min(moietyA, moietyB) if ttype == 'planet' else moietyA))
 
                 # Phase via forward step for A (B fixed)
@@ -1916,6 +1977,7 @@ def compute_morin_transits_to_natal(
                     'orb': round(float(sep), 4),
                     'max_orb': round(float(combined), 4),
                     'partile': bool(partile),
+                    'bodily_contact': bool(bodily_contact),
                     'complete_platic': bool(complete_platic),
                     'direction': _dexter_sinister(lonA, lonB),
                     'phase': phase,
@@ -2539,6 +2601,7 @@ def enrich_hits_with_concordance(
     observer_location: Optional[str] = None,
     observer_timezone: Optional[str] = None,
     context_out: Optional[Dict[str, Any]] = None,
+    registry_context: Optional[Dict[str, Dict[str, Deque[Dict[str, Any]]]]] = None,
 ) -> List[Dict[str, Any]]:
     """Attach Determination matches and Concordance-lite to each hit, with a significance composite.
 
@@ -2548,6 +2611,17 @@ def enrich_hits_with_concordance(
     """
     if not isinstance(hits, list) or not hits:
         return hits
+    active_registry_context = (
+        registry_context
+        if isinstance(registry_context, dict)
+        else _new_transit_registry_context()
+    )
+    simultaneous_registry = active_registry_context.setdefault(
+        'simultaneous', collections.defaultdict(collections.deque)
+    )
+    malefic_registry = active_registry_context.setdefault(
+        'malefic', collections.defaultdict(collections.deque)
+    )
     # Determine significance formula toggle (env override unless explicit)
     try:
         if use_new_significance is None:
@@ -2584,8 +2658,7 @@ def enrich_hits_with_concordance(
 
     # Transit timestamp dt
     try:
-        from datetime import datetime as _dt
-        t_dt = _dt.fromisoformat(str(transit_timestamp_iso).replace('Z','+00:00'))
+        t_dt = _parse_iso_datetime_utc(str(transit_timestamp_iso))
         t_year = t_dt.year
     except Exception:
         t_dt = None
@@ -2603,8 +2676,8 @@ def enrich_hits_with_concordance(
     is_summer_season = bool(transit_month in {6, 7, 8})
 
     if t_dt is not None:
-        _prune_registry(_SIMULTANEOUS_REGISTRY, t_dt - timedelta(days=_SIMULTANEOUS_HORIZON_DAYS * 2.0))
-        _prune_registry(_MALEFIC_REGISTRY, t_dt - timedelta(days=_SUCCESSIVE_HORIZON_DAYS * 1.2))
+        _prune_registry(simultaneous_registry, t_dt - timedelta(days=_SIMULTANEOUS_HORIZON_DAYS * 2.0))
+        _prune_registry(malefic_registry, t_dt - timedelta(days=_SUCCESSIVE_HORIZON_DAYS * 1.2))
 
     # SR/LR graded similarity (0..1) using revolution charts when possible
     def _sr_lr_scores() -> Dict[str, Any]:
@@ -2847,7 +2920,7 @@ def enrich_hits_with_concordance(
             ts_year: Optional[int] = None
             if ts_raw:
                 try:
-                    ts = datetime.fromisoformat(str(ts_raw).replace('Z', '+00:00'))
+                    ts = _parse_iso_datetime_utc(str(ts_raw))
                     ts_year = ts.year
                 except Exception:
                     ts_year = None
@@ -3097,7 +3170,7 @@ def enrich_hits_with_concordance(
             })
             seen_planets.add(other_planet)
 
-        for entry in _SIMULTANEOUS_REGISTRY.get(base_label, []):
+        for entry in simultaneous_registry.get(base_label, []):
             other_planet = entry.get('planet')
             if not other_planet or other_planet == base_planet or other_planet in seen_planets:
                 continue
@@ -3227,7 +3300,7 @@ def enrich_hits_with_concordance(
         if not (pd_support and sr_support):
             return 1.0, None
 
-        registry = _MALEFIC_REGISTRY.get(target, [])
+        registry = malefic_registry.get(target, [])
         if not registry:
             return 1.0, None
         window_days = 30.0
@@ -3333,14 +3406,13 @@ def enrich_hits_with_concordance(
         if not windows:
             return res
         try:
-            from datetime import datetime as _dt
-            transit_dt = _dt.fromisoformat(str(ts_iso).replace('Z', '+00:00'))
+            transit_dt = _parse_iso_datetime_utc(str(ts_iso))
         except Exception:
             return res
         for w in windows:
             try:
-                start_dt = _dt.fromisoformat(str(w.get('start')).replace('Z', '+00:00'))
-                end_dt = _dt.fromisoformat(str(w.get('end')).replace('Z', '+00:00'))
+                start_dt = _parse_iso_datetime_utc(str(w.get('start')))
+                end_dt = _parse_iso_datetime_utc(str(w.get('end')))
                 if not (start_dt <= transit_dt <= end_dt):
                     continue
                 item = w.get('item') or {}
@@ -3362,7 +3434,7 @@ def enrich_hits_with_concordance(
                 else:
                     res['signification_score'] = max(res['signification_score'], strength * 0.6)
                 try:
-                    center_dt = _dt.fromisoformat(match_ts.replace('Z', '+00:00'))
+                    center_dt = _parse_iso_datetime_utc(match_ts)
                     delta_days = abs((transit_dt - center_dt).total_seconds()) / 86400.0
                 except Exception:
                     delta_days = None
@@ -4116,9 +4188,9 @@ def enrich_hits_with_concordance(
                     'aspect': str(row.get('aspect') or ''),
                     'domains': set(doms),
                 }
-                _register_registry_event(_SIMULTANEOUS_REGISTRY, base_lbl, registry_entry, _SIMULTANEOUS_HORIZON_DAYS)
+                _register_registry_event(simultaneous_registry, base_lbl, registry_entry, _SIMULTANEOUS_HORIZON_DAYS)
                 if A in ('Saturn', 'Mars'):
-                    _register_registry_event(_MALEFIC_REGISTRY, base_lbl, registry_entry, _SUCCESSIVE_HORIZON_DAYS)
+                    _register_registry_event(malefic_registry, base_lbl, registry_entry, _SUCCESSIVE_HORIZON_DAYS)
             event_domain = _primary_domain(doms, row=row)
             if not event_domain:
                 base_clean = base_lbl.lower()
@@ -6377,6 +6449,7 @@ def _compute_hits_with_ctx(
     def _absdiff_deg(a: float, b: float) -> float:
         return abs((((a - b) + 180.0) % 360.0) - 180.0)
     lethal_new_moon = False
+    lethal_full_moon = False
     asc8_conj = False
     try:
         if 'Sun' in now_ll and 'Moon' in now_ll:
@@ -6514,11 +6587,13 @@ def _compute_hits_with_ctx(
                 except Exception:
                     pass
 
-                # Partile / complete platic using apparent semi-diameters
+                # Match the public one-degree partile definition while retaining
+                # physical disc contact as a distinct calculation detail.
                 sd_sum = _semi_diameter_deg(A, jd0)
                 if ttype == 'planet':
                     sd_sum += _semi_diameter_deg(B, jd0)
-                partile = sep <= sd_sum
+                partile = _is_partile_orb(sep)
+                bodily_contact = sep <= sd_sum
                 complete_platic = (sep <= (min(moietyA, moietyB) if ttype == 'planet' else moietyA))
 
                 # Phase via forward step for A (B fixed)
@@ -6543,6 +6618,7 @@ def _compute_hits_with_ctx(
                     'orb': round(float(sep), 4),
                     'max_orb': round(float(combined), 4),
                     'partile': bool(partile),
+                    'bodily_contact': bool(bodily_contact),
                     'complete_platic': bool(complete_platic),
                     'direction': _dexter_sinister(lonA, lonB),
                     'phase': phase,

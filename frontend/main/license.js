@@ -318,7 +318,7 @@ class LicenseManager {
     return data;
   }
 
-  createRendererSessionToken(payload, deviceId) {
+  createLocalBackendSessionToken(payload, deviceId) {
     const licenseId = String(payload?.lic || '').trim().toLowerCase();
     if (payload?.paypal_pending_verification === true || licenseId.startsWith('paypal-pending:')) {
       return null;
@@ -374,6 +374,12 @@ class LicenseManager {
     const bodyBuffer = Buffer.from(JSON.stringify(body));
     const signature = crypto.createHmac('sha256', secret).update(bodyBuffer).digest('base64');
     return `${signature}.${bodyBuffer.toString('base64')}`;
+  }
+
+  // Compatibility alias. Both UI and MCP calls receive the same short-lived,
+  // device-bound backend session; durable license material stays private.
+  createRendererSessionToken(payload, deviceId) {
+    return this.createLocalBackendSessionToken(payload, deviceId);
   }
 
   _encodeForFile(jsonText) {
@@ -849,7 +855,7 @@ class LicenseManager {
     if (refreshed?.ok && typeof refreshed.token === 'string') {
       try {
         const payload = await this.assertTokenMatchesDevice(refreshed.token, deviceId);
-        return this.createRendererSessionToken(payload, deviceId);
+        return this.createLocalBackendSessionToken(payload, deviceId);
       } catch (_) {
         await this.clearStored();
         return null;
@@ -878,7 +884,7 @@ class LicenseManager {
     }
     try {
       const payload = await this.assertTokenMatchesDevice(stored.token, deviceId);
-      return this.createRendererSessionToken(payload, deviceId);
+      return this.createLocalBackendSessionToken(payload, deviceId);
     } catch (_) {
       return null;
     }

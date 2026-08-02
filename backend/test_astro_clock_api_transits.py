@@ -159,6 +159,64 @@ def test_prediction_payload_distinguishes_rule_support_from_probability():
     assert prediction["is_event_prediction"] is False
 
 
+def test_retry_enrichment_restores_request_history_before_fallback(monkeypatch):
+    registry_context = transits_morin._new_transit_registry_context()
+    registry_context["simultaneous"]["Asc"].append({"marker": "original"})
+    calls = []
+
+    def fake_enrich(_chart, hits, _timestamp, **kwargs):
+        active_registry = kwargs["registry_context"]["simultaneous"]["Asc"]
+        calls.append(list(active_registry))
+        if kwargs.get("pd_windows"):
+            active_registry.append({"marker": "failed-rich-pass"})
+            raise RuntimeError("rich pass failed")
+        assert list(active_registry) == [{"marker": "original"}]
+        return [{**hits[0], "fallback": True}]
+
+    monkeypatch.setattr(transits_morin, "enrich_hits_with_concordance", fake_enrich)
+
+    result = astro_clock_api._retry_enrich_transit_hits(
+        {},
+        [{"transiting": "Saturn", "target_label": "Asc"}],
+        "2026-01-01T00:00:00Z",
+        pd_windows=[{"start": "2026-01-01T00:00:00Z"}],
+        registry_context=registry_context,
+    )
+
+    assert result[0]["fallback"] is True
+    assert len(calls) == 2
+    assert list(registry_context["simultaneous"]["Asc"]) == [
+        {"marker": "original"}
+    ]
+
+
+def test_retry_enrichment_restores_request_history_when_both_passes_fail(monkeypatch):
+    registry_context = transits_morin._new_transit_registry_context()
+    registry_context["simultaneous"]["Asc"].append({"marker": "original"})
+
+    def fake_enrich(_chart, _hits, _timestamp, **kwargs):
+        kwargs["registry_context"]["simultaneous"]["Asc"].append(
+            {"marker": "partial-pass"}
+        )
+        raise RuntimeError("enrichment failed")
+
+    monkeypatch.setattr(transits_morin, "enrich_hits_with_concordance", fake_enrich)
+    raw_hits = [{"transiting": "Saturn", "target_label": "Asc"}]
+
+    result = astro_clock_api._retry_enrich_transit_hits(
+        {},
+        raw_hits,
+        "2026-01-01T00:00:00Z",
+        pd_windows=[{"start": "2026-01-01T00:00:00Z"}],
+        registry_context=registry_context,
+    )
+
+    assert result is raw_hits
+    assert list(registry_context["simultaneous"]["Asc"]) == [
+        {"marker": "original"}
+    ]
+
+
 def test_theme_only_event_does_not_receive_predictor_event_bonus():
     base = {
         "event_type": "relationship_conflict",

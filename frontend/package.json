@@ -1,7 +1,7 @@
 {
   "name": "vox-stella",
   "private": true,
-  "version": "3.1.9",
+  "version": "3.1.10",
   "packageManager": "npm@10.9.8",
   "homepage": "./",
   "description": "Vox Stella - Traditional Horary Astrology Application",
@@ -35,11 +35,12 @@
     "verify:license-trust-root": "node scripts/verify-production-license-config.mjs",
     "verify:release-runtime": "node scripts/assert-release-runtime.mjs",
     "prebuild": "npm run validate:icons",
-    "test:unit": "node tests/parseReasoning.test.mjs && node tests/useReasoningFlag.test.mjs && node tests/licenseManagerPolicy.test.mjs && node tests/licenseManagerPayPalActivation.test.mjs && node main/license.test.cjs && node scripts/prepare-backend.test.cjs && node tests/runtimeEnv.test.cjs && node tests/backendPort.test.cjs && node --test tests/electronRuntimeSecurity.test.cjs",
+    "test:unit": "node tests/parseReasoning.test.mjs && node tests/useReasoningFlag.test.mjs && node tests/licenseManagerPolicy.test.mjs && node tests/licenseManagerPayPalActivation.test.mjs && node main/license.test.cjs && node scripts/prepare-backend.test.cjs && node tests/runtimeEnv.test.cjs && node tests/backendPort.test.cjs && node --test tests/electronRuntimeSecurity.test.cjs tests/mcpServer.test.cjs",
     "test:ui": "vitest run --config vitest.config.mjs",
     "test": "npm run test:unit && npm run test:ui"
   },
   "dependencies": {
+    "@modelcontextprotocol/server": "2.0.0",
     "@turf/turf": "^6.5.0",
     "electron-log": "^5.4.4",
     "electron-updater": "^6.8.9",
@@ -50,9 +51,11 @@
     "react-dom": "^18.2.0",
     "react-leaflet": "^4.2.1",
     "tweetnacl": "^1.0.3",
-    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
+    "zod": "4.4.3"
   },
   "devDependencies": {
+    "@modelcontextprotocol/client": "2.0.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
     "@types/react": "^18.2.15",
@@ -112,6 +115,15 @@
       "preload.js",
       "package.json",
       "license.config.json"
+    ],
+    "asarUnpack": [
+      "main/mcp/stdio-bridge.js"
+    ],
+    "extraFiles": [
+      {
+        "from": "packaging/VoxStella-MCP.cmd",
+        "to": "VoxStella-MCP.cmd"
+      }
     ],
     "extraResources": [
       {
@@ -195,6 +207,6 @@
     "compression": "normal",
     "buildDependenciesFromSource": false,
     "nodeGypRebuild": false,
-    "buildVersion": "3.1.9"
+    "buildVersion": "3.1.10"
   }
 }

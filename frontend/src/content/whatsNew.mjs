@@ -1,4 +1,32 @@
 export const WHATS_NEW_RELEASES = {
+  '3.1.10': {
+    version: '3.1.10',
+    publishedAt: '2026-08-02',
+    headline: 'More dependable transit timing',
+    summary: 'This update makes exact transit calculations and predictor scans consistent across timezones, streaming, and fallback requests while keeping transit history isolated to the active chart.',
+    items: [
+      {
+        title: 'Reliable exact-time calculations',
+        tag: 'Fixed',
+        body: 'Transit timestamps now use a consistent UTC contract, including timezone-free inputs, and invalid dates can no longer silently calculate the current sky.',
+      },
+      {
+        title: 'Consistent scans and predictions',
+        tag: 'Improved',
+        body: 'Streaming and standard window scans now share bounded display logic, enrich each active transit once, and preserve deeper Ascendant evidence for predictions.',
+      },
+      {
+        title: 'Chart history stays isolated',
+        tag: 'Fixed',
+        body: 'Multiple and successive transit evidence is now scoped to the active calculation so another chart or earlier request cannot alter the result.',
+      },
+      {
+        title: 'Clearer aspect exactness',
+        tag: 'Improved',
+        body: 'Partile aspects follow the documented one-degree band, while physical planetary-disc contact is retained as a separate calculation detail.',
+      },
+    ],
+  },
   '3.1.9': {
     version: '3.1.9',
     publishedAt: '2026-08-01',

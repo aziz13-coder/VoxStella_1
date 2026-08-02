@@ -590,16 +590,17 @@ test('main process source retains smoke, redirect, IPC, watchdog, and fatal-exit
   assert.match(source, /registerTrustedIpcHandler\('report:export'/);
   assert.match(source, /webContents\.on\('will-redirect'/);
   assert.match(source, /terminateApplication\('uncaughtException'/);
-  assert.match(source, /const hasSingleInstanceLock = acquireSingleInstanceLock/);
+  assert.match(source, /const hasSingleInstanceLock = MCP_MODE/);
+  assert.match(source, /MCP_MODE\s*\?\s*true\s*:\s*acquireSingleInstanceLock/);
   assert.match(source, /if \(hasSingleInstanceLock\) \{/);
+  const singleInstanceGateIndex = source.indexOf('const hasSingleInstanceLock = MCP_MODE');
   assert.ok(
-    source.indexOf('const hasSingleInstanceLock = acquireSingleInstanceLock') <
-      source.indexOf('app.whenReady()'),
+    singleInstanceGateIndex < source.indexOf('app.whenReady()'),
     'the single-instance lock must be acquired before Electron startup',
   );
   assert.ok(
     source.indexOf("path.join(app.getPath('temp'), `VoxStella-smoke-${process.pid}`)") <
-      source.indexOf('const hasSingleInstanceLock = acquireSingleInstanceLock'),
+      singleInstanceGateIndex,
     'smoke mode must isolate userData before acquiring the single-instance lock',
   );
   assert.match(indexHtml, /script-src 'self'/);

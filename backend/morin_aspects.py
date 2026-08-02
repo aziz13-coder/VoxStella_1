@@ -263,15 +263,37 @@ def _dexter_sinister(lon1: float, lon2: float) -> str:
 
 
 def _jd_from_iso(timestamp_iso: str) -> float:
-    try:
-        import datetime as _dt
-        dt = _dt.datetime.fromisoformat(timestamp_iso.replace('Z', '+00:00')).astimezone(_dt.timezone.utc)
-        return swe.julday(dt.year, dt.month, dt.day, dt.hour + dt.minute / 60.0 + dt.second / 3600.0)
-    except Exception:
-        # Fallback to 'now' in UT if parsing fails
-        import datetime as _dt
-        dt = _dt.datetime.now(_dt.timezone.utc)
-        return swe.julday(dt.year, dt.month, dt.day, dt.hour + dt.minute / 60.0 + dt.second / 3600.0)
+    """Convert an ISO timestamp to a Swiss Ephemeris Julian day in UT.
+
+    The Astro Clock API defines timezone-less timestamps as UTC.  Calling
+    ``astimezone()`` directly on a naive datetime instead treats it as system
+    local time, making identical transit requests produce different positions
+    on computers in different timezones.  Invalid input must also fail closed;
+    silently substituting the current time makes a malformed historical request
+    look like a valid calculation.
+    """
+    import datetime as _dt
+
+    if not isinstance(timestamp_iso, str) or not timestamp_iso.strip():
+        raise ValueError("timestamp_iso must be a non-empty ISO datetime string")
+    dt = _dt.datetime.fromisoformat(timestamp_iso.strip().replace('Z', '+00:00'))
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=_dt.timezone.utc)
+    else:
+        dt = dt.astimezone(_dt.timezone.utc)
+    hour_ut = (
+        dt.hour
+        + dt.minute / 60.0
+        + dt.second / 3600.0
+        + dt.microsecond / 3_600_000_000.0
+    )
+    return swe.julday(
+        dt.year,
+        dt.month,
+        dt.day,
+        hour_ut,
+        getattr(swe, 'GREG_CAL', 1),
+    )
 
 
 def _is_retrograde(jd_ut: float, name: str) -> bool:

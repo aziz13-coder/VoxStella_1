@@ -2,10 +2,12 @@ const http = require('http');
 
 const DEFAULT_MAX_RESPONSE_BYTES = 1024 * 1024;
 
-function requestJsonWithDeadline(requestUrl, {
+function requestJson(requestUrl, {
+  body,
   headers = {},
   httpModule = http,
   maxResponseBytes = DEFAULT_MAX_RESPONSE_BYTES,
+  method = 'GET',
   timeoutMs = 2000,
 } = {}) {
   const deadlineMs = Number(timeoutMs);
@@ -15,6 +17,14 @@ function requestJsonWithDeadline(requestUrl, {
   }
   if (!Number.isFinite(responseLimit) || responseLimit <= 0) {
     throw new TypeError('maxResponseBytes must be a positive finite number');
+  }
+  const normalizedMethod = String(method || 'GET').trim().toUpperCase();
+  if (!/^[A-Z]+$/.test(normalizedMethod)) {
+    throw new TypeError('method must be an HTTP method token');
+  }
+  let encodedBody = null;
+  if (body !== undefined) {
+    encodedBody = Buffer.from(JSON.stringify(body), 'utf8');
   }
 
   return new Promise((resolve) => {
@@ -54,7 +64,15 @@ function requestJsonWithDeadline(requestUrl, {
     }
 
     try {
-      request = httpModule.get(requestUrl, { headers }, (incoming) => {
+      const requestHeaders = { ...headers };
+      if (encodedBody) {
+        if (!Object.keys(requestHeaders).some((key) => key.toLowerCase() === 'content-type')) {
+          requestHeaders['Content-Type'] = 'application/json';
+        }
+        requestHeaders['Content-Length'] = String(encodedBody.length);
+      }
+      const requestOptions = { headers: requestHeaders, method: normalizedMethod };
+      const onResponse = (incoming) => {
         response = incoming;
         let body = '';
         let bodyBytes = 0;
@@ -91,7 +109,14 @@ function requestJsonWithDeadline(requestUrl, {
             fail('invalid_json');
           }
         });
-      });
+      };
+      if (normalizedMethod === 'GET' && encodedBody === null && typeof httpModule.get === 'function') {
+        request = httpModule.get(requestUrl, requestOptions, onResponse);
+      } else {
+        request = httpModule.request(requestUrl, requestOptions, onResponse);
+        if (encodedBody) request.write(encodedBody);
+        request.end();
+      }
     } catch (error) {
       fail(String(error?.message || error));
       return;
@@ -111,7 +136,12 @@ function requestJsonWithDeadline(requestUrl, {
   });
 }
 
+function requestJsonWithDeadline(requestUrl, options = {}) {
+  return requestJson(requestUrl, { ...options, method: 'GET' });
+}
+
 module.exports = {
   DEFAULT_MAX_RESPONSE_BYTES,
+  requestJson,
   requestJsonWithDeadline,
 };

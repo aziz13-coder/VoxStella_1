@@ -1564,6 +1564,11 @@ def test_snap_aware_clock_routes_delegate_to_guarded_loader(monkeypatch):
                 source="confirmed-snap",
             ),
             get_current_planetary_hour=lambda _datetime: None,
+            calculate_daily_hours_for_local_date=lambda _date, _timezone: SimpleNamespace(
+                current_hour=None,
+                source="confirmed-snap",
+            ),
+            get_planetary_hour_for_local_datetime=lambda _datetime, _timezone: None,
         ),
     )
     monkeypatch.setattr(

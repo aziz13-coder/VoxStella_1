@@ -1,7 +1,17 @@
 // Electron main process: creates window, starts backend, injects API base, and cleans up.
+const MCP_BROKER_MODE = process.argv.includes('--mcp-broker');
+const MCP_MODE = MCP_BROKER_MODE || process.argv.includes('--mcp');
+if (MCP_MODE) {
+  // MCP stdio reserves stdout exclusively for protocol messages.
+  const writeMcpDiagnostic = console.error.bind(console);
+  console.log = writeMcpDiagnostic;
+  console.info = writeMcpDiagnostic;
+  console.debug = writeMcpDiagnostic;
+}
 const { app, BrowserWindow, ipcMain, dialog, shell, session } = require('electron');
 const path = require('path');
 const crypto = require('crypto');
+const net = require('net');
 const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
 const {
@@ -218,19 +228,21 @@ if (SMOKE_TEST_MODE) {
   );
 }
 
-const hasSingleInstanceLock = acquireSingleInstanceLock(
-  app,
-  () => mainWindow,
-  {
-    onWindowUnavailable: () => {
-      if (closed || backendKillStarted) return;
-      secondInstanceFocusPending = true;
-      if (ipcHandlersRegistered && BrowserWindow.getAllWindows().length === 0) {
-        void createWindow();
-      }
+const hasSingleInstanceLock = MCP_MODE
+  ? true
+  : acquireSingleInstanceLock(
+    app,
+    () => mainWindow,
+    {
+      onWindowUnavailable: () => {
+        if (closed || backendKillStarted) return;
+        secondInstanceFocusPending = true;
+        if (ipcHandlersRegistered && BrowserWindow.getAllWindows().length === 0) {
+          void createWindow();
+        }
+      },
     },
-  },
-);
+  );
 if (!hasSingleInstanceLock) {
   closed = true;
   app.quit();
@@ -587,6 +599,29 @@ async function ensurePackagedLicenseSecurityContext() {
   process.env.VOX_STELLA_LOCAL_LICENSE_SESSION_SECRET_B64 = backendLicenseSessionSecretB64;
 }
 
+async function ensureMcpLicenseSecurityContext() {
+  if (typeof LicenseManager !== 'function') {
+    throw new Error('Vox Stella licensing is unavailable');
+  }
+  if (app.isPackaged) {
+    await ensurePackagedLicenseSecurityContext();
+    return licenseManager;
+  }
+  if (!licenseManager) {
+    licenseManager = new LicenseManager(app, RUNTIME_LICENSE_CONFIG);
+  }
+  const deviceId = await licenseManager.getDeviceId().catch(() => null);
+  if (typeof deviceId !== 'string' || deviceId.trim().length < 32) {
+    throw new Error('Vox Stella device identity could not be derived');
+  }
+  process.env.VOX_STELLA_DEVICE_ID = deviceId.trim();
+  if (!backendLicenseSessionSecretB64) {
+    backendLicenseSessionSecretB64 = crypto.randomBytes(32).toString('base64');
+  }
+  process.env.VOX_STELLA_LOCAL_LICENSE_SESSION_SECRET_B64 = backendLicenseSessionSecretB64;
+  return licenseManager;
+}
+
 async function startBackend(logDir) {
   console.log('=== Starting Backend ===');
   markBackendStarting();
@@ -618,7 +653,12 @@ async function startBackend(logDir) {
     }
     env[INSTANCE_SECRET_ENV] = backendInstanceSecretB64;
   }
-  if (!app.isPackaged && process.env.ALLOW_DEV_LICENSE_BYPASS === '1') {
+  if (MCP_MODE && !app.isPackaged) {
+    // Source-mode MCP must exercise the real license chain as well.
+    env.ALLOW_DEV_LICENSE_BYPASS = '0';
+    env.LICENSE_BYPASS = '0';
+    env.VOX_STELLA_ENV = 'production';
+  } else if (!app.isPackaged && process.env.ALLOW_DEV_LICENSE_BYPASS === '1') {
     env.ALLOW_DEV_LICENSE_BYPASS = '1';
   }
   if (app.isPackaged && RUNTIME_LICENSE_CONFIG.publicKeyB64) {
@@ -1184,6 +1224,116 @@ async function startApplication() {
   });
 }
 
+async function startMcpApplication() {
+  let logDir = null;
+  try {
+    logDir = path.join(app.getPath('userData'), 'logs');
+  } catch (_) {}
+  backendLogDir = logDir;
+  configureMainFileLogging(logDir);
+  const encodedMcpBrokerPipe = MCP_BROKER_MODE
+    ? String(process.env.VOX_STELLA_MCP_PIPE_B64 || '')
+    : '';
+  const mcpBrokerSecret = MCP_BROKER_MODE
+    ? String(process.env.VOX_STELLA_MCP_BRIDGE_SECRET || '')
+    : '';
+  let mcpBrokerPipeName = '';
+  if (MCP_BROKER_MODE) {
+    // Do not propagate the one-time bridge capability into the backend child.
+    delete process.env.VOX_STELLA_MCP_PIPE_B64;
+    delete process.env.VOX_STELLA_MCP_BRIDGE_SECRET;
+    try {
+      mcpBrokerPipeName = Buffer.from(encodedMcpBrokerPipe, 'base64').toString('utf8');
+    } catch (_) {}
+    if (!/^\\\\\.\\pipe\\vox-stella-mcp-[A-Za-z0-9-]+$/.test(mcpBrokerPipeName)) {
+      throw new Error('Invalid MCP broker pipe');
+    }
+    if (!/^[0-9a-f]{64}$/.test(mcpBrokerSecret)) {
+      throw new Error('Invalid MCP broker authentication');
+    }
+  }
+
+  const {
+    assertLicensedMcpAccess,
+    createLicensedBackendClient,
+  } = require('./main/mcp/licensed-backend-client');
+  const { createVoxStellaMcpServer } = require('./main/mcp/server');
+  const { serveStdio, StdioServerTransport } = require('@modelcontextprotocol/server/stdio');
+
+  await ensureMcpLicenseSecurityContext();
+  // Check before starting the calculation process and before advertising any
+  // MCP capability. A copied config is useless on an unlicensed device.
+  await assertLicensedMcpAccess(licenseManager);
+
+  const selectedPort = await resolveBackendPort({
+    appIsPackaged: app.isPackaged,
+    configuredPort: CONFIGURED_BACKEND_PORT,
+  });
+  applyBackendPort(selectedPort);
+  configureRuntimeEnv({ appIsPackaged: app.isPackaged, apiBaseUrl: API_BASE_URL, env: process.env });
+  backendProc = await startInitialBackend(logDir);
+  if (!app.isPackaged && !(await waitForBackendReachability(BACKEND_STATUS_BOOT_GRACE_MS))) {
+    throw new Error('Vox Stella calculation backend did not become ready');
+  }
+
+  const licensedBackendCall = createLicensedBackendClient({
+    apiBaseUrl: API_BASE_URL,
+    licenseManager,
+  });
+  let brokerSocket = null;
+  let mcpTransport = null;
+  if (MCP_BROKER_MODE) {
+    brokerSocket = await new Promise((resolve, reject) => {
+      const socket = net.createConnection(mcpBrokerPipeName);
+      const timer = setTimeout(() => {
+        socket.destroy();
+        reject(new Error('Timed out connecting to the MCP console bridge'));
+      }, 15000);
+      socket.once('connect', () => {
+        clearTimeout(timer);
+        resolve(socket);
+      });
+      socket.once('error', (error) => {
+        clearTimeout(timer);
+        reject(error);
+      });
+    });
+    brokerSocket.write(`${JSON.stringify({
+      protocol: 'vox-stella-mcp-bridge-v1',
+      secret: mcpBrokerSecret,
+    })}\n`);
+    mcpTransport = new StdioServerTransport(brokerSocket, brokerSocket);
+  }
+
+  const mcpHandle = serveStdio(
+    () => createVoxStellaMcpServer({
+      appVersion: app.getVersion(),
+      licensedBackendCall,
+    }),
+    {
+      legacy: 'serve',
+      ...(mcpTransport ? { transport: mcpTransport } : {}),
+      onerror: (error) => console.error(`[mcp] ${String(error?.message || error)}`),
+    },
+  );
+  console.error(`[mcp] Vox Stella ${app.getVersion()} licensed stdio server ready`);
+
+  const shutdownMcp = () => {
+    void mcpHandle.close().catch(() => null).finally(() => {
+      shutdownBackend();
+      app.quit();
+    });
+  };
+  if (brokerSocket) {
+    brokerSocket.once('close', shutdownMcp);
+    brokerSocket.once('error', (error) => {
+      console.error(`[mcp] bridge disconnected: ${String(error?.message || error)}`);
+    });
+  } else {
+    process.stdin.once('end', shutdownMcp);
+  }
+}
+
 function withTimeout(promise, timeoutMs, label) {
   let timer = null;
   return Promise.race([
@@ -1318,6 +1468,7 @@ if (hasSingleInstanceLock) {
   app.on('before-quit', shutdownBackend);
   app.on('will-quit', shutdownBackend);
   app.on('window-all-closed', () => {
+    if (MCP_MODE) return;
     if (process.platform !== 'darwin') {
       shutdownBackend();
       app.quit();
@@ -1332,7 +1483,7 @@ if (hasSingleInstanceLock) {
   process.once('unhandledRejection', (reason) => terminateApplication('unhandledRejection', reason, 1));
 
   app.whenReady()
-    .then(startApplication)
+    .then(MCP_MODE ? startMcpApplication : startApplication)
     .catch((error) => {
       if (SMOKE_TEST_MODE) {
         try {

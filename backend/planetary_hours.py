@@ -25,6 +25,7 @@ import logging
 from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass
 from enum import Enum
+from zoneinfo import ZoneInfo
 
 # Swiss Ephemeris for precise calculations
 from swisseph_state import swisseph as swe
@@ -99,19 +100,87 @@ class PlanetaryHoursCalculator:
         daily_hours = self.calculate_daily_hours(dt.date())
         return self._find_current_hour(daily_hours, dt)
 
+    def get_planetary_hour_for_local_datetime(
+        self,
+        dt: datetime.datetime,
+        timezone_name: str,
+    ) -> PlanetaryHour:
+        """Return the planetary hour for an instant using local sunrise days."""
+        zone = ZoneInfo(str(timezone_name))
+        local_dt = dt.replace(tzinfo=zone) if dt.tzinfo is None else dt.astimezone(zone)
+        daily = self.calculate_daily_hours_for_local_date(local_dt.date(), timezone_name)
+        if local_dt.astimezone(datetime.timezone.utc) < daily.sunrise.astimezone(datetime.timezone.utc):
+            daily = self.calculate_daily_hours_for_local_date(
+                local_dt.date() - datetime.timedelta(days=1),
+                timezone_name,
+            )
+        return self._find_current_hour(daily, local_dt)
+
     def calculate_daily_hours(self, date: datetime.date) -> DailyPlanetaryHours:
         """Calculate all 24 planetary hours for a given date."""
         logger.info(f"Calculating planetary hours for {date}")
-
-        # Get day ruler
-        day_ruler = self._get_day_ruler(date)
-
-        # Calculate sunrise and sunset
         sunrise, sunset = self._calculate_sunrise_sunset(date)
+        # Preserve the historical UTC-date API: absent a location timezone,
+        # its night ends 24 hours after this sunrise.
+        return self._build_daily_hours(date, sunrise, sunset, sunrise + datetime.timedelta(days=1))
+
+    def calculate_daily_hours_for_local_date(
+        self,
+        date: datetime.date,
+        timezone_name: str,
+    ) -> DailyPlanetaryHours:
+        """Calculate the planetary day that begins on a local civil date.
+
+        Swiss Ephemeris rise/set results are UTC instants. Asking it from
+        00:00 UTC can skip the requested local morning east of Greenwich, so
+        resolve candidate events by their converted local date. The nocturnal
+        hours end at the next observed sunrise instead of assuming a fixed
+        24-hour solar-day interval.
+        """
+        zone = ZoneInfo(str(timezone_name))
+        sunrise, sunset = self._sun_events_for_local_date(date, zone)
+        next_sunrise, _ = self._sun_events_for_local_date(
+            date + datetime.timedelta(days=1),
+            zone,
+        )
+        return self._build_daily_hours(date, sunrise, sunset, next_sunrise)
+
+    def _sun_events_for_local_date(
+        self,
+        local_date: datetime.date,
+        zone: ZoneInfo,
+    ) -> Tuple[datetime.datetime, datetime.datetime]:
+        # At the maximum IANA offsets, the UTC seed date can differ from the
+        # local date. A small bounded search is deterministic and covers the
+        # entire civil-time range without longitude heuristics.
+        candidates = []
+        for offset_days in (-2, -1, 0, 1):
+            seed_date = local_date + datetime.timedelta(days=offset_days)
+            sunrise, sunset = self._calculate_sunrise_sunset(seed_date)
+            sunrise_local = sunrise.astimezone(zone)
+            sunset_local = sunset.astimezone(zone)
+            candidates.append((sunrise, sunset, sunrise_local.date(), sunset_local.date()))
+            if sunrise_local.date() == local_date and sunset_local.date() == local_date:
+                return sunrise, sunset
+        for sunrise, sunset, sunrise_date, _sunset_date in candidates:
+            if sunrise_date == local_date:
+                return sunrise, sunset
+        raise ValueError(f"Unable to resolve sunrise and sunset for local date {local_date}")
+
+    def _build_daily_hours(
+        self,
+        date: datetime.date,
+        sunrise: datetime.datetime,
+        sunset: datetime.datetime,
+        next_sunrise: datetime.datetime,
+    ) -> DailyPlanetaryHours:
+        day_ruler = self._get_day_ruler(date)
 
         # Calculate day and night durations
         day_duration = (sunset - sunrise).total_seconds() / 3600  # hours
-        night_duration = 24 - day_duration
+        night_duration = (next_sunrise - sunset).total_seconds() / 3600
+        if day_duration <= 0 or night_duration <= 0:
+            raise ValueError("Sunrise/sunset sequence is invalid for planetary hours")
 
         # Calculate hour durations
         day_hour_duration = day_duration / 12  # 12 day hours
