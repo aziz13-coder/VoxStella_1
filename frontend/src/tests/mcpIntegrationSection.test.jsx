@@ -23,8 +23,10 @@ function readySetup() {
       'calculate_astrological_chart',
       'get_current_astrological_positions',
       'calculate_planetary_hours',
+      'analyze_synastry',
+      'analyze_forensic_event',
     ],
-    scope: { excluded: ['transit relationship and window scans'] },
+    scope: { excluded: ['saved-data browsing and mutations'] },
   };
 }
 
@@ -40,8 +42,10 @@ describe('McpIntegrationSection', () => {
 
     expect(await screen.findByText('Ready')).toBeInTheDocument();
     expect(screen.getByText('Chart calculation')).toBeInTheDocument();
+    expect(screen.getByText('Synastry')).toBeInTheDocument();
+    expect(screen.getByText('Forensic')).toBeInTheDocument();
     expect(screen.getByText(/VoxStella-MCP\.cmd/)).toBeInTheDocument();
-    expect(screen.getByText(/does not expose saved charts/i)).toBeInTheDocument();
+    expect(screen.getByText(/does not list private saved charts/i)).toBeInTheDocument();
   });
 
   it('copies tested direct configurations and opens the launcher folder', async () => {

@@ -347,7 +347,11 @@ def _engine_chart(
     )
 
 
-def calculate_chart(payload: Mapping[str, Any], *, use_current_time: bool = False) -> Dict[str, Any]:
+def _validated_chart_request(
+    payload: Mapping[str, Any],
+    *,
+    use_current_time: bool = False,
+) -> Dict[str, Any]:
     if not isinstance(payload, Mapping):
         raise McpInputError("request body must be a JSON object")
     _ensure_known_fields(payload, CHART_INPUT_FIELDS)
@@ -370,16 +374,57 @@ def calculate_chart(payload: Mapping[str, Any], *, use_current_time: bool = Fals
     )
     include_modern = any(body in MODERN_BODIES for body in bodies)
     include_chiron = "Chiron" in bodies
+    return {
+        "calculation_time": calculation_time,
+        "location": location,
+        "timezone_name": timezone_name,
+        "latitude": latitude,
+        "longitude": longitude,
+        "house_system_code": house_system_code,
+        "bodies": bodies,
+        "sections": sections,
+        "include_modern": include_modern,
+        "include_chiron": include_chiron,
+        "use_current_time": use_current_time,
+    }
+
+
+def build_chart_bundle(
+    payload: Mapping[str, Any],
+    *,
+    use_current_time: bool = False,
+) -> tuple[Mapping[str, Any], Dict[str, Any]]:
+    """Return the canonical engine bundle plus its validated public context.
+
+    Feature adapters such as explicit-input synastry use this entry point so
+    they share the exact MCP datetime, location, body, and house validation
+    used by ``calculate_astrological_chart``.
+    """
+
+    context = _validated_chart_request(payload, use_current_time=use_current_time)
     bundle = _engine_chart(
-        calculation_time=calculation_time,
-        location=location,
-        timezone_name=timezone_name,
-        latitude=latitude,
-        longitude=longitude,
-        house_system_code=house_system_code,
-        include_modern=include_modern,
-        include_chiron=include_chiron,
+        calculation_time=context["calculation_time"],
+        location=context["location"],
+        timezone_name=context["timezone_name"],
+        latitude=context["latitude"],
+        longitude=context["longitude"],
+        house_system_code=context["house_system_code"],
+        include_modern=context["include_modern"],
+        include_chiron=context["include_chiron"],
     )
+    return bundle, context
+
+
+def calculate_chart(payload: Mapping[str, Any], *, use_current_time: bool = False) -> Dict[str, Any]:
+    bundle, context = build_chart_bundle(payload, use_current_time=use_current_time)
+    calculation_time = context["calculation_time"]
+    location = context["location"]
+    timezone_name = context["timezone_name"]
+    latitude = context["latitude"]
+    longitude = context["longitude"]
+    house_system_code = context["house_system_code"]
+    bodies = context["bodies"]
+    sections = context["sections"]
     chart_data = bundle.get("chart_data") or {}
     meta = bundle.get("meta") or {}
     if not isinstance(chart_data, Mapping):
@@ -398,7 +443,7 @@ def calculate_chart(payload: Mapping[str, Any], *, use_current_time: bool = Fals
                 str(chart_data.get("house_system_code") or house_system_code).upper(),
                 HOUSE_SYSTEMS[house_system_code],
             ),
-            "time_basis": "current" if use_current_time else "requested",
+            "time_basis": "current" if context["use_current_time"] else "requested",
         },
     }
     if "angles" in sections:
@@ -479,6 +524,7 @@ def calculate_planetary_hours(payload: Mapping[str, Any]) -> Dict[str, Any]:
 def capabilities_payload() -> Dict[str, Any]:
     return {
         "schema_version": MCP_SCHEMA_VERSION,
+        "feature_schema_version": "voxstella.features.v1",
         "app_version": os.getenv("VOX_STELLA_APP_VERSION", "development"),
         "transport": "stdio",
         "license_required": True,
@@ -487,7 +533,32 @@ def capabilities_payload() -> Dict[str, Any]:
             "calculate_astrological_chart",
             "get_current_astrological_positions",
             "calculate_planetary_hours",
+            "analyze_synastry",
+            "calculate_trait_profile",
+            "analyze_transits",
+            "scan_transit_window",
+            "analyze_astrocartography_location",
+            "generate_astrocartography_map",
+            "compare_astrocartography_locations",
+            "search_astrocartography_atlas",
+            "find_election_times",
+            "calculate_bazi",
+            "analyze_chinese_compatibility",
+            "cast_iching_oracle",
+            "analyze_forensic_event",
+            "run_birth_time_certification",
         ],
+        "feature_families": {
+            "core": ["chart", "current_positions", "planetary_hours"],
+            "synastry": ["explicit_chart_comparison"],
+            "trait_profile": ["explicit_or_saved_chart"],
+            "transits": ["exact", "bounded_window"],
+            "astrocartography": ["location", "map", "compare", "atlas_search"],
+            "election": ["bounded_candidate_scan"],
+            "chinese_astrology": ["bazi", "compatibility", "iching"],
+            "forensic": ["event_chart_analysis"],
+            "certification": ["birth_time_rectification_assessment"],
+        },
         "house_systems": [
             {"code": code, "name": name} for code, name in HOUSE_SYSTEMS.items()
         ],
@@ -506,6 +577,7 @@ def capabilities_payload() -> Dict[str, Any]:
 __all__ = [
     "MCP_SCHEMA_VERSION",
     "McpInputError",
+    "build_chart_bundle",
     "calculate_chart",
     "calculate_planetary_hours",
     "capabilities_payload",

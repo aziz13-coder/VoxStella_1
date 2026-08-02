@@ -2,12 +2,13 @@ const http = require('http');
 
 const DEFAULT_MAX_RESPONSE_BYTES = 1024 * 1024;
 
-function requestJson(requestUrl, {
+function requestBody(requestUrl, {
   body,
   headers = {},
   httpModule = http,
   maxResponseBytes = DEFAULT_MAX_RESPONSE_BYTES,
   method = 'GET',
+  responseType = 'json',
   signal,
   timeoutMs = 2000,
 } = {}) {
@@ -22,6 +23,9 @@ function requestJson(requestUrl, {
   const normalizedMethod = String(method || 'GET').trim().toUpperCase();
   if (!/^[A-Z]+$/.test(normalizedMethod)) {
     throw new TypeError('method must be an HTTP method token');
+  }
+  if (responseType !== 'json' && responseType !== 'text') {
+    throw new TypeError('responseType must be json or text');
   }
   let encodedBody = null;
   if (body !== undefined) {
@@ -116,6 +120,15 @@ function requestJson(requestUrl, {
         });
         incoming.on('end', () => {
           if (settled) return;
+          if (responseType === 'text') {
+            finish({
+              ok: incoming.statusCode === 200,
+              statusCode: incoming.statusCode,
+              headers: incoming.headers || {},
+              payload: body,
+            });
+            return;
+          }
           try {
             finish({
               ok: incoming.statusCode === 200,
@@ -154,6 +167,14 @@ function requestJson(requestUrl, {
   });
 }
 
+function requestJson(requestUrl, options = {}) {
+  return requestBody(requestUrl, { ...options, responseType: 'json' });
+}
+
+function requestText(requestUrl, options = {}) {
+  return requestBody(requestUrl, { ...options, responseType: 'text' });
+}
+
 function requestJsonWithDeadline(requestUrl, options = {}) {
   return requestJson(requestUrl, { ...options, method: 'GET' });
 }
@@ -162,4 +183,5 @@ module.exports = {
   DEFAULT_MAX_RESPONSE_BYTES,
   requestJson,
   requestJsonWithDeadline,
+  requestText,
 };

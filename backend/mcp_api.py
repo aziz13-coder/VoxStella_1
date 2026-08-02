@@ -10,6 +10,7 @@ from mcp_chart_service import (
     calculate_planetary_hours,
     capabilities_payload,
 )
+from mcp_feature_service import calculate_synastry
 
 
 mcp_bp = Blueprint("licensed_mcp", __name__, url_prefix="/api/mcp")
@@ -56,6 +57,11 @@ def current_positions_route():
 @mcp_bp.post("/planetary-hours")
 def planetary_hours_route():
     return _calculation_response(lambda: calculate_planetary_hours(_json_body()))
+
+
+@mcp_bp.post("/synastry")
+def synastry_route():
+    return _calculation_response(lambda: calculate_synastry(_json_body()))
 
 
 __all__ = ["mcp_bp"]

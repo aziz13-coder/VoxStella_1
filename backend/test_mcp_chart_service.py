@@ -180,3 +180,6 @@ def test_capabilities_declares_license_and_required_location_contract():
     assert result["default_house_system_code"] == "R"
     assert result["required_location_parameters"] == ["latitude", "longitude", "timezone"]
     assert "calculate_astrological_chart" in result["tools"]
+    assert "analyze_synastry" in result["tools"]
+    assert "run_birth_time_certification" in result["tools"]
+    assert result["feature_families"]["forensic"] == ["event_chart_analysis"]

@@ -13,6 +13,7 @@ if str(BACKEND_DIR) not in sys.path:
 
 import app as backend_app  # noqa: E402
 import licensing  # noqa: E402
+import mcp_api  # noqa: E402
 
 
 def _local_session(secret: bytes, device: str, *, expired: bool = False) -> str:
@@ -125,3 +126,28 @@ def test_mcp_request_body_size_is_bounded(monkeypatch):
 
     assert response.status_code == 400
     assert "size limit" in response.get_json()["detail"]
+
+
+def test_mcp_synastry_is_license_gated_and_uses_explicit_adapter(monkeypatch):
+    secret, device = _secure_runtime(monkeypatch)
+    captured = {}
+
+    def fake_synastry(payload):
+        captured.update(payload)
+        return {"schema_version": "voxstella.astrology.v1", "engine_id": "memo"}
+
+    monkeypatch.setattr(mcp_api, "calculate_synastry", fake_synastry)
+    client = backend_app.app.test_client()
+    body = {"chart_a": {"label": "A"}, "chart_b": {"label": "B"}}
+
+    denied = client.post("/api/mcp/synastry", json=body)
+    allowed = client.post(
+        "/api/mcp/synastry",
+        headers={"X-License-Token": _local_session(secret, device)},
+        json=body,
+    )
+
+    assert denied.status_code == 402
+    assert allowed.status_code == 200
+    assert allowed.get_json()["data"]["engine_id"] == "memo"
+    assert captured == body

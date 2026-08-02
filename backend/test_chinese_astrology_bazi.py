@@ -362,7 +362,6 @@ def test_chinese_astrology_compatibility_route_compares_two_saved_snaps(monkeypa
         for event in compatibility["events"]
     )
     assert any(event["intensity"] in {"day_partner_palace", "partner_palace_contact"} for event in compatibility["events"])
-
     legacy_response = client.post(
         "/api/astro-clock/chinese-astrology/compatibility",
         json={
@@ -393,6 +392,39 @@ def test_chinese_astrology_compatibility_route_compares_two_saved_snaps(monkeypa
     assert primary_only_data["primary"]["birth"]["calculation_sex"] == "female"
     assert primary_only_data["relationship"]["birth"]["calculation_sex"] is None
     assert primary_only_directions["relationship_context"]["sex_based_role"] == "unknown"
+
+
+def test_chinese_astrology_compatibility_route_accepts_two_explicit_births():
+    client = app_module.app.test_client()
+    response = client.post(
+        "/api/astro-clock/chinese-astrology/compatibility",
+        json={
+            "primary": {
+                "date": "1990-01-01",
+                "time": "12:00",
+                "location": "Jerusalem, Israel",
+                "timezone": "Asia/Jerusalem",
+                "latitude": 31.778,
+                "longitude": 35.235,
+            },
+            "relationship": {
+                "date": "1992-06-15",
+                "time": "18:30",
+                "location": "New York, NY",
+                "timezone": "America/New_York",
+                "latitude": 40.7128,
+                "longitude": -74.006,
+            },
+            "relationship_context": "romantic",
+            "include_luck_pillars": False,
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.get_json()["data"]
+    assert data["primary"]["source_snap_id"] is None
+    assert data["relationship"]["source_snap_id"] is None
+    assert data["compatibility"]["relationship_context"] == "romantic"
 
 
 def test_chinese_astrology_compatibility_route_rejects_same_snap(monkeypatch):

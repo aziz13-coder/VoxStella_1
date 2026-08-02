@@ -1,13 +1,15 @@
 const path = require('node:path');
+const { MCP_FEATURE_TOOL_NAMES } = require('./feature-tools');
 
 
 const MCP_STARTUP_TIMEOUT_SECONDS = 210;
-const MCP_TOOL_TIMEOUT_SECONDS = 120;
+const MCP_TOOL_TIMEOUT_SECONDS = 300;
 const MCP_TOOL_NAMES = Object.freeze([
   'get_astrological_capabilities',
   'calculate_astrological_chart',
   'get_current_astrological_positions',
   'calculate_planetary_hours',
+  ...MCP_FEATURE_TOOL_NAMES,
 ]);
 const MCP_RESOURCE_URIS = Object.freeze([
   'voxstella://capabilities',
@@ -89,10 +91,10 @@ function buildMcpSetupStatus({
     scope: {
       readOnly: true,
       excluded: [
-        'transit relationship and window scans',
         'horary judgments',
-        'synastry',
-        'saved charts, notes, and other user data',
+        'listing or searching saved charts, notes, and other user data',
+        'chart, note, preference, or account mutations',
+        'license identity and durable credentials',
       ],
     },
   };

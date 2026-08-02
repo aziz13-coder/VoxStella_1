@@ -7,6 +7,20 @@ const TOOL_LABELS = {
   calculate_astrological_chart: 'Chart calculation',
   get_current_astrological_positions: 'Current positions',
   calculate_planetary_hours: 'Planetary hours',
+  analyze_synastry: 'Synastry',
+  calculate_trait_profile: 'Trait Profile',
+  analyze_transits: 'Exact transits',
+  scan_transit_window: 'Transit window',
+  analyze_astrocartography_location: 'Astrocartography location',
+  generate_astrocartography_map: 'Astrocartography map',
+  compare_astrocartography_locations: 'Astrocartography comparison',
+  search_astrocartography_atlas: 'Astrocartography atlas',
+  find_election_times: 'Election',
+  calculate_bazi: 'Chinese Astrology · BaZi',
+  analyze_chinese_compatibility: 'Chinese compatibility',
+  cast_iching_oracle: 'I Ching oracle',
+  analyze_forensic_event: 'Forensic',
+  run_birth_time_certification: 'Certification',
 };
 
 
@@ -23,7 +37,7 @@ export default function McpIntegrationSection({ darkMode, electronAPI }) {
         state: 'installed_build_required',
         detail: 'MCP setup is available in the installed Windows application.',
         tools: Object.keys(TOOL_LABELS),
-        scope: { excluded: ['Transit scans and private user data'] },
+        scope: { excluded: ['Saved-data browsing, mutations, and license identity'] },
       });
       return () => { active = false; };
     }
@@ -125,8 +139,10 @@ export default function McpIntegrationSection({ darkMode, electronAPI }) {
           <div className="rounded-xl border border-gray-200 p-4 text-xs text-gray-600 dark:border-gray-700 dark:text-gray-300">
             <div className="font-semibold text-gray-800 dark:text-gray-100">Deliberate privacy boundary</div>
             <p className="mt-1">
-              MCP does not expose saved charts, notes, license identity, horary judgments, synastry, or transit relationship/window scans.
-              Those workflows remain inside the desktop app until they have separate versioned contracts.
+              MCP exposes licensed, read-only calculations for Synastry, Trait Profile, Transits, Astrocartography,
+              Election, Chinese Astrology, Forensic, and Certification. It does not list private saved charts or notes,
+              mutate app data, expose license identity, or return durable credentials. Specialized tools use explicit
+              chart inputs; optional saved-chart IDs are accepted only by workflows that require a user-selected chart.
             </p>
           </div>
 

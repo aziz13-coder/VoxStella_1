@@ -1,10 +1,10 @@
 # Vox Stella licensed MCP architecture
 
-Status: implemented in source on 2026-08-01.
+Status: core implemented on 2026-08-01; licensed AstroClock feature suite expanded on 2026-08-02.
 
 ## Purpose
 
-Vox Stella exposes its astronomical calculation engine to local AI agents through Model Context Protocol (MCP). The first contract is intentionally narrow: it returns astrological positions, houses, aspects, Moon context, calculation parameters, and planetary hours. It does not expose durable license credentials, arbitrary backend routes, saved user data, or mutation tools.
+Vox Stella exposes licensed, read-only AstroClock calculations to local AI agents through Model Context Protocol (MCP). The contract includes core charts and planetary hours plus Synastry, Trait Profile, Transits, Astrocartography, Election, Chinese Astrology, Forensic, and Birth-time Certification. It does not expose durable license credentials, arbitrary backend routes, saved-data browsing, or mutation tools.
 
 The non-negotiable access invariant is:
 
@@ -49,7 +49,7 @@ sequenceDiagram
         Agent->>Bridge: Call calculation tool
         Bridge->>Electron: Forward MCP bytes
         Electron->>License: Mint/refresh a new local session token
-        Electron->>Backend: /api/mcp/* with X-License-Token
+        Electron->>Backend: Fixed licensed feature route with X-License-Token
         Backend->>Backend: Verify HMAC, expiry, and device binding
         Backend->>Engine: Validate inputs and calculate
         Engine-->>Backend: Raw internal chart result
@@ -87,9 +87,9 @@ The bridge allows 180 seconds for the licensed broker to connect. This covers li
 
 All `/api/mcp/*` routes are included in `PROTECTED_ENDPOINT_PREFIXES`. Flask rejects a request before its route handler when the local session is missing, malformed, expired, overlong, or bound to another device.
 
-The backend binds only to `127.0.0.1`. The MCP bridge can call only `/api/mcp/*`; it cannot be used as a general authenticated proxy into other Vox Stella endpoints. The client parses and canonicalizes the base URL and final request URL before minting or attaching a local license session. It rejects credentials, non-loopback hosts, missing or invalid ports, query strings, fragments, encoded traversal, and normalized paths outside `/api/mcp/*`.
+The backend binds only to `127.0.0.1`. The MCP bridge can call `/api/mcp/*` and a finite table of read-only AstroClock feature routes. Each feature entry fixes the allowed HTTP method, query-key set, response framing, and maximum timeout. There is no caller-controlled backend path. The client parses and canonicalizes the base URL and final request URL before minting or attaching a local license session. It rejects credentials, non-loopback hosts, missing or invalid ports, caller-supplied query strings, fragments, encoded traversal, undeclared routes, wrong methods, unknown query keys, oversized URLs, and timeouts above five minutes.
 
-MCP request cancellation is propagated from the SDK handler context into the local HTTP request. Cancellation destroys the pending bridge request immediately instead of waiting for its 30-second deadline.
+MCP request cancellation is propagated from the SDK handler context into the local HTTP request. Cancellation destroys the pending bridge request immediately instead of waiting for its route-specific deadline; bounded feature scans may allow up to five minutes.
 
 ### Development behavior
 
@@ -105,8 +105,22 @@ The desktop UI's existing source-mode convenience bypass does not apply to `--mc
 | `calculate_astrological_chart` | Calculates a chart for an explicit ISO-8601 time and location | Deterministic for identical inputs and engine data |
 | `get_current_astrological_positions` | Calculates positions for the current instant | Time-varying |
 | `calculate_planetary_hours` | Calculates 24 unequal planetary hours for the selected local date | Deterministic when `datetime` is supplied |
+| `analyze_synastry` | Compares two explicit charts through the selected Synastry engine | Deterministic; never reads or creates saved charts |
+| `calculate_trait_profile` | Runs the complete Trait Profile for an explicit natal chart | Deterministic |
+| `analyze_transits` | Calculates exact transits to an explicit natal chart | Deterministic for explicit timestamps |
+| `scan_transit_window` | Scans a bounded transit window | Deterministic for identical inputs and engine data |
+| `analyze_astrocartography_location` | Evaluates one exact target location | Deterministic |
+| `generate_astrocartography_map` | Produces global line data | Deterministic |
+| `compare_astrocartography_locations` | Compares two through ten explicit targets | Deterministic |
+| `search_astrocartography_atlas` | Ranks bounded atlas candidates | Deterministic for identical catalog data |
+| `find_election_times` | Returns top candidates from a bounded Election scan | Deterministic for explicit bounds and engine data |
+| `calculate_bazi` | Calculates an explicit Four Pillars profile | Deterministic |
+| `analyze_chinese_compatibility` | Compares two explicit BaZi birth profiles | Deterministic; never requires saved charts |
+| `cast_iching_oracle` | Casts coins, yarrow probabilities, or manual lines | Non-idempotent unless manual lines or a seed are supplied |
+| `analyze_forensic_event` | Runs the Forensic rule engine for an explicit event chart | Deterministic; symbolic analysis only |
+| `run_birth_time_certification` | Runs bounded rectification and evidence-quality classification | Deterministic; not documentary certification |
 
-Every tool is read-only and non-destructive. Calculation tools use Zod validation in the MCP server and repeat validation in Python.
+Every tool is read-only and non-destructive. Calculation tools use Zod validation in the MCP server and the canonical Python route or service repeats domain validation. Scan tools have explicit range, row, result, response-size, and timeout bounds.
 
 ### Resources
 
@@ -119,7 +133,7 @@ Resource reads are licensed calls too; they mint a fresh local backend session.
 
 ### Required location inputs
 
-All calculation tools require:
+Western chart-based calculation tools require:
 
 - `latitude`: decimal degrees from -90 through 90
 - `longitude`: decimal degrees from -180 through 180, east positive
@@ -152,7 +166,7 @@ The default body set is Sun, Moon, Mercury, Venus, Mars, Jupiter, Saturn, and No
 
 Selectable response sections are `metadata`, `angles`, `planets`, `houses`, `aspects`, `moon`, and `considerations`. Aspect rows are filtered so both bodies are in the requested body set.
 
-The response schema is `voxstella.astrology.v1`. Numeric longitudes and speeds remain machine-readable; internal engine objects and license claims are not returned.
+Core chart responses use `voxstella.astrology.v1`. Expanded feature responses carry `mcp_schema_version: voxstella.features.v1` and the invoking `feature_tool`. Numeric values remain machine-readable; internal engine objects and license claims are not returned.
 
 ## Client configuration
 
@@ -180,7 +194,7 @@ Replace the command with the actual installation path chosen by the user.
 [mcp_servers.vox_stella]
 command = "C:\\Users\\YOUR_USER\\AppData\\Local\\Programs\\Vox Stella\\VoxStella-MCP.cmd"
 startup_timeout_sec = 210
-tool_timeout_sec = 120
+tool_timeout_sec = 300
 ```
 
 Activate Vox Stella normally in the desktop application before the first MCP launch. Closing the desktop window does not remove the encrypted activation. MCP can also run while the desktop UI is open because MCP processes intentionally do not join the UI single-instance lock.
@@ -202,23 +216,25 @@ Activate Vox Stella normally in the desktop application before the first MCP lau
 | --- | --- |
 | `frontend/main.js` | `--mcp-broker` headless lifecycle, license-first startup, private pipe, and backend lifetime |
 | `frontend/main/license.js` | Encrypted durable token ownership and local session minting |
-| `frontend/main/mcp/server.js` | MCP v2 tools, resources, Zod schemas, stdio era negotiation |
-| `frontend/main/mcp/licensed-backend-client.js` | Fresh-token-per-call policy and restricted backend client |
+| `frontend/main/mcp/server.js` | Core MCP v2 tools, resources, and stdio era negotiation |
+| `frontend/main/mcp/feature-tools.js` | Typed, read-only feature tools and fixed route adapters |
+| `frontend/main/mcp/licensed-backend-client.js` | Fresh-token-per-call policy, exact feature allowlist, and Election SSE completion framing |
 | `frontend/main/mcp/setup.js` | Quote-safe client configuration, readiness state, and advertised scope |
 | `frontend/main/mcp/stdio-bridge.js` | Windows console stdio to authenticated named-pipe proxy |
 | `frontend/packaging/VoxStella-MCP.cmd` | Installed MCP launcher |
-| `frontend/main/backend-http.js` | Deadline, response-size, GET/POST JSON transport |
+| `frontend/main/backend-http.js` | Deadline, response-size, GET/POST JSON and bounded text transport |
 | `frontend/src/components/McpIntegrationSection.jsx` | Customer-facing Settings setup, status, tools, and privacy boundary |
 | `backend/app.py` | Global license middleware and MCP blueprint registration |
 | `backend/mcp_api.py` | Private licensed HTTP routes |
 | `backend/mcp_chart_service.py` | Public input validation, engine invocation, compact versioned output |
+| `backend/mcp_feature_service.py` | Explicit-input, storage-independent Synastry adapter |
 
 ## Verification and release gates
 
 Run the focused tests:
 
 ```powershell
-python -m pytest -q backend/test_mcp_chart_service.py backend/test_mcp_api.py backend/test_planetary_hours.py
+python -m pytest -q backend/test_mcp_chart_service.py backend/test_mcp_feature_service.py backend/test_mcp_api.py backend/test_planetary_hours.py
 Set-Location frontend
 node --test tests/electronRuntimeSecurity.test.cjs tests/mcpServer.test.cjs
 npx vitest run --config vitest.config.mjs src/tests/mcpIntegrationSection.test.jsx
@@ -237,6 +253,11 @@ The test coverage includes:
 - no token detail in MCP license errors;
 - Zod rejection before backend invocation;
 - MCP tools/resources through an in-memory client;
+- valid minimal explicit inputs for all 14 feature tools;
+- exact feature route, method, and query-key allowlisting;
+- Election SSE completion extraction and cancellation;
+- explicit Synastry with no saved-chart access;
+- explicit Chinese Compatibility without saved snaps;
 - a real child-process stdio negotiation proving the 2026 protocol path while legacy fallback remains enabled;
 - a Windows console-bridge round trip through an authenticated private broker pipe;
 - direct `.cmd` startup through the official Node MCP client;
@@ -254,13 +275,13 @@ Before a release, also run the full backend/frontend suites, package only throug
 4. Deactivated or expired license during an open MCP session: next call fails.
 5. Captured stdout: every line is valid MCP protocol data; diagnostics appear only on stderr.
 
-## Deliberate non-goals for the first release
+## Deliberate non-goals
 
 - No remote Streamable HTTP endpoint for the licensed calculation engine. The separate website endpoint exposes public discovery resources only.
 - No API keys separate from the Vox Stella device license.
 - No activation, purchase, deactivation, or license-status tools.
-- No file, snap, notebook, or user-data access.
-- No chart mutation or forensic-judgment tools.
+- No file, notebook, note, or saved-chart browsing. A specialized Election model may consume an explicit saved-chart ID supplied by the user, but MCP cannot enumerate those IDs.
+- No chart mutation, horary judgment, factual crime determination, or suspect-identification tools.
 - No durable tokens, license IDs, device IDs, emails, or customer identity in MCP results.
 
-Future tools should reuse the same license-first startup, per-call token minting, `/api/mcp/*` backend guard, strict input schema, and compact versioned output pattern.
+Future tools should reuse the same license-first startup, per-call token minting, fixed route/method/query allowlist, strict input schema, bounded computation, and compact versioned output pattern.

@@ -6221,25 +6221,52 @@ def chinese_astrology_compatibility():
         payload.get('participant_b_calculation_sex'),
         legacy_calculation_sex,
     )
-    if not primary_snap_id or not relationship_snap_id:
-        return jsonify({'success': False, 'error': 'Two saved snaps are required for Chinese Astrology compatibility'}), 400
-    if str(primary_snap_id) == str(relationship_snap_id):
+    primary_birth = payload.get('primary') if isinstance(payload.get('primary'), dict) else None
+    relationship_birth = payload.get('relationship') if isinstance(payload.get('relationship'), dict) else None
+    explicit_pair = primary_birth is not None and relationship_birth is not None
+    if (primary_birth is None) != (relationship_birth is None):
+        return jsonify({
+            'success': False,
+            'error': 'Both primary and relationship birth inputs are required for explicit compatibility',
+        }), 400
+    if not explicit_pair and (not primary_snap_id or not relationship_snap_id):
+        return jsonify({
+            'success': False,
+            'error': 'Provide two explicit birth inputs or two saved snaps for Chinese Astrology compatibility',
+        }), 400
+    if not explicit_pair and str(primary_snap_id) == str(relationship_snap_id):
         return jsonify({'success': False, 'error': 'Choose two different saved snaps for Chinese Astrology compatibility'}), 400
 
     solar_term_participant = 'primary'
     try:
-        primary_payload = {
-            **payload,
-            'snap_id': primary_snap_id,
-            'natal_snap_id': primary_snap_id,
-            'calculation_sex': primary_calculation_sex,
-        }
-        relationship_payload = {
-            **payload,
-            'snap_id': relationship_snap_id,
-            'natal_snap_id': relationship_snap_id,
-            'calculation_sex': relationship_calculation_sex,
-        }
+        if explicit_pair:
+            primary_payload = {
+                **payload,
+                'birth': primary_birth,
+                'snap_id': '',
+                'natal_snap_id': '',
+                'calculation_sex': primary_calculation_sex,
+            }
+            relationship_payload = {
+                **payload,
+                'birth': relationship_birth,
+                'snap_id': '',
+                'natal_snap_id': '',
+                'calculation_sex': relationship_calculation_sex,
+            }
+        else:
+            primary_payload = {
+                **payload,
+                'snap_id': primary_snap_id,
+                'natal_snap_id': primary_snap_id,
+                'calculation_sex': primary_calculation_sex,
+            }
+            relationship_payload = {
+                **payload,
+                'snap_id': relationship_snap_id,
+                'natal_snap_id': relationship_snap_id,
+                'calculation_sex': relationship_calculation_sex,
+            }
         primary_profile = build_bazi_profile(_chinese_astrology_birth_context(primary_payload))
         solar_term_participant = 'relationship'
         relationship_profile = build_bazi_profile(_chinese_astrology_birth_context(relationship_payload))

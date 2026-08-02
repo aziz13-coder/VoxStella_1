@@ -14,7 +14,7 @@ This record closes the desktop and website MCP findings identified during the 3.
 | MCP card referenced a dead schema | Card now declares the current `2025-12-11/server.schema.json` registry schema | Server-card contract test |
 | Customers could not discover or configure desktop MCP | Settings now shows readiness, launcher, tools, scope, copy actions, and diagnostics access | React interaction tests and rendered browser QA |
 | Desktop and website MCP roles could be confused | User guide and Settings explicitly distinguish licensed local calculations from public website discovery | Documentation review and UI assertions |
-| Transit scope was ambiguous | The contract explicitly states that generic timestamp charts are not transit relationships; transit scans stay in the desktop workflow until a separate versioned contract exists | Capabilities/setup scope contract and UI assertion |
+| Transit scope was ambiguous | Generic charts remain distinct from transit analysis; the expanded contract now exposes exact transits and bounded transit-window scans as separate typed tools | MCP tool-list, minimal-input, and canonical transit-route suites |
 
 ## Standards comparison
 
@@ -29,7 +29,7 @@ The review was checked against the official MCP sources current on 2026-08-02:
 ## Verification commands
 
 ```powershell
-C:\Python313\python.exe -m pytest -q backend\test_mcp_chart_service.py backend\test_mcp_api.py backend\test_planetary_hours.py
+C:\Python313\python.exe -m pytest -q backend\test_mcp_chart_service.py backend\test_mcp_feature_service.py backend\test_mcp_api.py backend\test_planetary_hours.py
 
 Set-Location frontend
 node --test tests\mcpServer.test.cjs tests\electronRuntimeSecurity.test.cjs

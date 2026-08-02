@@ -6,6 +6,7 @@ const {
   assertLicensedMcpAccess,
   createLicensedBackendClient,
 } = require('./licensed-backend-client');
+const { registerLicensedFeatureTools } = require('./feature-tools');
 
 const HOUSE_SYSTEM_CODES = ['R', 'P', 'E', 'W', 'O', 'C', 'K', 'T'];
 const BODIES = [
@@ -195,6 +196,8 @@ function createVoxStellaMcpServer({ appVersion, licensedBackendCall }) {
     args,
     { signal: ctx.mcpReq.signal },
   )));
+
+  registerLicensedFeatureTools(server, licensedBackendCall);
 
   server.registerResource(
     'astrological-capabilities',
