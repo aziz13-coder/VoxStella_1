@@ -3892,7 +3892,7 @@ function ForensicDashboard({
     () => snapOptions.filter((snap) => isSavedSnapCalculationEligible(snap)),
     [snapOptions],
   );
-  const [chartSource, setChartSource] = useState('current');
+  const [chartSource, setChartSource] = useState(() => (activeSnapId ? 'snap' : 'current'));
   const [selectedSnapId, setSelectedSnapId] = useState(activeSnapId || '');
   const selectedSnap = useMemo(
     () => eligibleSnapOptions.find((snap) => String(snap?.id || '') === String(selectedSnapId || '')) || null,
@@ -3997,6 +3997,7 @@ function ForensicDashboard({
       return;
     }
     setSelectedSnapId(String(activeSnapId));
+    setChartSource('snap');
   }, [activeSnapId, snapOptions]);
 
   useEffect(() => {

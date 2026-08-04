@@ -2614,13 +2614,9 @@ describe('AstroClock mode flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Forensic' }));
     await waitFor(() => {
       expect(astroClockApiMock.getForensic).toHaveBeenCalledWith(expect.objectContaining({
-        mode: 'manual',
-        datetime: '2004-09-21T12:00:00',
-        location: 'Israel',
-        timezone: 'Asia/Jerusalem',
-        latitude: 30.8124,
-        longitude: 34.8595,
+        snapId: 'snap-manual',
         houseSystem: 'R',
+        caseType: 'general',
       }));
     });
     expect(astroClockApiMock.getForensic.mock.calls.at(-1)?.[0]?.location).not.toBe('Berlin, Germany');
@@ -3749,7 +3745,7 @@ describe('AstroClock mode flow', () => {
     });
   });
 
-  it('lets forensic switch to a saved snap without replacing its persisted house system', async () => {
+  it('opens forensic on the active saved snap without replacing its persisted house system', async () => {
     global.localStorage.getItem.mockImplementation((key) => (
       key === 'vox_stella_house_system_code' ? 'P' : null
     ));
@@ -3774,6 +3770,25 @@ describe('AstroClock mode flow', () => {
         },
       ],
     });
+    astroClockApiMock.getSnap.mockResolvedValue({
+      success: true,
+      snap: {
+        id: 'snap-vegas',
+        label: 'Snap 1996-09-07 11:15:00+00:00 - Las Vegas',
+        effective_datetime: '1996-09-07T11:15:00Z',
+        location: 'Las Vegas, Nevada',
+        calculation_context: {
+          house_system_code: 'R',
+        },
+        dashboard: {
+          timezone: 'America/Los_Angeles',
+          timezone_label: 'America/Los_Angeles',
+          latitude: 36.1699,
+          longitude: -115.1398,
+        },
+        special_degrees: [],
+      },
+    });
 
     render(
       <AstroClock
@@ -3785,19 +3800,14 @@ describe('AstroClock mode flow', () => {
     );
 
     expect(await screen.findByText('Snap 1996-09-07 11:15:00+00:00 - Las Vegas')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Load' }));
+    await waitFor(() => expect(astroClockApiMock.getSnap).toHaveBeenCalled());
+
+    astroClockApiMock.getForensic.mockClear();
     fireEvent.click(screen.getByRole('button', { name: 'Forensic' }));
 
     await waitFor(() => {
-      expect(astroClockApiMock.getForensic).toHaveBeenCalledWith(expect.objectContaining({
-        location: 'Jerusalem, Israel',
-        timezone: 'Asia/Jerusalem',
-      }));
-    });
-
-    astroClockApiMock.getForensic.mockClear();
-    fireEvent.click(await screen.findByRole('button', { name: 'Saved Snap' }));
-
-    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Saved Snap' })).toHaveAttribute('aria-pressed', 'true');
       expect(screen.getByLabelText('Forensic saved snap')).toHaveValue('snap-vegas');
       expect(astroClockApiMock.getForensic).toHaveBeenCalledWith(expect.objectContaining({
         snapId: 'snap-vegas',
