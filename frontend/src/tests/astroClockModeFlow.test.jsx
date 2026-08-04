@@ -3749,7 +3749,10 @@ describe('AstroClock mode flow', () => {
     });
   });
 
-  it('lets forensic switch from the current chart to a saved snap context', async () => {
+  it('lets forensic switch to a saved snap without replacing its persisted house system', async () => {
+    global.localStorage.getItem.mockImplementation((key) => (
+      key === 'vox_stella_house_system_code' ? 'P' : null
+    ));
     astroClockApiMock.listSnaps.mockResolvedValue({
       success: true,
       items: [
@@ -3758,6 +3761,9 @@ describe('AstroClock mode flow', () => {
           label: 'Snap 1996-09-07 11:15:00+00:00 - Las Vegas',
           effective_datetime: '1996-09-07T11:15:00Z',
           location: 'Las Vegas, Nevada',
+          calculation_context: {
+            house_system_code: 'R',
+          },
           dashboard: {
             timezone: 'America/Los_Angeles',
             timezone_label: 'America/Los_Angeles',
@@ -3797,6 +3803,10 @@ describe('AstroClock mode flow', () => {
         snapId: 'snap-vegas',
         houseSystem: 'R',
         caseType: 'general',
+      }));
+      expect(astroClockApiMock.getForensic).not.toHaveBeenCalledWith(expect.objectContaining({
+        snapId: 'snap-vegas',
+        houseSystem: 'P',
       }));
     });
   });

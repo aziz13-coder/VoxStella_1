@@ -527,6 +527,7 @@ def canonicalize_snapshot_record(snap: Any) -> Dict[str, Any]:
     }
 
     house_system = _first_text(
+        existing_context.get("house_system_code"),
         out.get("house_system_code"),
         dashboard.get("house_system_code"),
         dashboard.get("house_system"),

@@ -3821,13 +3821,27 @@ function formatForensicSnapLabel(snap) {
   return [parts.label, parts.datePart, parts.timePart, parts.location].filter(Boolean).join(' | ');
 }
 
-function snapToForensicClockContext(snap, houseSystem) {
+function snapToForensicClockContext(snap, fallbackHouseSystem) {
   if (!isSavedSnapCalculationEligible(snap)) return null;
   const dashboard = forensicSnapDashboard(snap);
+  const calculationContext = snap?.calculation_context && typeof snap.calculation_context === 'object'
+    ? snap.calculation_context
+    : {};
+  const chartSnapshot = snap?.chart_snapshot && typeof snap.chart_snapshot === 'object'
+    ? snap.chart_snapshot
+    : {};
   const datetime = firstPresent(snap?.effective_datetime, dashboard?.timestamp, snap?.datetime, snap?.timestamp);
   const location = firstPresent(snap?.location, dashboard?.location);
   const timezone = firstPresent(snap?.timezone, dashboard?.timezone, snap?.timezone_label, dashboard?.timezone_label);
-  const selectedHouseSystem = firstPresent(houseSystem, snap?.house_system_code, dashboard?.house_system_code, snap?.house_system, dashboard?.house_system);
+  const selectedHouseSystem = firstPresent(
+    calculationContext?.house_system_code,
+    chartSnapshot?.house_system_code,
+    snap?.house_system_code,
+    dashboard?.house_system_code,
+    snap?.house_system,
+    dashboard?.house_system,
+    fallbackHouseSystem,
+  );
   const { latitude, longitude } = forensicSnapCoordinates(snap);
   if (!datetime) return null;
   return {

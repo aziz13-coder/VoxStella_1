@@ -1269,6 +1269,36 @@ def test_specific_snap_bundle_reuses_hydrated_snap_coordinates(monkeypatch):
     }
 
 
+def test_snap_bundle_uses_persisted_house_system_unless_explicitly_overridden(monkeypatch):
+    class DummyStore:
+        def get(self, snap_id):
+            assert snap_id == "regiomontanus-snap"
+            return {
+                "id": snap_id,
+                "effective_datetime": "2022-07-31T09:30:00+00:00",
+                "location": "Strongsville, Ohio",
+                "timezone": "America/New_York",
+                "latitude": 41.3167,
+                "longitude": -81.8248,
+                "calculation_context": {"house_system_code": "R"},
+                "dashboard": {},
+            }
+
+    captured = []
+
+    def _fake_compute(_dt_iso, _location, _timezone_name, house_system_code=None, **_kwargs):
+        captured.append(house_system_code)
+        return {"chart_data": {}, "meta": {}}
+
+    monkeypatch.setattr(astro_clock_api, "_snaps", lambda: DummyStore())
+    monkeypatch.setattr(astro_clock_api, "_compute_chart_bundle_for", _fake_compute)
+
+    astro_clock_api._bundle_from_snap_id("regiomontanus-snap")
+    astro_clock_api._bundle_from_snap_id("regiomontanus-snap", house_system_code="P")
+
+    assert captured == ["R", "P"]
+
+
 def test_snap_bundle_rejects_uncertain_legacy_place_time_context(monkeypatch):
     legacy_snap = {
         "id": "legacy-greece",

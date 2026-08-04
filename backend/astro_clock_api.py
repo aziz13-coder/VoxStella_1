@@ -10133,6 +10133,39 @@ def _bundle_from_snap_id(
         snap,
         feature_label='This place/time-sensitive calculation',
     )
+    calculation_context = (
+        snap.get('calculation_context')
+        if isinstance(snap.get('calculation_context'), dict)
+        else {}
+    )
+    chart_snapshot = (
+        snap.get('chart_snapshot')
+        if isinstance(snap.get('chart_snapshot'), dict)
+        else {}
+    )
+    dashboard = (
+        snap.get('dashboard')
+        if isinstance(snap.get('dashboard'), dict)
+        else {}
+    )
+    saved_house_system_code = next(
+        (
+            value
+            for value in (
+                calculation_context.get('house_system_code'),
+                chart_snapshot.get('house_system_code'),
+                snap.get('house_system_code'),
+                dashboard.get('house_system_code'),
+                snap.get('house_system'),
+                dashboard.get('house_system'),
+            )
+            if value not in (None, '')
+        ),
+        None,
+    )
+    effective_house_system_code = _validated_astrocartography_house_system_code(
+        house_system_code if house_system_code not in (None, '') else saved_house_system_code,
+    )
     dt = snap.get('effective_datetime')
     loc = snap.get('location')
     tz = snap.get('timezone')
@@ -10148,7 +10181,7 @@ def _bundle_from_snap_id(
         dt,
         loc,
         tz,
-        house_system_code=house_system_code,
+        house_system_code=effective_house_system_code,
         latitude=snap.get('latitude'),
         longitude=snap.get('longitude'),
     )
