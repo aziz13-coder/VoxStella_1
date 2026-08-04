@@ -1,4 +1,32 @@
 export const WHATS_NEW_RELEASES = {
+  '3.1.14': {
+    version: '3.1.14',
+    publishedAt: '2026-08-04',
+    headline: 'Stronger forensic outcome and relationship analysis',
+    summary: 'This update makes forensic survivability follow Descendant evidence and resolves contradictions between relationship findings and final classification, with wider fixture-based regression safeguards.',
+    items: [
+      {
+        title: 'Descendant-led survivability',
+        tag: 'Fixed',
+        body: 'Weighted Descendant-ruler aspects now inform victim survivability through the DCS evidence path only, without importing Ascendant testimony into the outcome.',
+      },
+      {
+        title: 'Coherent relationship signals',
+        tag: 'Fixed',
+        body: 'A qualifying Moon-dispositor, 7th-ruler, and transport-harm bridge can support a broad friend or acquaintance link while never claiming a spouse or family relationship by itself.',
+      },
+      {
+        title: 'Wider case validation',
+        tag: 'Tested',
+        body: 'The crash case, Idaho student murders case, and the full forensic fixture collection now guard the new logic against case-specific overfitting.',
+      },
+      {
+        title: 'Neutral fixture terminology',
+        tag: 'Improved',
+        body: 'Forensic dashboard golden fixtures now use platform-neutral names that reflect their actual purpose.',
+      },
+    ],
+  },
   '3.1.13': {
     version: '3.1.13',
     publishedAt: '2026-08-02',
