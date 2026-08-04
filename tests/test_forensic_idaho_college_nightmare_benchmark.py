@@ -88,6 +88,7 @@ def test_idaho_engine_output_matches_six_predeclared_hard_fact_checks(benchmark_
         "hard_checks_passed": 6,
         "hard_checks_total": 6,
         "time_window_stable": True,
+        "score_window_stable": False,
         "route_error_count": 0,
     }
     assert {item["id"]: item["status"] for item in benchmark_report["fact_comparisons"]} == {
@@ -126,8 +127,11 @@ def test_idaho_result_is_stable_across_the_official_homicide_interval(benchmark_
     observations = sensitivity["observations"]
 
     assert sensitivity["stable"] is True
+    assert sensitivity["classification_stable"] is True
+    assert sensitivity["score_stable"] is False
     assert [item["time_local"] for item in observations] == ["04:00:00", "04:12:30", "04:25:00"]
-    for observation in observations:
+    expected_scores = [-2.92, -2.92, -4.14]
+    for observation, expected_score in zip(observations, expected_scores):
         assert observation == {
             "time_local": observation["time_local"],
             "status": "ok",
@@ -135,7 +139,7 @@ def test_idaho_result_is_stable_across_the_official_homicide_interval(benchmark_
             "survivability": {
                 "level": "Lower",
                 "band": "fatal_pressure_dominant",
-                "score": -2.92,
+                "score": expected_score,
             },
             "relationship_primary": "stranger_public",
         }

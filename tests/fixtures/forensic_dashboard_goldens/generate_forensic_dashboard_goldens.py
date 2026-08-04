@@ -1,4 +1,4 @@
-"""Generate compact Windows forensic golden outputs for iOS parity tests."""
+"""Generate compact golden outputs for the forensic dashboard workflow."""
 
 from __future__ import annotations
 
@@ -14,9 +14,9 @@ from typing import Any, Dict, Iterable, List, Tuple
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 FIXTURE_DIR = REPO_ROOT / "tests" / "fixtures"
-OUTPUT_DIR = FIXTURE_DIR / "ios_parity_goldens"
-SUCCESS_PATH = OUTPUT_DIR / "windows_forensic_golden_outputs.json"
-FAILURE_PATH = OUTPUT_DIR / "windows_forensic_golden_failures.json"
+OUTPUT_DIR = FIXTURE_DIR / "forensic_dashboard_goldens"
+SUCCESS_PATH = OUTPUT_DIR / "forensic_dashboard_golden_outputs.json"
+FAILURE_PATH = OUTPUT_DIR / "forensic_dashboard_golden_failures.json"
 README_PATH = OUTPUT_DIR / "README.md"
 
 SOURCE_FIXTURES = [
@@ -431,9 +431,9 @@ def _write_json(path: Path, payload: Any) -> None:
 
 
 def _write_readme(successes: List[Dict[str, Any]], failures: List[Dict[str, Any]]) -> None:
-    command = r"python tests\fixtures\ios_parity_goldens\generate_windows_forensic_goldens.py"
+    command = r"python tests\fixtures\forensic_dashboard_goldens\generate_forensic_dashboard_goldens.py"
     lines = [
-        "# Windows Forensic iOS Parity Goldens",
+        "# Forensic Dashboard Golden Fixtures",
         "",
         f"- Command used: `{command}`",
         f"- Repo commit: `{_git_commit()}`",

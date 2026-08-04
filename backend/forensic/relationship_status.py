@@ -14,6 +14,12 @@ SOFT_ASPECTS = {"trine", "sextile"}
 HARD_ASPECTS = {"square", "opposition"}
 MALEFICS = {"Mars", "Saturn"}
 BENEFICS = {"Venus", "Jupiter"}
+MOON_DISPOSITOR_BRIDGE_FINDING_ID = "known_person_route_harm_moon_dispositor_bridge"
+TRANSPORT_HARM_FINDING_IDS = {
+    "vehicle_crash_or_transport_harm_pattern",
+    "travel_accident_or_disaster_pattern",
+    "waterborne_accident_or_disaster_pattern",
+}
 
 
 def _normalize_text(value: Any) -> str:
@@ -361,6 +367,108 @@ def _finding_blob(finding: Mapping[str, Any]) -> str:
     return " ".join(_normalize_text(part).lower() for part in parts if part)
 
 
+def moon_dispositor_relationship_component(
+    features: Mapping[str, Any],
+    findings: Sequence[Mapping[str, Any]] | None,
+) -> Dict[str, Any]:
+    """Return label-grade known-person testimony for the route-harm compound.
+
+    The YAML bridge is already a correlated compound. It counts once here and
+    opens only the broad friend/acquaintance label at low confidence; it does
+    not imply an intimate partner or family relationship.
+    """
+
+    scoring_findings = [
+        finding
+        for finding in findings or []
+        if isinstance(finding, Mapping) and finding.get("scoring_eligible", True) is not False
+    ]
+    finding_ids = {
+        str(finding.get("id") or "").strip()
+        for finding in scoring_findings
+        if str(finding.get("id") or "").strip()
+    }
+    houses = features.get("houses") if isinstance(features, Mapping) else {}
+    houses = houses if isinstance(houses, Mapping) else {}
+    moon = features.get("moon") if isinstance(features, Mapping) else {}
+    moon = moon if isinstance(moon, Mapping) else {}
+
+    source = _normalize_planet(moon.get("dispositor"))
+    target = _normalize_planet(houses.get("seventh_ruler"))
+    aspect = str(moon.get("dispositor_to_seventh_ruler_type") or "").strip().lower()
+    orb = abs(_to_float(moon.get("dispositor_to_seventh_ruler_orb"), 999.0))
+    seventh_house_raw = houses.get("seventh_ruler_house")
+    seventh_house = int(seventh_house_raw) if str(seventh_house_raw).isdigit() else None
+
+    prerequisites = {
+        "bridge_finding_present": MOON_DISPOSITOR_BRIDGE_FINDING_ID in finding_ids,
+        "independent_transport_harm": bool(TRANSPORT_HARM_FINDING_IDS.intersection(finding_ids)),
+        "moon_dispositor_present": bool(source),
+        "seventh_ruler_present": bool(target),
+        "hard_contact": bool(
+            moon.get("dispositor_to_seventh_ruler_hard")
+            and aspect in {"conjunction", "square", "opposition"}
+        ),
+        "orb_within_two_degrees": orb <= 2.0,
+        "seventh_ruler_in_death_or_hidden_house": bool(
+            houses.get("seventh_ruler_in_8_or_12") or seventh_house in {8, 12}
+        ),
+    }
+    eligible = all(prerequisites.values())
+    evidence = []
+    if eligible:
+        seventh_house_label = f"H{seventh_house}" if seventh_house is not None else "H8/H12"
+        evidence = [
+            (
+                f"Moon dispositor {source} {aspect} seventh ruler {target} "
+                f"within {orb:g} degrees; {target} is in {seventh_house_label} "
+                "with independent transport-harm testimony"
+            )
+        ]
+
+    return {
+        "policy_version": "moon_dispositor_route_harm_v1",
+        "eligible": eligible,
+        "label_gate_met": eligible,
+        "supported_label": "friend_acquaintance" if eligible else None,
+        "score_delta": 1.75 if eligible else 0.0,
+        "source": source or None,
+        "target": target or None,
+        "aspect": aspect or None,
+        "orb": None if orb == 999.0 else round(orb, 3),
+        "seventh_ruler_house": seventh_house,
+        "prerequisites": prerequisites,
+        "evidence": evidence,
+        "scope_note": "Known-person/close-associate bridge only; does not establish partner or family motive.",
+    }
+
+
+def _relationship_labels(
+    scores: Mapping[str, float],
+    *,
+    light_delta: float,
+    light_component: Mapping[str, Any],
+    moon_dispositor_gate: bool,
+) -> List[str]:
+    labels: List[str] = []
+    if scores.get("intimate_partner", 0.0) >= 2.0:
+        labels.append("intimate_partner")
+    if scores.get("family", 0.0) >= 2.5 and scores.get("friend_acquaintance", 0.0) < 3.0:
+        labels.append("family")
+    friend_threshold_met = (
+        moon_dispositor_gate
+        or scores.get("friend_acquaintance", 0.0) >= 4.5
+        or (
+            scores.get("friend_acquaintance", 0.0) >= 2.75
+            and light_delta > 0
+            and light_component.get("role") == "victim_perpetrator_bridge"
+        )
+    )
+    if friend_threshold_met:
+        labels.append("friend_acquaintance")
+    return labels or ["stranger_public"]
+
+
 def compute_relationship_status(
     features: Mapping[str, Any],
     *,
@@ -445,17 +553,29 @@ def compute_relationship_status(
         )
     evidence["reception"] = list(reception_component.get("evidence") or [])
 
-    finding_blobs = [
-        _finding_blob(finding)
+    moon_dispositor_component = moon_dispositor_relationship_component(features, findings)
+    moon_dispositor_delta = _to_float(moon_dispositor_component.get("score_delta"))
+    if moon_dispositor_delta:
+        _add_score(
+            scores,
+            evidence,
+            "friend_acquaintance",
+            moon_dispositor_delta,
+            (moon_dispositor_component.get("evidence") or ["Moon-dispositor known-person bridge"])[0],
+        )
+
+    finding_rows = [
+        finding
         for finding in findings or []
         if isinstance(finding, Mapping)
     ]
+    finding_blobs = [_finding_blob(finding) for finding in finding_rows]
     custody_family_context = any(
         "family_custody_child_violence_axis" in blob
         or "family custody" in blob
         for blob in finding_blobs
     )
-    for blob in finding_blobs:
+    for finding, blob in zip(finding_rows, finding_blobs):
         specific_partner_harm = (
             "domestic_partner_confinement_pressure" in blob
             or "domestic_partner_proxy_or_contract_harm" in blob
@@ -483,9 +603,11 @@ def compute_relationship_status(
         elif "family" in blob and ("household" in blob or "custody" in blob):
             _add_score(scores, evidence, "family", 1.0, "family-context finding")
 
-        if (
+        is_moon_dispositor_bridge = (
+            str(finding.get("id") or "").strip() == MOON_DISPOSITOR_BRIDGE_FINDING_ID
+        )
+        if not is_moon_dispositor_bridge and (
             "friend_or_associate_axis_active" in blob
-            or "known_person_route_harm_moon_dispositor_bridge" in blob
             or "friend or close associate" in blob
             or "known-person" in blob
         ):
@@ -528,26 +650,39 @@ def compute_relationship_status(
                 evidence["secondary_factors"][0] if evidence["secondary_factors"] else "secondary asteroid/degree testimony",
             )
 
-    labels: List[str] = []
-    if scores["intimate_partner"] >= 2.0:
-        labels.append("intimate_partner")
-    if scores["family"] >= 2.5 and scores["friend_acquaintance"] < 3.0:
-        labels.append("family")
-    friend_threshold_met = (
-        scores["friend_acquaintance"] >= 4.5
-        or (
-            scores["friend_acquaintance"] >= 2.75
-            and light_delta > 0
-            and light_component.get("role") == "victim_perpetrator_bridge"
-        )
+    labels = _relationship_labels(
+        scores,
+        light_delta=light_delta,
+        light_component=light_component,
+        moon_dispositor_gate=bool(moon_dispositor_component.get("label_gate_met")),
     )
-    if friend_threshold_met:
-        labels.append("friend_acquaintance")
-    if not labels:
-        labels = ["stranger_public"]
 
     priority = ("intimate_partner", "family", "friend_acquaintance", "stranger_public")
     primary_label = next((label for label in priority if label in labels), "stranger_public")
+    scores_without_moon_dispositor = dict(scores)
+    scores_without_moon_dispositor["friend_acquaintance"] = round(
+        max(0.0, scores_without_moon_dispositor["friend_acquaintance"] - moon_dispositor_delta),
+        2,
+    )
+    labels_without_moon_dispositor = _relationship_labels(
+        scores_without_moon_dispositor,
+        light_delta=light_delta,
+        light_component=light_component,
+        moon_dispositor_gate=False,
+    )
+    primary_without_moon_dispositor = next(
+        (label for label in priority if label in labels_without_moon_dispositor),
+        "stranger_public",
+    )
+    moon_dispositor_component = {
+        **moon_dispositor_component,
+        "counterfactual": {
+            "labels_without_component": labels_without_moon_dispositor,
+            "primary_label_without_component": primary_without_moon_dispositor,
+            "friend_score_without_component": scores_without_moon_dispositor["friend_acquaintance"],
+            "classification_changed": labels_without_moon_dispositor != labels,
+        },
+    }
     strongest_score = max(scores.values()) if scores else 0.0
     if primary_label == "stranger_public":
         confidence = "Moderate" if strongest_score < 1.0 else "Low"
@@ -569,6 +704,7 @@ def compute_relationship_status(
         "direct_aspect_component": direct_aspect_component,
         "reception_component": reception_component,
         "light_mediation_component": light_component,
+        "moon_dispositor_relationship_component": moon_dispositor_component,
         "secondary_factor_component": {
             "enabled": bool(isinstance(secondary_analysis, Mapping) and secondary_analysis.get("enabled")),
             "score_delta": {label: round(_to_float(secondary_delta.get(label)), 2) for label in ("intimate_partner", "family", "friend_acquaintance") if isinstance(secondary_delta, Mapping) and _to_float(secondary_delta.get(label))},

@@ -116,7 +116,10 @@ class ForensicRouteContractTests(TestCase):
         self.assertEqual(payload["analysis_metadata"]["house_system"]["source"], "request_override")
         self.assertIn("level", payload["survivability"])
         self.assertIn("outcome_band", payload["survivability"])
-        self.assertEqual(payload["survivability"]["classification_policy"]["version"], "deduplicated_v2")
+        self.assertEqual(
+            payload["survivability"]["classification_policy"]["version"],
+            "deduplicated_v3_descendant_aspects",
+        )
         self.assertIn("recovery_support", payload["survivability"].get("breakdown") or {})
         self.assertEqual(
             captured,

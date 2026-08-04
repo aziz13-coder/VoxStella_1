@@ -4024,6 +4024,47 @@ describe('AstroClock mode flow', () => {
     expect(screen.getByText(/home-axis cluster/)).toBeInTheDocument();
   });
 
+  it('uses one backend Moon-dispositor result for the relationship headline, score, and evidence', async () => {
+    astroClockApiMock.getForensic.mockResolvedValue({
+      ...makeForensicPayload(),
+      relationship_status: {
+        primary_label: 'friend_acquaintance',
+        labels: ['friend_acquaintance'],
+        confidence: 'Low',
+        scores: { friend_acquaintance: 1.75 },
+        evidence: {
+          friend_acquaintance: [
+            'Moon dispositor Mercury opposition seventh ruler Saturn with transport-harm testimony',
+          ],
+        },
+        moon_dispositor_relationship_component: {
+          eligible: true,
+          label_gate_met: true,
+        },
+      },
+    });
+
+    render(
+      <AstroClock
+        darkMode={false}
+        setCurrentView={vi.fn()}
+        apiStatus="ok"
+        licenseActive
+      />
+    );
+
+    await screen.findByRole('button', { name: 'Forensic' });
+    fireEvent.click(screen.getByRole('button', { name: 'Forensic' }));
+    expect(await screen.findByText('Directional Findings')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Relationship' }));
+
+    expect(await screen.findByText('Relationship Signals')).toBeInTheDocument();
+    expect(screen.getByText('1.75')).toBeInTheDocument();
+    expect(screen.getAllByText('Friend/associate link').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/Moon dispositor Mercury opposition seventh ruler Saturn/)).toBeInTheDocument();
+    expect(screen.queryByText('Stranger/Random')).not.toBeInTheDocument();
+  });
+
   it('presents simple lowercase forensic locations with title casing in the dossier header', async () => {
     astroClockApiMock.getForensic.mockResolvedValue({
       ...makeForensicPayload(),

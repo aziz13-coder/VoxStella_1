@@ -46,8 +46,8 @@ def test_soft_applying_direct_aspect_and_reception_boost_known_person_status():
         _aspect_features({"type": "trine", "applying": True, "orb": 1.0}),
         findings=[
             {
-                "id": "known_person_route_harm_moon_dispositor_bridge",
-                "title": "Moon dispositor links route harm to a known-person or close associate axis",
+                "id": "friend_or_associate_axis_active",
+                "title": "Friend or close associate axis is active",
                 "category": "Associates",
             },
         ],
@@ -67,6 +67,99 @@ def test_soft_applying_direct_aspect_and_reception_boost_known_person_status():
     assert "mutual reception between victim/perpetrator rulers" in status["evidence"]["reception"]
     assert status["confidence_basis"] == "symbolic_rule_strength_not_empirical_probability"
     assert status["is_statistical_probability"] is False
+
+
+def _mackenzie_bridge_features():
+    features = _features()
+    features["houses"] = {
+        **features["houses"],
+        "first_ruler": "Moon",
+        "first_ruler_house": 2,
+        "seventh_ruler": "Saturn",
+        "seventh_ruler_house": 8,
+        "seventh_ruler_in_8_or_12": True,
+    }
+    features["moon"] = {
+        "sign": "Virgo",
+        "house": 2,
+        "dispositor": "Mercury",
+        "dispositor_house": 2,
+        "dispositor_to_seventh_ruler_type": "opposition",
+        "dispositor_to_seventh_ruler_hard": True,
+        "dispositor_to_seventh_ruler_orb": 0.266,
+    }
+    features["aspects"] = {
+        "Mercury_to_Saturn": {
+            "type": "opposition",
+            "applying": False,
+            "orb": 0.266,
+        }
+    }
+    return features
+
+
+def _mackenzie_bridge_findings(include_transport=True):
+    findings = [
+        {
+            "id": "known_person_route_harm_moon_dispositor_bridge",
+            "title": "Moon dispositor links route harm to a known-person or close associate axis",
+            "category": "Associates",
+            "scoring_eligible": True,
+        }
+    ]
+    if include_transport:
+        findings.append(
+            {
+                "id": "vehicle_crash_or_transport_harm_pattern",
+                "title": "Vehicle crash or transport harm pattern is active",
+                "category": "Disaster",
+                "scoring_eligible": True,
+            }
+        )
+    return findings
+
+
+def test_complete_moon_dispositor_route_bridge_opens_low_confidence_known_person_label():
+    status = compute_relationship_status(
+        _mackenzie_bridge_features(),
+        findings=_mackenzie_bridge_findings(),
+        categories={"Associates": 1, "Disaster": 1},
+        receptions={},
+        light_mediation={},
+    )
+
+    component = status["moon_dispositor_relationship_component"]
+    assert status["primary_label"] == "friend_acquaintance"
+    assert status["labels"] == ["friend_acquaintance"]
+    assert status["scores"]["friend_acquaintance"] == 1.75
+    assert status["confidence"] == "Low"
+    assert component["eligible"] is True
+    assert component["label_gate_met"] is True
+    assert component["policy_version"] == "moon_dispositor_route_harm_v1"
+    assert component["aspect"] == "opposition"
+    assert component["orb"] == 0.266
+    assert component["counterfactual"] == {
+        "labels_without_component": ["stranger_public"],
+        "primary_label_without_component": "stranger_public",
+        "friend_score_without_component": 0.0,
+        "classification_changed": True,
+    }
+
+
+def test_moon_dispositor_bridge_requires_independent_transport_harm():
+    status = compute_relationship_status(
+        _mackenzie_bridge_features(),
+        findings=_mackenzie_bridge_findings(include_transport=False),
+        categories={"Associates": 1},
+        receptions={},
+        light_mediation={},
+    )
+
+    component = status["moon_dispositor_relationship_component"]
+    assert status["primary_label"] == "stranger_public"
+    assert status["scores"]["friend_acquaintance"] == 0.0
+    assert component["eligible"] is False
+    assert component["prerequisites"]["independent_transport_harm"] is False
 
 
 def test_hard_separating_wide_aspect_stays_below_label_without_other_support():

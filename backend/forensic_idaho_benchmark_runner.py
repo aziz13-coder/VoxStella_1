@@ -110,6 +110,19 @@ def _anchor_signature(observation: Dict[str, Any]) -> str:
     return json.dumps(comparable, sort_keys=True)
 
 
+def _anchor_classification_signature(observation: Dict[str, Any]) -> str:
+    survivability = observation.get("survivability") or {}
+    comparable = {
+        "predicted_axes": observation.get("predicted_axes"),
+        "survivability": {
+            "level": survivability.get("level"),
+            "band": survivability.get("band"),
+        },
+        "relationship_primary": observation.get("relationship_primary"),
+    }
+    return json.dumps(comparable, sort_keys=True)
+
+
 def run_idaho_benchmark(dataset_path: Path = DATASET_PATH) -> Dict[str, Any]:
     dataset, case = load_idaho_case(dataset_path)
     statistical_report = statistical_runner.run_statistical_benchmark_suite(
@@ -142,12 +155,26 @@ def run_idaho_benchmark(dataset_path: Path = DATASET_PATH) -> Dict[str, Any]:
         for time_local in event_anchor.get("sensitivity_times_local") or []
     ]
     anchor_errors = [item for item in anchor_observations if item.get("status") != "ok"]
-    anchor_signatures = {
+    anchor_classification_signatures = {
+        _anchor_classification_signature(item)
+        for item in anchor_observations
+        if item.get("status") == "ok"
+    }
+    anchor_score_signatures = {
         _anchor_signature(item)
         for item in anchor_observations
         if item.get("status") == "ok"
     }
-    time_window_stable = bool(anchor_observations) and not anchor_errors and len(anchor_signatures) == 1
+    time_window_stable = (
+        bool(anchor_observations)
+        and not anchor_errors
+        and len(anchor_classification_signatures) == 1
+    )
+    score_window_stable = (
+        bool(anchor_observations)
+        and not anchor_errors
+        and len(anchor_score_signatures) == 1
+    )
 
     scored_axes = {
         str((check.get("engine_assertion") or {}).get("axis"))
@@ -191,6 +218,7 @@ def run_idaho_benchmark(dataset_path: Path = DATASET_PATH) -> Dict[str, Any]:
             "hard_checks_passed": passed,
             "hard_checks_total": total,
             "time_window_stable": time_window_stable,
+            "score_window_stable": score_window_stable,
             "route_error_count": len(route_errors) + len(anchor_errors),
         },
         "event_anchor": event_anchor,
@@ -207,12 +235,15 @@ def run_idaho_benchmark(dataset_path: Path = DATASET_PATH) -> Dict[str, Any]:
         },
         "time_sensitivity": {
             "stable": time_window_stable,
+            "classification_stable": time_window_stable,
+            "score_stable": score_window_stable,
             "observations": anchor_observations,
         },
         "source_register": source_register,
         "limitations": [
             "This is a retrospective, in-sample regression benchmark, not a blind or prospective test.",
             "The event time is the midpoint of an official incident interval, not an asserted exact time of death.",
+            "Classification is stable across the interval; the raw symbolic score may vary as the Descendant moves.",
             (
                 "A passed symbolic category check is not evidence that astrology can identify "
                 "a crime, person, motive, or legal fact."
@@ -240,7 +271,8 @@ def render_markdown_report(report: Dict[str, Any]) -> str:
             f"- Hard factual checks: {summary.get('hard_checks_passed')}/"
             f"{summary.get('hard_checks_total')} passed"
         ),
-        f"- Official-window stability: {summary.get('time_window_stable')}",
+        f"- Official-window classification stability: {summary.get('time_window_stable')}",
+        f"- Official-window raw-score stability: {summary.get('score_window_stable')}",
         f"- Route errors: {summary.get('route_error_count')}",
         "",
         "## Fact comparison",

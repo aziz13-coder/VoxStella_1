@@ -4994,6 +4994,18 @@ function ForensicDashboard({
         isMutual,
         forensicResult: data || {},
       });
+      const backendRelationshipStatus = summary?.relationshipStatus;
+      const backendPrimaryLabel = backendRelationshipStatus?.primary_label;
+      const backendPrimaryScore = Number(backendRelationshipStatus?.scores?.[backendPrimaryLabel]);
+      const displayScore = Number.isFinite(backendPrimaryScore)
+        ? backendPrimaryScore
+        : relationshipScore.score;
+      const backendPrimaryEvidence = Array.isArray(backendRelationshipStatus?.evidence?.[backendPrimaryLabel])
+        ? backendRelationshipStatus.evidence[backendPrimaryLabel]
+        : [];
+      const displayReasons = backendPrimaryEvidence.length
+        ? backendPrimaryEvidence
+        : relationshipScore.reasons;
       const houseConnections = [
         victimHouse != null ? `victim ruler in H${victimHouse}` : null,
         perpHouse != null ? `perpetrator ruler in H${perpHouse}` : null,
@@ -5022,14 +5034,14 @@ function ForensicDashboard({
         ].filter(Boolean),
         aspectTies: directAspect ? [`${directAspect.type || 'contact'} between rulers${directAspect.applying === true ? ' applying' : ''}`] : ['no direct ruler aspect'],
         degreeStarCues,
-        score: relationshipScore.score,
+        score: displayScore,
         relationshipType: summary.relationshipType,
         confidence: summary.confidence,
       });
       return {
         rows,
-        score: relationshipScore.score,
-        reasons: relationshipScore.reasons,
+        score: displayScore,
+        reasons: displayReasons,
         summary,
       };
     } catch {

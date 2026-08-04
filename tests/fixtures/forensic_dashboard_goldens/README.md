@@ -1,6 +1,6 @@
-# Windows Forensic iOS Parity Goldens
+# Forensic Dashboard Golden Fixtures
 
-- Command used: `python tests\fixtures\ios_parity_goldens\generate_windows_forensic_goldens.py`
+- Command used: `python tests\fixtures\forensic_dashboard_goldens\generate_forensic_dashboard_goldens.py`
 - Repo commit: `73b66c6eb4b774a67bc256c2290fef66ef98cebd`
 - Successful cases: 46
 - Failed/skipped cases: 0

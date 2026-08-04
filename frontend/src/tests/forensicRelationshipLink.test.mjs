@@ -28,6 +28,33 @@ describe('forensic relationship link classification', () => {
     expect(summary.relationshipStatus.labels).toEqual(['intimate_partner']);
   });
 
+  it('renders a backend Moon-dispositor bridge as a friend/associate headline', () => {
+    const detailScore = scoreForensicRelationshipLink({
+      moonDispositorTiesPerp: true,
+      moonDispositorHardContact: true,
+    });
+    const summary = summarizeForensicRelationshipLink({
+      score: detailScore.score,
+      forensicResult: {
+        relationship_status: {
+          primary_label: 'friend_acquaintance',
+          labels: ['friend_acquaintance'],
+          confidence: 'Low',
+          scores: { friend_acquaintance: 1.75 },
+          moon_dispositor_relationship_component: {
+            eligible: true,
+            label_gate_met: true,
+          },
+        },
+      },
+    });
+
+    expect(detailScore.reasons).toContain('Moon dispositor hard-linked to perpetrator ruler');
+    expect(summary.relationshipType).toBe('Friend/associate link');
+    expect(summary.confidence).toBe('Low');
+    expect(summary.relationshipType).not.toBe('Stranger/Random');
+  });
+
   it('does not overclaim intimate/family for public associate cases', () => {
     const summary = summarizeForensicRelationshipLink({
       score: 10,

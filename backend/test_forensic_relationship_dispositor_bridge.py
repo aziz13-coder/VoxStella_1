@@ -9,6 +9,7 @@ if str(BACKEND_ROOT) not in sys.path:
 
 from forensic.engine import evaluate, load_knowledge
 from forensic.features import extract_features
+from forensic.relationship_status import compute_relationship_status
 
 
 KNOWLEDGE_DIR = BACKEND_ROOT / "forensic" / "knowledge"
@@ -54,3 +55,37 @@ def test_known_person_route_harm_rule_uses_moon_dispositor_bridge():
     finding_ids = {finding.get("id") for finding in findings}
 
     assert "known_person_route_harm_moon_dispositor_bridge" in finding_ids
+
+
+def test_fired_bridge_plus_independent_transport_harm_reaches_relationship_classification():
+    features = extract_features(_route_harm_bridge_dashboard())
+    findings = evaluate(features, load_knowledge(str(KNOWLEDGE_DIR)))
+    scoring_findings = [
+        finding
+        for finding in findings
+        if finding.get("scoring_eligible", True) is not False
+    ]
+    scoring_findings.append(
+        {
+            "id": "vehicle_crash_or_transport_harm_pattern",
+            "title": "Vehicle crash or transport harm pattern is active",
+            "category": "Disaster",
+            "scoring_eligible": True,
+        }
+    )
+
+    status = compute_relationship_status(
+        features,
+        findings=scoring_findings,
+        categories={
+            category: sum(finding.get("category") == category for finding in scoring_findings)
+            for category in {finding.get("category") for finding in scoring_findings}
+            if category
+        },
+        receptions={},
+        light_mediation={},
+    )
+
+    assert status["primary_label"] == "friend_acquaintance"
+    assert status["confidence"] == "Low"
+    assert status["moon_dispositor_relationship_component"]["eligible"] is True

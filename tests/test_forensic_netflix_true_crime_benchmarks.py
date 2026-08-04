@@ -49,7 +49,7 @@ EXPECTED_SURVIVABILITY = {
     },
 }
 
-KNOWN_SURVIVABILITY_GAPS = {"mackenzie_shirilla_the_crash"}
+KNOWN_SURVIVABILITY_GAPS = set()
 
 
 def load_netflix_benchmark_cases():
@@ -149,6 +149,32 @@ class ForensicNetflixTrueCrimeBenchmarkTests(unittest.TestCase):
                         "findings": [f.get("title") for f in (payload.get("findings") or [])[:8]],
                     },
                 )
+
+    def test_mackenzie_relationship_signature_uses_the_moon_dispositor_route_bridge(self):
+        case = next(item for item in self.cases if item["id"] == "mackenzie_shirilla_the_crash")
+        response = self.client.get(
+            "/api/astro-clock/forensic",
+            query_string=build_netflix_benchmark_query(case),
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json() or {}
+        status = payload.get("relationship_status") or {}
+        component = status.get("moon_dispositor_relationship_component") or {}
+
+        self.assertIn(
+            "friend_or_close_associate",
+            (payload.get("axis_assessment") or {}).get("predicted_axes") or [],
+        )
+        self.assertEqual(status.get("primary_label"), "friend_acquaintance")
+        self.assertEqual(status.get("labels"), ["friend_acquaintance"])
+        self.assertEqual(status.get("confidence"), "Low")
+        self.assertEqual((status.get("scores") or {}).get("friend_acquaintance"), 1.75)
+        self.assertTrue(component.get("eligible"))
+        self.assertTrue(component.get("label_gate_met"))
+        self.assertEqual(
+            (component.get("counterfactual") or {}).get("primary_label_without_component"),
+            "stranger_public",
+        )
 
 
 if __name__ == "__main__":

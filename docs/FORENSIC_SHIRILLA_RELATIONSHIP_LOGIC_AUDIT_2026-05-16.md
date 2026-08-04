@@ -1,5 +1,13 @@
 # Forensic Shirilla Relationship Logic Audit - 2026-05-16
 
+> Current-state correction, 2026-08-04: a later backend classifier initially
+> reduced the compound to a 1.75 score below its 4.5 friend threshold, producing
+> `stranger_public`. This regression is now resolved with a structured,
+> low-confidence Moon-dispositor relationship gate. The live route returns
+> `friend_acquaintance`, and the frontend renders `Friend/associate link`. See
+> `FORENSIC_SHIRILLA_RELATIONSHIP_SIGNATURE_CONTRADICTION_2026-08-04.md` for the
+> reproduced failure, implementation, counterfactual, corpus metrics, and tests.
+
 ## Scope
 
 This audit checks the forensic relationship logic against the Mackenzie F. Shirilla case involving the deaths of Dominic "Dom" Russo and Davion Flanagan, the case covered by Netflix's 2026 documentary `The Crash`.

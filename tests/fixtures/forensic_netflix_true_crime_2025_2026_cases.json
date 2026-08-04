@@ -204,6 +204,18 @@
       "expected_secondary_axes": [
         "deception_coverup"
       ],
+      "expected_relationship_labels": [
+        "friend_acquaintance"
+      ],
+      "relationship_target": {
+        "unit": "two deceased passengers as a known-person group",
+        "documented_relationships": [
+          "boyfriend",
+          "friend/passenger"
+        ],
+        "scoring_scope": "broad known-person or close-associate bridge only",
+        "limitation": "The symbolic bridge does not distinguish the boyfriend relationship from the friend/passenger relationship."
+      },
       "contradictory_axes": [
         "family_involvement",
         "child_victim"

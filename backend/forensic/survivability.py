@@ -58,7 +58,7 @@ LIGHT_MEDIATION_NEGATIVE_CAP = -1.2
 class SurvivabilityPolicy:
     """Versioned classification thresholds, separate from feature scoring."""
 
-    version: str = "deduplicated_v2"
+    version: str = "deduplicated_v3_descendant_aspects"
     abduction_higher_net: float = 2.75
     abduction_max_fatal: float = 1.5
     abduction_max_danger: float = 2.0
@@ -81,6 +81,13 @@ class SurvivabilityPolicy:
     higher_max_fatal: float = 3.0
     lower_net: float = -4.0
     nonfatal_band_net: float = 2.0
+    descendant_aspects_enabled: bool = True
+    descendant_aspect_max_orb: float = 3.0
+    descendant_aspect_danger_multiplier: float = 0.0
+    descendant_aspect_fatal_multiplier: float = 1.0
+    descendant_aspect_outer_malefic_multiplier: float = 0.75
+    descendant_aspect_pressure_cap: float = 4.5
+    descendant_aspect_transport_gate: bool = True
 
 
 DEFAULT_SURVIVABILITY_POLICY = SurvivabilityPolicy()
@@ -923,6 +930,122 @@ def _danger_component(
     return score, evidence
 
 
+_DESCENDANT_HARD_ASPECT_ANGLES = {
+    "conjunction": 0.0,
+    "square": 90.0,
+    "opposition": 180.0,
+}
+_DESCENDANT_TRADITIONAL_MALEFICS = {"Mars", "Saturn"}
+_DESCENDANT_OUTER_PRESSURE_PLANETS = {"Uranus", "Pluto"}
+
+
+def _angular_distance(longitude_a: Any, longitude_b: Any) -> float | None:
+    try:
+        return abs((float(longitude_a) - float(longitude_b) + 180.0) % 360.0 - 180.0)
+    except Exception:
+        return None
+
+
+def _descendant_aspect_pressure_component(
+    features: Dict[str, Any],
+    policy: SurvivabilityPolicy,
+) -> Tuple[float, float, List[str], List[Dict[str, Any]]]:
+    """Return pressure from hard contacts to the Descendant.
+
+    Survivability uses only the Descendant target. ASC, MC, and IC contacts are
+    intentionally excluded from this component so contextual angle testimony
+    cannot be mistaken for a direct victim-state weight.
+    """
+
+    if not policy.descendant_aspects_enabled:
+        return 0.0, 0.0, [], []
+
+    angles = features.get("angles") if isinstance(features, dict) else {}
+    angles = angles if isinstance(angles, dict) else {}
+    descendant = angles.get("Descendant") if isinstance(angles, dict) else {}
+    descendant = descendant if isinstance(descendant, dict) else {}
+    descendant_longitude = descendant.get("longitude")
+    if descendant_longitude is None:
+        return 0.0, 0.0, ["Descendant aspect pressure unavailable: Descendant longitude missing"], []
+
+    max_orb = max(0.0, float(policy.descendant_aspect_max_orb))
+    planets = features.get("planets") if isinstance(features, dict) else {}
+    planets = planets if isinstance(planets, dict) else {}
+    houses = features.get("houses") if isinstance(features, dict) else {}
+    houses = houses if isinstance(houses, dict) else {}
+    role_fields = {
+        "first_ruler": "victim_ruler",
+        "seventh_ruler": "opponent_ruler",
+        "eighth_ruler": "death_ruler",
+    }
+
+    contacts_by_family: Dict[str, List[Dict[str, Any]]] = {
+        "traditional_malefic": [],
+        "outer_pressure": [],
+    }
+    watched = _DESCENDANT_TRADITIONAL_MALEFICS | _DESCENDANT_OUTER_PRESSURE_PLANETS
+    for planet in sorted(watched):
+        info = planets.get(planet) or {}
+        separation = _angular_distance(info.get("longitude"), descendant_longitude)
+        if separation is None:
+            continue
+        aspect, exact_angle = min(
+            _DESCENDANT_HARD_ASPECT_ANGLES.items(),
+            key=lambda item: abs(separation - item[1]),
+        )
+        orb = abs(separation - exact_angle)
+        if orb > max_orb:
+            continue
+        family = "traditional_malefic" if planet in _DESCENDANT_TRADITIONAL_MALEFICS else "outer_pressure"
+        family_multiplier = 1.0 if family == "traditional_malefic" else max(
+            0.0,
+            float(policy.descendant_aspect_outer_malefic_multiplier),
+        )
+        raw_pressure = round(
+            DANGER_ASPECT_WEIGHTS[aspect]
+            * _orb_weight(orb, max_orb=max_orb)
+            * family_multiplier,
+            2,
+        )
+        roles = [role for field, role in role_fields.items() if houses.get(field) == planet]
+        contacts_by_family[family].append(
+            {
+                "planet": planet,
+                "family": family,
+                "aspect_to_descendant": aspect,
+                "orb": round(orb, 3),
+                "raw_pressure": raw_pressure,
+                "roles": roles,
+                "phase": "unavailable_static_angle_snapshot",
+            }
+        )
+
+    # Correlated contacts within one doctrine family contribute only their
+    # strongest member. A traditional malefic and an outer pressure planet can
+    # each contribute once because they represent separate candidate channels.
+    selected: List[Dict[str, Any]] = []
+    for family in ("traditional_malefic", "outer_pressure"):
+        contacts = contacts_by_family[family]
+        if contacts:
+            selected.append(max(contacts, key=lambda row: (row["raw_pressure"], -row["orb"], row["planet"])))
+
+    raw_total = min(
+        max(0.0, float(policy.descendant_aspect_pressure_cap)),
+        sum(float(row["raw_pressure"]) for row in selected),
+    )
+    danger_delta = round(raw_total * max(0.0, float(policy.descendant_aspect_danger_multiplier)), 2)
+    fatal_delta = round(raw_total * max(0.0, float(policy.descendant_aspect_fatal_multiplier)), 2)
+    evidence = [
+        (
+            f"{row['planet']} {row['aspect_to_descendant']} Descendant "
+            f"within {row['orb']:.3f} degrees "
+            f"({row['family']} descendant pressure {row['raw_pressure']:+g})"
+        )
+        for row in selected
+    ]
+    return danger_delta, fatal_delta, evidence, selected
+
+
 def _fatal_pressure_component(
     features: Dict[str, Any],
     findings: List[Dict[str, Any]],
@@ -1192,6 +1315,17 @@ def compute_survivability(
         fatal_pressure = round(fatal_pressure + secondary_fatal_score, 2)
         fatal_evidence = list(fatal_evidence) + secondary_fatal_evidence
 
+    danger_before_descendant_aspects = danger_score
+    fatal_pressure_before_descendant_aspects = fatal_pressure
+    (
+        descendant_aspect_candidate_danger,
+        descendant_aspect_candidate_fatal,
+        descendant_aspect_evidence,
+        descendant_aspect_contacts,
+    ) = (
+        _descendant_aspect_pressure_component(features, policy)
+    )
+
     mechanism_flags = _mechanism_flags(findings, categories)
     abduction_count = int((categories or {}).get("Abduction", 0) or 0)
     violence_count = int((categories or {}).get("Violence", 0) or 0)
@@ -1215,14 +1349,49 @@ def compute_survivability(
     # Event mechanism and outcome severity are separate targets. A detected
     # crash/transport event is not, by itself, evidence that the outcome was
     # fatal. Other mechanism flags encode explicit interpersonal harm context.
-    fatal_mechanism_context = (
+    fatal_mechanism_context_without_descendant_aspects = (
         any(value for key, value in mechanism_flags.items() if key != "transport_harm")
         or institutional_child_fatal_context
+    )
+    descendant_aspect_harm_context = bool(
+        violent_context
+        or fatal_mechanism_context_without_descendant_aspects
+        or mechanism_flags.get("transport_harm")
+    )
+    descendant_aspect_danger = (
+        descendant_aspect_candidate_danger if descendant_aspect_harm_context else 0.0
+    )
+    descendant_aspect_fatal = (
+        descendant_aspect_candidate_fatal if descendant_aspect_harm_context else 0.0
+    )
+    if descendant_aspect_danger:
+        danger_score = round(danger_score + descendant_aspect_danger, 2)
+        danger_evidence = list(danger_evidence) + descendant_aspect_evidence
+    if descendant_aspect_fatal:
+        fatal_pressure = round(fatal_pressure + descendant_aspect_fatal, 2)
+        fatal_pressure_without_light = round(fatal_pressure_without_light + descendant_aspect_fatal, 2)
+        fatal_pressure_before_secondary = round(fatal_pressure_before_secondary + descendant_aspect_fatal, 2)
+        fatal_evidence = list(fatal_evidence) + descendant_aspect_evidence
+    descendant_aspect_transport_context = bool(
+        policy.descendant_aspects_enabled
+        and policy.descendant_aspect_transport_gate
+        and mechanism_flags.get("transport_harm")
+        and descendant_aspect_fatal > 0
+    )
+    fatal_mechanism_context = bool(
+        fatal_mechanism_context_without_descendant_aspects
+        or descendant_aspect_transport_context
     )
 
     danger_weight = 0.55 if abduction_context else 0.85
     adjusted_fatal_pressure = _adjust_fatal_pressure_for_context(
         fatal_pressure,
+        abduction_context=abduction_context,
+        violence_count=violence_count,
+        policy=policy,
+    )
+    adjusted_fatal_without_descendant_aspects = _adjust_fatal_pressure_for_context(
+        fatal_pressure_before_descendant_aspects,
         abduction_context=abduction_context,
         violence_count=violence_count,
         policy=policy,
@@ -1256,6 +1425,16 @@ def compute_survivability(
         vitality_score + accidental_score + support_score + recovery_support_score + lunar_score - (danger_score * danger_weight) - adjusted_fatal_pressure,
         2,
     )
+    net_score_without_descendant_aspects = round(
+        vitality_score
+        + accidental_score
+        + support_score
+        + recovery_support_score
+        + lunar_score
+        - (danger_before_descendant_aspects * danger_weight)
+        - adjusted_fatal_without_descendant_aspects,
+        2,
+    )
     net_score_without_light = round(
         vitality_score + accidental_score + support_score + recovery_support_without_light + lunar_score - (danger_score * danger_weight) - adjusted_fatal_without_light,
         2,
@@ -1281,6 +1460,25 @@ def compute_survivability(
         net_score=net_score,
         adjusted_fatal_pressure=adjusted_fatal_pressure,
         danger_score=danger_score,
+        abduction_context=abduction_context,
+        policy=policy,
+    )
+    level_without_descendant_aspects = _classify_survivability_level(
+        net_score=net_score_without_descendant_aspects,
+        adjusted_fatal_pressure=adjusted_fatal_without_descendant_aspects,
+        danger_score=danger_before_descendant_aspects,
+        recovery_support_score=recovery_support_score,
+        support_score=support_score,
+        abduction_context=abduction_context,
+        violent_context=violent_context,
+        fatal_mechanism_context=fatal_mechanism_context_without_descendant_aspects,
+        policy=policy,
+    )
+    outcome_band_without_descendant_aspects = _classify_survivability_band(
+        level=level_without_descendant_aspects,
+        net_score=net_score_without_descendant_aspects,
+        adjusted_fatal_pressure=adjusted_fatal_without_descendant_aspects,
+        danger_score=danger_before_descendant_aspects,
         abduction_context=abduction_context,
         policy=policy,
     )
@@ -1377,6 +1575,34 @@ def compute_survivability(
         "band_changed": outcome_band != outcome_band_before_secondary,
         "evidence": list(dict.fromkeys(secondary_recovery_evidence + secondary_fatal_evidence))[:8],
     }
+    descendant_aspect_impact = {
+        "enabled": bool(policy.descendant_aspects_enabled),
+        "scope": "descendant_only",
+        "harm_context_eligible": descendant_aspect_harm_context,
+        "eligibility_reason": (
+            "independent_harm_context_present"
+            if descendant_aspect_harm_context
+            else "no_independent_harm_context"
+        ),
+        "candidate_danger_delta": round(descendant_aspect_candidate_danger, 2),
+        "candidate_raw_fatal_pressure": round(descendant_aspect_candidate_fatal, 2),
+        "danger_delta": round(descendant_aspect_danger, 2),
+        "fatal_pressure_delta": round(
+            adjusted_fatal_pressure - adjusted_fatal_without_descendant_aspects,
+            2,
+        ),
+        "raw_fatal_pressure_delta": round(descendant_aspect_fatal, 2),
+        "score_without_descendant_aspects": net_score_without_descendant_aspects,
+        "score_delta": round(net_score - net_score_without_descendant_aspects, 2),
+        "level_without_descendant_aspects": level_without_descendant_aspects,
+        "outcome_band_without_descendant_aspects": outcome_band_without_descendant_aspects,
+        "level_changed": level != level_without_descendant_aspects,
+        "band_changed": outcome_band != outcome_band_without_descendant_aspects,
+        "transport_fatal_gate_activated": descendant_aspect_transport_context,
+        "contacts": descendant_aspect_contacts,
+        "evidence": descendant_aspect_evidence,
+        "phase_note": "Applying/separating is unavailable because the forensic feature payload contains a static angle snapshot.",
+    }
     context_calibration = {
         "healthcare_child_context": bool(healthcare_child_context),
         "institutional_child_fatal_context": bool(institutional_child_fatal_context),
@@ -1403,11 +1629,16 @@ def compute_survivability(
             "abduction_context": bool(abduction_context),
             "violent_context": bool(violent_context),
             "fatal_mechanism_context": bool(fatal_mechanism_context),
+            "fatal_mechanism_context_without_descendant_aspects": bool(
+                fatal_mechanism_context_without_descendant_aspects
+            ),
+            "descendant_aspect_transport_context": descendant_aspect_transport_context,
             "mechanism_flags": mechanism_flags,
             "danger_weight": danger_weight,
         },
         "light_mediation_impact": light_mediation_impact,
         "secondary_factor_impact": secondary_factor_impact,
+        "descendant_aspect_impact": descendant_aspect_impact,
         "context_calibration": context_calibration,
         "breakdown": {
             "vitality": round(vitality_score, 2),
@@ -1418,7 +1649,9 @@ def compute_survivability(
             "secondary_recovery_support": round(secondary_recovery_score, 2),
             "moon": round(lunar_score, 2),
             "danger": round(danger_score, 2),
+            "descendant_aspect_danger": round(descendant_aspect_danger, 2),
             "fatal_pressure": round(adjusted_fatal_pressure, 2),
+            "descendant_aspect_fatal_pressure": round(descendant_aspect_fatal, 2),
             "secondary_fatal_pressure": round(secondary_fatal_score, 2),
         },
         "evidence": {
@@ -1430,6 +1663,7 @@ def compute_survivability(
             "secondary_factors": list(dict.fromkeys(secondary_recovery_evidence + secondary_fatal_evidence))[:8],
             "moon": lunar_evidence,
             "danger": danger_evidence,
+            "descendant_aspects": descendant_aspect_evidence,
             "fatal_pressure": fatal_evidence,
         },
         "note": note,
