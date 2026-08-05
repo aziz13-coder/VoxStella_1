@@ -1,4 +1,32 @@
 export const WHATS_NEW_RELEASES = {
+  '3.1.15': {
+    version: '3.1.15',
+    publishedAt: '2026-08-05',
+    headline: 'Compact resized windows and faster Astro Clock workflows',
+    summary: 'This update keeps dashboard tiles dense and useful when the desktop window is resized, preserves desktop navigation at practical widths, and reduces repeated work when Astro Clock features and saved snaps are opened.',
+    items: [
+      {
+        title: 'Right-sized dashboard tiles',
+        tag: 'Improved',
+        body: 'Compact desktop windows now use smaller tile padding, icons, and type with three- and five-column layouts, removing the large empty areas around short labels.',
+      },
+      {
+        title: 'Desktop navigation stays available',
+        tag: 'Fixed',
+        body: 'The top navigation now remains visible in normally resized desktop windows, with a compact treatment before the mobile bottom bar is needed.',
+      },
+      {
+        title: 'Faster Astro Clock entry',
+        tag: 'Improved',
+        body: 'Astro Clock and its largest advanced workspaces now load on demand, keeping the main dashboard lighter without changing the full workspace experience.',
+      },
+      {
+        title: 'Quicker saved-snap retrieval',
+        tag: 'Improved',
+        body: 'Saved Astro Clock snap responses reuse normalized projections and avoid repeated storage work while preserving the existing API contract.',
+      },
+    ],
+  },
   '3.1.14': {
     version: '3.1.14',
     publishedAt: '2026-08-04',
