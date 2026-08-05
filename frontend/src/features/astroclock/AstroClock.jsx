@@ -21,13 +21,6 @@ import ReceptionsTile from './ReceptionsTile.jsx';
 import MetricsTile from './MetricsTile.jsx';
 import DegreeHitsTile from './DegreeHitsTile.jsx';
 import AlmutenTile from './AlmutenTile.jsx';
-import TraitProfileModal from './TraitProfileModal.jsx';
-import SynastryModal from './SynastryModal.jsx';
-import TransitsModal from './TransitsModal.jsx';
-import ElectionModal from './ElectionModal.jsx';
-import AstrocartographyModal from './AstrocartographyModal.jsx';
-import ChineseAstrologyPage from './ChineseAstrologyPage.jsx';
-import BirthCertificationModal from './BirthCertificationModal.jsx';
 import { transformDashboard, degString, aspectSymbol } from './transform.mjs';
 import { buildSolarConditionEntries } from './solarConditions.mjs';
 import {
@@ -83,6 +76,24 @@ import {
 } from './savedSnapViewModel.mjs';
 import { shouldGatePremiumFeature } from '../../utils/premiumAccess.mjs';
 import { ClipboardCopy } from 'lucide-react';
+
+const TraitProfileModal = React.lazy(() => import('./TraitProfileModal.jsx'));
+const SynastryModal = React.lazy(() => import('./SynastryModal.jsx'));
+const TransitsModal = React.lazy(() => import('./TransitsModal.jsx'));
+const ElectionModal = React.lazy(() => import('./ElectionModal.jsx'));
+const AstrocartographyModal = React.lazy(() => import('./AstrocartographyModal.jsx'));
+const ChineseAstrologyPage = React.lazy(() => import('./ChineseAstrologyPage.jsx'));
+const BirthCertificationModal = React.lazy(() => import('./BirthCertificationModal.jsx'));
+
+function FeatureWorkspaceFallback() {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" role="status" aria-live="polite">
+      <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white px-5 py-4 text-sm text-zinc-700 shadow-xl">
+        Opening workspace…
+      </div>
+    </div>
+  );
+}
 
 // Robust clipboard helper for Electron/packaged builds
 async function safeCopyText(text) {
@@ -997,6 +1008,7 @@ const AstroClock = ({
   const [hours, setHours] = useState(() => initialWarmState.hours || null);
   const [loading, setLoading] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [snapSaveNotice, setSnapSaveNotice] = useState('');
   const [clockLoadError, setClockLoadError] = useState('');
   const [includeModern, setIncludeModern] = useState(() => Boolean(initialWarmState.includeModern));
   const [chartLens, setChartLens] = useState(() => {
@@ -2536,6 +2548,7 @@ const AstroClock = ({
 
     const idempotencyKey = createSnapIdempotencyKey();
     setSnapSaving(true);
+    setSnapSaveNotice('');
     const pendingSave = (async () => {
       // Avoid window.prompt in packaged builds; generate a friendly default label
       const ts = data?.timestamp || new Date().toISOString();
@@ -2575,6 +2588,7 @@ const AstroClock = ({
         const nextSnapId = String(res?.data?.id || res?.id || '');
         if (nextSnapId) setActiveSnapId(nextSnapId);
         await refreshSnaps();
+        setSnapSaveNotice(`Saved “${String(res?.data?.label || label)}”. It is now first in Saved Snaps.`);
         return {
           success: true,
           id: nextSnapId,
@@ -2583,6 +2597,7 @@ const AstroClock = ({
       } catch (error) {
         console.error('Failed to create Astro Clock snap', error);
         const message = getActionErrorMessage(error, 'Failed to save this chart as a snap.');
+        setSnapSaveNotice('');
         setActionError(message);
         return {
           success: false,
@@ -3136,6 +3151,11 @@ const AstroClock = ({
             {actionError}
           </div>
         )}
+        {!actionError && snapSaveNotice ? (
+          <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800" role="status" aria-live="polite">
+            {snapSaveNotice}
+          </div>
+        ) : null}
         {!actionError && clockLoadError && !suppressRealtimeBackendDropBanner && (
           <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
             {clockLoadError}
@@ -3674,39 +3694,40 @@ const AstroClock = ({
           onRefreshSnaps={refreshSnaps}
         />
       )}
-      {showChineseAstrology && (
-        <ChineseAstrologyPage
-          onClose={handleCloseChineseAstrology}
-          snaps={snaps}
-          activeSnapId={activeSnapId || inferredActiveSnapId || ''}
-          loadingSnaps={loadingSnaps}
-          snapsLoaded={snapsLoaded}
-          onRefreshSnaps={refreshSnaps}
-        />
-      )}
-      {showBirthCertification && (
-        <BirthCertificationModal
-          open={showBirthCertification}
-          onClose={handleCloseBirthCertification}
-          mode={mode}
-          manualIso={activeManualIso}
-          manualLocation={activeSnapContext?.location || data?.location || manualLocation || autoLocation}
-          timezone={data?.timezone || activeSnapContext?.timezone || null}
-          latitude={mode === 'manual'
-            ? (activeSnapContext?.latitude ?? finiteNumberOrUndefined(activeManualContextRef.current?.latitude))
-            : (activeSnapContext?.latitude ?? finiteNumberOrUndefined(data?.latitude))}
-          longitude={mode === 'manual'
-            ? (activeSnapContext?.longitude ?? finiteNumberOrUndefined(activeManualContextRef.current?.longitude))
-            : (activeSnapContext?.longitude ?? finiteNumberOrUndefined(data?.longitude))}
-          houseSystem={houseSystem}
-          chartSnapshot={data}
-          snaps={snaps}
-          activeSnapId={activeSnapId || inferredActiveSnapId || ''}
-          loadingSnaps={loadingSnaps}
-          snapsLoaded={snapsLoaded}
-          onRefreshSnaps={refreshSnaps}
-        />
-      )}
+      <React.Suspense fallback={<FeatureWorkspaceFallback />}>
+        {showChineseAstrology && (
+          <ChineseAstrologyPage
+            onClose={handleCloseChineseAstrology}
+            snaps={snaps}
+            activeSnapId={activeSnapId || inferredActiveSnapId || ''}
+            loadingSnaps={loadingSnaps}
+            snapsLoaded={snapsLoaded}
+            onRefreshSnaps={refreshSnaps}
+          />
+        )}
+        {showBirthCertification && (
+          <BirthCertificationModal
+            open={showBirthCertification}
+            onClose={handleCloseBirthCertification}
+            mode={mode}
+            manualIso={activeManualIso}
+            manualLocation={activeSnapContext?.location || data?.location || manualLocation || autoLocation}
+            timezone={data?.timezone || activeSnapContext?.timezone || null}
+            latitude={mode === 'manual'
+              ? (activeSnapContext?.latitude ?? finiteNumberOrUndefined(activeManualContextRef.current?.latitude))
+              : (activeSnapContext?.latitude ?? finiteNumberOrUndefined(data?.latitude))}
+            longitude={mode === 'manual'
+              ? (activeSnapContext?.longitude ?? finiteNumberOrUndefined(activeManualContextRef.current?.longitude))
+              : (activeSnapContext?.longitude ?? finiteNumberOrUndefined(data?.longitude))}
+            houseSystem={houseSystem}
+            chartSnapshot={data}
+            snaps={snaps}
+            activeSnapId={activeSnapId || inferredActiveSnapId || ''}
+            loadingSnaps={loadingSnaps}
+            snapsLoaded={snapsLoaded}
+            onRefreshSnaps={refreshSnaps}
+          />
+        )}
         {showTraits && (
           <TraitProfileModal
             onClose={handleCloseTraitProfile}
@@ -3769,6 +3790,7 @@ const AstroClock = ({
           onCreateSnap={doSnap}
         />
       )}
+      </React.Suspense>
       <PremiumOfferModal
         open={Boolean(premiumOfferFeature)}
         featureName={premiumOfferFeature}

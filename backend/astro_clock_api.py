@@ -5509,9 +5509,29 @@ def create_snap():
 @_error_handler
 def list_snaps():
     store = _snaps()
+    list_with_metadata = getattr(store, 'list_with_metadata', None)
+    if callable(list_with_metadata):
+        raw_items, migration_report = list_with_metadata()
+    else:
+        raw_items = store.list()
+        migration_report = (
+            store.migration_report()
+            if callable(getattr(store, 'migration_report', None))
+            else {}
+        )
     items = []
-    for raw_snap in store.list():
-        snap = _hydrate_snap_payload(raw_snap, infer_coordinates=False)
+    for raw_snap in raw_items:
+        is_canonical_listing = (
+            isinstance(raw_snap, dict)
+            and raw_snap.get('schema_version') == SNAP_RECORD_SCHEMA_VERSION
+            and isinstance(raw_snap.get('calculation_context'), dict)
+            and isinstance(raw_snap.get('coordinate_provenance'), dict)
+        )
+        snap = (
+            raw_snap
+            if is_canonical_listing
+            else _hydrate_snap_payload(raw_snap, infer_coordinates=False)
+        )
         if not snap:
             continue
         dashboard = snap.get('dashboard') if isinstance(snap, dict) else {}
@@ -5527,11 +5547,27 @@ def list_snaps():
             **(snap.get('summary') or {}),
             'profile_hint': snap.get('profile_hint') or (snap.get('summary') or {}).get('profile_hint'),
         }
+        resolved_context = snap.get('resolved_context')
+        if not isinstance(resolved_context, dict):
+            saved_coords = latitude is not None and longitude is not None
+            coordinate_provenance = dict(snap.get('coordinate_provenance') or {})
+            resolved_context = {
+                'latitude': float(latitude) if latitude is not None else None,
+                'longitude': float(longitude) if longitude is not None else None,
+                'timezone': timezone_value,
+                'timezone_label': timezone_label,
+                'coordinate_provenance': coordinate_provenance,
+                'chart_native': bool(
+                    saved_coords
+                    and coordinate_provenance.get('persisted_with_chart', True)
+                ),
+            }
         if certification_summary:
             summary['certification'] = certification_summary
         items.append({
             'id': snap.get('id'),
             'label': snap.get('label'),
+            'created_at': snap.get('created_at'),
             'schema_version': snap.get('schema_version'),
             'effective_datetime': snap.get('effective_datetime'),
             'local_datetime': snap.get('local_datetime'),
@@ -5540,7 +5576,7 @@ def list_snaps():
             'timezone_label': timezone_label,
             'coordinate_provenance': snap.get('coordinate_provenance'),
             'calculation_context': snap.get('calculation_context'),
-            'resolved_context': snap.get('resolved_context'),
+            'resolved_context': resolved_context,
             'duplicate_group': snap.get('duplicate_group'),
             'superseded_by': snap.get('superseded_by'),
             'summary': summary,
@@ -5552,13 +5588,12 @@ def list_snaps():
                 'longitude': longitude if longitude is not None else (dashboard or {}).get('longitude'),
             },
         })
+    items.sort(
+        key=lambda item: str(item.get('created_at') or ''),
+        reverse=True,
+    )
     # Frontend expects success flag and top-level items
     from flask import jsonify as _j
-    migration_report = (
-        store.migration_report()
-        if callable(getattr(store, 'migration_report', None))
-        else {}
-    )
     return _j({
         'success': True,
         'items': items,

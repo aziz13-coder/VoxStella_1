@@ -145,6 +145,7 @@ export default function TraitProfileModal({
   snapsLoaded = true,
   onRefreshSnaps,
 }){
+  const dialogRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [data, setData] = useState(null);
@@ -693,6 +694,19 @@ export default function TraitProfileModal({
     return () => document.removeEventListener('mousedown', onDoc);
   }, [domainOpen]);
 
+  useEffect(() => {
+    const previouslyFocused = document.activeElement;
+    dialogRef.current?.focus();
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') onClose?.();
+    };
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('keydown', closeOnEscape);
+      previouslyFocused?.focus?.();
+    };
+  }, [onClose]);
+
   const allTraits = rawTraits;
   const backendTopTraits = useMemo(() => Array.isArray(data?.top_traits) ? data.top_traits : [], [data?.top_traits]);
   const backendSummaryTraits = useMemo(() => Array.isArray(data?.summary_traits) ? data.summary_traits : [], [data?.summary_traits]);
@@ -774,6 +788,11 @@ export default function TraitProfileModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="trait-profile-title"
+        tabIndex={-1}
         className="max-w-6xl relative flex w-full flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_30px_80px_rgba(20,20,18,0.18),0_4px_16px_rgba(20,20,18,0.06)]"
         style={{ width: 'min(1380px, 96vw)', maxWidth: 1380, height: 'min(900px, 92vh)' }}
       >
@@ -958,9 +977,9 @@ function TraitProfileHeader({ copied, copying, disabled, modeLabel, onClose, onC
         </div>
         <div className="min-w-0">
           <Micro className="block text-emerald-700">Astro Clock / Trait Profile</Micro>
-          <div className="mt-1 font-serif text-[18px] leading-snug text-zinc-950">
+          <h2 id="trait-profile-title" className="mt-1 font-serif text-[18px] leading-snug text-zinc-950">
             Single-chart trait profile <span className="italic text-zinc-500">and domain map</span>
-          </div>
+          </h2>
         </div>
       </div>
       <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2">

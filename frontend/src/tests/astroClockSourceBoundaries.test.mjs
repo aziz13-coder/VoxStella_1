@@ -8,8 +8,28 @@ describe('AstroClock source boundaries', () => {
   it('keeps AstroClock routed through the feature module instead of a stale inline App component', () => {
     const appSource = readFileSync(resolve(process.cwd(), 'src/App.jsx'), 'utf8');
 
-    expect(appSource).toContain("import AstroClockPage from './features/astroclock/AstroClock.jsx';");
+    expect(appSource).toContain("React.lazy(() => import('./features/astroclock/AstroClock.jsx'))");
+    expect(appSource).toContain('<React.Suspense');
     expect(appSource).not.toMatch(/\bconst\s+AstroClock\s*=\s*\(/);
+  });
+
+  it('loads advanced Astro Clock workspaces only when they are opened', () => {
+    const astroClockSource = readFileSync(
+      resolve(process.cwd(), 'src/features/astroclock/AstroClock.jsx'),
+      'utf8',
+    );
+
+    expect(astroClockSource).toContain("React.lazy(() => import('./TraitProfileModal.jsx'))");
+    expect(astroClockSource).toContain("React.lazy(() => import('./ChineseAstrologyPage.jsx'))");
+    expect(astroClockSource).toContain('<React.Suspense fallback={<FeatureWorkspaceFallback />}>');
+  });
+
+  it('resets document scrolling whenever the active workspace changes', () => {
+    const appSource = readFileSync(resolve(process.cwd(), 'src/App.jsx'), 'utf8');
+
+    expect(appSource).toContain('document.documentElement.scrollTop = 0');
+    expect(appSource).toContain('document.body.scrollTop = 0');
+    expect(appSource).toMatch(/}, \[currentView\]\);/);
   });
 
   it('keeps the unfinished Research workspace behind the dev-only frontend gate', () => {

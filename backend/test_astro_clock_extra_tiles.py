@@ -1039,6 +1039,10 @@ def test_create_snap_and_list_snaps_preserve_saved_context(monkeypatch):
     assert store.items[0]["latitude"] == 31.778
     assert store.items[0]["longitude"] == 35.235
     assert listing["success"] is True
+    assert listing["items"][0]["created_at"] == store.items[0]["created_at"]
+    assert listing["items"][0]["resolved_context"]["latitude"] == 31.778
+    assert listing["items"][0]["resolved_context"]["longitude"] == 35.235
+    assert listing["items"][0]["resolved_context"]["chart_native"] is True
     assert listing["items"][0]["dashboard"] == {
         "timezone": "Asia/Jerusalem",
         "timezone_label": "Asia/Jerusalem (UTC+03:00)",
@@ -1223,6 +1227,39 @@ def test_list_and_detail_share_canonical_legacy_hydration(monkeypatch):
     ):
         assert listing[key] == detail[key]
     assert listing["effective_datetime"] == "2001-02-03T12:15:00+00:00"
+
+
+def test_list_snaps_orders_most_recent_save_first(monkeypatch):
+    client = app_module.app.test_client()
+    older = {
+        "schema_version": 2,
+        "id": "older",
+        "label": "Older save",
+        "created_at": "2026-04-20T10:00:00+00:00",
+        "effective_datetime": "2027-01-01T00:00:00+00:00",
+        "timezone": "UTC",
+        "dashboard": {},
+    }
+    newer = {
+        "schema_version": 2,
+        "id": "newer",
+        "label": "Newer save",
+        "created_at": "2026-04-21T10:00:00+00:00",
+        "effective_datetime": "2001-01-01T00:00:00+00:00",
+        "timezone": "UTC",
+        "dashboard": {},
+    }
+
+    class DummyStore:
+        def list_with_metadata(self):
+            return [older, newer], {"record_count": 2}
+
+    monkeypatch.setattr(astro_clock_api, "_snaps", lambda: DummyStore())
+
+    payload = client.get("/api/astro-clock/snaps").get_json()
+
+    assert [item["id"] for item in payload["items"]] == ["newer", "older"]
+    assert payload["migration_report"] == {"record_count": 2}
 
 
 def test_specific_snap_bundle_reuses_hydrated_snap_coordinates(monkeypatch):

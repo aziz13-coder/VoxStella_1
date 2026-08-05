@@ -32,11 +32,12 @@ import ErrorBoundary from './ErrorBoundary.jsx';
 import LicenseActivationSection from './components/LicenseActivationSection.jsx';
 import McpIntegrationSection from './components/McpIntegrationSection.jsx';
 import WhatsNewModal from './components/WhatsNewModal.jsx';
-import AstroClockPage from './features/astroclock/AstroClock.jsx';
 import LostObjectLocationPanel from './features/horary/LostObjectLocationPanel.jsx';
 import { shouldShowLostObjectLocationTab } from './features/horary/lostObjectLocation.mjs';
 import { getWhatsNewRelease } from './content/whatsNew.mjs';
 import { markWhatsNewSeen, shouldShowWhatsNew } from './utils/whatsNew.mjs';
+
+const AstroClockPage = React.lazy(() => import('./features/astroclock/AstroClock.jsx'));
 
 import { 
   Calendar, 
@@ -1120,6 +1121,12 @@ const VoxStellaApp = () => {
     }
   }, [currentView]);
 
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (document.documentElement) document.documentElement.scrollTop = 0;
+    if (document.body) document.body.scrollTop = 0;
+  }, [currentView]);
+
   const toggleDarkMode = () => {
     const newMode = !darkMode;
     setDarkMode(newMode);
@@ -1258,14 +1265,22 @@ const VoxStellaApp = () => {
         )}
         {currentView === 'astro-clock' && (
           <ErrorBoundary>
-            <AstroClockPage
-              darkMode={darkMode}
-              setCurrentView={setCurrentView}
-              apiStatus={apiStatus}
-              licenseActive={!!license.active}
-              licenseChecking={!!license.checking}
-              onLicenseChanged={(s) => setLicense({ ...(s || { active: false, plan: 'standard' }), checking: false })}
-            />
+            <React.Suspense fallback={(
+              <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8" role="status" aria-live="polite">
+                <div className="rounded-2xl border border-gray-200 bg-white/80 px-5 py-8 text-center text-sm text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800/80 dark:text-gray-300">
+                  Loading Astro Clock…
+                </div>
+              </div>
+            )}>
+              <AstroClockPage
+                darkMode={darkMode}
+                setCurrentView={setCurrentView}
+                apiStatus={apiStatus}
+                licenseActive={!!license.active}
+                licenseChecking={!!license.checking}
+                onLicenseChanged={(s) => setLicense({ ...(s || { active: false, plan: 'standard' }), checking: false })}
+              />
+            </React.Suspense>
           </ErrorBoundary>
         )}
         {SHOW_RESEARCH_WORKSPACE && currentView === 'research' && (
@@ -1347,7 +1362,7 @@ const Header = ({ darkMode, toggleDarkMode, currentView, setCurrentView, apiStat
           </div>
 
           {/* Unified Navigation Bar */}
-          <div className="hidden lg:block">
+          <div className="hidden min-[900px]:block">
             <UnifiedNavigationBar
               currentView={currentView}
               setCurrentView={setCurrentView}
@@ -1398,7 +1413,7 @@ const UnifiedNavigationBar = ({ currentView, setCurrentView, darkMode }) => {
   ];
 
   return (
-    <div className="flex items-center bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-full px-4 py-2 shadow-sm border border-gray-200/50 dark:border-gray-700/50">
+    <div className="flex items-center rounded-full border border-gray-200/50 bg-white/90 px-2 py-1.5 shadow-sm backdrop-blur-xl dark:border-gray-700/50 dark:bg-gray-800/90 min-[1100px]:px-4 min-[1100px]:py-2">
       <div className="flex items-center space-x-1">
         {segments.map(({ id, label, primary }) => {
           const isActive = currentView === id;
@@ -1408,7 +1423,7 @@ const UnifiedNavigationBar = ({ currentView, setCurrentView, darkMode }) => {
               key={id}
               onClick={() => setCurrentView(id)}
               className={`
-                px-4 py-2 rounded-full font-medium transition-all duration-200 text-sm whitespace-nowrap
+                whitespace-nowrap rounded-full px-2.5 py-2 text-xs font-medium transition-all duration-200 min-[1100px]:px-4 min-[1100px]:text-sm
                 ${isActive
                   ? 'bg-blue-600 text-white shadow-md'
                   : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50'
@@ -1474,10 +1489,10 @@ const Dashboard = ({ charts, setCurrentView, setCurrentChart, darkMode, apiStatu
   }, [charts]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
 
       {/* Unified Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+      <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 min-[900px]:grid-cols-5 min-[900px]:gap-3 lg:gap-6">
         {/* Stat Cards */}
         <UnifiedCard
           icon={Clock}
@@ -1607,31 +1622,34 @@ const Dashboard = ({ charts, setCurrentView, setCurrentChart, darkMode, apiStatu
 const UnifiedCard = ({ icon: Icon, title, value, onClick, type = 'stat', darkMode }) => {
   const isAction = type === 'action';
   
+  const CardElement = isAction ? 'button' : 'div';
+
   return (
-    <div 
+    <CardElement
+      type={isAction ? 'button' : undefined}
       className={`
-        bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700
+        w-full bg-white dark:bg-gray-800 rounded-xl p-4 min-[1100px]:p-6 border border-gray-200 dark:border-gray-700 text-left
         ${isAction ? 'cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-200' : ''}
       `}
       onClick={isAction ? onClick : undefined}
     >
       {/* Blue Icon Circle */}
-      <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center mb-4">
-        <Icon className="w-6 h-6 text-white" />
+      <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 min-[1100px]:mb-4 min-[1100px]:h-12 min-[1100px]:w-12">
+        <Icon className="h-5 w-5 text-white min-[1100px]:h-6 min-[1100px]:w-6" />
       </div>
       
       {/* Title */}
-      <h3 className="text-lg font-semibold text-blue-600 dark:text-blue-400 mb-2">
+      <h3 className="mb-2 text-sm font-semibold text-blue-600 dark:text-blue-400 min-[1100px]:text-lg">
         {title}
       </h3>
       
       {/* Value (for stats only) */}
       {value && (
-        <p className="text-2xl font-bold text-gray-900 dark:text-white">
+        <p className="text-xl font-bold text-gray-900 dark:text-white min-[1100px]:text-2xl">
           {value}
         </p>
       )}
-    </div>
+    </CardElement>
   );
 };
 
@@ -2286,7 +2304,7 @@ const EnhancedChartCasting = ({
   */
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
       <div className="mb-8">
         <h2 className="text-3xl font-bold mb-2">Cast a Horary Chart</h2>
         <p className="text-gray-600 dark:text-gray-300">
@@ -5796,7 +5814,7 @@ const Timeline = ({ charts, setCurrentChart, setCurrentView, darkMode, licenseAc
       </div>
 
       {/* Filters */}
-      <div className={`${cardBg} border rounded-2xl p-6 mb-8`}>
+      <div className={`${cardBg} mb-8 rounded-2xl border p-4 sm:p-6`}>
         <div className="flex flex-wrap gap-4 items-center justify-between">
           <div className="flex flex-wrap gap-2">
             <span className="text-sm font-medium text-gray-700 dark:text-gray-300 mr-2">Tags:</span>
@@ -6441,7 +6459,7 @@ const Settings = ({ darkMode, toggleDarkMode, setCurrentView, apiStatus, onRefre
     .filter(section => !['Enhanced Features', 'Advanced Horary Configuration'].includes(section.title));
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-4xl mx-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
       <div className="mb-8">
         <button 
           onClick={() => setCurrentView('dashboard')}
@@ -6455,32 +6473,34 @@ const Settings = ({ darkMode, toggleDarkMode, setCurrentView, apiStatus, onRefre
       </div>
 
       {/* API Status */}
-      <div className={`${cardBg} border rounded-2xl p-6 mb-8`}>
+      <div className={`${cardBg} mb-8 rounded-2xl border p-4 sm:p-6`}>
         <h3 className="text-lg font-semibold mb-4 flex items-center">
           <Globe className="w-5 h-5 mr-2" />
           API Connection
         </h3>
         
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-3">
-            <div className={`w-3 h-3 rounded-full ${
+        <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-start gap-3 sm:items-center">
+            <div className={`mt-1 h-3 w-3 shrink-0 rounded-full sm:mt-0 ${
               apiStatus === 'connected' ? 'bg-emerald-500' : 
               apiStatus === 'offline' ? 'bg-red-500' : 'bg-amber-500'
             }`}></div>
-            <span className="font-medium">
-              {apiStatus === 'connected' ? 'API Connected' : 
-               apiStatus === 'offline' ? 'API Offline' : 'Checking...'}
-            </span>
-            <span className="text-sm text-gray-600 dark:text-gray-300">
-              {apiStatus === 'connected' ? 'Horary Engine available' : 'Using demo mode'}
-            </span>
+            <div className="min-w-0">
+              <div className="font-medium">
+                {apiStatus === 'connected' ? 'API Connected' :
+                 apiStatus === 'offline' ? 'API Offline' : 'Checking...'}
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-300">
+                {apiStatus === 'connected' ? 'Horary Engine available' : 'Using demo mode'}
+              </div>
+            </div>
           </div>
           
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
             <button
               onClick={testApiConnection}
               disabled={loading}
-              className="flex items-center space-x-2 px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded text-sm hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
+              className="flex flex-1 items-center justify-center space-x-2 rounded bg-gray-100 px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-200 disabled:opacity-50 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 sm:flex-none sm:py-1"
             >
               {loading ? <Loader className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
               <span>Test Connection</span>
@@ -6694,7 +6714,7 @@ const Settings = ({ darkMode, toggleDarkMode, setCurrentView, apiStatus, onRefre
             Updates
             <RefreshCw className="w-4 h-4 ml-2 text-indigo-500" />
           </h3>
-          <div className="flex items-center space-x-3 text-sm">
+          <div className="flex flex-wrap items-center gap-3 text-sm">
             <button onClick={checkUpdates} className="px-3 py-1.5 rounded bg-blue-600 text-white hover:bg-blue-700">Check for updates</button>
             {updReady && <button onClick={restartToUpdate} className="px-3 py-1.5 rounded bg-emerald-600 text-white hover:bg-emerald-700">Restart to update</button>}
             <span className="text-gray-600 dark:text-gray-300">{updMsg}</span>
@@ -6708,31 +6728,31 @@ const Settings = ({ darkMode, toggleDarkMode, setCurrentView, apiStatus, onRefre
             <Sparkles className="w-4 h-4 ml-2 text-indigo-500" />
           </h3>
           <div className="space-y-3 text-sm text-gray-600 dark:text-gray-300">
-            <div className="flex justify-between">
+            <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
               <span>App Version</span>
               <span>{appVersion}</span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
               <span>Backend API Version</span>
               <span>{apiVersion?.api_version || 'Unavailable'}</span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
               <span>Engine</span>
               <span>{apiVersion?.engine_version || ENGINE_VERSION_FALLBACK}</span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
               <span>Ephemeris</span>
               <span>Swiss Ephemeris with Enhanced Calculations</span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
               <span>House System</span>
               <span>Regiomontanus (Traditional with Enhanced Motion Awareness)</span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
               <span>Enhanced Features</span>
               <span>9 Advanced Traditional Enhancements</span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
               <span>Classical Sources</span>
               <span>Lilly, Bonatti, Ptolemy, Firmicus, Al-Biruni</span>
             </div>
@@ -6761,11 +6781,12 @@ const Footer = ({ darkMode, currentView, setCurrentView }) => {
     : 'bg-white/90 backdrop-blur-xl border-gray-200';
 
   return (
-    <footer className={`fixed bottom-0 left-0 right-0 z-50 ${footerBg} border-t lg:hidden`}>
+    <footer className={`fixed bottom-0 left-0 right-0 z-50 ${footerBg} border-t min-[900px]:hidden`}>
       <div className={`grid items-center py-2 ${SHOW_RESEARCH_WORKSPACE ? 'grid-cols-7' : 'grid-cols-6'}`}>
         <FooterButton 
           icon={BarChart3} 
-          label="Dashboard" 
+          label="Home"
+          ariaLabel="Dashboard"
           active={currentView === 'dashboard'}
           onClick={() => setCurrentView('dashboard')}
         />

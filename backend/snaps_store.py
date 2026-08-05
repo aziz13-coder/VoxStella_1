@@ -10,11 +10,12 @@ import tempfile
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Optional
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 from uuid import uuid4
 
 try:
     from snapshot_schema import (
+        SNAP_RECORD_SCHEMA_VERSION,
         SNAP_STORE_SCHEMA_VERSION,
         annotate_semantic_duplicates,
         canonicalize_snapshot_record,
@@ -22,6 +23,7 @@ try:
     )
 except ImportError:  # pragma: no cover - package-style test imports
     from .snapshot_schema import (
+        SNAP_RECORD_SCHEMA_VERSION,
         SNAP_STORE_SCHEMA_VERSION,
         annotate_semantic_duplicates,
         canonicalize_snapshot_record,
@@ -243,6 +245,25 @@ class SnapStore:
             self._save_unlocked(migrated)
         return migrated
 
+    def _load_for_read_unlocked(self) -> Dict[str, Any]:
+        """Read a store without repeatedly normalizing an already-current document."""
+        raw = self._load_raw_unlocked()
+        if not self.auto_migrate:
+            return raw
+        records = raw.get("snaps", [])
+        is_current = (
+            raw.get("schema_version") == SNAP_STORE_SCHEMA_VERSION
+            and isinstance(records, list)
+            and all(
+                not isinstance(record, dict)
+                or record.get("schema_version") == SNAP_RECORD_SCHEMA_VERSION
+                for record in records
+            )
+        )
+        if is_current:
+            return raw
+        return self._load_unlocked(migrate=True)
+
     def _save_unlocked(self, data: Dict[str, Any]) -> None:
         parent = os.path.dirname(self.path) or os.getcwd()
         prefix = f".{Path(self.path).name}.{os.getpid()}."
@@ -294,7 +315,7 @@ class SnapStore:
 
     def migration_report(self) -> Dict[str, Any]:
         with _LOCK, self._file_lock():
-            data = self._load_unlocked(migrate=self.auto_migrate)
+            data = self._load_for_read_unlocked()
             return copy.deepcopy(data.get("migration_report") or {})
 
     def add(
@@ -340,14 +361,25 @@ class SnapStore:
 
     def list(self) -> List[Dict[str, Any]]:
         with _LOCK, self._file_lock():
-            data = self._load_unlocked(migrate=self.auto_migrate)
+            data = self._load_for_read_unlocked()
             return copy.deepcopy([
                 snap for snap in data.get("snaps", []) if isinstance(snap, dict)
             ])
 
+    def list_with_metadata(self) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+        """Return snaps and migration metadata from one consistent disk read."""
+        with _LOCK, self._file_lock():
+            data = self._load_for_read_unlocked()
+            return (
+                copy.deepcopy([
+                    snap for snap in data.get("snaps", []) if isinstance(snap, dict)
+                ]),
+                copy.deepcopy(data.get("migration_report") or {}),
+            )
+
     def get(self, snap_id: str) -> Optional[Dict[str, Any]]:
         with _LOCK, self._file_lock():
-            data = self._load_unlocked(migrate=self.auto_migrate)
+            data = self._load_for_read_unlocked()
             for snap in data.get("snaps", []):
                 if isinstance(snap, dict) and snap.get("id") == snap_id:
                     return copy.deepcopy(snap)
